@@ -1,0 +1,237 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+
+// ── Types ──────────────────────────────────────────────
+
+interface Repo {
+  id: number
+  full_name: string // "owner/repo"
+  html_url: string
+  description: string | null
+  stargazers_count: number
+  language: string | null
+  topics: string[]
+}
+
+interface CachedData {
+  data: Repo[]
+  fetchedAt: number
+}
+
+// ── Constants ──────────────────────────────────────────
+
+const CACHE_KEY = 'ai-hot-news'
+const CACHE_TTL = 60 * 60 * 1000 // 60 minutes
+const API_URL =
+  'https://api.github.com/search/repositories?q=topic:artificial-intelligence+topic:machine-learning&sort=stars&order=desc&per_page=5'
+
+// ── Helpers ────────────────────────────────────────────
+
+function formatStars(n: number): string {
+  if (n >= 1000) {
+    const k = n / 1000
+    return k >= 10 ? `${Math.round(k)}k` : `${k.toFixed(1)}k`
+  }
+  return String(n)
+}
+
+/** e.g. "2h", "30m", "1d ago" from last fetch */
+function formatTimeAgo(ms: number): string {
+  const minutes = Math.floor((Date.now() - ms) / 60_000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} 小时前`
+  return `${Math.floor(hours / 24)} 天前`
+}
+
+function getCached(): CachedData | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const parsed: CachedData = JSON.parse(raw)
+    if (Date.now() - parsed.fetchedAt > CACHE_TTL) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function setCache(data: Repo[]) {
+  try {
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ data, fetchedAt: Date.now() } satisfies CachedData)
+    )
+  } catch {
+    // localStorage full or unavailable — ignore
+  }
+}
+
+// ── Component ──────────────────────────────────────────
+
+export function AIHotNews() {
+  const [repos, setRepos] = useState<Repo[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [lastFetch, setLastFetch] = useState<number | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchData() {
+      // 1. Try cache first
+      const cached = getCached()
+      if (cached) {
+        if (!cancelled) {
+          setRepos(cached.data)
+          setLastFetch(cached.fetchedAt)
+          setLoading(false)
+        }
+        return
+      }
+
+      // 2. Fetch from GitHub API
+      try {
+        const res = await fetch(API_URL, {
+          headers: { Accept: 'application/vnd.github+json' },
+        })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json = await res.json()
+        if (!cancelled) {
+          const items = (json.items || []).slice(0, 5) as Repo[]
+          setRepos(items)
+          setLastFetch(Date.now())
+          setCache(items)
+        }
+      } catch {
+        // Fetch failed — silent, don't clutter the page
+        if (!cancelled) {
+          setRepos(null)
+        }
+      }
+
+      if (!cancelled) setLoading(false)
+    }
+
+    fetchData()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // ── Loading skeleton ─────────────────────────────
+  if (loading) {
+    return (
+      <section className="mb-16 lg:mb-20">
+        <div className="rounded-2xl glass p-6 sm:p-8">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="h-5 w-24 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+          </div>
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex gap-3 animate-pulse">
+                <div className="h-5 w-7 rounded bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-48 rounded bg-gray-200 dark:bg-gray-700" />
+                  <div className="h-3 w-full max-w-sm rounded bg-gray-100 dark:bg-gray-800" />
+                </div>
+                <div className="h-4 w-12 rounded bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  // ── Error / no data — silent hide ────────────────
+  if (!repos || repos.length === 0) return null
+
+  // ── Ready ────────────────────────────────────────
+  return (
+    <section className="mb-16 lg:mb-20">
+      <div className="rounded-2xl glass p-5 sm:p-6 lg:p-7">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4 lg:mb-5">
+          <h2 className="text-base lg:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+            <span className="text-lg">🔥</span>
+            AI 热榜
+          </h2>
+          {lastFetch && (
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              更新于 {formatTimeAgo(lastFetch)}
+            </span>
+          )}
+        </div>
+
+        {/* Repo list */}
+        <div className="space-y-1">
+          {repos.map((repo, i) => (
+            <a
+              key={repo.id}
+              href={repo.html_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-3 px-3 py-2.5 -mx-3 rounded-xl hover:bg-pink-50/60 dark:hover:bg-purple-900/30 transition-colors group"
+            >
+              {/* Rank */}
+              <span
+                className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  i === 0
+                    ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
+                    : i === 1
+                      ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white'
+                      : i === 2
+                        ? 'bg-gradient-to-br from-amber-600 to-amber-700 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
+                }`}
+              >
+                {i + 1}
+              </span>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors truncate">
+                  {repo.full_name}
+                </p>
+                {repo.description && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 line-clamp-1">
+                    {repo.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Stars */}
+              <span className="flex-shrink-0 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="text-amber-400"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                {formatStars(repo.stargazers_count)}
+              </span>
+            </a>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-4 pt-4 border-t border-pink-100/60 dark:border-purple-500/20 text-center">
+          <a
+            href="https://github.com/topics/artificial-intelligence"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-pink-500 dark:text-pink-400 hover:text-pink-600 dark:hover:text-pink-300 transition-colors"
+          >
+            在 GitHub 上查看更多 AI 项目 →
+          </a>
+        </div>
+      </div>
+    </section>
+  )
+}

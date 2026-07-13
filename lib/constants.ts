@@ -9,6 +9,9 @@ export const SITE = {
     name: 'Baron_Zhang',
     email: '1977928878@qq.com',
   },
+  /** Custom avatar image path. Place image in public/ folder (e.g. avatar.jpg),
+   *  then set to '/avatar.jpg'. Leave empty to use the default 🌸 emoji. */
+  avatar: '',
   locale: 'zh-CN',
   postsPerPage: 10,
 } as const
