@@ -15,7 +15,7 @@ const publicDir = join(__dirname, '..', 'public')
 // Site configuration
 const siteUrl = 'https://LuVisage.github.io/blog'
 const siteTitle = 'Baron_Zhang'
-const siteDescription = 'Undergraduate in Software Engineering at Taiyuan University of Technology. Currently diving into Artificial Intelligence and Machine Learning.'
+const siteDescription = 'AI 探索者 & Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。'
 const authorName = 'Baron_Zhang'
 const authorEmail = '1977928878@qq.com'
 

@@ -34,7 +34,7 @@ if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
 
 示例：
   node scripts/new-post.mjs "我的第一篇文章"
-  node scripts/new-post.mjs "React 入门" --tags "React,前端" --description "React 基础教程"
+  node scripts/new-post.mjs "AI Agent 开发入门" --tags "AI,Agent" --description "从零开始构建 AI Agent"
   node scripts/new-post.mjs "草稿文章" --draft
 `)
   process.exit(0)
@@ -86,7 +86,7 @@ const frontmatter = [
   `date: '${today}'`,
   description ? `description: '${description}'` : `description: ''`,
   'tags:',
-  tags || '  - 技术',
+  tags || '  - AI',
   draft ? 'draft: true' : '',
   '---',
 ]

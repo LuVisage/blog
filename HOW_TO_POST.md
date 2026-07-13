@@ -26,8 +26,8 @@ date: '2026-07-14'
 description: '文章的简短描述，会显示在列表和 SEO 中'
 tags:
   - AI
-  - 技术
-  - 教程
+  - Agent
+  - LLM
 ---
 ```
 

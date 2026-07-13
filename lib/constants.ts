@@ -2,7 +2,7 @@
 
 export const SITE = {
   title: 'Baron_Zhang',
-  description: 'Undergraduate in Software Engineering at Taiyuan University of Technology. Currently diving into Artificial Intelligence and Machine Learning. Building projects to learn by doing — all feedback and suggestions are warmly welcomed!',
+  description: 'AI 探索者 & Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。',
   url: 'https://LuVisage.github.io/blog',
   repo: 'https://github.com/LuVisage/blog',
   author: {
