@@ -1,15 +1,20 @@
 import type { NextConfig } from 'next'
+import { existsSync } from 'fs'
+import { join } from 'path'
 
 const isGitHubActions = process.env.GITHUB_ACTIONS === 'true'
 const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1] || ''
 
+// If CNAME file exists in public/, we're using a custom domain → no basePath needed
+const hasCustomDomain = existsSync(join(process.cwd(), 'public', 'CNAME'))
+
 const nextConfig: NextConfig = {
   output: 'export',
-  // GitHub Pages project site needs basePath pointing to repo name
-  // For user site (username.github.io) or custom domain, set DEPLOY_TYPE=user
-  basePath: isGitHubActions && process.env.DEPLOY_TYPE !== 'user' ? `/${repoName}` : '',
+  // basePath is only needed for GitHub project pages without custom domain
+  // Custom domain (CNAME exists) or user site → no basePath
+  basePath: isGitHubActions && !hasCustomDomain ? `/${repoName}` : '',
   images: {
-    unoptimized: true, // GitHub Pages doesn't support Next.js image optimization
+    unoptimized: true,
   },
   trailingSlash: true,
 }

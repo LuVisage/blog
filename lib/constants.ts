@@ -3,7 +3,7 @@
 export const SITE = {
   title: 'Baron_Zhang',
   description: 'Undergraduate in Software Engineering at Taiyuan University of Technology. Currently diving into Artificial Intelligence and Machine Learning. Building projects to learn by doing — all feedback and suggestions are warmly welcomed!',
-  url: 'https://LuVisage.github.io',
+  url: 'https://baronzhang.com',
   repo: 'https://github.com/LuVisage/blog',
   author: {
     name: 'Baron_Zhang',

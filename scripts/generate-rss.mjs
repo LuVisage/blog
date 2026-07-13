@@ -13,7 +13,7 @@ const postsDir = join(__dirname, '..', 'content', 'posts')
 const publicDir = join(__dirname, '..', 'public')
 
 // Site configuration
-const siteUrl = 'https://LuVisage.github.io'
+const siteUrl = 'https://baronzhang.com'
 const siteTitle = 'Baron_Zhang'
 const siteDescription = 'Undergraduate in Software Engineering at Taiyuan University of Technology. Currently diving into Artificial Intelligence and Machine Learning.'
 const authorName = 'Baron_Zhang'
