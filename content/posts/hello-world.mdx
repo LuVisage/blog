@@ -1,0 +1,63 @@
+---
+title: 'Hello World - 我的第一篇博客'
+date: '2025-07-13'
+description: '这是我的个人博客的第一篇文章，记录搭建博客的过程和未来的写作计划。'
+tags:
+  - Blog
+  - Next.js
+  - 技术
+---
+
+## 欢迎来到我的博客 🎉
+
+经过一番努力，我的个人博客终于上线了！这篇文章将介绍这个博客的技术栈和我的写作计划。
+
+## 技术栈
+
+这个博客基于以下技术搭建：
+
+- **框架**：Next.js 15 + React 19
+- **内容**：MDX - 在 Markdown 中嵌入 React 组件
+- **样式**：Tailwind CSS + Typography 插件
+- **搜索**：Pagefind - 纯静态全文搜索
+- **评论**：Giscus - 基于 GitHub Discussions
+- **部署**：GitHub Pages
+
+全部 **静态化**，不需要服务器，不需要数据库。
+
+## 代码示例
+
+作为一个程序员博客，代码块是必不可少的：
+
+```typescript
+// Quick sort in TypeScript
+function quickSort(arr: number[]): number[] {
+  if (arr.length <= 1) return arr
+
+  const pivot = arr[Math.floor(arr.length / 2)]
+  const left = arr.filter(x => x < pivot)
+  const middle = arr.filter(x => x === pivot)
+  const right = arr.filter(x => x > pivot)
+
+  return [...quickSort(left), ...middle, ...quickSort(right)]
+}
+
+console.log(quickSort([3, 6, 8, 10, 1, 2, 1]))
+```
+
+## 写作计划
+
+我计划在这里写以下内容：
+
+1. **技术教程** - 前端开发、React、TypeScript 相关
+2. **项目复盘** - 做过的项目的总结与思考
+3. **工具推荐** - 好用的开发工具和效率工具
+4. **读书笔记** - 技术书籍的读后感
+
+## 关于我
+
+一名热爱技术和写作的开发者。在这个博客里，我希望用文字记录下学习和成长的过程。
+
+> "写作是最好的思考方式。"
+
+欢迎通过评论与我交流！

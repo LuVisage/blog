@@ -1,0 +1,27 @@
+# build output
+.next/
+out/
+
+# dependencies
+node_modules/
+
+# misc
+.DS_Store
+*.pem
+
+# env
+.env
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+
+# debug
+npm-debug.log*
+
+# turbo
+.turbo/
+
+# vercel
+.vercel/

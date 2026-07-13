@@ -1,0 +1,250 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   Sakura Dream Theme 🌸
+   ============================================ */
+
+/* ===== Base ===== */
+@layer base {
+  body {
+    @apply text-gray-800 dark:text-gray-100 antialiased;
+    background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 25%, #ede9fe 50%, #e0f2fe 75%, #f0f9ff 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  .dark body,
+  body.dark {
+    background: linear-gradient(135deg, #0f0a1a 0%, #1a0a2e 25%, #0f1729 50%, #0a0a1a 100%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-pink-300/40 dark:bg-pink-500/30;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ===== Background pattern overlay ===== */
+.bg-pattern {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(236, 72, 153, 0.05) 0%, transparent 40%);
+}
+
+.dark .bg-pattern {
+  opacity: 0.6;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(236, 72, 153, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 10% 80%, rgba(236, 72, 153, 0.08) 0%, transparent 40%);
+}
+
+/* ===== Grid texture ===== */
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.15;
+  background-size: 40px 40px;
+  background-image:
+    linear-gradient(to right, rgba(139, 92, 246, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(139, 92, 246, 0.1) 1px, transparent 1px);
+}
+
+.dark .bg-grid {
+  opacity: 0.1;
+  background-image:
+    linear-gradient(to right, rgba(168, 85, 247, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(168, 85, 247, 0.08) 1px, transparent 1px);
+}
+
+/* ===== Glass card ===== */
+.glass {
+  @apply backdrop-blur-xl bg-white/70 dark:bg-purple-950/40;
+  @apply border border-white/50 dark:border-purple-500/20;
+  @apply shadow-lg shadow-pink-100/50 dark:shadow-purple-950/50;
+}
+
+.glass-hover {
+  @apply transition-all duration-300;
+}
+
+.glass-hover:hover {
+  @apply -translate-y-1 shadow-pink dark:shadow-purple;
+  @apply border-pink-200/60 dark:border-purple-500/30;
+}
+
+/* ===== Gradient text ===== */
+.gradient-text {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #06b6d4 100%);
+}
+
+.gradient-text-warm {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(135deg, #f472b6 0%, #ec4899 40%, #c084fc 100%);
+}
+
+/* ===== Prose overrides ===== */
+.prose {
+  @apply max-w-none;
+}
+
+.prose pre {
+  @apply rounded-2xl border border-pink-100 dark:border-purple-500/20 shadow-md;
+  background: #f8fafc !important;
+}
+
+.dark .prose pre {
+  background: #1a1025 !important;
+}
+
+.prose pre code {
+  @apply text-sm leading-relaxed;
+}
+
+.prose img {
+  @apply rounded-2xl shadow-lg;
+}
+
+.prose a {
+  @apply text-pink-600 dark:text-pink-400 decoration-pink-300/50 hover:decoration-pink-500 dark:hover:decoration-pink-300 transition;
+}
+
+.prose blockquote {
+  @apply border-l-pink-400 dark:border-l-pink-500 bg-pink-50/50 dark:bg-purple-950/30 rounded-r-2xl py-1 italic;
+}
+
+/* ===== Code blocks ===== */
+.prose div[data-rehype-pretty-code-fragment] {
+  @apply relative;
+}
+
+.prose div[data-rehype-pretty-code-title] {
+  @apply text-sm text-gray-500 dark:text-gray-400 bg-pink-50 dark:bg-purple-950/50 px-4 py-2 rounded-t-2xl border border-b-0 border-pink-100 dark:border-purple-500/20 font-mono;
+}
+
+.prose div[data-rehype-pretty-code-fragment] pre {
+  @apply my-0;
+}
+
+.prose span[data-highlighted-line] {
+  @apply bg-pink-500/10 dark:bg-pink-500/15 border-l-4 border-pink-400 pl-3 -ml-3;
+}
+
+/* Inline code */
+.prose code:not(pre code) {
+  @apply px-1.5 py-0.5 rounded-lg bg-pink-50 dark:bg-purple-950/50 text-pink-600 dark:text-pink-300 text-sm font-medium;
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar {
+  @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-pink-200 dark:bg-purple-800 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-pink-300 dark:bg-purple-700;
+}
+
+/* ===== Pagefind overrides ===== */
+:root {
+  --pagefind-ui-scale: 1;
+  --pagefind-ui-primary: #ec4899;
+  --pagefind-ui-text: #1e293b;
+  --pagefind-ui-background: #ffffff;
+  --pagefind-ui-border: #fce7f3;
+  --pagefind-ui-border-width: 2px;
+  --pagefind-ui-border-radius: 16px;
+  --pagefind-ui-font: inherit;
+}
+
+.dark {
+  --pagefind-ui-primary: #f472b6;
+  --pagefind-ui-text: #e2e8f0;
+  --pagefind-ui-background: #1a1025;
+  --pagefind-ui-border: #3b0764;
+}
+
+/* ===== Animations ===== */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-8px) rotate(1deg); }
+  66% { transform: translateY(-4px) rotate(-1deg); }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: #ec4899; box-shadow: 0 0 12px rgba(236,72,153,0.3); }
+  50% { border-color: #8b5cf6; box-shadow: 0 0 20px rgba(139,92,246,0.4); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-twinkle {
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out both;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(236,72,153,0.1) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+}
+
+.animate-border-glow {
+  animation: borderGlow 3s ease-in-out infinite;
+}

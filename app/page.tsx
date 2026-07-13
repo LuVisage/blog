@@ -1,0 +1,115 @@
+import { SITE, SOCIAL_LINKS } from '@/lib/constants'
+import { getRecentPosts } from '@/lib/posts'
+import { PostList } from '@/components/post-card'
+
+export default function HomePage() {
+  const posts = getRecentPosts(SITE.postsPerPage)
+
+  return (
+    <div>
+      {/* ======== Hero Section ======== */}
+      <section className="mb-16 lg:mb-20">
+        <div className="relative overflow-hidden rounded-3xl glass p-8 sm:p-12 lg:p-16">
+          {/* Desktop: horizontal layout | Mobile: stacked */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:gap-16 text-center lg:text-left">
+            {/* Avatar */}
+            <div className="flex-shrink-0 mx-auto lg:mx-0 mb-6 lg:mb-0">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full bg-gradient-to-br from-pink-400 via-purple-400 to-cyan-400 p-[3px] animate-border-glow">
+                <div className="w-full h-full rounded-full bg-white dark:bg-purple-950 flex items-center justify-center">
+                  <span className="text-4xl sm:text-5xl lg:text-6xl">🌸</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Text */}
+            <div className="flex-1">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 lg:mb-4">
+                <span className="gradient-text">{SITE.title}</span>
+              </h1>
+              <p className="text-base sm:text-lg lg:text-xl text-gray-500 dark:text-gray-400 max-w-lg lg:max-w-none mx-auto lg:mx-0 mb-6 lg:mb-8 leading-relaxed">
+                {SITE.description}
+              </p>
+
+              {/* Buttons */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
+                {SOCIAL_LINKS.github && (
+                  <a
+                    href={SOCIAL_LINKS.github}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/80 dark:bg-purple-950/50 border border-pink-100 dark:border-purple-500/20 text-sm text-gray-600 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 hover:border-pink-300 dark:hover:border-pink-500/40 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    GitHub
+                  </a>
+                )}
+                <a
+                  href="/posts"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white text-sm font-medium shadow-lg shadow-pink-500/25 hover:shadow-xl hover:shadow-pink-500/40 hover:-translate-y-0.5 transition-all"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                  </svg>
+                  阅读文章
+                </a>
+                {SOCIAL_LINKS.email && (
+                  <a
+                    href={`mailto:${SOCIAL_LINKS.email}`}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/80 dark:bg-purple-950/50 border border-pink-100 dark:border-purple-500/20 text-sm text-gray-600 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 hover:border-pink-300 dark:hover:border-pink-500/40 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                    </svg>
+                    联系我
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Decorative stars */}
+          <div className="absolute top-4 right-4 opacity-20 hidden lg:block">
+            <svg width="50" height="50" viewBox="0 0 40 40" fill="none">
+              <path d="M20 0l4 8 8 2-6 6 1 9-7-4-7 4 1-9-6-6 8-2z" fill="#ec4899" />
+            </svg>
+          </div>
+          <div className="absolute bottom-4 left-4 opacity-20 hidden lg:block">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <path d="M20 0l4 8 8 2-6 6 1 9-7-4-7 4 1-9-6-6 8-2z" fill="#8b5cf6" />
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      {/* ======== Recent Posts ======== */}
+      <section className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+        <div className="flex items-center justify-between mb-6 lg:mb-8">
+          <h2 className="text-lg lg:text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            最新文章
+          </h2>
+          {posts.length > 0 && (
+            <a
+              href="/posts"
+              className="text-sm lg:text-base text-pink-500 dark:text-pink-400 hover:text-pink-600 dark:hover:text-pink-300 transition-colors flex items-center gap-1 font-medium"
+            >
+              查看全部
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </svg>
+            </a>
+          )}
+        </div>
+        <PostList posts={posts} />
+      </section>
+    </div>
+  )
+}
