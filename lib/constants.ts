@@ -29,9 +29,9 @@ export const SOCIAL_LINKS = {
 /** Giscus configuration - replace with your own repo */
 export const GISCUS_CONFIG = {
   repo: 'LuVisage/blog' as `${string}/${string}`,
-  repoId: 'R_kgDO0000000',
+  repoId: 'R_kgDOTXMX8w',
   category: 'Announcements',
-  categoryId: 'DIC_kwDO0000000',
+  categoryId: 'DIC_kwDOTXMX884DBHRb',
   mapping: 'pathname' as const,
   reactionsEnabled: '1' as const,
   emitMetadata: '0' as const,
