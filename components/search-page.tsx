@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import Link from 'next/link'
 
 declare global {
   interface Window {
@@ -189,7 +188,7 @@ export function SearchPage() {
             <ul className="space-y-1">
               {results.map((result) => (
                 <li key={result.url}>
-                  <Link
+                  <a
                     href={result.url}
                     className="flex items-center gap-3 px-3 py-2.5 -mx-3 rounded-xl hover:bg-pink-50/60 dark:hover:bg-purple-900/30 transition-colors group"
                   >
@@ -211,7 +210,7 @@ export function SearchPage() {
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors truncate">
                       {result.title}
                     </span>
-                  </Link>
+                  </a>
                 </li>
               ))}
             </ul>
