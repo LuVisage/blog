@@ -29,16 +29,7 @@ export const SOCIAL_LINKS = {
   email: '1977928878@qq.com',
 } as const
 
-/** Waline comment system config — see https://waline.js.org */
-export const WALINE_CONFIG = {
-  /** Your Waline server URL (deploy to Vercel first: https://vercel.com/new/clone?repository-url=https://github.com/walinejs/waline/tree/main/example) */
-  serverURL: 'https://your-waline.vercel.app',
-  lang: 'zh-CN' as const,
-  /** Follows site dark mode via CSS class */
-  dark: 'html.dark' as const,
-}
-
-/** Giscus configuration - replace with your own repo */
+/** Giscus configuration */
 export const GISCUS_CONFIG = {
   repo: 'LuVisage/blog' as `${string}/${string}`,
   repoId: 'R_kgDOTXMX8w',

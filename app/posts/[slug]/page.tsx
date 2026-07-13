@@ -4,8 +4,7 @@ import { SITE } from '@/lib/constants'
 import { getAllPosts, getPostBySlug, getAdjacentPosts } from '@/lib/posts'
 import { MDXContent } from '@/components/mdx-content'
 import { TagBadge } from '@/components/tag-badge'
-import { WalineComments } from '@/components/waline-comments'
-import { WALINE_CONFIG } from '@/lib/constants'
+import { GiscusComments } from '@/components/giscus-comments'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
@@ -176,11 +175,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
       {/* Comments */}
       <div className="mt-12 max-w-4xl mx-auto">
         <div className="rounded-3xl glass p-6 sm:p-8 lg:p-10">
-          <WalineComments
-            serverURL={WALINE_CONFIG.serverURL}
-            dark={WALINE_CONFIG.dark}
-            lang={WALINE_CONFIG.lang}
-          />
+          <GiscusComments />
         </div>
       </div>
     </>
