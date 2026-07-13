@@ -50,6 +50,20 @@ export function Header() {
           {/* Actions */}
           <div className="flex items-center gap-2">
             <SearchTrigger />
+            {/* Publish article — opens GitHub new-file page */}
+            <a
+              href="https://github.com/LuVisage/blog/new/main/content/posts/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30 border border-pink-200 dark:border-pink-500/20 text-pink-600 dark:text-pink-400 hover:border-pink-400 dark:hover:border-pink-500/50 hover:shadow-sm transition-all"
+              title="在 GitHub 上创建新文章"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              <span className="hidden lg:inline">发布文章</span>
+            </a>
             <ThemeToggle />
 
             {/* Mobile menu button */}
@@ -100,6 +114,20 @@ export function Header() {
                   </Link>
                 )
               })}
+              {/* Mobile publish link */}
+              <a
+                href="https://github.com/LuVisage/blog/new/main/content/posts/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-950/30 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                ✏️ 发布文章
+              </a>
             </div>
           </nav>
         )}

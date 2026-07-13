@@ -60,8 +60,8 @@ export default function RootLayout({
             `,
           }}
         />
-        <link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href="/rss.xml" />
-        <link rel="alternate" type="application/atom+xml" title={`${SITE.title} Atom`} href="/atom.xml" />
+        <link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`} />
+        <link rel="alternate" type="application/atom+xml" title={`${SITE.title} Atom`} href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/atom.xml`} />
         {/* Preconnect for faster Giscus loading */}
         <link rel="preconnect" href="https://giscus.app" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://api.github.com" crossOrigin="anonymous" />

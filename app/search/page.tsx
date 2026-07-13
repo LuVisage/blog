@@ -24,7 +24,7 @@ export default function SearchPage() {
 
       {/* Pagefind search UI */}
       <div className="rounded-3xl glass p-4 sm:p-6">
-        <link href="/_pagefind/pagefind-ui.css" rel="stylesheet" />
+        <link href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/_pagefind/pagefind-ui.css`} rel="stylesheet" />
         <div id="pagefind-search" />
       </div>
 
@@ -34,7 +34,7 @@ export default function SearchPage() {
           __html: `
             (function() {
               var script = document.createElement('script');
-              script.src = '/_pagefind/pagefind-ui.js';
+              script.src = '${process.env.NEXT_PUBLIC_BASE_PATH || ''}/_pagefind/pagefind-ui.js';
               script.onload = function() {
                 new PagefindUI({
                   element: '#pagefind-search',

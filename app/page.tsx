@@ -3,6 +3,7 @@ import { getRecentPosts } from '@/lib/posts'
 import { PostList } from '@/components/post-card'
 import { AIHotNews } from '@/components/ai-hot-news'
 import { AvatarImage } from '@/components/avatar-image'
+import Link from 'next/link'
 
 export default function HomePage() {
   const posts = getRecentPosts(SITE.postsPerPage)
@@ -56,7 +57,7 @@ export default function HomePage() {
                     GitHub
                   </a>
                 )}
-                <a
+                <Link
                   href="/posts"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white text-sm font-medium shadow-lg shadow-pink-500/25 hover:shadow-xl hover:shadow-pink-500/40 hover:-translate-y-0.5 transition-all"
                 >
@@ -65,7 +66,7 @@ export default function HomePage() {
                     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                   </svg>
                   阅读文章
-                </a>
+                </Link>
                 {SOCIAL_LINKS.email && (
                   <a
                     href={`mailto:${SOCIAL_LINKS.email}`}
@@ -78,6 +79,18 @@ export default function HomePage() {
                     联系我
                   </a>
                 )}
+                <a
+                  href="https://github.com/LuVisage/blog/new/main/content/posts/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-500/20 text-sm text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:border-amber-400 dark:hover:border-amber-500/50 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  发布文章
+                </a>
               </div>
             </div>
           </div>
@@ -110,7 +123,7 @@ export default function HomePage() {
             最新文章
           </h2>
           {posts.length > 0 && (
-            <a
+            <Link
               href="/posts"
               className="text-sm lg:text-base text-pink-500 dark:text-pink-400 hover:text-pink-600 dark:hover:text-pink-300 transition-colors flex items-center gap-1 font-medium"
             >
@@ -119,7 +132,7 @@ export default function HomePage() {
                 <path d="M5 12h14" />
                 <path d="m12 5 7 7-7 7" />
               </svg>
-            </a>
+            </Link>
           )}
         </div>
         <PostList posts={posts} />
