@@ -16,9 +16,18 @@ export default function HomePage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:gap-16 text-center lg:text-left">
             {/* Avatar */}
             <div className="flex-shrink-0 mx-auto lg:mx-0 mb-6 lg:mb-0">
-              <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full bg-gradient-to-br from-pink-400 via-purple-400 to-cyan-400 p-[3px] animate-border-glow">
+              <div
+                className="relative group w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full bg-gradient-to-br from-pink-400 via-purple-400 to-cyan-400 p-[3px] animate-border-glow"
+                title="💡 替换头像：将你的照片保存为 public/avatar.jpg"
+              >
                 <div className="w-full h-full rounded-full bg-white dark:bg-purple-950 flex items-center justify-center overflow-hidden">
                   <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
+                </div>
+                {/* Hover hint */}
+                <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <span className="text-white text-[10px] sm:text-xs px-2 text-center leading-tight">
+                    📷 将照片保存为<br /><code className="text-pink-300">public/avatar.jpg</code>
+                  </span>
                 </div>
               </div>
             </div>
