@@ -9,9 +9,9 @@ export const SITE = {
     name: 'Baron_Zhang',
     email: '1977928878@qq.com',
   },
-  /** Custom avatar image path. Place image in public/ folder (e.g. avatar.jpg),
-   *  then set to '/avatar.jpg'. Leave empty to use the default 🌸 emoji. */
-  avatar: '',
+  /** Custom avatar: drop your photo as `avatar.jpg` in the `public/` folder.
+   *  If the image fails to load, the 🌸 emoji is shown automatically. */
+  avatar: '/avatar.jpg',
   locale: 'zh-CN',
   postsPerPage: 10,
 } as const
@@ -28,6 +28,15 @@ export const SOCIAL_LINKS = {
   twitter: '',
   email: '1977928878@qq.com',
 } as const
+
+/** Waline comment system config — see https://waline.js.org */
+export const WALINE_CONFIG = {
+  /** Your Waline server URL (deploy to Vercel first: https://vercel.com/new/clone?repository-url=https://github.com/walinejs/waline/tree/main/example) */
+  serverURL: 'https://your-waline.vercel.app',
+  lang: 'zh-CN' as const,
+  /** Follows site dark mode via CSS class */
+  dark: 'html.dark' as const,
+}
 
 /** Giscus configuration - replace with your own repo */
 export const GISCUS_CONFIG = {

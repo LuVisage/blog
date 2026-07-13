@@ -1,8 +1,8 @@
-import Image from 'next/image'
 import { SITE, SOCIAL_LINKS } from '@/lib/constants'
 import { getRecentPosts } from '@/lib/posts'
 import { PostList } from '@/components/post-card'
 import { AIHotNews } from '@/components/ai-hot-news'
+import { AvatarImage } from '@/components/avatar-image'
 
 export default function HomePage() {
   const posts = getRecentPosts(SITE.postsPerPage)
@@ -18,18 +18,7 @@ export default function HomePage() {
             <div className="flex-shrink-0 mx-auto lg:mx-0 mb-6 lg:mb-0">
               <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full bg-gradient-to-br from-pink-400 via-purple-400 to-cyan-400 p-[3px] animate-border-glow">
                 <div className="w-full h-full rounded-full bg-white dark:bg-purple-950 flex items-center justify-center overflow-hidden">
-                  {SITE.avatar ? (
-                    <Image
-                      src={SITE.avatar}
-                      alt={SITE.author.name}
-                      width={160}
-                      height={160}
-                      className="w-full h-full object-cover"
-                      priority
-                    />
-                  ) : (
-                    <span className="text-4xl sm:text-5xl lg:text-6xl">🌸</span>
-                  )}
+                  <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
                 </div>
               </div>
             </div>
