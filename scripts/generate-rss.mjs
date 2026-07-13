@@ -13,11 +13,11 @@ const postsDir = join(__dirname, '..', 'content', 'posts')
 const publicDir = join(__dirname, '..', 'public')
 
 // Site configuration
-const siteUrl = 'https://yourusername.github.io'
-const siteTitle = 'My Blog'
-const siteDescription = '个人博客 - 记录技术、生活与思考'
-const authorName = 'Author'
-const authorEmail = 'author@example.com'
+const siteUrl = 'https://LuVisage.github.io'
+const siteTitle = 'Baron_Zhang'
+const siteDescription = 'Undergraduate in Software Engineering at Taiyuan University of Technology. Currently diving into Artificial Intelligence and Machine Learning.'
+const authorName = 'Baron_Zhang'
+const authorEmail = '1977928878@qq.com'
 
 function getPosts() {
   if (!existsSync(postsDir)) return []

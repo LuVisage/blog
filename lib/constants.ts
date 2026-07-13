@@ -1,13 +1,13 @@
 /** Site-wide constants */
 
 export const SITE = {
-  title: 'My Blog',
-  description: '个人博客 - 记录技术、生活与思考',
-  url: 'https://yourusername.github.io',
-  repo: 'https://github.com/yourusername/blog',
+  title: 'Baron_Zhang',
+  description: 'Undergraduate in Software Engineering at Taiyuan University of Technology. Currently diving into Artificial Intelligence and Machine Learning. Building projects to learn by doing — all feedback and suggestions are warmly welcomed!',
+  url: 'https://LuVisage.github.io',
+  repo: 'https://github.com/LuVisage/blog',
   author: {
-    name: 'Author',
-    email: 'author@example.com',
+    name: 'Baron_Zhang',
+    email: '1977928878@qq.com',
   },
   locale: 'zh-CN',
   postsPerPage: 10,
@@ -21,14 +21,14 @@ export const NAV_LINKS = [
 ] as const
 
 export const SOCIAL_LINKS = {
-  github: 'https://github.com/yourusername',
+  github: 'https://github.com/LuVisage',
   twitter: '',
-  email: 'author@example.com',
+  email: '1977928878@qq.com',
 } as const
 
 /** Giscus configuration - replace with your own repo */
 export const GISCUS_CONFIG = {
-  repo: 'yourusername/blog' as `${string}/${string}`,
+  repo: 'LuVisage/blog' as `${string}/${string}`,
   repoId: 'R_kgDO0000000',
   category: 'Announcements',
   categoryId: 'DIC_kwDO0000000',
