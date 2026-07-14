@@ -10,14 +10,25 @@
 @layer base {
   body {
     @apply text-gray-800 dark:text-gray-100 antialiased;
-    background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 25%, #ede9fe 50%, #e0f2fe 75%, #f0f9ff 100%);
-    background-attachment: fixed;
     min-height: 100vh;
   }
 
-  .dark body,
-  body.dark {
-    background: linear-gradient(135deg, #0f0a1a 0%, #1a0a2e 25%, #0f1729 50%, #0a0a1a 100%);
+  /* Background is set via CSS variable for basePath compatibility */
+  .bg-body {
+    background:
+      linear-gradient(135deg, rgba(253,242,248,0.88) 0%, rgba(252,231,243,0.85) 25%, rgba(237,233,254,0.85) 50%, rgba(224,242,254,0.88) 75%, rgba(240,249,255,0.9) 100%),
+      var(--bg-image, none);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+
+  .dark .bg-body {
+    background:
+      linear-gradient(135deg, rgba(15,10,26,0.88) 0%, rgba(26,10,46,0.85) 25%, rgba(15,23,41,0.85) 50%, rgba(10,10,26,0.9) 100%),
+      var(--bg-image, none);
+    background-size: cover;
+    background-position: center;
     background-attachment: fixed;
   }
 
@@ -74,7 +85,7 @@
     linear-gradient(to bottom, rgba(168, 85, 247, 0.08) 1px, transparent 1px);
 }
 
-/* ===== Glass card ===== */
+/* ===== Glass card (original) ===== */
 .glass {
   @apply backdrop-blur-xl bg-white/70 dark:bg-purple-950/40;
   @apply border border-white/50 dark:border-purple-500/20;
@@ -88,6 +99,27 @@
 .glass-hover:hover {
   @apply -translate-y-1 shadow-pink dark:shadow-purple;
   @apply border-pink-200/60 dark:border-purple-500/30;
+}
+
+/* ===== Enhanced Glass Card (higher transparency, more blur) ===== */
+.glass-card {
+  @apply backdrop-blur-2xl;
+  @apply bg-white/40 dark:bg-purple-950/25;
+  @apply border border-white/30 dark:border-purple-400/10;
+  @apply shadow-lg shadow-pink-100/30 dark:shadow-purple-950/30;
+  @apply transition-all duration-300;
+}
+
+.glass-card:hover {
+  @apply bg-white/50 dark:bg-purple-950/35;
+  @apply border-white/40 dark:border-purple-400/20;
+  @apply shadow-xl shadow-pink-100/40 dark:shadow-purple-950/40;
+}
+
+/* Card with link behavior */
+a.glass-card:hover,
+.glass-card-link:hover {
+  @apply -translate-y-1 border-pink-200/60 dark:border-purple-500/30;
 }
 
 /* ===== Gradient text ===== */
@@ -106,8 +138,9 @@
   @apply max-w-none;
 }
 
+/* Raw <pre> fallback (without rehype-pretty-code wrapper) */
 .prose pre {
-  @apply rounded-2xl border border-pink-100 dark:border-purple-500/20 shadow-md;
+  @apply rounded-2xl border border-pink-100 dark:border-purple-500/20 shadow-md my-6 overflow-x-auto p-4;
   background: #f8fafc !important;
 }
 
@@ -131,26 +164,54 @@
   @apply border-l-pink-400 dark:border-l-pink-500 bg-pink-50/50 dark:bg-purple-950/30 rounded-r-2xl py-1 italic;
 }
 
-/* ===== Code blocks ===== */
-.prose div[data-rehype-pretty-code-fragment] {
-  @apply relative;
+/* ===== Code blocks (rehype-pretty-code v0.14+ Shiki-based) ===== */
+/* v0.14+ wraps code in <figure data-rehype-pretty-code-figure"> */
+.prose figure[data-rehype-pretty-code-figure] {
+  @apply relative my-6;
 }
 
-.prose div[data-rehype-pretty-code-title] {
+.prose figure[data-rehype-pretty-code-figure] pre {
+  @apply my-0 rounded-2xl border border-pink-100 dark:border-purple-500/20 shadow-md;
+  background: #f8fafc !important;
+}
+
+.dark .prose figure[data-rehype-pretty-code-figure] pre {
+  background: #1a1025 !important;
+}
+
+.prose figure[data-rehype-pretty-code-figure] pre code {
+  @apply text-sm leading-relaxed;
+}
+
+/* Code block titles (```title.ext) */
+.prose figcaption[data-rehype-pretty-code-title] {
   @apply text-sm text-gray-500 dark:text-gray-400 bg-pink-50 dark:bg-purple-950/50 px-4 py-2 rounded-t-2xl border border-b-0 border-pink-100 dark:border-purple-500/20 font-mono;
 }
 
-.prose div[data-rehype-pretty-code-fragment] pre {
-  @apply my-0;
-}
-
+/* Highlighted lines via rehype-pretty-code */
 .prose span[data-highlighted-line] {
   @apply bg-pink-500/10 dark:bg-pink-500/15 border-l-4 border-pink-400 pl-3 -ml-3;
 }
 
-/* Inline code */
+/* Inline code (NOT inside pre/code blocks from rehype-pretty-code) */
 .prose code:not(pre code) {
   @apply px-1.5 py-0.5 rounded-lg bg-pink-50 dark:bg-purple-950/50 text-pink-600 dark:text-pink-300 text-sm font-medium;
+}
+
+/* ===== Shiki dual-theme: class-based dark mode switch ===== */
+/* rehype-pretty-code outputs spans with data-theme containing both theme names.
+   The browser uses CSS custom properties (--shiki-light / --shiki-dark).
+   Without these rules, only the light theme renders regardless of dark mode. */
+code[data-theme*=" "],
+code[data-theme*=" "] span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+
+.dark code[data-theme*=" "],
+.dark code[data-theme*=" "] span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
 }
 
 /* ===== Scrollbar ===== */
@@ -207,14 +268,28 @@
 }
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes shimmer {
@@ -227,24 +302,69 @@
   50% { border-color: #8b5cf6; box-shadow: 0 0 20px rgba(139,92,246,0.4); }
 }
 
-.animate-float {
-  animation: float 6s ease-in-out infinite;
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-.animate-twinkle {
-  animation: twinkle 2s ease-in-out infinite;
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(236,72,153,0.3), 0 0 16px rgba(139,92,246,0.15); }
+  50% { box-shadow: 0 0 16px rgba(236,72,153,0.5), 0 0 32px rgba(139,92,246,0.3); }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out both;
-}
-
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-twinkle { animation: twinkle 2s ease-in-out infinite; }
+.animate-fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in { animation: fadeIn 0.5s ease-out both; }
+.animate-scale-in { animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-right { animation: slideRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .animate-shimmer {
   background: linear-gradient(90deg, transparent 0%, rgba(236,72,153,0.1) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 3s infinite;
 }
+.animate-border-glow { animation: borderGlow 3s ease-in-out infinite; }
+.animate-gradient-flow {
+  background-size: 200% 200%;
+  animation: gradientFlow 4s ease infinite;
+}
+.animate-pulse-glow { animation: pulseGlow 2.5s ease-in-out infinite; }
 
-.animate-border-glow {
-  animation: borderGlow 3s ease-in-out infinite;
+/* ===== Smooth section transitions ===== */
+section, article, .glass-card, .glass {
+  @apply transition-all duration-300 ease-out;
+}
+
+/* ===== Enhanced link underline animation ===== */
+.nav-link-underline {
+  position: relative;
+}
+
+.nav-link-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ec4899, #8b5cf6);
+  border-radius: 1px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-link-underline:hover::after,
+.nav-link-underline.active::after {
+  left: 0;
+  width: 100%;
+}
+
+/* ===== Motion-safe: disable animations for reduced-motion users ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

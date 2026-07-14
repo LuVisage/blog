@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="https://LuVisage.github.io/blog/rss.xsl"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>My Blog</title>
-    <link>https://yourusername.github.io</link>
-    <description>个人博客 - 记录技术、生活与思考</description>
+    <title>Baron_Zhang</title>
+    <link>https://LuVisage.github.io/blog</link>
+    <description>AI 探索者 &amp; Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sun, 13 Jul 2025 00:00:00 GMT</lastBuildDate>
-    <atom:link href="https://yourusername.github.io/rss.xml" rel="self" type="application/rss+xml"/>
+    <lastBuildDate>Mon, 13 Jul 2026 00:00:00 GMT</lastBuildDate>
+    <atom:link href="https://LuVisage.github.io/blog/rss.xml" rel="self" type="application/rss+xml"/>
     <item>
       <title>Hello World - 我的第一篇博客</title>
-      <link>https://yourusername.github.io/posts/hello-world/</link>
-      <guid>https://yourusername.github.io/posts/hello-world/</guid>
+      <link>https://LuVisage.github.io/blog/posts/hello-world/</link>
+      <guid>https://LuVisage.github.io/blog/posts/hello-world/</guid>
       <description>这是我的个人博客的第一篇文章，记录搭建博客的过程和未来的写作计划。</description>
-      <pubDate>Sun, 13 Jul 2025 00:00:00 GMT</pubDate>
+      <pubDate>Mon, 13 Jul 2026 00:00:00 GMT</pubDate>
       
     </item>
   </channel>

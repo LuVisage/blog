@@ -8,13 +8,22 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
 
   return (
     <article
-      className="animate-fade-in-up h-full"
+      className="animate-scale-in h-full"
       style={{ animationDelay: `${index * 80}ms` }}
     >
       <Link
         href={`/posts/${post.slug}`}
-        className="block h-full p-5 sm:p-6 rounded-2xl glass glass-hover group"
+        className="block h-full p-5 sm:p-6 rounded-2xl glass-card glass-card-link group flex flex-col"
       >
+        {/* Category */}
+        {post.category && (
+          <div className="mb-2">
+            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30 text-pink-500 dark:text-pink-400 border border-pink-200 dark:border-pink-500/30">
+              📂 {post.category}
+            </span>
+          </div>
+        )}
+
         {/* Meta line */}
         <div className="flex items-center gap-3 text-xs sm:text-sm text-gray-400 dark:text-gray-500 mb-3">
           <time dateTime={post.date} className="flex items-center gap-1.5">
@@ -43,7 +52,7 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
 
         {/* Description */}
         {post.description && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-3 leading-relaxed">
+          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-3 leading-relaxed flex-1">
             {post.description}
           </p>
         )}
@@ -51,14 +60,19 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
         {/* Tags */}
         {post.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-auto">
-            {post.tags.map((tag) => (
+            {post.tags.slice(0, 4).map((tag) => (
               <span
                 key={tag}
-                className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-50 dark:bg-pink-950/30 text-pink-600 dark:text-pink-400 border border-pink-100 dark:border-pink-500/20"
+                className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-50/70 dark:bg-pink-950/30 text-pink-600 dark:text-pink-400 border border-pink-100/70 dark:border-pink-500/20"
               >
                 #{tag}
               </span>
             ))}
+            {post.tags.length > 4 && (
+              <span className="text-xs text-gray-400 dark:text-gray-500 self-center">
+                +{post.tags.length - 4}
+              </span>
+            )}
           </div>
         )}
       </Link>

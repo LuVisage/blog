@@ -1,25 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="https://LuVisage.github.io/blog/rss.xsl"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <title>My Blog</title>
-  <subtitle>个人博客 - 记录技术、生活与思考</subtitle>
-  <link href="https://yourusername.github.io" rel="alternate"/>
-  <link href="https://yourusername.github.io/atom.xml" rel="self"/>
-  <id>https://yourusername.github.io/</id>
-  <updated>2025-07-13T00:00:00.000Z</updated>
+  <title>Baron_Zhang</title>
+  <subtitle>AI 探索者 &amp; Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。</subtitle>
+  <link href="https://LuVisage.github.io/blog" rel="alternate"/>
+  <link href="https://LuVisage.github.io/blog/atom.xml" rel="self"/>
+  <id>https://LuVisage.github.io/blog/</id>
+  <updated>2026-07-13T00:00:00.000Z</updated>
   <author>
-    <name>Author</name>
-    <email>author@example.com</email>
+    <name>Baron_Zhang</name>
+    <email>1977928878@qq.com</email>
   </author>
   <entry>
     <title>Hello World - 我的第一篇博客</title>
-    <link href="https://yourusername.github.io/posts/hello-world/"/>
-    <id>https://yourusername.github.io/posts/hello-world/</id>
-    <published>2025-07-13T00:00:00.000Z</published>
-    <updated>2025-07-13T00:00:00.000Z</updated>
+    <link href="https://LuVisage.github.io/blog/posts/hello-world/"/>
+    <id>https://LuVisage.github.io/blog/posts/hello-world/</id>
+    <published>2026-07-13T00:00:00.000Z</published>
+    <updated>2026-07-13T00:00:00.000Z</updated>
     <summary>这是我的个人博客的第一篇文章，记录搭建博客的过程和未来的写作计划。</summary>
     <author>
-      <name>Author</name>
-      <email>author@example.com</email>
+      <name>Baron_Zhang</name>
+      <email>1977928878@qq.com</email>
     </author>
   </entry>
 </feed>

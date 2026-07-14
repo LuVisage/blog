@@ -6,11 +6,14 @@
  *
  * 可选参数：
  *   --tags "AI,技术,教程"     文章标签（逗号分隔）
+ *   --category "技术"         文章分类
+ *   --series "系列名"         系列名称
+ *   --seriesOrder 2           系列中的序号
  *   --description "文章描述"   文章摘要
  *   --draft                    标记为草稿（不发布）
  *
  * 示例：
- *   node scripts/new-post.mjs "深入理解 React Server Components" --tags "React,Next.js" --description "RSC 原理与实践"
+ *   node scripts/new-post.mjs "深入理解 React Server Components" --tags "React,Next.js" --category "前端" --description "RSC 原理与实践"
  */
 
 import { writeFileSync, existsSync } from 'fs'
@@ -58,6 +61,10 @@ function getArg(name) {
 
 const description = getArg('description') || ''
 const tagsRaw = getArg('tags') || ''
+const category = getArg('category') || ''
+const series = getArg('series') || ''
+const seriesOrderRaw = getArg('seriesOrder') || ''
+const seriesOrder = seriesOrderRaw ? parseInt(seriesOrderRaw, 10) : undefined
 const draft = getFlag('draft')
 const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
 
@@ -85,6 +92,9 @@ const frontmatter = [
   `title: '${title}'`,
   `date: '${today}'`,
   description ? `description: '${description}'` : `description: ''`,
+  category ? `category: '${category}'` : '',
+  series ? `series: '${series}'` : '',
+  seriesOrder !== undefined ? `seriesOrder: ${seriesOrder}` : '',
   'tags:',
   tags || '  - AI',
   draft ? 'draft: true' : '',

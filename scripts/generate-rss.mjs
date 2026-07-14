@@ -67,6 +67,7 @@ function generateRSS(posts) {
     .join('\n')
 
   return `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="${siteUrl}/rss.xsl"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${escapeXml(siteTitle)}</title>
@@ -99,6 +100,7 @@ function generateAtom(posts) {
     .join('\n')
 
   return `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="${siteUrl}/rss.xsl"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>${escapeXml(siteTitle)}</title>
   <subtitle>${escapeXml(siteDescription)}</subtitle>

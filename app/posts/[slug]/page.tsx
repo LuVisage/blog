@@ -5,6 +5,10 @@ import { getAllPosts, getPostBySlug, getAdjacentPosts } from '@/lib/posts'
 import { MDXContent } from '@/components/mdx-content'
 import { TagBadge } from '@/components/tag-badge'
 import { GiscusComments } from '@/components/giscus-comments'
+import { TableOfContents } from '@/components/toc'
+import { SocialShare } from '@/components/social-share'
+import { RelatedPosts } from '@/components/related-posts'
+import { FontSizeControl } from '@/components/font-size-control'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
@@ -55,6 +59,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
   const { prev, next } = getAdjacentPosts(slug)
   const date = parseISO(post.date)
+  const postUrl = `${SITE.url}/posts/${post.slug}`
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -67,7 +72,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
       '@type': 'Person',
       name: SITE.author.name,
     },
-    url: `${SITE.url}/posts/${post.slug}`,
+    url: postUrl,
   }
 
   return (
@@ -78,105 +83,150 @@ export default async function PostPage({ params }: { params: PageParams }) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <article className="max-w-4xl mx-auto">
-        {/* Header card */}
-        <header className="mb-10 p-6 sm:p-8 lg:p-10 rounded-3xl glass">
-          {/* Title */}
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-4 lg:mb-5">
-            <span className="gradient-text">{post.title}</span>
-          </h1>
+      <div className="xl:flex xl:gap-12">
+        {/* TOC — single instance: mobile toggle (above article), desktop sidebar (right) */}
+        <aside className="mb-4 xl:order-last xl:w-56 xl:flex-shrink-0">
+          <TableOfContents />
+        </aside>
 
-          {/* Meta info */}
-          <div className="flex flex-wrap items-center gap-3 text-sm lg:text-base text-gray-400 dark:text-gray-500 mb-4">
-            <time dateTime={post.date} className="flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              {format(date, 'yyyy 年 M 月 d 日', { locale: zhCN })}
-            </time>
-            {post.updated && (
-              <>
-                <span>·</span>
-                <span>
-                  更新于{' '}
-                  {format(parseISO(post.updated), 'yyyy 年 M 月 d 日', {
-                    locale: zhCN,
-                  })}
-                </span>
-              </>
-            )}
-            <span>·</span>
-            <span className="flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              {post.readingTime} 分钟阅读
-            </span>
+        {/* Main article area */}
+        <article className="flex-1 min-w-0 max-w-3xl">
+          {/* Toolbar */}
+          <div className="flex items-center justify-end flex-wrap gap-3 mb-6">
+            <FontSizeControl />
           </div>
 
-          {/* Tags */}
-          {post.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {post.tags.map((tag) => (
-                <TagBadge key={tag} tag={tag} />
-              ))}
+          {/* Header card */}
+          <header className="mb-8 p-6 sm:p-8 lg:p-10 rounded-3xl glass-card">
+            {/* Category */}
+            {post.category && (
+              <Link
+                href={`/categories/${post.category}`}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30 text-pink-600 dark:text-pink-400 text-xs font-medium border border-pink-200 dark:border-pink-500/30 hover:border-pink-400 dark:hover:border-pink-400 transition-all mb-4"
+              >
+                📂 {post.category}
+              </Link>
+            )}
+
+            {/* Title */}
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-4 lg:mb-5">
+              <span className="gradient-text">{post.title}</span>
+            </h1>
+
+            {/* Meta info */}
+            <div className="flex flex-wrap items-center gap-3 text-sm lg:text-base text-gray-400 dark:text-gray-500 mb-4">
+              <time dateTime={post.date} className="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                {format(date, 'yyyy 年 M 月 d 日', { locale: zhCN })}
+              </time>
+              {post.updated && (
+                <>
+                  <span>·</span>
+                  <span>
+                    更新于{' '}
+                    {format(parseISO(post.updated), 'yyyy 年 M 月 d 日', {
+                      locale: zhCN,
+                    })}
+                  </span>
+                </>
+              )}
+              <span>·</span>
+              <span className="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                {post.readingTime} 分钟阅读
+              </span>
+              {post.series && (
+                <>
+                  <span>·</span>
+                  <Link
+                    href={`/series/${post.series}`}
+                    className="flex items-center gap-1 text-pink-500 dark:text-pink-400 hover:underline"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                    </svg>
+                    {post.series}
+                  </Link>
+                </>
+              )}
             </div>
-          )}
-        </header>
 
-        {/* Content */}
-        <div className="bg-white/60 dark:bg-purple-950/30 backdrop-blur-sm rounded-3xl p-6 sm:p-10 lg:p-12 border border-pink-100/60 dark:border-purple-500/20 shadow-sm prose prose-gray dark:prose-invert max-w-none">
-          <MDXContent source={post.content} />
-        </div>
+            {/* Tags */}
+            {post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {post.tags.map((tag) => (
+                  <TagBadge key={tag} tag={tag} />
+                ))}
+              </div>
+            )}
+          </header>
 
-        {/* Prev/Next navigation */}
-        <nav className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {prev ? (
-            <Link
-              href={`/posts/${prev.slug}`}
-              className="group p-5 rounded-2xl glass glass-hover text-left"
-            >
-              <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m15 18-6-6 6-6" />
-                </svg>
-                上一篇
-              </span>
-              <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors line-clamp-1">
-                {prev.title}
-              </p>
-            </Link>
-          ) : (
-            <div />
-          )}
-          {next && (
-            <Link
-              href={`/posts/${next.slug}`}
-              className="group p-5 rounded-2xl glass glass-hover text-right"
-            >
-              <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center justify-end gap-1">
-                下一篇
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
-              </span>
-              <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors line-clamp-1">
-                {next.title}
-              </p>
-            </Link>
-          )}
-        </nav>
-      </article>
+          {/* Content */}
+          <div className="bg-white/40 dark:bg-purple-950/20 backdrop-blur-xl rounded-3xl p-6 sm:p-10 lg:p-12 border border-white/30 dark:border-purple-400/10 shadow-sm prose prose-gray dark:prose-invert max-w-none">
+            <MDXContent source={post.content} />
+          </div>
 
-      {/* Comments */}
-      <div className="mt-12 max-w-4xl mx-auto">
-        <div className="rounded-3xl glass p-6 sm:p-8 lg:p-10">
-          <GiscusComments />
-        </div>
+          {/* Share + Tags at bottom */}
+          <div className="mt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl glass-card">
+            <SocialShare title={post.title} url={postUrl} />
+          </div>
+
+          {/* Prev/Next navigation */}
+          <nav className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {prev ? (
+              <Link
+                href={`/posts/${prev.slug}`}
+                className="group p-5 rounded-2xl glass-card text-left hover:scale-[1.01] transition-transform"
+              >
+                <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m15 18-6-6 6-6" />
+                  </svg>
+                  上一篇
+                </span>
+                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors line-clamp-1">
+                  {prev.title}
+                </p>
+              </Link>
+            ) : (
+              <div />
+            )}
+            {next && (
+              <Link
+                href={`/posts/${next.slug}`}
+                className="group p-5 rounded-2xl glass-card text-right hover:scale-[1.01] transition-transform"
+              >
+                <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center justify-end gap-1">
+                  下一篇
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </span>
+                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors line-clamp-1">
+                  {next.title}
+                </p>
+              </Link>
+            )}
+          </nav>
+
+          {/* Related Posts */}
+          <RelatedPosts currentSlug={slug} />
+
+          {/* Comments */}
+          <div className="mt-12">
+            <div className="rounded-3xl glass-card p-6 sm:p-8 lg:p-10">
+              <GiscusComments />
+            </div>
+          </div>
+        </article>
       </div>
     </>
   )

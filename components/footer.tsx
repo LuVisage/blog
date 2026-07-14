@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { SITE, SOCIAL_LINKS } from '@/lib/constants'
 
 export function Footer() {
@@ -47,6 +48,29 @@ export function Footer() {
                 </svg>
               </a>
             )}
+          </div>
+
+          {/* Nav links */}
+          <div className="flex items-center justify-center gap-4 mb-3">
+            <Link href="/about" className="text-xs text-gray-400 dark:text-gray-500 hover:text-pink-500 dark:hover:text-pink-400 transition-colors">
+              关于
+            </Link>
+            <span className="text-gray-300 dark:text-gray-600">·</span>
+            <Link href="/archive" className="text-xs text-gray-400 dark:text-gray-500 hover:text-pink-500 dark:hover:text-pink-400 transition-colors">
+              归档
+            </Link>
+            <span className="text-gray-300 dark:text-gray-600">·</span>
+            <Link href="/friends" className="text-xs text-gray-400 dark:text-gray-500 hover:text-pink-500 dark:hover:text-pink-400 transition-colors">
+              友链
+            </Link>
+            <span className="text-gray-300 dark:text-gray-600">·</span>
+            <Link href="/privacy" className="text-xs text-gray-400 dark:text-gray-500 hover:text-pink-500 dark:hover:text-pink-400 transition-colors">
+              隐私
+            </Link>
+            <span className="text-gray-300 dark:text-gray-600">·</span>
+            <a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`} className="text-xs text-gray-400 dark:text-gray-500 hover:text-pink-500 dark:hover:text-pink-400 transition-colors">
+              RSS
+            </a>
           </div>
 
           <p className="text-sm text-gray-400 dark:text-gray-500">

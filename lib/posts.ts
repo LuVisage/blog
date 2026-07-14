@@ -9,12 +9,25 @@ export interface PostMeta {
   updated?: string
   description: string
   tags: string[]
+  category?: string
+  series?: string
+  seriesOrder?: number
   draft: boolean
   readingTime: number
 }
 
 export interface Post extends PostMeta {
   content: string
+}
+
+export interface ArchiveMonth {
+  month: number
+  posts: PostMeta[]
+}
+
+export interface ArchiveYear {
+  year: number
+  months: ArchiveMonth[]
 }
 
 const postsDirectory = join(process.cwd(), 'content', 'posts')
@@ -49,6 +62,9 @@ export function getAllPosts(): PostMeta[] {
         updated: data.updated ? new Date(data.updated).toISOString() : undefined,
         description: data.description || '',
         tags: Array.isArray(data.tags) ? data.tags : [],
+        category: data.category || undefined,
+        series: data.series || undefined,
+        seriesOrder: data.seriesOrder ?? undefined,
         draft: data.draft === true,
         readingTime: estimateReadingTime(content),
       } satisfies PostMeta
@@ -76,6 +92,9 @@ export function getPostBySlug(slug: string): Post | null {
       updated: data.updated ? new Date(data.updated).toISOString() : undefined,
       description: data.description || '',
       tags: Array.isArray(data.tags) ? data.tags : [],
+      category: data.category || undefined,
+      series: data.series || undefined,
+      seriesOrder: data.seriesOrder ?? undefined,
       draft: data.draft === true,
       readingTime: estimateReadingTime(content),
       content,
@@ -84,6 +103,8 @@ export function getPostBySlug(slug: string): Post | null {
     return null
   }
 }
+
+// ─── Tags ───────────────────────────────────────────────
 
 /** Get all unique tags with post counts */
 export function getAllTags(): { tag: string; count: number }[] {
@@ -105,6 +126,118 @@ export function getAllTags(): { tag: string; count: number }[] {
 export function getPostsByTag(tag: string): PostMeta[] {
   return getAllPosts().filter((post) => post.tags.includes(tag))
 }
+
+// ─── Categories ─────────────────────────────────────────
+
+/** Get all unique categories with post counts */
+export function getAllCategories(): { category: string; count: number }[] {
+  const posts = getAllPosts()
+  const catMap = new Map<string, number>()
+
+  posts.forEach((post) => {
+    if (post.category) {
+      catMap.set(post.category, (catMap.get(post.category) || 0) + 1)
+    }
+  })
+
+  return Array.from(catMap.entries())
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/** Get posts filtered by category */
+export function getPostsByCategory(category: string): PostMeta[] {
+  return getAllPosts().filter((post) => post.category === category)
+}
+
+// ─── Series ──────────────────────────────────────────────
+
+/** Get all unique series with post counts */
+export function getAllSeries(): { series: string; count: number }[] {
+  const posts = getAllPosts()
+  const seriesMap = new Map<string, number>()
+
+  posts.forEach((post) => {
+    if (post.series) {
+      seriesMap.set(post.series, (seriesMap.get(post.series) || 0) + 1)
+    }
+  })
+
+  return Array.from(seriesMap.entries())
+    .map(([series, count]) => ({ series, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/** Get posts in a series, ordered by seriesOrder then date */
+export function getPostsBySeries(series: string): PostMeta[] {
+  return getAllPosts()
+    .filter((post) => post.series === series)
+    .sort((a, b) => {
+      if (a.seriesOrder !== undefined && b.seriesOrder !== undefined) {
+        return a.seriesOrder - b.seriesOrder
+      }
+      return new Date(a.date).getTime() - new Date(b.date).getTime()
+    })
+}
+
+// ─── Archive ─────────────────────────────────────────────
+
+/** Get posts grouped by year and month */
+export function getArchiveTree(): ArchiveYear[] {
+  const posts = getAllPosts()
+  const yearMap = new Map<number, Map<number, PostMeta[]>>()
+
+  posts.forEach((post) => {
+    const d = new Date(post.date)
+    const year = d.getFullYear()
+    const month = d.getMonth() + 1
+
+    if (!yearMap.has(year)) yearMap.set(year, new Map())
+    const monthMap = yearMap.get(year)!
+    if (!monthMap.has(month)) monthMap.set(month, [])
+    monthMap.get(month)!.push(post)
+  })
+
+  return Array.from(yearMap.entries())
+    .sort(([a], [b]) => b - a)
+    .map(([year, monthMap]) => ({
+      year,
+      months: Array.from(monthMap.entries())
+        .sort(([a], [b]) => b - a)
+        .map(([month, posts]) => ({ month, posts })),
+    }))
+}
+
+// ─── Related Posts ───────────────────────────────────────
+
+/** Get related posts based on shared tags */
+export function getRelatedPosts(slug: string, count: number = 3): PostMeta[] {
+  const all = getAllPosts()
+  const current = all.find((p) => p.slug === slug)
+  if (!current || !current.tags.length) return all.filter((p) => p.slug !== slug).slice(0, count)
+
+  const scored = all
+    .filter((p) => p.slug !== slug)
+    .map((p) => ({
+      post: p,
+      score: p.tags.filter((t) => current.tags.includes(t)).length,
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+
+  // If we don't have enough tag-matching posts, fill with recent posts
+  if (scored.length < count) {
+    const existing = new Set(scored.map((s) => s.post.slug))
+    const fillers = all
+      .filter((p) => p.slug !== slug && !existing.has(p.slug))
+      .slice(0, count - scored.length)
+    return [...scored.map((s) => s.post), ...fillers]
+  }
+
+  return scored.slice(0, count).map((s) => s.post)
+}
+
+// ─── Pagination ──────────────────────────────────────────
 
 /** Get paginated posts */
 export function getPaginatedPosts(page: number, perPage: number = 10) {

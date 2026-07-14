@@ -131,7 +131,7 @@ export function SearchPage() {
       </div>
 
       {/* Search input */}
-      <div className="rounded-3xl glass p-4 sm:p-6">
+      <div className="rounded-3xl glass-card p-4 sm:p-6">
         <div className="relative">
           <svg
             xmlns="http://www.w3.org/2000/svg"

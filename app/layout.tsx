@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { BackgroundDecor } from '@/components/background-decor'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
+import { Analytics } from '@/components/analytics'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -60,13 +61,17 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Set background image via CSS variable for basePath compatibility */}
+        <style dangerouslySetInnerHTML={{
+          __html: `:root { --bg-image: url('${process.env.NEXT_PUBLIC_BASE_PATH || ''}/bg.jpg'); }`
+        }} />
         <link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`} />
         <link rel="alternate" type="application/atom+xml" title={`${SITE.title} Atom`} href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/atom.xml`} />
         {/* Preconnect for faster Giscus loading */}
         <link rel="preconnect" href="https://giscus.app" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://api.github.com" crossOrigin="anonymous" />
       </head>
-      <body className="flex flex-col min-h-screen relative">
+      <body className="flex flex-col min-h-screen relative bg-body">
         <ThemeProvider>
           <BackgroundDecor />
           <Header />
@@ -74,6 +79,7 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>

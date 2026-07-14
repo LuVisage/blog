@@ -113,33 +113,11 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </td>
     ),
-    code: ({ children, className, ...props }) => {
-      // Inline code (not in a pre block)
-      const isInline = !className?.includes('language-')
-      if (isInline) {
-        return (
-          <code
-            className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-primary-700 dark:text-primary-300 text-[0.9em] font-mono"
-            {...props}
-          >
-            {children}
-          </code>
-        )
-      }
-      return (
-        <code className={className} {...props}>
-          {children}
-        </code>
-      )
-    },
-    pre: ({ children, ...props }) => (
-      <pre
-        className="my-6 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 overflow-x-auto p-4 text-sm leading-relaxed"
-        {...props}
-      >
-        {children}
-      </pre>
-    ),
+    // NOTE: pre and code are intentionally NOT overridden here.
+    // rehype-pretty-code controls code block styling via its own generated HTML
+    // (figure[data-rehype-pretty-code-figure] etc.) and overriding pre/code
+    // would conflict with the plugin's output.
+    // Inline code styling is handled by globals.css via `.prose code:not(pre code)`.
     strong: ({ children, ...props }) => (
       <strong className="font-semibold text-gray-900 dark:text-white" {...props}>
         {children}

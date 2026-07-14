@@ -12,7 +12,7 @@ export default function HomePage() {
     <div>
       {/* ======== Hero Section ======== */}
       <section className="mb-16 lg:mb-20">
-        <div className="relative overflow-hidden rounded-3xl glass p-8 sm:p-12 lg:p-16">
+        <div className="relative overflow-hidden rounded-3xl glass-card p-8 sm:p-12 lg:p-16 animate-scale-in">
           {/* Desktop: horizontal layout | Mobile: stacked */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:gap-16 text-center lg:text-left">
             {/* Avatar */}
@@ -36,7 +36,7 @@ export default function HomePage() {
             {/* Text */}
             <div className="flex-1">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 lg:mb-4">
-                <span className="gradient-text">{SITE.title}</span>
+                <span className="gradient-text animate-gradient-flow" style={{ backgroundSize: '200% 200%' }}>{SITE.title}</span>
               </h1>
               <p className="text-base sm:text-lg lg:text-xl text-gray-500 dark:text-gray-400 max-w-lg lg:max-w-none mx-auto lg:mx-0 mb-6 lg:mb-8 leading-relaxed">
                 {SITE.description}
@@ -59,7 +59,7 @@ export default function HomePage() {
                 )}
                 <Link
                   href="/posts"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white text-sm font-medium shadow-lg shadow-pink-500/25 hover:shadow-xl hover:shadow-pink-500/40 hover:-translate-y-0.5 transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white text-sm font-medium shadow-lg shadow-pink-500/25 hover:shadow-xl hover:shadow-pink-500/40 hover:-translate-y-0.5 transition-all animate-pulse-glow"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
@@ -110,7 +110,9 @@ export default function HomePage() {
       </section>
 
       {/* ======== AI Hot News ======== */}
-      <AIHotNews />
+      <section className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
+        <AIHotNews />
+      </section>
 
       {/* ======== Recent Posts ======== */}
       <section className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>

@@ -18,14 +18,14 @@ export function Header() {
           {/* Logo */}
           <Link
             href="/"
-            className="text-xl font-bold gradient-text hover:opacity-80 transition-opacity"
+            className="text-xl font-bold gradient-text hover:opacity-80 transition-opacity flex-shrink-0"
             style={{ fontFamily: "'ZCOOL KuaiLe', cursive" }}
           >
             ✦ {SITE.title}
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-0.5 overflow-x-auto">
             {NAV_LINKS.map((link) => {
               const isActive =
                 link.href === '/'
@@ -35,7 +35,7 @@ export function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`relative px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                  className={`relative px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-300 whitespace-nowrap ${
                     isActive
                       ? 'text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/30'
                       : 'text-gray-600 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 hover:bg-pink-50/50 dark:hover:bg-pink-950/20'
@@ -48,7 +48,7 @@ export function Header() {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <SearchTrigger />
             {/* Publish article — opens GitHub new-file page */}
             <a

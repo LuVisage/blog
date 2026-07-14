@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 
 interface Repo {
   id: number
-  full_name: string // "owner/repo"
+  full_name: string
   html_url: string
   description: string | null
   stargazers_count: number
@@ -23,8 +23,18 @@ interface CachedData {
 
 const CACHE_KEY = 'ai-hot-news'
 const CACHE_TTL = 60 * 60 * 1000 // 60 minutes
-const API_URL =
-  'https://api.github.com/search/repositories?q=topic:artificial-intelligence+topic:machine-learning&sort=stars&order=desc&per_page=5'
+
+/** Build API URL — always fetches repos pushed in last 7 days, sorted by stars */
+function buildApiUrl(): string {
+  const d = new Date()
+  d.setDate(d.getDate() - 7)
+  const dateStr = d.toISOString().split('T')[0] // YYYY-MM-DD
+  return (
+    'https://api.github.com/search/repositories' +
+    `?q=topic:artificial-intelligence+topic:machine-learning+pushed:>${dateStr}` +
+    '&sort=stars&order=desc&per_page=5'
+  )
+}
 
 // ── Helpers ────────────────────────────────────────────
 
@@ -36,7 +46,7 @@ function formatStars(n: number): string {
   return String(n)
 }
 
-/** e.g. "2h", "30m", "1d ago" from last fetch */
+/** e.g. "2h ago", "30m ago" from last fetch */
 function formatTimeAgo(ms: number): string {
   const minutes = Math.floor((Date.now() - ms) / 60_000)
   if (minutes < 1) return '刚刚'
@@ -75,6 +85,8 @@ export function AIHotNews() {
   const [repos, setRepos] = useState<Repo[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [lastFetch, setLastFetch] = useState<number | null>(null)
+  // Track which day the cache is from
+  const cacheDate = lastFetch ? new Date(lastFetch).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) : null
 
   useEffect(() => {
     let cancelled = false
@@ -91,9 +103,9 @@ export function AIHotNews() {
         return
       }
 
-      // 2. Fetch from GitHub API
+      // 2. Fetch from GitHub API (dynamic URL with 7-day window)
       try {
-        const res = await fetch(API_URL, {
+        const res = await fetch(buildApiUrl(), {
           headers: { Accept: 'application/vnd.github+json' },
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -105,7 +117,6 @@ export function AIHotNews() {
           setCache(items)
         }
       } catch {
-        // Fetch failed — silent, don't clutter the page
         if (!cancelled) {
           setRepos(null)
         }
@@ -124,7 +135,7 @@ export function AIHotNews() {
   if (loading) {
     return (
       <section className="mb-16 lg:mb-20">
-        <div className="rounded-2xl glass p-6 sm:p-8">
+        <div className="rounded-2xl glass-card p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-5">
             <div className="h-5 w-24 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
           </div>
@@ -145,35 +156,38 @@ export function AIHotNews() {
     )
   }
 
-  // ── Error / no data — silent hide ────────────────
+  // ── Error / no data — silent fallback ────────────
   if (!repos || repos.length === 0) return null
 
   // ── Ready ────────────────────────────────────────
   return (
     <section className="mb-16 lg:mb-20">
-      <div className="rounded-2xl glass p-5 sm:p-6 lg:p-7">
+      <div className="rounded-2xl glass-card p-5 sm:p-6 lg:p-7">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 lg:mb-5">
           <h2 className="text-base lg:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
             <span className="text-lg">🔥</span>
             AI 热榜
+            <span className="text-xs font-normal text-gray-400 dark:text-gray-500 bg-pink-50 dark:bg-pink-950/30 px-2 py-0.5 rounded-full">
+              近 7 日热门
+            </span>
           </h2>
           {lastFetch && (
             <span className="text-xs text-gray-400 dark:text-gray-500">
-              更新于 {formatTimeAgo(lastFetch)}
+              {cacheDate} 更新
             </span>
           )}
         </div>
 
         {/* Repo list */}
-        <div className="space-y-1">
+        <div className="space-y-2">
           {repos.map((repo, i) => (
             <a
               key={repo.id}
               href={repo.html_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-start gap-3 px-3 py-2.5 -mx-3 rounded-xl hover:bg-pink-50/60 dark:hover:bg-purple-900/30 transition-colors group"
+              className="flex items-start gap-3 px-3 py-3 -mx-3 rounded-xl hover:bg-pink-50/60 dark:hover:bg-purple-900/30 transition-all duration-200 group"
             >
               {/* Rank */}
               <span
@@ -192,13 +206,38 @@ export function AIHotNews() {
 
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors truncate">
-                  {repo.full_name}
-                </p>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors truncate">
+                    {repo.full_name}
+                  </p>
+                  {repo.language && (
+                    <span className="flex-shrink-0 text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-full">
+                      {repo.language}
+                    </span>
+                  )}
+                </div>
                 {repo.description && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 line-clamp-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 leading-relaxed">
                     {repo.description}
                   </p>
+                )}
+                {/* Topics */}
+                {repo.topics.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {repo.topics.slice(0, 3).map((t) => (
+                      <span
+                        key={t}
+                        className="text-[10px] text-pink-500 dark:text-pink-400 bg-pink-50/50 dark:bg-pink-950/20 px-1.5 py-0.5 rounded-full"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                    {repo.topics.length > 3 && (
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                        +{repo.topics.length - 3}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 

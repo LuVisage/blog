@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { SITE } from '@/lib/constants'
-import { getPaginatedPosts } from '@/lib/posts'
+import { getAllPosts, getPaginatedPosts } from '@/lib/posts'
 import { PostList } from '@/components/post-card'
 import { Pagination } from '@/components/pagination'
 
@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 
 export default function PostsPage() {
   const { posts, totalPages, currentPage } = getPaginatedPosts(1, SITE.postsPerPage)
+  const totalPosts = getAllPosts().length
 
   return (
     <div>
@@ -23,7 +24,7 @@ export default function PostsPage() {
           <span className="gradient-text">文章</span>
         </h1>
         <p className="text-gray-400 dark:text-gray-500 text-sm lg:text-base">
-          共 {posts.length} 篇文章
+          共 {totalPosts} 篇文章
         </p>
       </div>
 
