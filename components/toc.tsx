@@ -99,8 +99,8 @@ export function TableOfContents() {
                   onClick={(e) => handleClick(e, id)}
                   className={`block text-sm py-1.5 transition-all duration-200 border-l-2 line-clamp-1 ${
                     activeId === id
-                      ? 'border-pink-500 text-pink-600 dark:text-pink-400 font-medium pl-3'
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-pink-500 dark:hover:text-pink-400 hover:border-pink-200 dark:hover:border-pink-800 pl-3'
+                      ? 'border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-400 font-medium pl-3'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:border-white/20 dark:hover:border-white/10 pl-3'
                   } ${level === 3 ? 'ml-3 text-xs' : ''}`}
                 >
                   {text}
@@ -115,7 +115,7 @@ export function TableOfContents() {
       <div className="xl:hidden mb-6">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl glass-card text-sm text-gray-600 dark:text-gray-400 hover:text-pink-500 dark:hover:text-pink-400 transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl glass-card text-sm text-gray-600 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="8" y1="6" x2="21" y2="6" />
@@ -157,8 +157,8 @@ export function TableOfContents() {
                       level === 3 ? 'ml-4 text-xs' : ''
                     } ${
                       activeId === id
-                        ? 'text-pink-600 dark:text-pink-400 font-medium'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-pink-500 dark:hover:text-pink-400'
+                        ? 'text-gray-600 dark:text-gray-400 font-medium'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
                     {text}

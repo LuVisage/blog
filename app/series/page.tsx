@@ -32,14 +32,14 @@ export default function SeriesPage() {
             >
               <div className="flex items-center gap-3 mb-2">
                 <span className="text-2xl">📚</span>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
                   {name}
                 </h3>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 共 {count} 篇文章
               </p>
-              <div className="mt-3 flex items-center gap-1 text-xs text-pink-500 dark:text-pink-400 group-hover:gap-2 transition-all">
+              <div className="mt-3 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 group-hover:gap-2 transition-all">
                 <span>查看系列</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14" />
@@ -54,7 +54,7 @@ export default function SeriesPage() {
           <div className="text-5xl mb-4">📚</div>
           <p className="text-gray-400 dark:text-gray-500 text-lg">还没有系列文章~</p>
           <p className="text-gray-300 dark:text-gray-600 text-sm mt-2">
-            在文章 frontmatter 中添加 <code className="px-1.5 py-0.5 rounded bg-pink-50 dark:bg-purple-950/50 text-pink-500 text-xs">series</code> 和 <code className="px-1.5 py-0.5 rounded bg-pink-50 dark:bg-purple-950/50 text-pink-500 text-xs">seriesOrder</code> 字段
+            在文章 frontmatter 中添加 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs">series</code> 和 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs">seriesOrder</code> 字段
           </p>
         </div>
       )}

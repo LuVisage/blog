@@ -4,12 +4,12 @@ export function TagBadge({ tag, count }: { tag: string; count?: number }) {
   return (
     <Link
       href={`/tags/${tag}`}
-      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-500/30 hover:border-pink-400 dark:hover:border-pink-400 hover:shadow-sm hover:shadow-pink-200/50 dark:hover:shadow-pink-900/20 transition-all hover:-translate-y-0.5"
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-white/10 to-white/5 dark:from-white/5 dark:to-white/5 text-gray-700 dark:text-gray-300 border border-white/20 dark:border-white/10 hover:border-white/30 dark:hover:border-white/10 hover:shadow-sm hover:shadow-black/10 dark:hover:shadow-black/10 transition-all hover:-translate-y-0.5"
     >
       <span className="text-[10px]">✦</span>
       {tag}
       {count !== undefined && (
-        <span className="text-pink-400 dark:text-pink-500 text-[10px]">{count}</span>
+        <span className="text-gray-400 dark:text-gray-500 text-[10px]">{count}</span>
       )}
     </Link>
   )

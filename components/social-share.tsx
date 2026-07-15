@@ -62,7 +62,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 dark:bg-purple-950/30 border border-pink-100/60 dark:border-purple-500/20 text-xs text-gray-600 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 hover:border-pink-300 dark:hover:border-pink-500/40 transition-all hover:-translate-y-0.5"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 dark:bg-white/5 border border-white/10 dark:border-white/10 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-white/30 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
           title={`分享到 ${link.name}`}
         >
           {link.icon}
@@ -72,7 +72,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
 
       <button
         onClick={handleCopy}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 dark:bg-purple-950/30 border border-pink-100/60 dark:border-purple-500/20 text-xs text-gray-600 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 hover:border-pink-300 dark:hover:border-pink-500/40 transition-all hover:-translate-y-0.5"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 dark:bg-white/5 border border-white/10 dark:border-white/10 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-white/30 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
       >
         {copied ? (
           <>

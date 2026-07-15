@@ -11,6 +11,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Legacy color scales — kept for backward compatibility, prefer surface/border tokens
         primary: {
           50: '#fdf2f8',
           100: '#fce7f3',
@@ -49,6 +50,20 @@ const config: Config = {
           800: '#075985',
           900: '#0c4a6e',
         },
+        // Neutral glass surface tokens — use these for cards, headers, footers
+        surface: {
+          light: 'rgba(255,255,255,0.12)',
+          'light-hover': 'rgba(255,255,255,0.20)',
+          dark: 'rgba(0,0,0,0.18)',
+          'dark-hover': 'rgba(0,0,0,0.28)',
+        },
+        // Neutral border tokens
+        border: {
+          light: 'rgba(255,255,255,0.20)',
+          'light-hover': 'rgba(255,255,255,0.30)',
+          dark: 'rgba(255,255,255,0.08)',
+          'dark-hover': 'rgba(255,255,255,0.14)',
+        },
       },
       fontFamily: {
         sans: ['"Noto Sans SC"', '"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
@@ -59,17 +74,22 @@ const config: Config = {
         '4xl': '2rem',
       },
       boxShadow: {
-        'pink': '0 4px 24px -4px rgba(236, 72, 153, 0.25)',
-        'pink-lg': '0 12px 48px -8px rgba(236, 72, 153, 0.3)',
-        'purple': '0 4px 24px -4px rgba(139, 92, 246, 0.25)',
-        'glow': '0 0 40px -8px rgba(236, 72, 153, 0.4), 0 0 80px -16px rgba(139, 92, 246, 0.3)',
+        // Neutral glass shadows — subtle depth without color
+        'glass': '0 8px 32px rgba(0,0,0,0.06)',
+        'glass-lg': '0 16px 48px rgba(0,0,0,0.10)',
+        'glass-dark': '0 8px 32px rgba(0,0,0,0.25)',
+        'glow': '0 0 40px rgba(255,255,255,0.06), 0 0 80px rgba(255,255,255,0.03)',
+        // Legacy shadows — kept for backward compatibility
+        'pink': '0 4px 24px -4px rgba(0,0,0,0.08)',
+        'pink-lg': '0 12px 48px -8px rgba(0,0,0,0.12)',
+        'purple': '0 4px 24px -4px rgba(0,0,0,0.08)',
       },
       backgroundImage: {
-        'gradient-sakura': 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 25%, #ede9fe 50%, #e0f2fe 100%)',
-        'gradient-starry': 'linear-gradient(135deg, #0f0a1a 0%, #1a0a2e 30%, #0f1729 60%, #0a0a1a 100%)',
-        'gradient-pink-purple': 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #06b6d4 100%)',
-        'gradient-card': 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)',
-        'gradient-card-dark': 'linear-gradient(135deg, rgba(30,10,50,0.6) 0%, rgba(20,5,40,0.4) 100%)',
+        'gradient-sakura': 'linear-gradient(135deg, #f8f8f8 0%, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 100%)',
+        'gradient-starry': 'linear-gradient(135deg, #0a0a0f 0%, #0f0f18 30%, #0a0a14 60%, #08080f 100%)',
+        'gradient-pink-purple': 'linear-gradient(135deg, #999999 0%, #aaaaaa 50%, #bbbbbb 100%)',
+        'gradient-card': 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%)',
+        'gradient-card-dark': 'linear-gradient(135deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 100%)',
       },
     },
   },

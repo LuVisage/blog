@@ -61,9 +61,11 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Preload background image for faster paint */}
+        <link rel="preload" as="image" href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/bg.webp`} fetchPriority="high" />
         {/* Set background image via CSS variable for basePath compatibility */}
         <style dangerouslySetInnerHTML={{
-          __html: `:root { --bg-image: url('${process.env.NEXT_PUBLIC_BASE_PATH || ''}/bg.jpg'); }`
+          __html: `:root { --bg-image: url('${process.env.NEXT_PUBLIC_BASE_PATH || ''}/bg.webp'); }`
         }} />
         <link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`} />
         <link rel="alternate" type="application/atom+xml" title={`${SITE.title} Atom`} href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/atom.xml`} />

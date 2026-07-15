@@ -157,7 +157,7 @@ export function GiscusComments() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-amber-500 mt-0.5">2.</span>
-              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-600 underline">giscus App</a> 并授权 <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">LuVisage/blog</code></span>
+              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-600 underline">giscus App</a> 并授权 <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">LuVisage/blog</code></span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-amber-500 mt-0.5">3.</span>
@@ -171,7 +171,7 @@ export function GiscusComments() {
               const container = document.getElementById('giscus-container')
               if (container) container.innerHTML = ''
             }}
-            className="mt-4 text-xs text-pink-500 hover:text-pink-600 underline transition-colors"
+            className="mt-4 text-xs text-gray-500 hover:text-gray-600 underline transition-colors"
           >
             点击重试
           </button>

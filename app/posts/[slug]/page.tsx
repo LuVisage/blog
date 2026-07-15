@@ -102,7 +102,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
             {post.category && (
               <Link
                 href={`/categories/${post.category}`}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30 text-pink-600 dark:text-pink-400 text-xs font-medium border border-pink-200 dark:border-pink-500/30 hover:border-pink-400 dark:hover:border-pink-400 transition-all mb-4"
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 dark:bg-white/5 text-gray-600 dark:text-gray-400 text-xs font-medium border border-white/10 dark:border-white/10 hover:border-white/30 dark:hover:border-white/10 transition-all mb-4"
               >
                 📂 {post.category}
               </Link>
@@ -148,7 +148,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                   <span>·</span>
                   <Link
                     href={`/series/${post.series}`}
-                    className="flex items-center gap-1 text-pink-500 dark:text-pink-400 hover:underline"
+                    className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:underline"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
@@ -170,7 +170,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </header>
 
           {/* Content */}
-          <div className="bg-white/40 dark:bg-purple-950/20 backdrop-blur-xl rounded-3xl p-6 sm:p-10 lg:p-12 border border-white/30 dark:border-purple-400/10 shadow-sm prose prose-gray dark:prose-invert max-w-none">
+          <div className="bg-white/10 dark:bg-black/10 backdrop-blur-xl rounded-3xl p-6 sm:p-10 lg:p-12 border border-white/10 dark:border-white/5 shadow-sm prose prose-gray dark:prose-invert max-w-none">
             <MDXContent source={post.content} />
           </div>
 
@@ -192,7 +192,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                   </svg>
                   上一篇
                 </span>
-                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors line-clamp-1">
+                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors line-clamp-1">
                   {prev.title}
                 </p>
               </Link>
@@ -210,7 +210,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                     <path d="m9 18 6-6-6-6" />
                   </svg>
                 </span>
-                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors line-clamp-1">
+                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors line-clamp-1">
                   {next.title}
                 </p>
               </Link>

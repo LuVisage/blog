@@ -168,7 +168,7 @@ export function AIHotNews() {
           <h2 className="text-base lg:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
             <span className="text-lg">🔥</span>
             AI 热榜
-            <span className="text-xs font-normal text-gray-400 dark:text-gray-500 bg-pink-50 dark:bg-pink-950/30 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-normal text-gray-400 dark:text-gray-500 bg-white/10 dark:bg-white/5 px-2 py-0.5 rounded-full">
               近 7 日热门
             </span>
           </h2>
@@ -187,7 +187,7 @@ export function AIHotNews() {
               href={repo.html_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-start gap-3 px-3 py-3 -mx-3 rounded-xl hover:bg-pink-50/60 dark:hover:bg-purple-900/30 transition-all duration-200 group"
+              className="flex items-start gap-3 px-3 py-3 -mx-3 rounded-xl hover:bg-white/10 dark:hover:bg-white/5 transition-all duration-200 group"
             >
               {/* Rank */}
               <span
@@ -207,7 +207,7 @@ export function AIHotNews() {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors truncate">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors truncate">
                     {repo.full_name}
                   </p>
                   {repo.language && (
@@ -227,7 +227,7 @@ export function AIHotNews() {
                     {repo.topics.slice(0, 3).map((t) => (
                       <span
                         key={t}
-                        className="text-[10px] text-pink-500 dark:text-pink-400 bg-pink-50/50 dark:bg-pink-950/20 px-1.5 py-0.5 rounded-full"
+                        className="text-[10px] text-gray-500 dark:text-gray-400 bg-white/10 dark:bg-white/5 px-1.5 py-0.5 rounded-full"
                       >
                         {t}
                       </span>
@@ -260,12 +260,12 @@ export function AIHotNews() {
         </div>
 
         {/* Footer */}
-        <div className="mt-4 pt-4 border-t border-pink-100/60 dark:border-purple-500/20 text-center">
+        <div className="mt-4 pt-4 border-t border-white/10 dark:border-white/10 text-center">
           <a
             href="https://github.com/topics/artificial-intelligence"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-pink-500 dark:text-pink-400 hover:text-pink-600 dark:hover:text-pink-300 transition-colors"
+            className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             在 GitHub 上查看更多 AI 项目 →
           </a>

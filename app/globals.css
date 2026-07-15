@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 /* ============================================
-   Sakura Dream Theme 🌸
+   Glass Landscape Theme
+   Background photo is the hero — UI stays neutral
    ============================================ */
 
 /* ===== Base ===== */
@@ -13,10 +14,10 @@
     min-height: 100vh;
   }
 
-  /* Background is set via CSS variable for basePath compatibility */
+  /* Background image is the hero — only a whisper of overlay for text readability */
   .bg-body {
     background:
-      linear-gradient(135deg, rgba(253,242,248,0.88) 0%, rgba(252,231,243,0.85) 25%, rgba(237,233,254,0.85) 50%, rgba(224,242,254,0.88) 75%, rgba(240,249,255,0.9) 100%),
+      linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%),
       var(--bg-image, none);
     background-size: cover;
     background-position: center;
@@ -25,7 +26,7 @@
 
   .dark .bg-body {
     background:
-      linear-gradient(135deg, rgba(15,10,26,0.88) 0%, rgba(26,10,46,0.85) 25%, rgba(15,23,41,0.85) 50%, rgba(10,10,26,0.9) 100%),
+      linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.12) 100%),
       var(--bg-image, none);
     background-size: cover;
     background-position: center;
@@ -33,7 +34,7 @@
   }
 
   ::selection {
-    @apply bg-pink-300/40 dark:bg-pink-500/30;
+    @apply bg-gray-300/40 dark:bg-gray-500/30;
   }
 
   /* Smooth scrolling */
@@ -42,54 +43,50 @@
   }
 }
 
-/* ===== Background pattern overlay ===== */
+/* ===== Background pattern overlay (barely visible atmosphere) ===== */
 .bg-pattern {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.4;
+  opacity: 0.06;
   background-image:
-    radial-gradient(circle at 20% 50%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 40% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
-    radial-gradient(circle at 70% 60%, rgba(236, 72, 153, 0.05) 0%, transparent 40%);
+    radial-gradient(circle at 20% 50%, rgba(255,255,255,0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.10) 0%, transparent 50%);
 }
 
 .dark .bg-pattern {
-  opacity: 0.6;
+  opacity: 0.08;
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(236, 72, 153, 0.12) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.08) 0%, transparent 60%),
-    radial-gradient(circle at 10% 80%, rgba(236, 72, 153, 0.08) 0%, transparent 40%);
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04) 0%, transparent 50%);
 }
 
-/* ===== Grid texture ===== */
+/* ===== Grid texture (subtle) ===== */
 .bg-grid {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.15;
-  background-size: 40px 40px;
+  opacity: 0.03;
+  background-size: 60px 60px;
   background-image:
-    linear-gradient(to right, rgba(139, 92, 246, 0.1) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(139, 92, 246, 0.1) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px);
 }
 
 .dark .bg-grid {
-  opacity: 0.1;
+  opacity: 0.04;
   background-image:
-    linear-gradient(to right, rgba(168, 85, 247, 0.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(168, 85, 247, 0.08) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px);
 }
 
-/* ===== Glass card (original) ===== */
+/* ===== Glass card (highly transparent) ===== */
 .glass {
-  @apply backdrop-blur-xl bg-white/70 dark:bg-purple-950/40;
-  @apply border border-white/50 dark:border-purple-500/20;
-  @apply shadow-lg shadow-pink-100/50 dark:shadow-purple-950/50;
+  @apply backdrop-blur-xl bg-white/10 dark:bg-black/20;
+  @apply border border-white/20 dark:border-white/10;
+  @apply shadow-lg shadow-black/5 dark:shadow-black/25;
 }
 
 .glass-hover {
@@ -97,40 +94,48 @@
 }
 
 .glass-hover:hover {
-  @apply -translate-y-1 shadow-pink dark:shadow-purple;
-  @apply border-pink-200/60 dark:border-purple-500/30;
+  @apply -translate-y-1 shadow-xl shadow-black/10 dark:shadow-black/30;
+  @apply border-white/30 dark:border-white/10;
 }
 
-/* ===== Enhanced Glass Card (higher transparency, more blur) ===== */
+/* ===== Enhanced Glass Card (even more transparent, stronger blur) ===== */
 .glass-card {
   @apply backdrop-blur-2xl;
-  @apply bg-white/40 dark:bg-purple-950/25;
-  @apply border border-white/30 dark:border-purple-400/10;
-  @apply shadow-lg shadow-pink-100/30 dark:shadow-purple-950/30;
+  @apply bg-white/10 dark:bg-black/10;
+  @apply border border-white/10 dark:border-white/5;
+  @apply shadow-lg shadow-black/5 dark:shadow-black/20;
   @apply transition-all duration-300;
 }
 
 .glass-card:hover {
-  @apply bg-white/50 dark:bg-purple-950/35;
-  @apply border-white/40 dark:border-purple-400/20;
-  @apply shadow-xl shadow-pink-100/40 dark:shadow-purple-950/40;
+  @apply bg-white/20 dark:bg-black/20;
+  @apply border-white/25 dark:border-white/10;
+  @apply shadow-xl shadow-black/5 dark:shadow-black/30;
 }
 
 /* Card with link behavior */
 a.glass-card:hover,
 .glass-card-link:hover {
-  @apply -translate-y-1 border-pink-200/60 dark:border-purple-500/30;
+  @apply -translate-y-1 border-white/30 dark:border-white/10;
 }
 
-/* ===== Gradient text ===== */
+/* ===== Gradient text (neutral) ===== */
 .gradient-text {
   @apply bg-clip-text text-transparent;
-  background-image: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #06b6d4 100%);
+  background-image: linear-gradient(135deg, #d0d0d0 0%, #888888 50%, #aaaaaa 100%);
+}
+
+.dark .gradient-text {
+  background-image: linear-gradient(135deg, #ffffff 0%, #aaaaaa 50%, #cccccc 100%);
 }
 
 .gradient-text-warm {
   @apply bg-clip-text text-transparent;
-  background-image: linear-gradient(135deg, #f472b6 0%, #ec4899 40%, #c084fc 100%);
+  background-image: linear-gradient(135deg, #c0c0c0 0%, #999999 40%, #bbbbbb 100%);
+}
+
+.dark .gradient-text-warm {
+  background-image: linear-gradient(135deg, #eeeeee 0%, #bbbbbb 40%, #dddddd 100%);
 }
 
 /* ===== Prose overrides ===== */
@@ -140,12 +145,12 @@ a.glass-card:hover,
 
 /* Raw <pre> fallback (without rehype-pretty-code wrapper) */
 .prose pre {
-  @apply rounded-2xl border border-pink-100 dark:border-purple-500/20 shadow-md my-6 overflow-x-auto p-4;
+  @apply rounded-2xl border border-gray-200 dark:border-white/10 shadow-md my-6 overflow-x-auto p-4;
   background: #f8fafc !important;
 }
 
 .dark .prose pre {
-  background: #1a1025 !important;
+  background: #0f0f14 !important;
 }
 
 .prose pre code {
@@ -157,11 +162,11 @@ a.glass-card:hover,
 }
 
 .prose a {
-  @apply text-pink-600 dark:text-pink-400 decoration-pink-300/50 hover:decoration-pink-500 dark:hover:decoration-pink-300 transition;
+  @apply text-gray-700 dark:text-gray-300 decoration-gray-300/50 hover:decoration-gray-500 dark:hover:decoration-gray-300 transition;
 }
 
 .prose blockquote {
-  @apply border-l-pink-400 dark:border-l-pink-500 bg-pink-50/50 dark:bg-purple-950/30 rounded-r-2xl py-1 italic;
+  @apply border-l-gray-300 dark:border-l-gray-600 bg-gray-50/50 dark:bg-white/5 rounded-r-2xl py-1 italic;
 }
 
 /* ===== Code blocks (rehype-pretty-code v0.14+ Shiki-based) ===== */
@@ -171,12 +176,12 @@ a.glass-card:hover,
 }
 
 .prose figure[data-rehype-pretty-code-figure] pre {
-  @apply my-0 rounded-2xl border border-pink-100 dark:border-purple-500/20 shadow-md;
+  @apply my-0 rounded-2xl border border-gray-200 dark:border-white/10 shadow-md;
   background: #f8fafc !important;
 }
 
 .dark .prose figure[data-rehype-pretty-code-figure] pre {
-  background: #1a1025 !important;
+  background: #0f0f14 !important;
 }
 
 .prose figure[data-rehype-pretty-code-figure] pre code {
@@ -185,17 +190,17 @@ a.glass-card:hover,
 
 /* Code block titles (```title.ext) */
 .prose figcaption[data-rehype-pretty-code-title] {
-  @apply text-sm text-gray-500 dark:text-gray-400 bg-pink-50 dark:bg-purple-950/50 px-4 py-2 rounded-t-2xl border border-b-0 border-pink-100 dark:border-purple-500/20 font-mono;
+  @apply text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-white/5 px-4 py-2 rounded-t-2xl border border-b-0 border-gray-200 dark:border-white/10 font-mono;
 }
 
 /* Highlighted lines via rehype-pretty-code */
 .prose span[data-highlighted-line] {
-  @apply bg-pink-500/10 dark:bg-pink-500/15 border-l-4 border-pink-400 pl-3 -ml-3;
+  @apply bg-gray-200/50 dark:bg-white/10 border-l-4 border-gray-400 dark:border-gray-500 pl-3 -ml-3;
 }
 
 /* Inline code (NOT inside pre/code blocks from rehype-pretty-code) */
 .prose code:not(pre code) {
-  @apply px-1.5 py-0.5 rounded-lg bg-pink-50 dark:bg-purple-950/50 text-pink-600 dark:text-pink-300 text-sm font-medium;
+  @apply px-1.5 py-0.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-sm font-medium;
 }
 
 /* ===== Shiki dual-theme: class-based dark mode switch ===== */
@@ -224,30 +229,88 @@ code[data-theme*=" "] span {
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-pink-200 dark:bg-purple-800 rounded-full;
+  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-pink-300 dark:bg-purple-700;
+  @apply bg-gray-400 dark:bg-gray-600;
 }
 
 /* ===== Pagefind overrides ===== */
 :root {
   --pagefind-ui-scale: 1;
-  --pagefind-ui-primary: #ec4899;
+  --pagefind-ui-primary: #555555;
   --pagefind-ui-text: #1e293b;
   --pagefind-ui-background: #ffffff;
-  --pagefind-ui-border: #fce7f3;
+  --pagefind-ui-border: #e5e7eb;
   --pagefind-ui-border-width: 2px;
   --pagefind-ui-border-radius: 16px;
   --pagefind-ui-font: inherit;
 }
 
 .dark {
-  --pagefind-ui-primary: #f472b6;
+  --pagefind-ui-primary: #999999;
   --pagefind-ui-text: #e2e8f0;
-  --pagefind-ui-background: #1a1025;
-  --pagefind-ui-border: #3b0764;
+  --pagefind-ui-background: #1a1a2e;
+  --pagefind-ui-border: #333355;
+}
+
+/* ===== Theme Transition: View Transitions API ===== */
+::view-transition-old(root) {
+  animation: themeFadeOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+::view-transition-new(root) {
+  animation: themeFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+}
+
+@keyframes themeFadeOut {
+  from { opacity: 1; filter: blur(0); }
+  to { opacity: 0; filter: blur(4px); }
+}
+
+@keyframes themeFadeIn {
+  from { opacity: 0; filter: blur(4px); }
+  to { opacity: 1; filter: blur(0); }
+}
+
+/* ===== Theme Transition: Fallback overlay (non-View-Transitions browsers) ===== */
+.theme-transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  clip-path: circle(0% at var(--toggle-x, 50%) var(--toggle-y, 50%));
+  animation: themeOverlayIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.theme-transition-overlay[data-theme="dark"] {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.theme-transition-overlay[data-theme="light"] {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.theme-transition-overlay.reverse {
+  animation: themeOverlayOut 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes themeOverlayIn {
+  from { clip-path: circle(0% at var(--toggle-x, 50%) var(--toggle-y, 50%)); }
+  to { clip-path: circle(100% at var(--toggle-x, 50%) var(--toggle-y, 50%)); }
+}
+
+@keyframes themeOverlayOut {
+  from { clip-path: circle(100% at var(--toggle-x, 50%) var(--toggle-y, 50%)); }
+  to { clip-path: circle(0% at var(--toggle-x, 50%) var(--toggle-y, 50%)); }
+}
+
+/* ===== Smooth theme transition on color-related properties ===== */
+section, article, .glass-card, .glass {
+  transition-property: background-color, border-color, box-shadow, transform;
+  transition-duration: 0.3s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ===== Animations ===== */
@@ -298,8 +361,8 @@ code[data-theme*=" "] span {
 }
 
 @keyframes borderGlow {
-  0%, 100% { border-color: #ec4899; box-shadow: 0 0 12px rgba(236,72,153,0.3); }
-  50% { border-color: #8b5cf6; box-shadow: 0 0 20px rgba(139,92,246,0.4); }
+  0%, 100% { border-color: rgba(255,255,255,0.4); box-shadow: 0 0 12px rgba(255,255,255,0.15); }
+  50% { border-color: rgba(255,255,255,0.6); box-shadow: 0 0 20px rgba(255,255,255,0.25); }
 }
 
 @keyframes gradientFlow {
@@ -309,8 +372,8 @@ code[data-theme*=" "] span {
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 8px rgba(236,72,153,0.3), 0 0 16px rgba(139,92,246,0.15); }
-  50% { box-shadow: 0 0 16px rgba(236,72,153,0.5), 0 0 32px rgba(139,92,246,0.3); }
+  0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,0.1), 0 0 16px rgba(255,255,255,0.05); }
+  50% { box-shadow: 0 0 16px rgba(255,255,255,0.2), 0 0 32px rgba(255,255,255,0.1); }
 }
 
 .animate-float { animation: float 6s ease-in-out infinite; }
@@ -321,7 +384,7 @@ code[data-theme*=" "] span {
 .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .animate-slide-right { animation: slideRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(236,72,153,0.1) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 3s infinite;
 }
@@ -332,12 +395,7 @@ code[data-theme*=" "] span {
 }
 .animate-pulse-glow { animation: pulseGlow 2.5s ease-in-out infinite; }
 
-/* ===== Smooth section transitions ===== */
-section, article, .glass-card, .glass {
-  @apply transition-all duration-300 ease-out;
-}
-
-/* ===== Enhanced link underline animation ===== */
+/* ===== Enhanced link underline animation (neutral) ===== */
 .nav-link-underline {
   position: relative;
 }
@@ -349,9 +407,13 @@ section, article, .glass-card, .glass {
   left: 50%;
   width: 0;
   height: 2px;
-  background: linear-gradient(90deg, #ec4899, #8b5cf6);
+  background: linear-gradient(90deg, #999999, #cccccc);
   border-radius: 1px;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .nav-link-underline::after {
+  background: linear-gradient(90deg, #aaaaaa, #dddddd);
 }
 
 .nav-link-underline:hover::after,

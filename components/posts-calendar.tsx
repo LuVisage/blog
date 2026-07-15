@@ -60,7 +60,7 @@ export function PostsCalendar({ posts }: Props) {
   return (
     <div className="rounded-2xl glass-card p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-3">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
           <line x1="8" y1="2" x2="8" y2="6" />
@@ -104,8 +104,8 @@ export function PostsCalendar({ posts }: Props) {
                         ? 'bg-transparent'
                         : hasPost
                           ? dayPosts.length > 1
-                            ? 'bg-pink-500 dark:bg-pink-400'
-                            : 'bg-pink-400 dark:bg-pink-500'
+                            ? 'bg-gray-500 dark:bg-gray-400'
+                            : 'bg-gray-400 dark:bg-gray-500'
                           : 'bg-gray-200 dark:bg-gray-700'
                     }`}
                     title={hasPost
@@ -130,7 +130,7 @@ export function PostsCalendar({ posts }: Props) {
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 bg-white dark:bg-purple-950 border border-pink-100 dark:border-purple-500/30 rounded-xl shadow-xl px-3 py-2 text-xs pointer-events-none animate-scale-in"
+          className="fixed z-50 bg-white dark:bg-white/5 border border-white/10 dark:border-white/10 rounded-xl shadow-xl px-3 py-2 text-xs pointer-events-none animate-scale-in"
           style={{ left: tooltip.x + 16, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
         >
           <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
@@ -150,10 +150,10 @@ export function PostsCalendar({ posts }: Props) {
           <span className="w-3 h-3 rounded-[2px] bg-gray-200 dark:bg-gray-700 inline-block" /> 无
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] bg-pink-400 dark:bg-pink-500 inline-block" /> 有文章
+          <span className="w-3 h-3 rounded-[2px] bg-gray-400 dark:bg-gray-500 inline-block" /> 有文章
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] bg-pink-500 dark:bg-pink-400 inline-block" /> 多篇
+          <span className="w-3 h-3 rounded-[2px] bg-gray-500 dark:bg-gray-400 inline-block" /> 多篇
         </span>
       </div>
     </div>

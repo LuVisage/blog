@@ -35,11 +35,11 @@ export default function CategoriesPage() {
                 <span className="text-3xl">
                   {getCategoryEmoji(category)}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-pink-100 dark:bg-pink-950/50 text-pink-600 dark:text-pink-400">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/10 dark:bg-white/10 text-gray-600 dark:text-gray-400">
                   {count}
                 </span>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
                 {category}
               </h3>
               <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
@@ -53,7 +53,7 @@ export default function CategoriesPage() {
           <div className="text-5xl mb-4">📂</div>
           <p className="text-gray-400 dark:text-gray-500 text-lg">还没有分类~</p>
           <p className="text-gray-300 dark:text-gray-600 text-sm mt-2">
-            在文章 frontmatter 中添加 <code className="px-1.5 py-0.5 rounded bg-pink-50 dark:bg-purple-950/50 text-pink-500 text-xs">category</code> 字段
+            在文章 frontmatter 中添加 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs">category</code> 字段
           </p>
         </div>
       )}

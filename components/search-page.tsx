@@ -123,7 +123,7 @@ export function SearchPage() {
         </h1>
         <p className="text-gray-400 dark:text-gray-500 text-sm">
           也可以使用{' '}
-          <kbd className="px-1.5 py-0.5 rounded-lg bg-pink-50 dark:bg-purple-950/50 border border-pink-100 dark:border-purple-500/20 text-xs font-mono text-gray-400 dark:text-gray-500">
+          <kbd className="px-1.5 py-0.5 rounded-lg bg-white/10 dark:bg-white/10 border border-white/10 dark:border-white/10 text-xs font-mono text-gray-400 dark:text-gray-500">
             ⌘K
           </kbd>{' '}
           快捷键打开
@@ -154,11 +154,11 @@ export function SearchPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜索文章..."
             autoFocus
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 dark:bg-purple-950/40 border border-pink-100/60 dark:border-purple-500/20 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-300 dark:focus:ring-pink-600 focus:border-transparent transition-all text-sm"
+            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 dark:bg-white/5 border border-white/10 dark:border-white/10 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-500 focus:border-transparent transition-all text-sm"
           />
           {loading && (
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
-              <div className="w-5 h-5 border-2 border-pink-300 border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
         </div>
@@ -179,7 +179,7 @@ export function SearchPage() {
             <div className="text-center py-8">
               <div className="text-4xl mb-3">🔍</div>
               <p className="text-gray-400 dark:text-gray-500 text-sm">
-                未找到关于 <span className="text-pink-500 font-medium">{query}</span> 的相关内容
+                未找到关于 <span className="text-gray-600 font-medium">{query}</span> 的相关内容
               </p>
             </div>
           )}
@@ -190,7 +190,7 @@ export function SearchPage() {
                 <li key={result.url}>
                   <a
                     href={result.url}
-                    className="flex items-center gap-3 px-3 py-2.5 -mx-3 rounded-xl hover:bg-pink-50/60 dark:hover:bg-purple-900/30 transition-colors group"
+                    className="flex items-center gap-3 px-3 py-2.5 -mx-3 rounded-xl hover:bg-white/10 dark:hover:bg-white/5 transition-colors group"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -202,12 +202,12 @@ export function SearchPage() {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      className="flex-shrink-0 text-pink-400"
+                      className="flex-shrink-0 text-gray-400"
                     >
                       <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors truncate">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors truncate">
                       {result.title}
                     </span>
                   </a>

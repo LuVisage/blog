@@ -3,7 +3,7 @@
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 
-/** Pure CSS animated background — sparkles, light orbs, and grid texture */
+/** Pure CSS animated background — subtle sparkles, light orbs, and grid texture */
 export function BackgroundDecor() {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -16,26 +16,21 @@ export function BackgroundDecor() {
 
   return (
     <div aria-hidden="true" className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: -1 }}>
-      {/* Gradient light orbs */}
+      {/* Gradient light orbs — barely visible atmosphere */}
       <div className="bg-pattern" />
       <div className="bg-grid" />
 
-      {/* Floating sparkles */}
-      <Sparkle size={6} top="10%" left="15%" delay="0s" duration="3s" color={isDark ? '#f472b6' : '#ec4899'} />
-      <Sparkle size={4} top="25%" left="75%" delay="0.5s" duration="2.5s" color={isDark ? '#a78bfa' : '#8b5cf6'} />
-      <Sparkle size={5} top="60%" left="10%" delay="1s" duration="4s" color={isDark ? '#22d3ee' : '#06b6d4'} />
-      <Sparkle size={3} top="70%" left="85%" delay="1.5s" duration="3.5s" color={isDark ? '#f472b6' : '#ec4899'} />
-      <Sparkle size={7} top="40%" left="50%" delay="0.8s" duration="2.8s" color={isDark ? '#a78bfa' : '#8b5cf6'} />
-      <Sparkle size={4} top="15%" left="40%" delay="2s" duration="3.2s" color={isDark ? '#22d3ee' : '#06b6d4'} />
-      <Sparkle size={5} top="80%" left="60%" delay="0.3s" duration="4.5s" color={isDark ? '#f472b6' : '#ec4899'} />
-      <Sparkle size={3} top="50%" left="30%" delay="1.8s" duration="2.2s" color={isDark ? '#a78bfa' : '#8b5cf6'} />
-      <Sparkle size={6} top="90%" left="20%" delay="2.5s" duration="3.8s" color={isDark ? '#22d3ee' : '#06b6d4'} />
-      <Sparkle size={4} top="35%" left="65%" delay="0.2s" duration="5s" color={isDark ? '#f472b6' : '#ec4899'} />
+      {/* Subtle white sparkles — far fewer, barely there */}
+      <Sparkle size={5} top="10%" left="15%" delay="0s" duration="3s" color="rgba(255,255,255,0.35)" />
+      <Sparkle size={3} top="25%" left="75%" delay="0.5s" duration="2.5s" color="rgba(255,255,255,0.25)" />
+      <Sparkle size={4} top="60%" left="10%" delay="1s" duration="4s" color="rgba(255,255,255,0.30)" />
+      <Sparkle size={3} top="70%" left="85%" delay="1.5s" duration="3.5s" color="rgba(255,255,255,0.25)" />
+      <Sparkle size={4} top="35%" left="50%" delay="0.8s" duration="2.8s" color="rgba(255,255,255,0.30)" />
 
-      {/* Larger floating orbs */}
-      <FloatingOrb size={120} top="10%" left="80%" delay="0s" color="rgba(236,72,153,0.15)" />
-      <FloatingOrb size={80} top="60%" left="5%" delay="2s" color="rgba(139,92,246,0.12)" />
-      <FloatingOrb size={100} top="85%" left="70%" delay="4s" color="rgba(6,182,212,0.1)" />
+      {/* Larger floating orbs — nearly invisible */}
+      <FloatingOrb size={120} top="10%" left="80%" delay="0s" color="rgba(255,255,255,0.03)" />
+      <FloatingOrb size={80} top="60%" left="5%" delay="2s" color="rgba(255,255,255,0.025)" />
+      <FloatingOrb size={100} top="85%" left="70%" delay="4s" color="rgba(255,255,255,0.02)" />
 
       {/* Corner decorations */}
       <CornerDecor />
@@ -100,22 +95,22 @@ function FloatingOrb({ size, top, left, delay, color }: {
 function CornerDecor() {
   return (
     <>
-      {/* Top-left corner sakura branch hint */}
-      <div className="absolute top-0 left-0 opacity-20 dark:opacity-10" style={{ transform: 'rotate(180deg)' }}>
+      {/* Top-left corner subtle branch */}
+      <div className="absolute top-0 left-0 opacity-15 dark:opacity-08" style={{ transform: 'rotate(180deg)' }}>
         <svg width="180" height="180" viewBox="0 0 200 200" fill="none">
-          <path d="M0 0 C30 20, 50 60, 80 50 C100 40, 120 -10, 140 20 C160 50, 120 80, 100 90" stroke="#ec4899" strokeWidth="2" fill="none" opacity="0.5" />
-          <circle cx="140" cy="18" r="8" fill="#f472b6" opacity="0.6" />
-          <circle cx="90" cy="42" r="6" fill="#f9a8d4" opacity="0.5" />
-          <circle cx="120" cy="10" r="5" fill="#fbcfe8" opacity="0.4" />
+          <path d="M0 0 C30 20, 50 60, 80 50 C100 40, 120 -10, 140 20 C160 50, 120 80, 100 90" stroke="#999999" strokeWidth="2" fill="none" opacity="0.5" />
+          <circle cx="140" cy="18" r="8" fill="#bbbbbb" opacity="0.4" />
+          <circle cx="90" cy="42" r="6" fill="#aaaaaa" opacity="0.3" />
+          <circle cx="120" cy="10" r="5" fill="#cccccc" opacity="0.25" />
         </svg>
       </div>
 
       {/* Bottom-right corner stars */}
-      <div className="absolute bottom-0 right-0 opacity-20 dark:opacity-15">
+      <div className="absolute bottom-0 right-0 opacity-15 dark:opacity-10">
         <svg width="160" height="160" viewBox="0 0 200 200" fill="none">
-          <path d="M160 120l8 2-2 8zm20-40l12 3-3 12zm-80 90l6 1.5-1.5 6zm50-20l10 2.5-2.5 10z" stroke="#8b5cf6" strokeWidth="1" fill="none" opacity="0.5" />
-          <circle cx="170" cy="110" r="3" fill="#a78bfa" opacity="0.4" />
-          <circle cx="140" cy="140" r="2" fill="#c084fc" opacity="0.3" />
+          <path d="M160 120l8 2-2 8zm20-40l12 3-3 12zm-80 90l6 1.5-1.5 6zm50-20l10 2.5-2.5 10z" stroke="#999999" strokeWidth="1" fill="none" opacity="0.5" />
+          <circle cx="170" cy="110" r="3" fill="#bbbbbb" opacity="0.3" />
+          <circle cx="140" cy="140" r="2" fill="#aaaaaa" opacity="0.2" />
         </svg>
       </div>
     </>

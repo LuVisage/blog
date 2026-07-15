@@ -18,7 +18,7 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
         {/* Category */}
         {post.category && (
           <div className="mb-2">
-            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30 text-pink-500 dark:text-pink-400 border border-pink-200 dark:border-pink-500/30">
+            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 dark:bg-white/5 text-gray-600 dark:text-gray-400 border border-white/10 dark:border-white/10">
               📂 {post.category}
             </span>
           </div>
@@ -35,7 +35,7 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
             </svg>
             {format(date, 'yyyy 年 M 月 d 日', { locale: zhCN })}
           </time>
-          <span className="text-pink-300 dark:text-pink-600">·</span>
+          <span className="text-gray-300 dark:text-gray-600">·</span>
           <span className="flex items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -46,7 +46,7 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
         </div>
 
         {/* Title */}
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-100 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors mb-2">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-100 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors mb-2">
           {post.title}
         </h2>
 
@@ -63,7 +63,7 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
             {post.tags.slice(0, 4).map((tag) => (
               <span
                 key={tag}
-                className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-50/70 dark:bg-pink-950/30 text-pink-600 dark:text-pink-400 border border-pink-100/70 dark:border-pink-500/20"
+                className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 dark:bg-white/5 text-gray-600 dark:text-gray-400 border border-white/10 dark:border-white/10"
               >
                 #{tag}
               </span>

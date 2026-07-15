@@ -37,8 +37,8 @@ export function TagFilter({ posts, tags }: Props) {
             onClick={() => setSelectedTag(null)}
             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
               selectedTag === null
-                ? 'bg-pink-500 text-white shadow-md shadow-pink-500/25 scale-105'
-                : 'bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-500/30 hover:border-pink-400 hover:scale-105'
+                ? 'bg-gray-500 text-white shadow-md shadow-black/10 scale-105'
+                : 'bg-gradient-to-r from-white/10 to-white/5 dark:from-white/5 dark:to-white/5 text-gray-700 dark:text-gray-300 border border-white/20 dark:border-white/10 hover:border-white/30 hover:scale-105'
             }`}
           >
             <span className="text-[10px]">📋</span>
@@ -51,8 +51,8 @@ export function TagFilter({ posts, tags }: Props) {
               onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
                 selectedTag === tag
-                  ? 'bg-pink-500 text-white shadow-md shadow-pink-500/25 scale-105'
-                  : 'bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-500/30 hover:border-pink-400 hover:scale-105'
+                  ? 'bg-gray-500 text-white shadow-md shadow-black/10 scale-105'
+                  : 'bg-gradient-to-r from-white/10 to-white/5 dark:from-white/5 dark:to-white/5 text-gray-700 dark:text-gray-300 border border-white/20 dark:border-white/10 hover:border-white/30 hover:scale-105'
               }`}
             >
               <span className="text-[10px]">✦</span>
@@ -68,7 +68,7 @@ export function TagFilter({ posts, tags }: Props) {
         {selectedTag && (
           <div className="flex items-center gap-2 mb-6">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-              筛选：<span className="text-pink-500">#{selectedTag}</span>
+              筛选：<span className="text-gray-600">#{selectedTag}</span>
             </h2>
             <span className="text-sm text-gray-400 dark:text-gray-500">
               {filteredPosts.length} 篇文章
