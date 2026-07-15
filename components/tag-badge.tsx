@@ -9,7 +9,7 @@ export function TagBadge({ tag, count }: { tag: string; count?: number }) {
       <span className="text-[10px]">✦</span>
       {tag}
       {count !== undefined && (
-        <span className="text-gray-400 dark:text-gray-500 text-[10px]">{count}</span>
+        <span className="text-gray-600 dark:text-gray-400 text-[10px]">{count}</span>
       )}
     </Link>
   )

@@ -37,7 +37,7 @@ export default async function SeriesDetailPage({ params }: { params: PageParams 
             <span className="gradient-text">{series}</span>
           </h1>
         </div>
-        <p className="text-gray-400 dark:text-gray-500 text-sm">
+        <p className="text-gray-600 dark:text-gray-400 text-sm">
           共 {posts.length} 篇文章
         </p>
       </div>
@@ -62,13 +62,13 @@ export default async function SeriesDetailPage({ params }: { params: PageParams 
               href={`/posts/${post.slug}`}
               className="flex items-center gap-3 px-3 py-2 -mx-3 rounded-xl hover:bg-white/10 dark:hover:bg-white/5 transition-colors group"
             >
-              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 dark:bg-white/10 text-gray-600 dark:text-gray-400 text-xs font-bold flex items-center justify-center">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 dark:bg-white/10 text-gray-800 dark:text-gray-300 text-xs font-bold flex items-center justify-center">
                 {post.seriesOrder ?? i + 1}
               </span>
-              <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors truncate">
+              <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors truncate">
                 {post.title}
               </span>
-              <span className="text-xs text-gray-400 dark:text-gray-500">
+              <span className="text-xs text-gray-600 dark:text-gray-400">
                 {new Date(post.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
               </span>
             </a>

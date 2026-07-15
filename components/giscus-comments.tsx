@@ -138,7 +138,7 @@ export function GiscusComments() {
       {/* Idle hint — user hasn't scrolled near comments yet */}
       {status === 'idle' && (
         <div className="text-center py-10 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-          <span className="text-gray-400 dark:text-gray-500 text-sm">
+          <span className="text-gray-600 dark:text-gray-400 text-sm">
             💬 滚动到此处加载评论区
           </span>
         </div>
@@ -150,14 +150,14 @@ export function GiscusComments() {
           <p className="text-amber-600 dark:text-amber-400 font-medium mb-3">
             ⚠️ 评论区加载失败
           </p>
-          <ul className="text-left text-sm text-gray-500 dark:text-gray-400 space-y-1.5 max-w-md mx-auto">
+          <ul className="text-left text-sm text-gray-700 dark:text-gray-300 space-y-1.5 max-w-md mx-auto">
             <li className="flex items-start gap-2">
               <span className="text-amber-500 mt-0.5">1.</span>
               <span>仓库已启用 <b>Discussions</b>（Settings → Features → ✅ Discussions）</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-amber-500 mt-0.5">2.</span>
-              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-600 underline">giscus App</a> 并授权 <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">LuVisage/blog</code></span>
+              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="text-gray-700 hover:text-gray-800 underline">giscus App</a> 并授权 <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">LuVisage/blog</code></span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-amber-500 mt-0.5">3.</span>
@@ -171,7 +171,7 @@ export function GiscusComments() {
               const container = document.getElementById('giscus-container')
               if (container) container.innerHTML = ''
             }}
-            className="mt-4 text-xs text-gray-500 hover:text-gray-600 underline transition-colors"
+            className="mt-4 text-xs text-gray-700 hover:text-gray-800 underline transition-colors"
           >
             点击重试
           </button>

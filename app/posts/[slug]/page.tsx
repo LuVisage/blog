@@ -102,7 +102,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
             {post.category && (
               <Link
                 href={`/categories/${post.category}`}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 dark:bg-white/5 text-gray-600 dark:text-gray-400 text-xs font-medium border border-white/10 dark:border-white/10 hover:border-white/30 dark:hover:border-white/10 transition-all mb-4"
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300 text-xs font-medium border border-white/10 dark:border-white/10 hover:border-white/30 dark:hover:border-white/10 transition-all mb-4"
               >
                 📂 {post.category}
               </Link>
@@ -114,7 +114,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
             </h1>
 
             {/* Meta info */}
-            <div className="flex flex-wrap items-center gap-3 text-sm lg:text-base text-gray-400 dark:text-gray-500 mb-4">
+            <div className="flex flex-wrap items-center gap-3 text-sm lg:text-base text-gray-600 dark:text-gray-400 mb-4">
               <time dateTime={post.date} className="flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -148,7 +148,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                   <span>·</span>
                   <Link
                     href={`/series/${post.series}`}
-                    className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:underline"
+                    className="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:underline"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
@@ -186,13 +186,13 @@ export default async function PostPage({ params }: { params: PageParams }) {
                 href={`/posts/${prev.slug}`}
                 className="group p-5 rounded-2xl glass-card text-left hover:scale-[1.01] transition-transform"
               >
-                <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m15 18-6-6 6-6" />
                   </svg>
                   上一篇
                 </span>
-                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors line-clamp-1">
+                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors line-clamp-1">
                   {prev.title}
                 </p>
               </Link>
@@ -204,13 +204,13 @@ export default async function PostPage({ params }: { params: PageParams }) {
                 href={`/posts/${next.slug}`}
                 className="group p-5 rounded-2xl glass-card text-right hover:scale-[1.01] transition-transform"
               >
-                <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center justify-end gap-1">
+                <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center justify-end gap-1">
                   下一篇
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m9 18 6-6-6-6" />
                   </svg>
                 </span>
-                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors line-clamp-1">
+                <p className="mt-1.5 font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors line-clamp-1">
                   {next.title}
                 </p>
               </Link>

@@ -13,7 +13,7 @@ export default function FriendsPage() {
         <h1 className="text-3xl lg:text-4xl font-bold mb-2">
           <span className="gradient-text">友链</span>
         </h1>
-        <p className="text-gray-400 dark:text-gray-500 text-sm">
+        <p className="text-gray-600 dark:text-gray-400 text-sm">
           同道中人的博客
         </p>
       </div>
@@ -38,10 +38,10 @@ export default function FriendsPage() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-200 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors">
                   {friend.name}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 line-clamp-2">
                   {friend.description}
                 </p>
               </div>
@@ -56,7 +56,7 @@ export default function FriendsPage() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="flex-shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 transition-colors mt-1"
+                className="flex-shrink-0 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 transition-colors mt-1"
               >
                 <path d="M7 17l9.2-9.2M17 17V7H7" />
               </svg>
@@ -66,9 +66,9 @@ export default function FriendsPage() {
       ) : (
         <div className="text-center py-20 rounded-3xl glass-card">
           <div className="text-5xl mb-4">🤝</div>
-          <p className="text-gray-400 dark:text-gray-500 text-lg">还没有友链~</p>
-          <p className="text-gray-300 dark:text-gray-600 text-sm mt-2">
-            在 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs">lib/constants.ts</code> 中配置 FRIENDS
+          <p className="text-gray-600 dark:text-gray-400 text-lg">还没有友链~</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
+            在 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-xs">lib/constants.ts</code> 中配置 FRIENDS
           </p>
         </div>
       )}
@@ -78,15 +78,15 @@ export default function FriendsPage() {
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
           💌 交换友链
         </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+        <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
           如果你也是 AI/技术方向的博客，欢迎交换友链！
         </p>
-        <div className="inline-flex flex-col sm:flex-row items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-          <code className="px-2 py-1 rounded-lg bg-white/10 dark:bg-white/5 text-gray-600 dark:text-gray-400">
+        <div className="inline-flex flex-col sm:flex-row items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+          <code className="px-2 py-1 rounded-lg bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300">
             {SITE.title}
           </code>
           <span className="hidden sm:inline">—</span>
-          <code className="px-2 py-1 rounded-lg bg-white/10 dark:bg-white/5 text-gray-600 dark:text-gray-400">
+          <code className="px-2 py-1 rounded-lg bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300">
             {SITE.url}
           </code>
           <span className="hidden sm:inline">—</span>

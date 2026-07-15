@@ -34,7 +34,7 @@ export default async function TagPage({ params }: { params: PageParams }) {
         <h1 className="text-3xl font-bold mb-2">
           <span className="gradient-text">#{tag}</span>
         </h1>
-        <p className="text-gray-400 dark:text-gray-500 text-sm">
+        <p className="text-gray-600 dark:text-gray-400 text-sm">
           共 {posts.length} 篇文章
         </p>
       </div>

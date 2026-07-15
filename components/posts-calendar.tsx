@@ -60,7 +60,7 @@ export function PostsCalendar({ posts }: Props) {
   return (
     <div className="rounded-2xl glass-card p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-3">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
           <line x1="8" y1="2" x2="8" y2="6" />
@@ -69,7 +69,7 @@ export function PostsCalendar({ posts }: Props) {
         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           文章日历
         </span>
-        <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
+        <span className="text-xs text-gray-600 dark:text-gray-400 ml-auto">
           {posts.length} 篇
         </span>
       </div>
@@ -79,7 +79,7 @@ export function PostsCalendar({ posts }: Props) {
         {months.map(({ month, days, label }) => (
           <div key={label} className="flex flex-col gap-1">
             {/* Month label */}
-            <span className="text-[11px] text-gray-400 dark:text-gray-500 leading-none mb-0.5">
+            <span className="text-[11px] text-gray-600 dark:text-gray-400 leading-none mb-0.5">
               {label}
             </span>
             {/* Day cells */}
@@ -104,9 +104,9 @@ export function PostsCalendar({ posts }: Props) {
                         ? 'bg-transparent'
                         : hasPost
                           ? dayPosts.length > 1
-                            ? 'bg-gray-500 dark:bg-gray-400'
-                            : 'bg-gray-400 dark:bg-gray-500'
-                          : 'bg-gray-200 dark:bg-gray-700'
+                            ? 'bg-gray-800 dark:bg-gray-300'
+                            : 'bg-gray-600 dark:bg-gray-400'
+                          : 'bg-gray-300 dark:bg-gray-600'
                     }`}
                     title={hasPost
                       ? `${format(day, 'yyyy年M月d日', { locale: zhCN })}\n${dayPosts.map((p) => p.title).join('\n')}`
@@ -137,7 +137,7 @@ export function PostsCalendar({ posts }: Props) {
             {format(tooltip.date, 'yyyy 年 M 月 d 日', { locale: zhCN })}
           </p>
           {tooltip.posts.map((p) => (
-            <p key={p.slug} className="text-gray-500 dark:text-gray-400 leading-relaxed">
+            <p key={p.slug} className="text-gray-700 dark:text-gray-300 leading-relaxed">
               {p.title}
             </p>
           ))}
@@ -145,15 +145,15 @@ export function PostsCalendar({ posts }: Props) {
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-3 mt-3 text-[10px] text-gray-400 dark:text-gray-500">
+      <div className="flex items-center gap-3 mt-3 text-[10px] text-gray-600 dark:text-gray-400">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] bg-gray-200 dark:bg-gray-700 inline-block" /> 无
+          <span className="w-3 h-3 rounded-[2px] bg-gray-300 dark:bg-gray-600 inline-block" /> 无
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] bg-gray-400 dark:bg-gray-500 inline-block" /> 有文章
+          <span className="w-3 h-3 rounded-[2px] bg-gray-600 dark:bg-gray-400 inline-block" /> 有文章
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] bg-gray-500 dark:bg-gray-400 inline-block" /> 多篇
+          <span className="w-3 h-3 rounded-[2px] bg-gray-800 dark:bg-gray-300 inline-block" /> 多篇
         </span>
       </div>
     </div>

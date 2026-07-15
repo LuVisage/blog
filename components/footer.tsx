@@ -15,7 +15,7 @@ export function Footer() {
                 href={SOCIAL_LINKS.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-white/10 dark:bg-white/5 border border-white/10 dark:border-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
+                className="w-10 h-10 rounded-xl bg-white/10 dark:bg-white/5 border border-white/10 dark:border-white/5 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
                 aria-label="GitHub"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -26,7 +26,7 @@ export function Footer() {
             {SOCIAL_LINKS.email && (
               <a
                 href={`mailto:${SOCIAL_LINKS.email}`}
-                className="w-10 h-10 rounded-xl bg-white/10 dark:bg-white/5 border border-white/10 dark:border-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
+                className="w-10 h-10 rounded-xl bg-white/10 dark:bg-white/5 border border-white/10 dark:border-white/5 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
                 aria-label="Email"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -40,7 +40,7 @@ export function Footer() {
                 href={SOCIAL_LINKS.twitter}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-white/10 dark:bg-white/5 border border-white/10 dark:border-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
+                className="w-10 h-10 rounded-xl bg-white/10 dark:bg-white/5 border border-white/10 dark:border-white/5 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
                 aria-label="Twitter"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -52,30 +52,30 @@ export function Footer() {
 
           {/* Nav links */}
           <div className="flex items-center justify-center gap-4 mb-3">
-            <Link href="/about" className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <Link href="/about" className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
               关于
             </Link>
-            <span className="text-gray-300 dark:text-gray-600">·</span>
-            <Link href="/archive" className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <span className="text-gray-500 dark:text-gray-500">·</span>
+            <Link href="/archive" className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
               归档
             </Link>
-            <span className="text-gray-300 dark:text-gray-600">·</span>
-            <Link href="/friends" className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <span className="text-gray-500 dark:text-gray-500">·</span>
+            <Link href="/friends" className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
               友链
             </Link>
-            <span className="text-gray-300 dark:text-gray-600">·</span>
-            <Link href="/privacy" className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <span className="text-gray-500 dark:text-gray-500">·</span>
+            <Link href="/privacy" className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
               隐私
             </Link>
-            <span className="text-gray-300 dark:text-gray-600">·</span>
-            <a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`} className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <span className="text-gray-500 dark:text-gray-500">·</span>
+            <a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`} className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
               RSS
             </a>
           </div>
 
-          <p className="text-sm text-gray-400 dark:text-gray-500">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             &copy; {year} {SITE.author.name} &mdash; Made with{' '}
-            <span className="text-gray-500 dark:text-gray-400">♥</span> and Next.js
+            <span className="text-gray-700 dark:text-gray-300">♥</span> and Next.js
           </p>
         </div>
       </div>

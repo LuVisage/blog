@@ -24,7 +24,7 @@ export function TagFilter({ posts, tags }: Props) {
         <h1 className="text-3xl font-bold mb-2">
           <span className="gradient-text">标签</span>
         </h1>
-        <p className="text-gray-400 dark:text-gray-500 text-sm">
+        <p className="text-gray-600 dark:text-gray-400 text-sm">
           共 {tags.length} 个标签 · {posts.length} 篇文章
         </p>
       </div>
@@ -68,9 +68,9 @@ export function TagFilter({ posts, tags }: Props) {
         {selectedTag && (
           <div className="flex items-center gap-2 mb-6">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-              筛选：<span className="text-gray-600">#{selectedTag}</span>
+              筛选：<span className="text-gray-800">#{selectedTag}</span>
             </h2>
-            <span className="text-sm text-gray-400 dark:text-gray-500">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
               {filteredPosts.length} 篇文章
             </span>
           </div>

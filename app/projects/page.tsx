@@ -13,7 +13,7 @@ export default function ProjectsPage() {
         <h1 className="text-3xl lg:text-4xl font-bold mb-2">
           <span className="gradient-text">项目</span>
         </h1>
-        <p className="text-gray-400 dark:text-gray-500 text-sm">
+        <p className="text-gray-600 dark:text-gray-400 text-sm">
           个人项目与开源作品
         </p>
       </div>
@@ -29,7 +29,7 @@ export default function ProjectsPage() {
               className="group rounded-2xl glass-card p-5 sm:p-6 flex flex-col hover:scale-[1.02] transition-transform"
             >
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors">
                   {project.name}
                 </h3>
                 <svg
@@ -42,13 +42,13 @@ export default function ProjectsPage() {
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="flex-shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 transition-colors"
+                  className="flex-shrink-0 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 transition-colors"
                 >
                   <path d="M7 17l9.2-9.2M17 17V7H7" />
                 </svg>
               </div>
 
-              <p className="text-sm text-gray-500 dark:text-gray-400 flex-1 mb-4 leading-relaxed">
+              <p className="text-sm text-gray-700 dark:text-gray-300 flex-1 mb-4 leading-relaxed">
                 {project.description}
               </p>
 
@@ -67,7 +67,7 @@ export default function ProjectsPage() {
                 {project.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-2 py-0.5 rounded-full text-xs bg-white/10 dark:bg-white/5 text-gray-600 dark:text-gray-400 border border-white/10 dark:border-white/10"
+                    className="px-2 py-0.5 rounded-full text-xs bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300 border border-white/10 dark:border-white/10"
                   >
                     {tag}
                   </span>
@@ -79,9 +79,9 @@ export default function ProjectsPage() {
       ) : (
         <div className="text-center py-20 rounded-3xl glass-card">
           <div className="text-5xl mb-4">🚀</div>
-          <p className="text-gray-400 dark:text-gray-500 text-lg">还没有项目~</p>
-          <p className="text-gray-300 dark:text-gray-600 text-sm mt-2">
-            在 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs">lib/constants.ts</code> 中配置 PROJECTS
+          <p className="text-gray-600 dark:text-gray-400 text-lg">还没有项目~</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
+            在 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-xs">lib/constants.ts</code> 中配置 PROJECTS
           </p>
         </div>
       )}

@@ -54,7 +54,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-gray-400 dark:text-gray-500 mr-1">分享：</span>
+      <span className="text-xs text-gray-600 dark:text-gray-400 mr-1">分享：</span>
 
       {shareLinks.map((link) => (
         <a
@@ -62,7 +62,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 dark:bg-white/5 border border-white/10 dark:border-white/10 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-white/30 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 dark:bg-white/5 border border-white/10 dark:border-white/10 text-xs text-gray-800 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:border-white/30 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
           title={`分享到 ${link.name}`}
         >
           {link.icon}
@@ -72,7 +72,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
 
       <button
         onClick={handleCopy}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 dark:bg-white/5 border border-white/10 dark:border-white/10 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-white/30 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 dark:bg-white/5 border border-white/10 dark:border-white/10 text-xs text-gray-800 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:border-white/30 dark:hover:border-white/10 transition-all hover:-translate-y-0.5"
       >
         {copied ? (
           <>

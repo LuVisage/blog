@@ -80,7 +80,7 @@ export function TableOfContents() {
       {/* Desktop: sticky sidebar */}
       <nav className="hidden xl:block sticky top-28 w-56 flex-shrink-0">
         <div className="rounded-2xl glass-card p-4">
-          <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="8" y1="6" x2="21" y2="6" />
               <line x1="8" y1="12" x2="21" y2="12" />
@@ -99,8 +99,8 @@ export function TableOfContents() {
                   onClick={(e) => handleClick(e, id)}
                   className={`block text-sm py-1.5 transition-all duration-200 border-l-2 line-clamp-1 ${
                     activeId === id
-                      ? 'border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-400 font-medium pl-3'
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:border-white/20 dark:hover:border-white/10 pl-3'
+                      ? 'border-gray-400 dark:border-gray-500 text-gray-800 dark:text-gray-300 font-medium pl-3'
+                      : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200 hover:border-white/20 dark:hover:border-white/10 pl-3'
                   } ${level === 3 ? 'ml-3 text-xs' : ''}`}
                 >
                   {text}
@@ -115,7 +115,7 @@ export function TableOfContents() {
       <div className="xl:hidden mb-6">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl glass-card text-sm text-gray-600 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl glass-card text-sm text-gray-800 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="8" y1="6" x2="21" y2="6" />
@@ -157,8 +157,8 @@ export function TableOfContents() {
                       level === 3 ? 'ml-4 text-xs' : ''
                     } ${
                       activeId === id
-                        ? 'text-gray-600 dark:text-gray-400 font-medium'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        ? 'text-gray-800 dark:text-gray-300 font-medium'
+                        : 'text-gray-700 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200'
                     }`}
                   >
                     {text}

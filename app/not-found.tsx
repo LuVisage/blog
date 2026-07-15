@@ -9,10 +9,10 @@ export default function NotFound() {
       <h1 className="text-5xl font-bold mb-2">
         <span className="gradient-text">404</span>
       </h1>
-      <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2">
+      <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-2">
         哎呀，页面走丢了~
       </h2>
-      <p className="text-gray-400 dark:text-gray-500 mb-8 max-w-sm text-sm leading-relaxed">
+      <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-sm text-sm leading-relaxed">
         你要找的页面可能被猫咪藏起来了，或者从未存在过...
       </p>
       <Link

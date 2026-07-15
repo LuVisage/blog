@@ -68,7 +68,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     blockquote: ({ children, ...props }) => (
       <blockquote
-        className="my-4 pl-4 border-l-4 border-primary-400 dark:border-primary-600 bg-gray-50 dark:bg-gray-900/50 rounded-r-lg py-2 italic text-gray-600 dark:text-gray-400"
+        className="my-4 pl-4 border-l-4 border-primary-400 dark:border-primary-600 bg-gray-50 dark:bg-gray-900/50 rounded-r-lg py-2 italic text-gray-800 dark:text-gray-300"
         {...props}
       >
         {children}

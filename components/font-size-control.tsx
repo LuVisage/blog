@@ -50,15 +50,15 @@ export function FontSizeControl() {
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-xs text-gray-400 dark:text-gray-500">字体：</span>
+      <span className="text-xs text-gray-600 dark:text-gray-400">字体：</span>
       {(['small', 'medium', 'large'] as FontSize[]).map((s) => (
         <button
           key={s}
           onClick={() => setSize(s)}
           className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
             size === s
-              ? 'bg-white/10 dark:bg-white/10 text-gray-600 dark:text-gray-400'
-              : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
+              ? 'bg-white/10 dark:bg-white/10 text-gray-800 dark:text-gray-300'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/50'
           }`}
         >
           {s === 'small' ? '小' : s === 'medium' ? '中' : '大'}

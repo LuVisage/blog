@@ -121,9 +121,9 @@ export function SearchPage() {
         <h1 className="text-3xl font-bold mb-2">
           <span className="gradient-text">搜索</span>
         </h1>
-        <p className="text-gray-400 dark:text-gray-500 text-sm">
+        <p className="text-gray-600 dark:text-gray-400 text-sm">
           也可以使用{' '}
-          <kbd className="px-1.5 py-0.5 rounded-lg bg-white/10 dark:bg-white/10 border border-white/10 dark:border-white/10 text-xs font-mono text-gray-400 dark:text-gray-500">
+          <kbd className="px-1.5 py-0.5 rounded-lg bg-white/10 dark:bg-white/10 border border-white/10 dark:border-white/10 text-xs font-mono text-gray-600 dark:text-gray-400">
             ⌘K
           </kbd>{' '}
           快捷键打开
@@ -143,7 +143,7 @@ export function SearchPage() {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600"
           >
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -178,8 +178,8 @@ export function SearchPage() {
           {!loading && searched && results.length === 0 && (
             <div className="text-center py-8">
               <div className="text-4xl mb-3">🔍</div>
-              <p className="text-gray-400 dark:text-gray-500 text-sm">
-                未找到关于 <span className="text-gray-600 font-medium">{query}</span> 的相关内容
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                未找到关于 <span className="text-gray-800 font-medium">{query}</span> 的相关内容
               </p>
             </div>
           )}
@@ -202,12 +202,12 @@ export function SearchPage() {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      className="flex-shrink-0 text-gray-400"
+                      className="flex-shrink-0 text-gray-600"
                     >
                       <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors truncate">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors truncate">
                       {result.title}
                     </span>
                   </a>
