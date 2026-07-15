@@ -130,7 +130,7 @@ export function PostsCalendar({ posts }: Props) {
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 bg-white dark:bg-white/5 border border-white/10 dark:border-white/10 rounded-xl shadow-xl px-3 py-2 text-xs pointer-events-none animate-scale-in"
+          className="fixed z-50 bg-white dark:bg-white/10 border border-white/10 dark:border-white/10 rounded-xl shadow-xl px-3 py-2 text-xs pointer-events-none animate-scale-in"
           style={{ left: tooltip.x + 16, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
         >
           <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1">

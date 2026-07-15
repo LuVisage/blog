@@ -58,7 +58,7 @@ export function ThemeToggle() {
   if (!mounted) {
     return (
       <button
-        className="w-9 h-9 rounded-xl border border-white/20 dark:border-white/10 bg-white/10 dark:bg-black/20 flex items-center justify-center"
+        className="w-9 h-9 rounded-xl border border-white/20 dark:border-white/10 bg-white/50 dark:bg-black/40 flex items-center justify-center"
         aria-label="切换主题"
       />
     )
@@ -70,7 +70,7 @@ export function ThemeToggle() {
     <button
       ref={btnRef}
       onClick={toggleTheme}
-      className="w-9 h-9 rounded-xl border border-white/20 dark:border-white/10 bg-white/10 dark:bg-black/20 hover:bg-white/25 dark:hover:bg-black/30 flex items-center justify-center transition-all duration-200"
+      className="w-9 h-9 rounded-xl border border-white/20 dark:border-white/10 bg-white/50 dark:bg-black/40 hover:bg-white/25 dark:hover:bg-black/30 flex items-center justify-center transition-all duration-200"
       aria-label={isDark ? '切换到亮色模式' : '切换到暗色模式'}
     >
       {isDark ? (

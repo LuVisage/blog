@@ -123,7 +123,7 @@ export function SearchPage() {
         </h1>
         <p className="text-gray-600 dark:text-gray-400 text-sm">
           也可以使用{' '}
-          <kbd className="px-1.5 py-0.5 rounded-lg bg-white/10 dark:bg-white/10 border border-white/10 dark:border-white/10 text-xs font-mono text-gray-600 dark:text-gray-400">
+          <kbd className="px-1.5 py-0.5 rounded-lg bg-white/50 dark:bg-white/10 border border-white/10 dark:border-white/10 text-xs font-mono text-gray-600 dark:text-gray-400">
             ⌘K
           </kbd>{' '}
           快捷键打开
@@ -154,7 +154,7 @@ export function SearchPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜索文章..."
             autoFocus
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 dark:bg-white/5 border border-white/10 dark:border-white/10 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-500 focus:border-transparent transition-all text-sm"
+            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 dark:bg-white/10 border border-white/10 dark:border-white/10 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-500 focus:border-transparent transition-all text-sm"
           />
           {loading && (
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -190,7 +190,7 @@ export function SearchPage() {
                 <li key={result.url}>
                   <a
                     href={result.url}
-                    className="flex items-center gap-3 px-3 py-2.5 -mx-3 rounded-xl hover:bg-white/10 dark:hover:bg-white/5 transition-colors group"
+                    className="flex items-center gap-3 px-3 py-2.5 -mx-3 rounded-xl hover:bg-white/50 dark:hover:bg-white/5 transition-colors group"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"

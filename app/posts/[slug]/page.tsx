@@ -102,7 +102,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
             {post.category && (
               <Link
                 href={`/categories/${post.category}`}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300 text-xs font-medium border border-white/10 dark:border-white/10 hover:border-white/30 dark:hover:border-white/10 transition-all mb-4"
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300 text-xs font-medium border border-white/10 dark:border-white/10 hover:border-white/30 dark:hover:border-white/10 transition-all mb-4"
               >
                 📂 {post.category}
               </Link>
@@ -170,7 +170,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </header>
 
           {/* Content */}
-          <div className="bg-white/10 dark:bg-black/10 backdrop-blur-xl rounded-3xl p-6 sm:p-10 lg:p-12 border border-white/10 dark:border-white/5 shadow-sm prose prose-gray dark:prose-invert max-w-none">
+          <div className="bg-white/50 dark:bg-black/40 backdrop-blur-xl rounded-3xl p-6 sm:p-10 lg:p-12 border border-white/10 dark:border-white/5 shadow-sm prose prose-gray dark:prose-invert max-w-none">
             <MDXContent source={post.content} />
           </div>
 

@@ -67,7 +67,7 @@ export default function ProjectsPage() {
                 {project.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-2 py-0.5 rounded-full text-xs bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300 border border-white/10 dark:border-white/10"
+                    className="px-2 py-0.5 rounded-full text-xs bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300 border border-white/10 dark:border-white/10"
                   >
                     {tag}
                   </span>
@@ -81,7 +81,7 @@ export default function ProjectsPage() {
           <div className="text-5xl mb-4">🚀</div>
           <p className="text-gray-600 dark:text-gray-400 text-lg">还没有项目~</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
-            在 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-xs">lib/constants.ts</code> 中配置 PROJECTS
+            在 <code className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-xs">lib/constants.ts</code> 中配置 PROJECTS
           </p>
         </div>
       )}

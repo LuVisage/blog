@@ -18,7 +18,7 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
         {/* Category */}
         {post.category && (
           <div className="mb-2">
-            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300 border border-white/10 dark:border-white/10">
+            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300 border border-white/10 dark:border-white/10">
               📂 {post.category}
             </span>
           </div>
@@ -63,7 +63,7 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
             {post.tags.slice(0, 4).map((tag) => (
               <span
                 key={tag}
-                className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300 border border-white/10 dark:border-white/10"
+                className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300 border border-white/10 dark:border-white/10"
               >
                 #{tag}
               </span>

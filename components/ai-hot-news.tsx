@@ -168,7 +168,7 @@ export function AIHotNews() {
           <h2 className="text-base lg:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
             <span className="text-lg">🔥</span>
             AI 热榜
-            <span className="text-xs font-normal text-gray-600 dark:text-gray-400 bg-white/10 dark:bg-white/5 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-normal text-gray-600 dark:text-gray-400 bg-white/50 dark:bg-white/10 px-2 py-0.5 rounded-full">
               近 7 日热门
             </span>
           </h2>
@@ -187,7 +187,7 @@ export function AIHotNews() {
               href={repo.html_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-start gap-3 px-3 py-3 -mx-3 rounded-xl hover:bg-white/10 dark:hover:bg-white/5 transition-all duration-200 group"
+              className="flex items-start gap-3 px-3 py-3 -mx-3 rounded-xl hover:bg-white/50 dark:hover:bg-white/5 transition-all duration-200 group"
             >
               {/* Rank */}
               <span
@@ -227,7 +227,7 @@ export function AIHotNews() {
                     {repo.topics.slice(0, 3).map((t) => (
                       <span
                         key={t}
-                        className="text-[10px] text-gray-700 dark:text-gray-300 bg-white/10 dark:bg-white/5 px-1.5 py-0.5 rounded-full"
+                        className="text-[10px] text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-white/10 px-1.5 py-0.5 rounded-full"
                       >
                         {t}
                       </span>

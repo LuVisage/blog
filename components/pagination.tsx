@@ -23,7 +23,7 @@ export function Pagination({ currentPage, totalPages, basePath }: PaginationProp
       {currentPage > 1 && (
         <Link
           href={currentPage === 2 ? basePath : `${basePath}?page=${currentPage - 1}`}
-          className="px-3 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/10 dark:hover:bg-white/5 transition-all"
+          className="px-3 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-white/5 transition-all"
         >
           ← 上一页
         </Link>
@@ -41,7 +41,7 @@ export function Pagination({ currentPage, totalPages, basePath }: PaginationProp
             className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-medium transition-all ${
               page === currentPage
                 ? 'bg-gradient-to-br from-gray-500 to-gray-600 text-white shadow-lg shadow-black/10'
-                : 'text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/10 dark:hover:bg-white/5'
+                : 'text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-white/5'
             }`}
           >
             {page}
@@ -52,7 +52,7 @@ export function Pagination({ currentPage, totalPages, basePath }: PaginationProp
       {currentPage < totalPages && (
         <Link
           href={`${basePath}?page=${currentPage + 1}`}
-          className="px-3 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/10 dark:hover:bg-white/5 transition-all"
+          className="px-3 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-white/5 transition-all"
         >
           下一页 →
         </Link>

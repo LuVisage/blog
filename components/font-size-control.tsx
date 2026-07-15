@@ -57,7 +57,7 @@ export function FontSizeControl() {
           onClick={() => setSize(s)}
           className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
             size === s
-              ? 'bg-white/10 dark:bg-white/10 text-gray-800 dark:text-gray-300'
+              ? 'bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300'
               : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/50'
           }`}
         >

@@ -29,7 +29,7 @@ export default function FriendsPage() {
               className="group rounded-2xl glass-card p-5 sm:p-6 flex items-start gap-4 hover:scale-[1.02] transition-transform"
             >
               {/* Avatar */}
-              <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/10 dark:bg-white/5 border border-white/10 dark:border-white/10 flex items-center justify-center overflow-hidden">
+              <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/50 dark:bg-white/10 border border-white/10 dark:border-white/10 flex items-center justify-center overflow-hidden">
                 {friend.avatar ? (
                   <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
                 ) : (
@@ -68,7 +68,7 @@ export default function FriendsPage() {
           <div className="text-5xl mb-4">🤝</div>
           <p className="text-gray-600 dark:text-gray-400 text-lg">还没有友链~</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
-            在 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-xs">lib/constants.ts</code> 中配置 FRIENDS
+            在 <code className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-xs">lib/constants.ts</code> 中配置 FRIENDS
           </p>
         </div>
       )}
@@ -82,11 +82,11 @@ export default function FriendsPage() {
           如果你也是 AI/技术方向的博客，欢迎交换友链！
         </p>
         <div className="inline-flex flex-col sm:flex-row items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-          <code className="px-2 py-1 rounded-lg bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300">
+          <code className="px-2 py-1 rounded-lg bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300">
             {SITE.title}
           </code>
           <span className="hidden sm:inline">—</span>
-          <code className="px-2 py-1 rounded-lg bg-white/10 dark:bg-white/5 text-gray-800 dark:text-gray-300">
+          <code className="px-2 py-1 rounded-lg bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300">
             {SITE.url}
           </code>
           <span className="hidden sm:inline">—</span>

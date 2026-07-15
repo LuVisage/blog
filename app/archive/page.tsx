@@ -66,7 +66,7 @@ export default function ArchivePage() {
                           <Link
                             key={post.slug}
                             href={`/posts/${post.slug}`}
-                            className="flex items-center gap-3 px-3 py-2 -mx-3 rounded-xl hover:bg-white/10 dark:hover:bg-white/5 transition-all duration-200 group"
+                            className="flex items-center gap-3 px-3 py-2 -mx-3 rounded-xl hover:bg-white/50 dark:hover:bg-white/5 transition-all duration-200 group"
                           >
                             <time className="flex-shrink-0 text-xs text-gray-600 dark:text-gray-400 font-mono w-10">
                               {format(date, 'd', { locale: zhCN })}日
@@ -75,7 +75,7 @@ export default function ArchivePage() {
                               {post.title}
                             </span>
                             {post.category && (
-                              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-white/10 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-white/10 dark:border-white/10">
+                              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-white/50 dark:bg-white/10 text-gray-700 dark:text-gray-300 border border-white/10 dark:border-white/10">
                                 {post.category}
                               </span>
                             )}

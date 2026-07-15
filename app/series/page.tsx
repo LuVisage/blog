@@ -54,7 +54,7 @@ export default function SeriesPage() {
           <div className="text-5xl mb-4">📚</div>
           <p className="text-gray-600 dark:text-gray-400 text-lg">还没有系列文章~</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
-            在文章 frontmatter 中添加 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-xs">series</code> 和 <code className="px-1.5 py-0.5 rounded bg-white/10 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-xs">seriesOrder</code> 字段
+            在文章 frontmatter 中添加 <code className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-xs">series</code> 和 <code className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-xs">seriesOrder</code> 字段
           </p>
         </div>
       )}

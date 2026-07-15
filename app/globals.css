@@ -17,7 +17,7 @@
   /* Background image is the hero — only a whisper of overlay for text readability */
   .bg-body {
     background:
-      linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%),
+      linear-gradient(180deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.35) 100%),
       var(--bg-image, none);
     background-size: cover;
     background-position: center;
@@ -26,7 +26,7 @@
 
   .dark .bg-body {
     background:
-      linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.12) 100%),
+      linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.40) 100%),
       var(--bg-image, none);
     background-size: cover;
     background-position: center;
@@ -49,14 +49,14 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.06;
+  opacity: 0.12;
   background-image:
     radial-gradient(circle at 20% 50%, rgba(255,255,255,0.15) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(255,255,255,0.10) 0%, transparent 50%);
 }
 
 .dark .bg-pattern {
-  opacity: 0.08;
+  opacity: 0.15;
   background-image:
     radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 50%),
     radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04) 0%, transparent 50%);
@@ -68,7 +68,7 @@
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.03;
+  opacity: 0.06;
   background-size: 60px 60px;
   background-image:
     linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px),
@@ -76,7 +76,7 @@
 }
 
 .dark .bg-grid {
-  opacity: 0.04;
+  opacity: 0.08;
   background-image:
     linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px);
@@ -84,7 +84,7 @@
 
 /* ===== Glass card (highly transparent) ===== */
 .glass {
-  @apply backdrop-blur-xl bg-white/10 dark:bg-black/20;
+  @apply backdrop-blur-xl bg-white/50 dark:bg-black/40;
   @apply border border-white/20 dark:border-white/10;
   @apply shadow-lg shadow-black/5 dark:shadow-black/25;
 }
@@ -101,14 +101,14 @@
 /* ===== Enhanced Glass Card (even more transparent, stronger blur) ===== */
 .glass-card {
   @apply backdrop-blur-2xl;
-  @apply bg-white/10 dark:bg-black/10;
+  @apply bg-white/60 dark:bg-black/40;
   @apply border border-white/10 dark:border-white/5;
   @apply shadow-lg shadow-black/5 dark:shadow-black/20;
   @apply transition-all duration-300;
 }
 
 .glass-card:hover {
-  @apply bg-white/20 dark:bg-black/20;
+  @apply bg-white/70 dark:bg-black/50;
   @apply border-white/25 dark:border-white/10;
   @apply shadow-xl shadow-black/5 dark:shadow-black/30;
 }
@@ -166,7 +166,7 @@ a.glass-card:hover,
 }
 
 .prose blockquote {
-  @apply border-l-gray-300 dark:border-l-gray-600 bg-gray-50/50 dark:bg-white/5 rounded-r-2xl py-1 italic;
+  @apply border-l-gray-300 dark:border-l-gray-600 bg-gray-50/50 dark:bg-white/10 rounded-r-2xl py-1 italic;
 }
 
 /* ===== Code blocks (rehype-pretty-code v0.14+ Shiki-based) ===== */
@@ -190,7 +190,7 @@ a.glass-card:hover,
 
 /* Code block titles (```title.ext) */
 .prose figcaption[data-rehype-pretty-code-title] {
-  @apply text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-white/5 px-4 py-2 rounded-t-2xl border border-b-0 border-gray-200 dark:border-white/10 font-mono;
+  @apply text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-white/10 px-4 py-2 rounded-t-2xl border border-b-0 border-gray-200 dark:border-white/10 font-mono;
 }
 
 /* Highlighted lines via rehype-pretty-code */
