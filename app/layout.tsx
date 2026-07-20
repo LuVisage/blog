@@ -8,6 +8,7 @@ import { Analytics } from '@/components/analytics'
 import { Particles } from '@/components/ui/particles'
 import { ClickSpark } from '@/components/ui/click-spark'
 import { CustomCursor } from '@/components/ui/custom-cursor'
+import { SplashCursor } from '@/components/ui/splash-cursor'
 import { NoiseOverlay } from '@/components/ui/noise-overlay'
 import './globals.css'
 
@@ -80,7 +81,12 @@ export default function RootLayout({
       <body className="flex flex-col min-h-screen relative bg-body">
         <NoiseOverlay opacity={0.035} />
         <ThemeProvider>
-          <CustomCursor />
+          <SplashCursor
+            colors={['rgba(180,180,210,0.45)', 'rgba(200,200,230,0.35)', 'rgba(160,160,190,0.4)']}
+            blobCount={10}
+            maxRadius={40}
+            minRadius={15}
+          />
           {/* Site-wide floating particles background */}
           <Particles
             quantity={60}

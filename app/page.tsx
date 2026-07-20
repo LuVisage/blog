@@ -12,6 +12,8 @@ import { FloatingBadge } from '@/components/ui/floating-badge'
 import { BentoGrid, BentoCard } from '@/components/ui/bento-grid'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { Marquee, MarqueeItem } from '@/components/ui/marquee'
+import { Hyperspeed } from '@/components/ui/hyperspeed'
+import { AnimatedGradientText } from '@/components/ui/shiny-text'
 import Link from 'next/link'
 
 const MARQUEE_TECH = [
@@ -28,16 +30,28 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* ======== Hero — Aurora + Background Beams ======== */}
+      {/* ======== Hero — Aurora + Hyperspeed + Background Beams ======== */}
       <section className="mb-12 lg:mb-16">
         <AuroraBackground className="rounded-3xl relative overflow-hidden" opacity={0.7} speed={1.5}>
+          {/* Hyperspeed star-field warp */}
+          <Hyperspeed
+            className="z-[2]"
+            starCount={180}
+            speed={0.9}
+            colors={[
+              'rgba(210,210,240,0.8)',
+              'rgba(180,180,210,0.6)',
+              'rgba(240,240,255,0.7)',
+              'rgba(255,255,255,0.9)',
+            ]}
+          />
           {/* Background Beams overlay */}
           <BackgroundBeams
             beamCount={7}
             colors={[
-              'rgba(200,200,220,0.15)',
-              'rgba(180,180,200,0.10)',
-              'rgba(220,220,240,0.08)',
+              'rgba(200,200,220,0.12)',
+              'rgba(180,180,200,0.08)',
+              'rgba(220,220,240,0.06)',
             ]}
           />
 
@@ -59,17 +73,19 @@ export default function HomePage() {
                 </div>
               </Sparkles>
 
-              {/* Title — bigger and bolder */}
+              {/* Title — animated flowing gradient */}
               <h1 className="text-4xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold mb-6 tracking-tight">
                 <BlurText
                   text={SITE.title}
                   duration={0.02}
                   delay={0.1}
                   as="span"
-                  className="gradient-text"
+                  className="gradient-text animate-gradient-flow"
                   animateOnScroll={false}
                 />
               </h1>
+              {/* Subtitle glow line */}
+              <div className="w-32 h-0.5 mx-auto mb-4 bg-gradient-to-r from-transparent via-gray-400 dark:via-gray-400 to-transparent rounded-full animate-pulse" />
 
               {/* Description — wider max-width */}
               <p className="text-base sm:text-xl lg:text-2xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
@@ -179,7 +195,7 @@ export default function HomePage() {
         <section>
           <div className="flex items-center justify-between mb-8 lg:mb-10">
             <h2 className="section-title text-xl lg:text-2xl">
-              最新文章
+              <AnimatedGradientText speed={6}>最新文章</AnimatedGradientText>
             </h2>
             {posts.length > 0 && (
               <Link
