@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { SITE, FRIENDS } from '@/lib/constants'
 import { AnimatedContent } from '@/components/ui/animated-content'
+import { WobbleCard } from '@/components/ui/wobble-card'
 import { EmptyState } from '@/components/ui/empty-state'
 
 export const metadata: Metadata = {
@@ -26,11 +27,12 @@ export default function FriendsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {FRIENDS.map((friend, i) => (
             <AnimatedContent key={friend.url} direction="up" delay={i * 0.06}>
+              <WobbleCard intensity={3} gloss={true}>
               <a
                 href={friend.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group rounded-2xl glass-card p-5 sm:p-6 flex items-start gap-4 hover:scale-[1.02] transition-transform block"
+                className="group rounded-2xl glass-card p-5 sm:p-6 flex items-start gap-4 block"
               >
                 {/* Avatar */}
                 <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/50 dark:bg-white/10 border border-white/10 dark:border-white/10 flex items-center justify-center overflow-hidden">
@@ -65,6 +67,7 @@ export default function FriendsPage() {
                   <path d="M7 17l9.2-9.2M17 17V7H7" />
                 </svg>
               </a>
+              </WobbleCard>
             </AnimatedContent>
           ))}
         </div>

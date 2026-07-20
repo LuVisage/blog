@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { SITE } from '@/lib/constants'
 import { getAllSeries } from '@/lib/posts'
 import { AnimatedContent } from '@/components/ui/animated-content'
+import { WobbleCard } from '@/components/ui/wobble-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import Link from 'next/link'
 
@@ -30,9 +31,10 @@ export default function SeriesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {series.map(({ series: name, count }, i) => (
             <AnimatedContent key={name} direction="up" delay={i * 0.06}>
+              <WobbleCard intensity={4} gloss={true}>
               <Link
                 href={`/series/${name}`}
-                className="group rounded-2xl glass-card p-5 sm:p-6 hover:scale-[1.02] transition-transform block"
+                className="group rounded-2xl glass-card p-5 sm:p-6 block"
               >
                 <div className="flex items-center gap-3 mb-2">
                   <span className="text-2xl">📚</span>
@@ -51,6 +53,7 @@ export default function SeriesPage() {
                   </svg>
                 </div>
               </Link>
+              </WobbleCard>
             </AnimatedContent>
           ))}
         </div>

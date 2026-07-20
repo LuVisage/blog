@@ -5,6 +5,8 @@ import { BackgroundDecor } from '@/components/background-decor'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { Analytics } from '@/components/analytics'
+import { Particles } from '@/components/ui/particles'
+import { ClickSpark } from '@/components/ui/click-spark'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -75,11 +77,26 @@ export default function RootLayout({
       </head>
       <body className="flex flex-col min-h-screen relative bg-body">
         <ThemeProvider>
+          {/* Site-wide floating particles background */}
+          <Particles
+            quantity={60}
+            sizeRange={[1, 3]}
+            speed={0.6}
+            interactiveRadius={100}
+            colors={['rgba(180,180,195,0.45)', 'rgba(200,200,215,0.35)', 'rgba(160,160,180,0.4)']}
+          />
           <BackgroundDecor />
           <Header />
-          <main className="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10">
-            {children}
-          </main>
+          <ClickSpark
+            sparkColor="rgba(180, 180, 200, 0.7)"
+            sparkCount={10}
+            sparkRadius={25}
+            duration={700}
+          >
+            <main className="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10">
+              {children}
+            </main>
+          </ClickSpark>
           <Footer />
           <Analytics />
         </ThemeProvider>

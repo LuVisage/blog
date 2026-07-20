@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { PostMeta } from '@/lib/posts'
-import { Card3D } from '@/components/ui/3d-card'
+import { WobbleCard } from '@/components/ui/wobble-card'
 import { SpotlightCard } from '@/components/ui/spotlight-card'
 import { EmptyState } from '@/components/ui/empty-state'
 
@@ -14,15 +14,15 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
       className="animate-scale-in h-full"
       style={{ animationDelay: `${index * 80}ms` }}
     >
-      <Card3D intensity={8} hoverScale={1.01} glare={false}>
+      <WobbleCard intensity={5} gloss={true}>
         <Link
           href={`/posts/${post.slug}`}
           className="block h-full p-5 sm:p-6 rounded-2xl glass-card glass-card-link group flex flex-col"
         >
           <SpotlightCard
             className="rounded-2xl -m-5 sm:-m-6 p-5 sm:p-6"
-            spotlightColor="rgba(255, 255, 255, 0.1)"
-            spotlightSize={300}
+            spotlightColor="rgba(255, 255, 255, 0.12)"
+            spotlightSize={350}
           >
             {/* Category */}
             {post.category && (
@@ -86,7 +86,7 @@ export function PostCard({ post, index = 0 }: { post: PostMeta; index?: number }
             )}
           </SpotlightCard>
         </Link>
-      </Card3D>
+      </WobbleCard>
     </article>
   )
 }

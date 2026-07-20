@@ -5,7 +5,9 @@ import { AIHotNews } from '@/components/ai-hot-news'
 import { AvatarImage } from '@/components/avatar-image'
 import { AuroraBackground } from '@/components/ui/aurora-background'
 import { BlurText } from '@/components/ui/blur-text'
+import { Typewriter } from '@/components/ui/typewriter'
 import { MovingBorder } from '@/components/ui/moving-border'
+import { Sparkles } from '@/components/ui/sparkles'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import Link from 'next/link'
 
@@ -16,27 +18,29 @@ export default function HomePage() {
     <div>
       {/* ======== Hero Section ======== */}
       <section className="mb-16 lg:mb-20">
-        <AuroraBackground className="rounded-3xl animate-scale-in" opacity={0.35}>
+        <AuroraBackground className="rounded-3xl animate-scale-in" opacity={0.55} speed={1.2}>
           <div className="glass-card rounded-3xl p-8 sm:p-12 lg:p-16">
             {/* Desktop: horizontal layout | Mobile: stacked */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:gap-16 text-center lg:text-left">
               {/* Avatar */}
-              <div className="flex-shrink-0 mx-auto lg:mx-0 mb-6 lg:mb-0">
-                <div
-                  className="relative group w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600 p-[3px] animate-border-glow"
-                  title="💡 替换头像：将你的照片保存为 public/avatar.jpg"
-                >
-                  <div className="w-full h-full rounded-full bg-white dark:bg-black/50 flex items-center justify-center overflow-hidden">
-                    <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
-                  </div>
-                  {/* Hover hint */}
-                  <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <span className="text-white text-[10px] sm:text-xs px-2 text-center leading-tight">
-                      📷 将照片保存为<br /><code className="text-gray-500">public/avatar.jpg</code>
-                    </span>
+              <Sparkles count={8} color="#c0c0d0" sizeRange={[8, 16]}>
+                <div className="flex-shrink-0 mx-auto lg:mx-0 mb-6 lg:mb-0">
+                  <div
+                    className="relative group w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600 p-[3px] animate-border-glow"
+                    title="💡 替换头像：将你的照片保存为 public/avatar.jpg"
+                  >
+                    <div className="w-full h-full rounded-full bg-white dark:bg-black/50 flex items-center justify-center overflow-hidden">
+                      <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
+                    </div>
+                    {/* Hover hint */}
+                    <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <span className="text-white text-[10px] sm:text-xs px-2 text-center leading-tight">
+                        📷 将照片保存为<br /><code className="text-gray-500">public/avatar.jpg</code>
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Sparkles>
 
               {/* Text */}
               <div className="flex-1">
@@ -51,7 +55,18 @@ export default function HomePage() {
                   />
                 </h1>
                 <p className="text-base sm:text-lg lg:text-xl text-gray-700 dark:text-gray-300 max-w-lg lg:max-w-none mx-auto lg:mx-0 mb-6 lg:mb-8 leading-relaxed">
-                  {SITE.description}
+                  <Typewriter
+                    texts={[
+                      SITE.description,
+                      '分享 AI Agent 开发实战经验',
+                      '记录技术探索与思考',
+                      '写作是最好的思考方式 ✨',
+                    ]}
+                    typeSpeed={60}
+                    deleteSpeed={30}
+                    pauseDuration={2500}
+                    as="span"
+                  />
                 </p>
 
                 {/* Buttons */}
@@ -72,8 +87,9 @@ export default function HomePage() {
                   <MovingBorder
                     as="div"
                     borderRadius="9999px"
-                    duration={5}
-                    colors={['#999999', '#cccccc', '#888888', '#bbbbbb']}
+                    duration={4}
+                    borderWidth={2.5}
+                    colors={['#aaaaaa', '#dddddd', '#999999', '#cccccc']}
                     className="px-5 py-2.5 bg-gradient-to-r from-gray-500 to-gray-600 text-white text-sm font-medium shadow-lg shadow-black/10"
                   >
                     <Link
@@ -113,18 +129,6 @@ export default function HomePage() {
                   </a>
                 </div>
               </div>
-            </div>
-
-            {/* Decorative stars — replaced by Aurora canvas, keep for nostalgia */}
-            <div className="absolute top-4 right-4 opacity-10 hidden lg:block">
-              <svg width="50" height="50" viewBox="0 0 40 40" fill="none">
-                <path d="M20 0l4 8 8 2-6 6 1 9-7-4-7 4 1-9-6-6 8-2z" fill="#999999" />
-              </svg>
-            </div>
-            <div className="absolute bottom-4 left-4 opacity-10 hidden lg:block">
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                <path d="M20 0l4 8 8 2-6 6 1 9-7-4-7 4 1-9-6-6 8-2z" fill="#aaaaaa" />
-              </svg>
             </div>
           </div>
         </AuroraBackground>

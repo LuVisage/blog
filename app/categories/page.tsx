@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { SITE } from '@/lib/constants'
 import { getAllCategories } from '@/lib/posts'
 import { AnimatedContent } from '@/components/ui/animated-content'
+import { WobbleCard } from '@/components/ui/wobble-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import Link from 'next/link'
 
@@ -30,9 +31,10 @@ export default function CategoriesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {categories.map(({ category, count }, i) => (
             <AnimatedContent key={category} direction="up" delay={i * 0.05}>
+              <WobbleCard intensity={4} gloss={true}>
               <Link
                 href={`/categories/${category}`}
-                className="group rounded-2xl glass-card p-5 sm:p-6 hover:scale-[1.03] transition-all duration-300 block"
+                className="group rounded-2xl glass-card p-5 sm:p-6 block"
               >
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-3xl">
@@ -49,6 +51,7 @@ export default function CategoriesPage() {
                   {count} 篇文章
                 </p>
               </Link>
+              </WobbleCard>
             </AnimatedContent>
           ))}
         </div>
