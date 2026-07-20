@@ -7,6 +7,8 @@ import { Footer } from '@/components/footer'
 import { Analytics } from '@/components/analytics'
 import { Particles } from '@/components/ui/particles'
 import { ClickSpark } from '@/components/ui/click-spark'
+import { CustomCursor } from '@/components/ui/custom-cursor'
+import { NoiseOverlay } from '@/components/ui/noise-overlay'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -76,7 +78,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://api.github.com" crossOrigin="anonymous" />
       </head>
       <body className="flex flex-col min-h-screen relative bg-body">
+        <NoiseOverlay opacity={0.035} />
         <ThemeProvider>
+          <CustomCursor />
           {/* Site-wide floating particles background */}
           <Particles
             quantity={60}

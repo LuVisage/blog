@@ -7,11 +7,19 @@ import { cn } from '@/lib/utils'
 interface BentoGridProps {
   children: ReactNode
   className?: string
+  /** Number of columns on md+. Default 3. */
+  cols?: 2 | 3 | 4
 }
 
-export function BentoGrid({ children, className }: BentoGridProps) {
+export function BentoGrid({ children, className, cols = 3 }: BentoGridProps) {
+  const colClass = {
+    2: 'grid-cols-1 md:grid-cols-2',
+    3: 'grid-cols-1 md:grid-cols-3',
+    4: 'grid-cols-2 md:grid-cols-4',
+  }[cols]
+
   return (
-    <div className={cn('grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 auto-rows-min', className)}>
+    <div className={cn('grid gap-3 sm:gap-4 auto-rows-min', colClass, className)}>
       {children}
     </div>
   )

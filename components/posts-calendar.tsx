@@ -147,13 +147,13 @@ export function PostsCalendar({ posts }: Props) {
       {/* Legend */}
       <div className="flex items-center gap-3 mt-3 text-[10px] text-gray-600 dark:text-gray-400">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] bg-gray-300 dark:bg-gray-600 inline-block" /> 无
+          <span className="w-3 h-3 rounded-[2px] bg-gray-200 dark:bg-gray-700 ring-1 ring-gray-300/50 dark:ring-gray-600/30 inline-block" /> 无
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] bg-gray-600 dark:bg-gray-400 inline-block" /> 有文章
+          <span className="w-3 h-3 rounded-[2px] bg-gray-500 dark:bg-gray-400 inline-block" /> 1 篇
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] bg-gray-800 dark:bg-gray-300 inline-block" /> 多篇
+          <span className="w-3 h-3 rounded-[2px] bg-gray-700 dark:bg-gray-200 inline-block" /> 多篇
         </span>
       </div>
     </div>
