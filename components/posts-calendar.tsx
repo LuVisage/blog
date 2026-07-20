@@ -99,14 +99,14 @@ export function PostsCalendar({ posts }: Props) {
                   <div
                     key={key}
                     style={{ width: DAY_SIZE, height: DAY_SIZE }}
-                    className={`rounded-[2px] transition-colors ${
+                    className={`rounded-[2px] transition-all hover:scale-150 hover:ring-1 hover:ring-gray-400 hover:z-10 relative ${
                       isFuture
                         ? 'bg-transparent'
                         : hasPost
                           ? dayPosts.length > 1
-                            ? 'bg-gray-800 dark:bg-gray-300'
-                            : 'bg-gray-600 dark:bg-gray-400'
-                          : 'bg-gray-300 dark:bg-gray-600'
+                            ? 'bg-gray-700 dark:bg-gray-200 ring-1 ring-gray-400/50'
+                            : 'bg-gray-500 dark:bg-gray-400'
+                          : 'bg-gray-200 dark:bg-gray-700 ring-1 ring-gray-300/50 dark:ring-gray-600/30'
                     }`}
                     title={hasPost
                       ? `${format(day, 'yyyy年M月d日', { locale: zhCN })}\n${dayPosts.map((p) => p.title).join('\n')}`
