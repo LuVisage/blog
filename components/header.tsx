@@ -26,7 +26,7 @@ export function Header() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-0.5 overflow-x-auto">
+          <nav className="hidden md:flex items-center gap-0.5">
             {NAV_LINKS.map((link) => {
               const isActive =
                 link.href === '/'

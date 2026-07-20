@@ -9,6 +9,7 @@ import { TableOfContents } from '@/components/toc'
 import { SocialShare } from '@/components/social-share'
 import { RelatedPosts } from '@/components/related-posts'
 import { FontSizeControl } from '@/components/font-size-control'
+import { ReadingProgress } from '@/components/ui/reading-progress'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
@@ -83,17 +84,29 @@ export default async function PostPage({ params }: { params: PageParams }) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="xl:flex xl:gap-12">
-        {/* TOC — single instance: mobile toggle (above article), desktop sidebar (right) */}
-        <aside className="mb-4 xl:order-last xl:w-56 xl:flex-shrink-0">
-          <TableOfContents />
-        </aside>
+      {/* Reading progress bar */}
+      <ReadingProgress />
 
+      <div className="xl:flex xl:gap-10">
         {/* Main article area */}
-        <article className="flex-1 min-w-0 max-w-3xl">
+        <article className="flex-1 min-w-0">
           {/* Toolbar */}
-          <div className="flex items-center justify-end flex-wrap gap-3 mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+            <Link
+              href="/posts"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+              文章列表
+            </Link>
             <FontSizeControl />
+          </div>
+
+          {/* Mobile TOC — collapsible above article */}
+          <div className="xl:hidden mb-6">
+            <TableOfContents />
           </div>
 
           {/* Header card */}
@@ -170,12 +183,12 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </header>
 
           {/* Content */}
-          <div className="bg-white/50 dark:bg-black/40 backdrop-blur-xl rounded-3xl p-6 sm:p-10 lg:p-12 border border-white/10 dark:border-white/5 shadow-sm prose prose-gray dark:prose-invert max-w-none">
+          <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12 prose prose-gray dark:prose-invert max-w-none">
             <MDXContent source={post.content} />
           </div>
 
-          {/* Share + Tags at bottom */}
-          <div className="mt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl glass-card">
+          {/* Share */}
+          <div className="mt-8 p-5 rounded-2xl glass-card">
             <SocialShare title={post.title} url={postUrl} />
           </div>
 
@@ -184,7 +197,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
             {prev ? (
               <Link
                 href={`/posts/${prev.slug}`}
-                className="group p-5 rounded-2xl glass-card text-left hover:scale-[1.01] transition-transform"
+                className="group p-5 rounded-2xl glass-card text-left hover:-translate-y-0.5 transition-all"
               >
                 <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -202,7 +215,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
             {next && (
               <Link
                 href={`/posts/${next.slug}`}
-                className="group p-5 rounded-2xl glass-card text-right hover:scale-[1.01] transition-transform"
+                className="group p-5 rounded-2xl glass-card text-right hover:-translate-y-0.5 transition-all"
               >
                 <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center justify-end gap-1">
                   下一篇
@@ -227,6 +240,13 @@ export default async function PostPage({ params }: { params: PageParams }) {
             </div>
           </div>
         </article>
+
+        {/* Desktop TOC sidebar */}
+        <aside className="hidden xl:block xl:w-56 xl:flex-shrink-0">
+          <div className="sticky top-28">
+            <TableOfContents />
+          </div>
+        </aside>
       </div>
     </>
   )

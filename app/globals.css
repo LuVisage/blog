@@ -17,7 +17,7 @@
   /* Background image is the hero — only a whisper of overlay for text readability */
   .bg-body {
     background:
-      linear-gradient(180deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.35) 100%),
+      linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.25) 100%),
       var(--bg-image, none);
     background-size: cover;
     background-position: center;
@@ -26,7 +26,7 @@
 
   .dark .bg-body {
     background:
-      linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.40) 100%),
+      linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.30) 100%),
       var(--bg-image, none);
     background-size: cover;
     background-position: center;

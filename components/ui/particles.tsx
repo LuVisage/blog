@@ -187,7 +187,7 @@ export function Particles({
   return (
     <canvas
       ref={canvasRef}
-      className={cn('fixed inset-0 pointer-events-none z-0', className)}
+      className={cn('fixed inset-0 pointer-events-none z-[5]', className)}
       aria-hidden="true"
     />
   )
