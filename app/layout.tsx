@@ -8,8 +8,6 @@ import { Analytics } from '@/components/analytics'
 import { Particles } from '@/components/ui/particles'
 import { ClickSpark } from '@/components/ui/click-spark'
 import { CustomCursor } from '@/components/ui/custom-cursor'
-import { SplashCursor } from '@/components/ui/splash-cursor'
-import { NoiseOverlay } from '@/components/ui/noise-overlay'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -79,34 +77,36 @@ export default function RootLayout({
         <link rel="preconnect" href="https://api.github.com" crossOrigin="anonymous" />
       </head>
       <body className="flex flex-col min-h-screen relative bg-body">
-        <NoiseOverlay opacity={0.035} />
         <ThemeProvider>
-          <SplashCursor
-            colors={['rgba(180,180,210,0.45)', 'rgba(200,200,230,0.35)', 'rgba(160,160,190,0.4)']}
-            blobCount={10}
-            maxRadius={40}
-            minRadius={15}
-          />
-          {/* Site-wide floating particles background */}
+          {/* Simple dot cursor — expands on links */}
+          <CustomCursor />
+
+          {/* Subtle floating particles — 25 only, barely-there atmosphere */}
           <Particles
-            quantity={60}
-            sizeRange={[1, 3]}
-            speed={0.6}
-            interactiveRadius={100}
-            colors={['rgba(180,180,195,0.45)', 'rgba(200,200,215,0.35)', 'rgba(160,160,180,0.4)']}
+            quantity={25}
+            sizeRange={[1, 2.5]}
+            speed={0.4}
+            interactiveRadius={60}
+            colors={['rgba(180,180,195,0.3)', 'rgba(200,200,215,0.2)', 'rgba(160,160,180,0.25)']}
           />
+
+          {/* Background pattern + grid texture */}
           <BackgroundDecor />
+
           <Header />
+
+          {/* Click spark for tactile feedback */}
           <ClickSpark
-            sparkColor="rgba(180, 180, 200, 0.7)"
-            sparkCount={10}
-            sparkRadius={25}
-            duration={700}
+            sparkColor="rgba(180, 180, 200, 0.5)"
+            sparkCount={8}
+            sparkRadius={20}
+            duration={600}
           >
             <main className="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10">
               {children}
             </main>
           </ClickSpark>
+
           <Footer />
           <Analytics />
         </ThemeProvider>
