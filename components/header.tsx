@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { NAV_LINKS, SITE } from '@/lib/constants'
 import { ThemeToggle } from './theme-toggle'
 import { SearchTrigger } from './search-trigger'
+import { Magnet } from '@/components/ui/magnet'
 import { useState } from 'react'
 
 export function Header() {
@@ -32,17 +33,18 @@ export function Header() {
                   ? pathname === '/'
                   : pathname.startsWith(link.href)
               return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`relative px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-300 whitespace-nowrap ${
-                    isActive
-                      ? 'text-gray-800 dark:text-gray-200 bg-white/50 dark:bg-white/10'
-                      : 'text-gray-800 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-white/5'
-                  }`}
-                >
-                  {link.label}
-                </Link>
+                <Magnet key={link.href} strength={4} padding={30}>
+                  <Link
+                    href={link.href}
+                    className={`relative px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-300 whitespace-nowrap ${
+                      isActive
+                        ? 'text-gray-800 dark:text-gray-200 bg-white/50 dark:bg-white/10'
+                        : 'text-gray-800 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </Magnet>
               )
             })}
           </nav>
@@ -123,7 +125,7 @@ export function Header() {
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-800 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/5 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
                 ✏️ 发布文章
