@@ -1,5 +1,5 @@
 import { SITE, SOCIAL_LINKS, ABOUT } from '@/lib/constants'
-import { getRecentPosts, getAllPosts, getAllTags, getAllCategories } from '@/lib/posts'
+import { getRecentPosts, getAllPosts, getAllTags, getAllCategories, getPopularPosts } from '@/lib/posts'
 import { PostList } from '@/components/post-card'
 import { AIHotNews } from '@/components/ai-hot-news'
 import { AvatarImage } from '@/components/avatar-image'
@@ -20,8 +20,7 @@ export default function HomePage() {
   const tags = getAllTags()
   const categories = getAllCategories()
 
-  // Featured post = most recent
-  const featured = allPosts[0]
+  const popularPosts = getPopularPosts(6)
   const recentOthers = posts.slice(0, 4) // max 4 recent posts
 
   return (
@@ -114,44 +113,67 @@ export default function HomePage() {
       {/* ======== Bento Grid: Main Content ======== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 mb-16">
 
-        {/* Featured Post — spans 2 cols */}
+        {/* Popular Posts Ranking — spans 2 cols */}
         <AnimatedContent direction="up" delay={0.05} className="lg:col-span-2">
-          {featured ? (
-            <Link href={`/posts/${featured.slug}`} className="glass-card rounded-2xl p-6 sm:p-8 flex flex-col h-full group">
-              <div className="flex items-center gap-2 mb-3">
-                {featured.category && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold glass"
-                    style={{ color: 'var(--color-body)' }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }} />
-                    {featured.category}
-                  </span>
-                )}
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full"
-                  style={{ color: 'var(--color-success)', background: 'rgba(16,185,129,0.1)' }}>
-                  最新发布
-                </span>
-              </div>
-              <h2 className="heading-2 mb-2 group-hover:text-[var(--color-primary)] transition-colors">
-                {featured.title}
-              </h2>
-              {featured.description && (
-                <p className="body-sm line-clamp-3 mb-4 flex-1">{featured.description}</p>
-              )}
-              <div className="flex items-center gap-4 caption mt-auto pt-4" style={{ borderTop: '1px solid var(--color-hairline)' }}>
-                <span style={{ color: 'var(--color-muted)' }}>{featured.readingTime} 分钟阅读</span>
-                {featured.tags.slice(0, 2).map(tag => (
-                  <span key={tag} className="px-2 py-0.5 rounded-md text-[10px] glass" style={{ color: 'var(--color-body)' }}>
-                    #{tag}
-                  </span>
+          <div className="glass-card rounded-2xl p-6 sm:p-8 flex flex-col h-full">
+            {/* Title */}
+            <div className="flex items-center gap-2 mb-6">
+              <span className="text-lg">🔥</span>
+              <h2 className="heading-2">热门文章</h2>
+            </div>
+
+            {/* Ranking List */}
+            {popularPosts.length > 0 ? (
+              <div className="flex flex-col flex-1">
+                {popularPosts.map((post, index) => (
+                  <Link
+                    key={post.slug}
+                    href={`/posts/${post.slug}`}
+                    className="group flex items-start gap-4 py-3.5 first:pt-0 last:pb-0"
+                    style={{ borderBottom: index < popularPosts.length - 1 ? '1px solid var(--color-hairline)' : 'none' }}
+                  >
+                    {/* Rank Number */}
+                    <span
+                      className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                      style={
+                        index === 0
+                          ? { background: 'var(--color-primary)', color: '#fff' }
+                          : index === 1
+                            ? { background: 'rgba(99,102,241,0.15)', color: 'var(--color-primary)' }
+                            : index === 2
+                              ? { background: 'rgba(99,102,241,0.08)', color: 'var(--color-primary)' }
+                              : { background: 'var(--color-hairline)', color: 'var(--color-muted)' }
+                      }
+                    >
+                      {index + 1}
+                    </span>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm leading-snug group-hover:text-[var(--color-primary)] transition-colors line-clamp-1">
+                        {post.title}
+                      </h3>
+                      {post.description && (
+                        <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--color-muted)' }}>
+                          {post.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Meta */}
+                    <span className="flex-shrink-0 text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
+                      {post.readingTime} 分钟
+                    </span>
+                  </Link>
                 ))}
               </div>
-            </Link>
-          ) : (
-            <div className="glass-card rounded-2xl p-8 text-center" style={{ color: 'var(--color-muted)' }}>
-              <IconArticle size={40} strokeWidth={1.5} className="mx-auto mb-3" style={{ color: 'var(--color-primary)' }} />
-              <p>还没有文章，开始写作吧 ✨</p>
-            </div>
-          )}
+            ) : (
+              <div className="flex-1 flex items-center justify-center" style={{ color: 'var(--color-muted)' }}>
+                <IconArticle size={40} strokeWidth={1.5} className="mx-auto mb-3" style={{ color: 'var(--color-primary)' }} />
+                <p className="text-sm">还没有文章，开始写作吧 ✨</p>
+              </div>
+            )}
+          </div>
         </AnimatedContent>
 
         {/* AI Hot News — sidebar col */}

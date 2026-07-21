@@ -12,6 +12,7 @@ export interface PostMeta {
   category?: string
   series?: string
   seriesOrder?: number
+  popular?: boolean
   draft: boolean
   readingTime: number
 }
@@ -65,6 +66,7 @@ export function getAllPosts(): PostMeta[] {
         category: data.category || undefined,
         series: data.series || undefined,
         seriesOrder: data.seriesOrder ?? undefined,
+        popular: data.popular === true,
         draft: data.draft === true,
         readingTime: estimateReadingTime(content),
       } satisfies PostMeta
@@ -95,6 +97,7 @@ export function getPostBySlug(slug: string): Post | null {
       category: data.category || undefined,
       series: data.series || undefined,
       seriesOrder: data.seriesOrder ?? undefined,
+      popular: data.popular === true,
       draft: data.draft === true,
       readingTime: estimateReadingTime(content),
       content,
@@ -263,4 +266,15 @@ export function getAdjacentPosts(slug: string): {
 /** Get recent posts */
 export function getRecentPosts(count: number = 5): PostMeta[] {
   return getAllPosts().slice(0, count)
+}
+
+/** Get popular posts (marked with `popular: true` in frontmatter). Falls back to recent posts if none are marked. */
+export function getPopularPosts(count: number = 6): PostMeta[] {
+  const all = getAllPosts()
+  const popular = all.filter((p) => p.popular)
+  if (popular.length >= count) return popular.slice(0, count)
+  // Pad with recent posts not already in popular
+  const existing = new Set(popular.map((p) => p.slug))
+  const fillers = all.filter((p) => !existing.has(p.slug)).slice(0, count - popular.length)
+  return [...popular, ...fillers]
 }
