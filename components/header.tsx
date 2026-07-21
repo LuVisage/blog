@@ -6,7 +6,7 @@ import { NAV_LINKS, SITE } from '@/lib/constants'
 import { ThemeToggle } from './theme-toggle'
 import { SearchTrigger } from './search-trigger'
 import { useState } from 'react'
-import { IconSparkles, IconPencil } from '@tabler/icons-react'
+import { IconSparkles } from '@tabler/icons-react'
 
 export function Header() {
   const pathname = usePathname()
@@ -49,16 +49,6 @@ export function Header() {
           {/* Actions */}
           <div className="flex items-center gap-2">
             <SearchTrigger />
-            <a
-              href="https://github.com/LuVisage/blog/new/main/content/posts/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-medium transition-colors duration-150 glass"
-              title="在 GitHub 上创建新文章"
-            >
-              <IconPencil size={13} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
-              <span className="hidden lg:inline">发布文章</span>
-            </a>
             <ThemeToggle />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -96,17 +86,6 @@ export function Header() {
                   </Link>
                 )
               })}
-              <a
-                href="https://github.com/LuVisage/blog/new/main/content/posts/"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
-                style={{ color: 'var(--color-muted)' }}
-              >
-                <IconPencil size={16} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
-                发布文章
-              </a>
             </div>
           </nav>
         )}

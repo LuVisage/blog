@@ -8,7 +8,7 @@ import { AnimatedContent } from '@/components/ui/animated-content'
 import { TerminalGreeting } from '@/components/ui/terminal-greeting'
 import { StatsTile, StatsTileRow } from '@/components/ui/stats-tile'
 import {
-  IconBook, IconBrandGithub, IconPencil, IconSparkles,
+  IconBook, IconBrandGithub, IconSparkles,
   IconArticle, IconFolderFilled, IconTag, IconRss,
   IconMail, IconArrowRight,
 } from '@tabler/icons-react'
@@ -148,7 +148,7 @@ export default function HomePage() {
             </Link>
           ) : (
             <div className="glass-card rounded-2xl p-8 text-center" style={{ color: 'var(--color-muted)' }}>
-              <IconPencil size={40} strokeWidth={1.5} className="mx-auto mb-3" style={{ color: 'var(--color-primary)' }} />
+              <IconArticle size={40} strokeWidth={1.5} className="mx-auto mb-3" style={{ color: 'var(--color-primary)' }} />
               <p>还没有文章，开始写作吧 ✨</p>
             </div>
           )}
