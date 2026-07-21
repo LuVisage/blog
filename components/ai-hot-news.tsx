@@ -135,25 +135,23 @@ export function AIHotNews() {
   // ── Loading skeleton ─────────────────────────────
   if (loading) {
     return (
-      <section className="mb-16 lg:mb-20">
-        <div className="rounded-2xl glass-card p-6 sm:p-8">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="h-5 w-24 rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
-          </div>
-          <div className="space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex gap-3 animate-pulse">
-                <div className="h-5 w-7 rounded flex-shrink-0 animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-48 rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
-                  <div className="h-3 w-full max-w-sm rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
-                </div>
-                <div className="h-4 w-12 rounded flex-shrink-0 animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
-              </div>
-            ))}
-          </div>
+      <div className="rounded-2xl glass-card p-6 sm:p-8">
+        <div className="flex items-center gap-2 mb-5">
+          <div className="h-5 w-24 rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
         </div>
-      </section>
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-3 animate-pulse">
+              <div className="h-5 w-7 rounded flex-shrink-0 animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-48 rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
+                <div className="h-3 w-full max-w-sm rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
+              </div>
+              <div className="h-4 w-12 rounded flex-shrink-0 animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
+            </div>
+          ))}
+        </div>
+      </div>
     )
   }
 
@@ -162,8 +160,7 @@ export function AIHotNews() {
 
   // ── Ready ────────────────────────────────────────
   return (
-    <section className="mb-16 lg:mb-20">
-      <div className="rounded-2xl glass-card p-5 sm:p-6 lg:p-7">
+    <div className="rounded-2xl glass-card p-6 sm:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 lg:mb-5">
           <h2 className="text-base lg:text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--color-ink)' }}>
@@ -275,6 +272,5 @@ export function AIHotNews() {
           </a>
         </div>
       </div>
-    </section>
   )
 }
