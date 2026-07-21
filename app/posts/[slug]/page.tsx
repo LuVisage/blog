@@ -63,7 +63,12 @@ export default async function PostPage({ params }: { params: PageParams }) {
       <ReadingProgress />
 
       <div className="xl:flex xl:gap-8">
-        <article className="flex-1 min-w-0 max-w-3xl">
+        <article className="flex-1 min-w-0 max-w-3xl relative">
+          {/* Desktop TOC — floated alongside article, not a separate column */}
+          <aside className="hidden xl:block absolute left-[calc(100%+2rem)] top-0 w-44">
+            <div className="sticky top-28"><TableOfContents /></div>
+          </aside>
+
           {/* Toolbar */}
           <div className="flex items-center justify-between flex-wrap gap-3 mb-8">
             <Link href="/posts" className="btn-ghost text-sm">
@@ -178,10 +183,6 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           <div className="mt-12 p-6 sm:p-8 rounded-3xl glass-card"><GiscusComments /></div>
         </article>
-
-        <aside className="hidden xl:block xl:w-56 xl:flex-shrink-0">
-          <div className="sticky top-28"><TableOfContents /></div>
-        </aside>
       </div>
     </>
   )
