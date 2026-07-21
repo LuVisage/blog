@@ -65,10 +65,10 @@ export default async function PostPage({ params }: { params: PageParams }) {
       <div className="xl:flex xl:gap-6">
         <article className="flex-1 min-w-0">
           {/* Mobile TOC */}
-          <div className="xl:hidden mb-8"><TableOfContents /></div>
+          <div className="xl:hidden mb-6"><TableOfContents /></div>
 
           {/* Toolbar */}
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-8">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
             <Link href="/posts" className="btn-ghost text-sm">
               <IconChevronLeft size={16} strokeWidth={2} /> 文章列表
             </Link>
@@ -76,7 +76,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </div>
 
           {/* Article header */}
-          <header className="mb-10">
+          <header className="mb-6">
             {post.category && (
               <Link
                 href={`/categories/${post.category}`}
@@ -105,18 +105,18 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </header>
 
           {/* Article content */}
-          <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12 prose max-w-none mb-12">
+          <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12 prose max-w-none mb-8">
             <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
           </div>
 
           {/* Share + Like */}
-          <div className="mb-12 p-5 rounded-2xl glass-card flex items-center justify-between flex-wrap gap-3">
+          <div className="mb-8 p-5 rounded-2xl glass-card flex items-center justify-between flex-wrap gap-3">
             <SocialShare title={post.title} url={postUrl} />
             <LikeButton slug={slug} />
           </div>
 
           {/* Prev/Next */}
-          <nav className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
+          <nav className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             {prev && (
               <Link href={`/posts/${prev.slug}`} className="glass-card rounded-2xl p-5 group">
                 <span className="caption flex items-center gap-1 mb-1.5">
@@ -149,7 +149,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           {/* Series Navigation */}
           {seriesPosts.length > 1 && (
-            <div className="mb-12 p-5 sm:p-6 rounded-2xl glass-card">
+            <div className="mb-8 p-5 sm:p-6 rounded-2xl glass-card">
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5" style={{ color: 'var(--color-ink)' }}>
                 <IconFolderFilled size={14} style={{ color: 'var(--color-primary)' }} />
                 系列文章：{post.series}
@@ -192,7 +192,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           <RelatedPosts currentSlug={slug} />
 
-          <div className="mt-12 p-6 sm:p-8 rounded-3xl glass-card"><GiscusComments /></div>
+          <div className="mt-8 p-6 sm:p-8 rounded-3xl glass-card"><GiscusComments /></div>
         </article>
 
         {/* Desktop TOC — tall sidebar, aligns with navbar right edge */}

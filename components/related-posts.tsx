@@ -10,7 +10,7 @@ export function RelatedPosts({ currentSlug }: RelatedPostsProps) {
   if (related.length === 0) return null
 
   return (
-    <section className="mb-12">
+    <section className="mb-8">
       <h2 className="section-title mb-6">相关文章</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {related.map((post) => (
