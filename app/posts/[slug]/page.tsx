@@ -62,7 +62,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ReadingProgress />
 
-      <div className="xl:flex xl:gap-10">
+      <div className="xl:flex xl:gap-8">
         <article className="flex-1 min-w-0 max-w-3xl">
           {/* Toolbar */}
           <div className="flex items-center justify-between flex-wrap gap-3 mb-8">
