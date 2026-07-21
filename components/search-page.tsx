@@ -146,7 +146,7 @@ export function SearchPage() {
           />
           {loading && (
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
-              <div className="w-5 h-5 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--color-hairline)', borderTopColor: 'transparent' }} />
             </div>
           )}
         </div>
@@ -157,7 +157,7 @@ export function SearchPage() {
             <div className="space-y-3 px-2">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="animate-pulse flex items-center gap-3">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded flex-1" />
+                  <div className="h-4 rounded flex-1" style={{ background: 'var(--color-hairline-soft)' }} />
                 </div>
               ))}
             </div>

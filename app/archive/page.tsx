@@ -24,10 +24,10 @@ function TimelineDot({ count }: { count: number }) {
   if (count >= 8) {
     return (
       <div
-        className="w-3 h-3 rounded-full ring-2 ring-offset-2 flex-shrink-0 z-10"
+        className="w-3 h-3 rounded-full flex-shrink-0 z-10"
         style={{
           background: 'var(--color-primary)',
-          boxShadow: '0 0 6px rgba(124,92,231,0.4)',
+          boxShadow: '0 0 0 3px var(--color-hairline-soft), 0 0 6px rgba(124,92,231,0.4)',
         }}
       />
     )
@@ -35,15 +35,15 @@ function TimelineDot({ count }: { count: number }) {
   if (count >= 4) {
     return (
       <div
-        className="w-2.5 h-2.5 rounded-full ring-2 ring-offset-2 flex-shrink-0 z-10"
-        style={{ background: 'var(--color-primary)', opacity: 0.7 }}
+        className="w-2.5 h-2.5 rounded-full flex-shrink-0 z-10"
+        style={{ background: 'var(--color-primary)', opacity: 0.7, boxShadow: '0 0 0 3px var(--color-hairline-soft)' }}
       />
     )
   }
   return (
     <div
-      className="w-2 h-2 rounded-full ring-2 ring-offset-2 flex-shrink-0 z-10"
-      style={{ background: 'var(--color-primary)', opacity: 0.4 }}
+      className="w-2 h-2 rounded-full flex-shrink-0 z-10"
+      style={{ background: 'var(--color-primary)', opacity: 0.4, boxShadow: '0 0 0 3px var(--color-hairline-soft)' }}
     />
   )
 }

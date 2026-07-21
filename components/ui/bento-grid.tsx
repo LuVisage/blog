@@ -64,7 +64,7 @@ export function BentoCard({
         ease: [0.16, 1, 0.3, 1],
       }}
       className={cn(
-        'rounded-2xl card p-4 sm:p-6 overflow-hidden relative group',
+        'rounded-2xl glass-card p-4 sm:p-6 overflow-hidden relative group',
         colSpanClass,
         rowSpanClass,
         className

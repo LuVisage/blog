@@ -72,8 +72,8 @@ export function DotsLoader({ className }: { className?: string }) {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 animate-bounce"
-          style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.8s' }}
+          className="w-2 h-2 rounded-full animate-bounce"
+          style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.8s', background: 'var(--color-muted)' }}
         />
       ))}
       <span className="sr-only">加载中...</span>

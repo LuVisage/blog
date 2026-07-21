@@ -27,9 +27,9 @@ export default function HomePage() {
   return (
     <div>
       {/* ======== Hero with Aurora ======== */}
-      <section className="mb-16 lg:mb-20">
+      <section className="mb-16">
         <AuroraBackground className="rounded-3xl relative overflow-hidden" opacity={0.45} speed={1.2}>
-          <div className="relative z-10 p-6 sm:p-10 lg:p-14">
+          <div className="relative z-10 p-6 sm:p-8 lg:p-12">
             <div className="text-center mb-10">
               {/* Avatar */}
               <div className="inline-block mb-6">
@@ -59,7 +59,7 @@ export default function HomePage() {
               </p>
 
               {/* CTA Buttons */}
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-4">
                 <Link href="/posts" className="btn-primary">
                   <IconBook size={18} strokeWidth={1.5} />
                   阅读文章
@@ -112,7 +112,7 @@ export default function HomePage() {
       </section>
 
       {/* ======== Bento Grid: Main Content ======== */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5 mb-16">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 mb-16">
 
         {/* Featured Post — spans 2 cols */}
         <AnimatedContent direction="up" delay={0.05} className="lg:col-span-2">

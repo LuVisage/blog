@@ -141,9 +141,9 @@ export default function AboutPage() {
                 </div>
                 <div className="relative pb-6 last:pb-0">
                   {i < ABOUT.timeline.length - 1 && (
-                    <div className="absolute left-0 top-3 w-px h-full bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600" />
+                    <div className="absolute left-0 top-3 w-px h-full" style={{ background: 'linear-gradient(to bottom, var(--color-hairline), transparent)' }} />
                   )}
-                  <div className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 -translate-x-[3px]" />
+                  <div className="absolute left-0 top-1.5 w-2 h-2 rounded-full -translate-x-[3px]" style={{ background: 'var(--color-primary)' }} />
                   <div className="pl-5">
                     <p className="font-semibold" style={{ color: 'var(--color-ink)' }}>{item.title}</p>
                     <p className="text-sm mt-0.5" style={{ color: 'var(--color-body)' }}>{item.description}</p>

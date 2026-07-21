@@ -123,7 +123,7 @@ export function PostList({ posts, featured = false }: { posts: PostMeta[]; featu
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
       {posts.map((post, i) => (
         <PostCard key={post.slug} post={post} featured={featured && i === 0} />
       ))}

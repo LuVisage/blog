@@ -57,7 +57,7 @@ export default function PrivacyPage() {
           <p>
             如有任何关于隐私的问题，请联系：
             {' '}
-            <a href={`mailto:${SITE.author.email}`} className="text-gray-700 dark:text-gray-300 hover:underline">
+            <a href={`mailto:${SITE.author.email}`} className="hover:underline" style={{ color: 'var(--color-body)' }}>
               {SITE.author.email}
             </a>
           </p>

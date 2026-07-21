@@ -138,17 +138,17 @@ export function AIHotNews() {
       <section className="mb-16 lg:mb-20">
         <div className="rounded-2xl glass-card p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-5">
-            <div className="h-5 w-24 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            <div className="h-5 w-24 rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
           </div>
           <div className="space-y-4">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex gap-3 animate-pulse">
-                <div className="h-5 w-7 rounded bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+                <div className="h-5 w-7 rounded flex-shrink-0 animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-48 rounded bg-gray-200 dark:bg-gray-700" />
-                  <div className="h-3 w-full max-w-sm rounded bg-gray-100 dark:bg-gray-800" />
+                  <div className="h-4 w-48 rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
+                  <div className="h-3 w-full max-w-sm rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
                 </div>
-                <div className="h-4 w-12 rounded bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+                <div className="h-4 w-12 rounded flex-shrink-0 animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
               </div>
             ))}
           </div>
@@ -166,15 +166,15 @@ export function AIHotNews() {
       <div className="rounded-2xl glass-card p-5 sm:p-6 lg:p-7">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 lg:mb-5">
-          <h2 className="text-base lg:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+          <h2 className="text-base lg:text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--color-ink)' }}>
             <IconFlameFilled size={20} className="text-orange-400" />
             AI 热榜
-            <span className="text-xs font-normal text-gray-600 dark:text-gray-400 bg-white/50 dark:bg-white/10 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-normal px-2 py-0.5 rounded-full glass" style={{ color: 'var(--color-muted)' }}>
               近 7 日热门
             </span>
           </h2>
           {lastFetch && (
-            <span className="text-xs text-gray-600 dark:text-gray-400">
+            <span className="text-xs" style={{ color: 'var(--color-muted-soft)' }}>
               {cacheDate} 更新
             </span>
           )}
@@ -188,19 +188,21 @@ export function AIHotNews() {
               href={repo.html_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-start gap-3 px-3 py-3 -mx-3 rounded-xl hover:bg-white/50 dark:hover:bg-white/5 transition-all duration-200 group"
+              className="flex items-start gap-3 px-3 py-3 -mx-3 rounded-xl transition-all duration-200 group hover:bg-[var(--color-primary-soft)]"
             >
               {/* Rank */}
               <span
-                className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  i === 0
-                    ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
+                className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                style={{
+                  color: i < 3 ? '#fff' : 'var(--color-muted)',
+                  background: i === 0
+                    ? 'linear-gradient(135deg, #f59e0b, #f97316)'
                     : i === 1
-                      ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white'
+                      ? 'linear-gradient(135deg, #94a3b8, #64748b)'
                       : i === 2
-                        ? 'bg-gradient-to-br from-amber-600 to-amber-700 text-white'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                }`}
+                        ? 'linear-gradient(135deg, #d97706, #b45309)'
+                        : 'var(--color-hairline-soft)',
+                }}
               >
                 {i + 1}
               </span>
@@ -208,17 +210,17 @@ export function AIHotNews() {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors truncate">
+                  <p className="text-sm font-medium transition-colors truncate group-hover:text-[var(--color-primary)]" style={{ color: 'var(--color-ink)' }}>
                     {repo.full_name}
                   </p>
                   {repo.language && (
-                    <span className="flex-shrink-0 text-[10px] text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-full">
+                    <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full" style={{ color: 'var(--color-muted)', background: 'var(--color-hairline-soft)' }}>
                       {repo.language}
                     </span>
                   )}
                 </div>
                 {repo.description && (
-                  <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-xs mt-1 line-clamp-2 leading-relaxed" style={{ color: 'var(--color-body)' }}>
                     {repo.description}
                   </p>
                 )}
@@ -228,13 +230,13 @@ export function AIHotNews() {
                     {repo.topics.slice(0, 3).map((t) => (
                       <span
                         key={t}
-                        className="text-[10px] text-gray-700 dark:text-gray-300 bg-white/50 dark:bg-white/10 px-1.5 py-0.5 rounded-full"
+                        className="text-[10px] px-1.5 py-0.5 rounded-full glass" style={{ color: 'var(--color-body)' }}
                       >
                         {t}
                       </span>
                     ))}
                     {repo.topics.length > 3 && (
-                      <span className="text-[10px] text-gray-600 dark:text-gray-400">
+                      <span className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
                         +{repo.topics.length - 3}
                       </span>
                     )}
@@ -243,7 +245,7 @@ export function AIHotNews() {
               </div>
 
               {/* Stars */}
-              <span className="flex-shrink-0 flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+              <span className="flex-shrink-0 flex items-center gap-1 text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="12"
@@ -261,12 +263,13 @@ export function AIHotNews() {
         </div>
 
         {/* Footer */}
-        <div className="mt-4 pt-4 border-t border-white/10 dark:border-white/10 text-center">
+        <div className="mt-4 pt-4 text-center" style={{ borderTop: '1px solid var(--color-hairline)' }}>
           <a
             href="https://github.com/topics/artificial-intelligence"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-gray-700 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+            className="text-xs transition-colors hover:text-[var(--color-primary)]"
+            style={{ color: 'var(--color-muted)' }}
           >
             在 GitHub 上查看更多 AI 项目 →
           </a>

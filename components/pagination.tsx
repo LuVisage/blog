@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 
 interface PaginationProps {
@@ -18,12 +20,23 @@ export function Pagination({ currentPage, totalPages, basePath }: PaginationProp
     }
   }
 
+  const ghostStyle = {
+    color: 'var(--color-muted)',
+  }
+
+  const ghostActiveStyle = {
+    color: '#fff',
+    background: 'linear-gradient(135deg, var(--color-primary), #a78bfa)',
+    boxShadow: '0 2px 8px rgba(124,92,231,0.25)',
+  }
+
   return (
-    <nav className="flex items-center justify-center gap-1.5 mt-12" aria-label="分页导航">
+    <nav className="flex items-center justify-center gap-2 mt-16" aria-label="分页导航">
       {currentPage > 1 && (
         <Link
           href={currentPage === 2 ? basePath : `${basePath}?page=${currentPage - 1}`}
-          className="px-3 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-white/5 transition-all"
+          className="px-4 py-2 rounded-xl text-sm font-medium transition-all hover:bg-[var(--color-primary-soft)]"
+          style={ghostStyle}
         >
           ← 上一页
         </Link>
@@ -31,18 +44,19 @@ export function Pagination({ currentPage, totalPages, basePath }: PaginationProp
 
       {pages.map((page, i) =>
         page === '...' ? (
-          <span key={`ellipsis-${i}`} className="px-2 text-gray-500 dark:text-gray-500">
+          <span key={`ellipsis-${i}`} className="px-1 text-sm" style={{ color: 'var(--color-muted-soft)' }}>
             ···
           </span>
         ) : (
           <Link
             key={page}
             href={page === 1 ? basePath : `${basePath}?page=${page}`}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-medium transition-all ${
+            className="w-9 h-9 flex items-center justify-center rounded-xl text-sm font-medium transition-all"
+            style={
               page === currentPage
-                ? 'bg-gradient-to-br from-gray-500 to-gray-600 text-white shadow-lg shadow-black/10'
-                : 'text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-white/5'
-            }`}
+                ? ghostActiveStyle
+                : ghostStyle
+            }
           >
             {page}
           </Link>
@@ -52,7 +66,8 @@ export function Pagination({ currentPage, totalPages, basePath }: PaginationProp
       {currentPage < totalPages && (
         <Link
           href={`${basePath}?page=${currentPage + 1}`}
-          className="px-3 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-white/5 transition-all"
+          className="px-4 py-2 rounded-xl text-sm font-medium transition-all hover:bg-[var(--color-primary-soft)]"
+          style={ghostStyle}
         >
           下一页 →
         </Link>

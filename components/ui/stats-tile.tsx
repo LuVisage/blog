@@ -43,7 +43,7 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
   return (
     <div
       ref={ref}
-      className="glass-card rounded-2xl p-4 sm:p-5 text-center flex flex-col items-center justify-center gap-1 min-h-[90px]"
+      className="glass-card rounded-2xl p-5 sm:p-6 text-center flex flex-col items-center justify-center gap-2 min-h-[96px]"
     >
       {icon && <div className="mb-1">{icon}</div>}
       <div
@@ -83,7 +83,7 @@ function animateCount(
 
 export function StatsTileRow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       {children}
     </div>
   )

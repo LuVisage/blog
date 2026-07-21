@@ -32,7 +32,7 @@ export default function PostsPage() {
               className="gradient-text"
             />
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm lg:text-base">
+          <p className="body-sm lg:text-base">
             共 {totalPosts} 篇文章
           </p>
         </div>

@@ -108,13 +108,13 @@ export function GiscusComments() {
   if (!mounted) {
     return (
       <>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
+        <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--color-ink)' }}>
           评论
         </h2>
         <div className="space-y-4 animate-pulse">
-          <div className="h-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
-          <div className="h-16 rounded-xl bg-gray-100 dark:bg-gray-800" />
-          <div className="h-16 rounded-xl bg-gray-100 dark:bg-gray-800" />
+          <div className="h-24 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
+          <div className="h-16 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
+          <div className="h-16 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
         </div>
       </>
     )
@@ -122,23 +122,23 @@ export function GiscusComments() {
 
   return (
     <div ref={containerRef}>
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
+      <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--color-ink)' }}>
         评论
       </h2>
 
       {/* Loading skeleton */}
       {status === 'loading' && (
         <div className="space-y-4 animate-pulse">
-          <div className="h-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
-          <div className="h-16 rounded-xl bg-gray-100 dark:bg-gray-800" />
-          <div className="h-16 rounded-xl bg-gray-100 dark:bg-gray-800" />
+          <div className="h-24 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
+          <div className="h-16 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
+          <div className="h-16 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
         </div>
       )}
 
       {/* Idle hint — user hasn't scrolled near comments yet */}
       {status === 'idle' && (
-        <div className="text-center py-10 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-          <span className="text-gray-600 dark:text-gray-400 text-sm">
+        <div className="text-center py-10 rounded-xl" style={{ border: '1px dashed var(--color-hairline)' }}>
+          <span className="text-sm" style={{ color: 'var(--color-muted)' }}>
             💬 滚动到此处加载评论区
           </span>
         </div>
@@ -146,32 +146,32 @@ export function GiscusComments() {
 
       {/* Error fallback with diagnostic steps */}
       {status === 'error' && (
-        <div className="text-center py-8 px-6 rounded-xl border border-dashed border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
-          <p className="text-amber-600 dark:text-amber-400 font-medium mb-3">
+        <div className="text-center py-8 px-6 rounded-xl" style={{ border: '1px dashed rgba(245,158,11,0.4)', background: 'rgba(245,158,11,0.05)' }}>
+          <p className="font-medium mb-3" style={{ color: 'var(--color-accent-gold)' }}>
             ⚠️ 评论区加载失败
           </p>
-          <ul className="text-left text-sm text-gray-700 dark:text-gray-300 space-y-1.5 max-w-md mx-auto">
+          <ul className="text-left text-sm space-y-1.5 max-w-md mx-auto" style={{ color: 'var(--color-body)' }}>
             <li className="flex items-start gap-2">
-              <span className="text-amber-500 mt-0.5">1.</span>
+              <span style={{ color: 'var(--color-accent-gold)' }} className="mt-0.5">1.</span>
               <span>仓库已启用 <b>Discussions</b>（Settings → Features → ✅ Discussions）</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-amber-500 mt-0.5">2.</span>
-              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="text-gray-700 hover:text-gray-800 underline">giscus App</a> 并授权 <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">LuVisage/blog</code></span>
+              <span style={{ color: 'var(--color-accent-gold)' }} className="mt-0.5">2.</span>
+              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--color-body)' }}>giscus App</a> 并授权 <code className="text-xs px-1 rounded" style={{ background: 'var(--color-hairline-soft)' }}>LuVisage/blog</code></span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-amber-500 mt-0.5">3.</span>
+              <span style={{ color: 'var(--color-accent-gold)' }} className="mt-0.5">3.</span>
               <span>仓库为 <b>Public</b>（私有仓库不支持 Giscus）</span>
             </li>
           </ul>
           <button
             onClick={() => {
               setStatus('idle')
-              // Clear existing giscus script if any
               const container = document.getElementById('giscus-container')
               if (container) container.innerHTML = ''
             }}
-            className="mt-4 text-xs text-gray-700 hover:text-gray-800 underline transition-colors"
+            className="mt-4 text-xs underline transition-colors hover:text-[var(--color-primary)]"
+            style={{ color: 'var(--color-body)' }}
           >
             点击重试
           </button>
