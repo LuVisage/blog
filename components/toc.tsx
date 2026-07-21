@@ -73,39 +73,37 @@ export function TableOfContents() {
 
   return (
     <>
-      {/* Desktop: sidebar TOC — always visible when rendered inside desktop aside */}
-      <nav className="hidden xl:block">
-        <div className="rounded-2xl glass p-4">
-          <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: 'var(--color-body)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="8" y1="6" x2="21" y2="6" />
-              <line x1="8" y1="12" x2="21" y2="12" />
-              <line x1="8" y1="18" x2="21" y2="18" />
-              <line x1="3" y1="6" x2="3.01" y2="6" />
-              <line x1="3" y1="12" x2="3.01" y2="12" />
-              <line x1="3" y1="18" x2="3.01" y2="18" />
-            </svg>
-            目录
-          </h4>
-          <ul className="space-y-0.5">
-            {headings.map(({ id, text, level }) => (
-              <li key={id}>
-                <a
-                  href={`#${id}`}
-                  onClick={(e) => handleClick(e, id)}
-                  className="block text-sm py-1.5 transition-all duration-200 border-l-2 line-clamp-1 pl-3"
-                  style={{
-                    color: activeId === id ? 'var(--color-ink)' : 'var(--color-body)',
-                    fontWeight: activeId === id ? 500 : 400,
-                    borderColor: activeId === id ? 'var(--color-primary)' : 'transparent',
-                  }}
-                >
-                  {text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* Desktop: sidebar TOC — fills parent height, parent provides card shell */}
+      <nav className="hidden xl:flex xl:flex-col xl:h-full">
+        <h4 className="text-xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--color-body)' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+          目录
+        </h4>
+        <ul className="space-y-0.5 flex-1 overflow-y-auto">
+          {headings.map(({ id, text, level }) => (
+            <li key={id}>
+              <a
+                href={`#${id}`}
+                onClick={(e) => handleClick(e, id)}
+                className="block text-sm py-1.5 transition-all duration-200 border-l-2 line-clamp-1 pl-3"
+                style={{
+                  color: activeId === id ? 'var(--color-ink)' : 'var(--color-body)',
+                  fontWeight: activeId === id ? 500 : 400,
+                  borderColor: activeId === id ? 'var(--color-primary)' : 'transparent',
+                }}
+              >
+                {text}
+              </a>
+            </li>
+          ))}
+        </ul>
       </nav>
 
       {/* Mobile: collapsible toggle */}

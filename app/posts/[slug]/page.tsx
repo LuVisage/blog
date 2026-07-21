@@ -62,12 +62,10 @@ export default async function PostPage({ params }: { params: PageParams }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ReadingProgress />
 
-      <div className="xl:flex xl:gap-8">
-        <article className="flex-1 min-w-0 max-w-3xl relative">
-          {/* Desktop TOC — floated alongside article, not a separate column */}
-          <aside className="hidden xl:block absolute left-[calc(100%+2rem)] top-0 w-44">
-            <div className="sticky top-28"><TableOfContents /></div>
-          </aside>
+      <div className="xl:flex xl:gap-6">
+        <article className="flex-1 min-w-0">
+          {/* Mobile TOC */}
+          <div className="xl:hidden mb-8"><TableOfContents /></div>
 
           {/* Toolbar */}
           <div className="flex items-center justify-between flex-wrap gap-3 mb-8">
@@ -76,9 +74,6 @@ export default async function PostPage({ params }: { params: PageParams }) {
             </Link>
             <FontSizeControl />
           </div>
-
-          {/* Mobile TOC */}
-          <div className="xl:hidden mb-8"><TableOfContents /></div>
 
           {/* Article header */}
           <header className="mb-10">
@@ -183,6 +178,13 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           <div className="mt-12 p-6 sm:p-8 rounded-3xl glass-card"><GiscusComments /></div>
         </article>
+
+        {/* Desktop TOC — tall sidebar, aligns with navbar right edge */}
+        <aside className="hidden xl:flex xl:flex-col xl:w-52 xl:flex-shrink-0">
+          <div className="sticky top-28 rounded-2xl glass-card p-5 min-h-[calc(100vh-9rem)] flex flex-col">
+            <TableOfContents />
+          </div>
+        </aside>
       </div>
     </>
   )
