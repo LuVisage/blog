@@ -3,6 +3,7 @@ import { SITE, PROJECTS } from '@/lib/constants'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { WobbleCard } from '@/components/ui/wobble-card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { IconExternalLink, IconStarFilled, IconCode } from '@tabler/icons-react'
 
 export const metadata: Metadata = {
   title: '项目',
@@ -17,7 +18,7 @@ export default function ProjectsPage() {
           <h1 className="text-3xl lg:text-4xl font-bold mb-2">
             <span className="gradient-text">项目</span>
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
+          <p className="body-sm">
             个人项目与开源作品
           </p>
         </div>
@@ -35,44 +36,24 @@ export default function ProjectsPage() {
                   className="group rounded-2xl glass-card p-5 sm:p-6 flex flex-col block"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors">
-                      {project.name}
-                    </h3>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="flex-shrink-0 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 transition-colors"
-                    >
-                      <path d="M7 17l9.2-9.2M17 17V7H7" />
-                    </svg>
+                    <h3 className="heading-3">{project.name}</h3>
+                    <IconExternalLink size={16} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} />
                   </div>
 
-                  <p className="text-sm text-gray-700 dark:text-gray-300 flex-1 mb-4 leading-relaxed">
+                  <p className="body-sm flex-1 mb-4 leading-relaxed">
                     {project.description}
                   </p>
 
                   {project.repo && (
-                    <div className="flex items-center gap-1 text-xs text-amber-500 mb-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                      </svg>
+                    <div className="flex items-center gap-1 caption mb-3" style={{ color: 'var(--color-accent-gold)' }}>
+                      <IconStarFilled size={12} />
                       <span>{project.repo}</span>
                     </div>
                   )}
 
                   <div className="flex flex-wrap gap-1.5">
                     {project.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-0.5 rounded-full text-xs bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300 border border-white/10 dark:border-white/10"
-                      >
+                      <span key={tag} className="px-2 py-0.5 rounded-full text-xs glass" style={{ color: 'var(--color-ink)' }}>
                         {tag}
                       </span>
                     ))}
@@ -84,7 +65,7 @@ export default function ProjectsPage() {
         </div>
       ) : (
         <EmptyState
-          icon="🚀"
+          icon={<IconCode size={40} strokeWidth={1.5} style={{ color: 'var(--color-muted-soft)' }} />}
           title="还没有项目~"
           description="在 lib/constants.ts 中配置 PROJECTS"
         />

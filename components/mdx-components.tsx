@@ -5,7 +5,8 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
     h1: ({ children, ...props }) => (
       <h1
-        className="text-3xl font-bold mt-10 mb-4 text-gray-900 dark:text-white"
+        className="text-3xl font-bold mt-10 mb-4"
+        style={{ color: 'var(--color-ink)' }}
         {...props}
       >
         {children}
@@ -13,7 +14,8 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     h2: ({ children, ...props }) => (
       <h2
-        className="text-2xl font-semibold mt-8 mb-3 pb-2 border-b border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white"
+        className="text-2xl font-semibold mt-8 mb-3 pb-2 border-b"
+        style={{ color: 'var(--color-ink)', borderColor: 'var(--color-hairline)' }}
         {...props}
       >
         {children}
@@ -21,7 +23,8 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     h3: ({ children, ...props }) => (
       <h3
-        className="text-xl font-semibold mt-6 mb-2 text-gray-900 dark:text-white"
+        className="text-xl font-semibold mt-6 mb-2"
+        style={{ color: 'var(--color-ink)' }}
         {...props}
       >
         {children}
@@ -29,21 +32,23 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     h4: ({ children, ...props }) => (
       <h4
-        className="text-lg font-medium mt-4 mb-2 text-gray-900 dark:text-white"
+        className="text-lg font-medium mt-4 mb-2"
+        style={{ color: 'var(--color-ink)' }}
         {...props}
       >
         {children}
       </h4>
     ),
     p: ({ children, ...props }) => (
-      <p className="my-4 leading-relaxed text-gray-700 dark:text-gray-300" {...props}>
+      <p className="my-4 leading-relaxed" style={{ color: 'var(--color-body)' }} {...props}>
         {children}
       </p>
     ),
     a: ({ href, children, ...props }) => (
       <a
         href={href}
-        className="text-primary-600 dark:text-primary-400 underline decoration-primary-300 hover:decoration-primary-600 dark:decoration-primary-700 dark:hover:decoration-primary-300 underline-offset-2 transition-colors"
+        className="underline underline-offset-2 transition-colors"
+        style={{ color: 'var(--color-primary)' }}
         target={href?.startsWith('http') ? '_blank' : undefined}
         rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
         {...props}
@@ -52,12 +57,12 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       </a>
     ),
     ul: ({ children, ...props }) => (
-      <ul className="my-4 pl-6 space-y-1 list-disc text-gray-700 dark:text-gray-300" {...props}>
+      <ul className="my-4 pl-6 space-y-1 list-disc" style={{ color: 'var(--color-body)' }} {...props}>
         {children}
       </ul>
     ),
     ol: ({ children, ...props }) => (
-      <ol className="my-4 pl-6 space-y-1 list-decimal text-gray-700 dark:text-gray-300" {...props}>
+      <ol className="my-4 pl-6 space-y-1 list-decimal" style={{ color: 'var(--color-body)' }} {...props}>
         {children}
       </ol>
     ),
@@ -68,7 +73,12 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     blockquote: ({ children, ...props }) => (
       <blockquote
-        className="my-4 pl-4 border-l-4 border-primary-400 dark:border-primary-600 bg-gray-50 dark:bg-gray-900/50 rounded-r-lg py-2 italic text-gray-800 dark:text-gray-300"
+        className="my-4 pl-4 border-l-4 rounded-r-lg py-2 italic"
+        style={{
+          color: 'var(--color-body)',
+          borderColor: 'var(--color-primary)',
+          background: 'var(--color-primary-soft)',
+        }}
         {...props}
       >
         {children}
@@ -86,12 +96,13 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     hr: (props) => (
       <hr
-        className="my-8 border-gray-200 dark:border-gray-800"
+        className="my-8"
+        style={{ borderColor: 'var(--color-hairline)' }}
         {...props}
       />
     ),
     table: ({ children, ...props }) => (
-      <div className="my-6 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+      <div className="my-6 overflow-x-auto rounded-xl border" style={{ borderColor: 'var(--color-hairline)' }}>
         <table className="min-w-full text-sm" {...props}>
           {children}
         </table>
@@ -99,7 +110,11 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     th: ({ children, ...props }) => (
       <th
-        className="px-4 py-3 text-left font-semibold bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300"
+        className="px-4 py-3 text-left font-semibold"
+        style={{
+          color: 'var(--color-body)',
+          background: 'var(--color-primary-soft)',
+        }}
         {...props}
       >
         {children}
@@ -107,19 +122,18 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     td: ({ children, ...props }) => (
       <td
-        className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300"
+        className="px-4 py-3 border-t"
+        style={{
+          color: 'var(--color-body)',
+          borderColor: 'var(--color-hairline-soft)',
+        }}
         {...props}
       >
         {children}
       </td>
     ),
-    // NOTE: pre and code are intentionally NOT overridden here.
-    // rehype-pretty-code controls code block styling via its own generated HTML
-    // (figure[data-rehype-pretty-code-figure] etc.) and overriding pre/code
-    // would conflict with the plugin's output.
-    // Inline code styling is handled by globals.css via `.prose code:not(pre code)`.
     strong: ({ children, ...props }) => (
-      <strong className="font-semibold text-gray-900 dark:text-white" {...props}>
+      <strong className="font-semibold" style={{ color: 'var(--color-ink)' }} {...props}>
         {children}
       </strong>
     ),

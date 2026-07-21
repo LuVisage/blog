@@ -3,21 +3,103 @@
 @tailwind utilities;
 
 /* ============================================
-   Glass Landscape Theme
-   Background photo is the hero — UI stays neutral
+   Alchemy Design System v4.0
+   Baron_Zhang Blog — A unique design language
+   ============================================
+   Philosophy: "The space between code and consciousness."
+   Glass surfaces on photography, warm violet accents,
+   editorial typography, no borrowed design tokens.
    ============================================ */
 
-/* ===== Base ===== */
+/* ==============================================
+   1. CSS Custom Properties — Alchemy Tokens
+   ============================================== */
+:root {
+  /* ── Primary Accent: Alchemy Violet ── */
+  --color-primary: #7C5CE7;
+  --color-primary-hover: #6A4BD5;
+  --color-primary-soft: rgba(124, 92, 231, 0.08);
+
+  /* ── Warm Accent: Alchemy Gold (stars, flame only) ── */
+  --color-accent-gold: #F59E0B;
+
+  /* ── Text ── */
+  --color-ink: #1a1a2e;
+  --color-body: #3d3d5c;
+  --color-muted: #6b6b80;
+  --color-muted-soft: #9191a0;
+
+  /* ── Hairlines & Borders ── */
+  --color-hairline: #e0e0eb;
+  --color-hairline-soft: #ededf5;
+  --color-border-strong: #c5c5d5;
+
+  /* ── Semantic ── */
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+
+  /* ── Alchemy Depth Shadow (proprietary) ── */
+  --shadow-alchemy-card: 0 0 0 1px rgba(124, 92, 231, 0.04),
+                          0 1px 2px rgba(0, 0, 0, 0.03),
+                          0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-alchemy-glass: 0 0 0 1px rgba(124, 92, 231, 0.03),
+                           0 1px 4px rgba(0, 0, 0, 0.04);
+
+  /* ── Glass Surface Backgrounds ── */
+  --glass-card-bg: rgba(255, 255, 255, 0.55);
+  --glass-card-bg-hover: rgba(255, 255, 255, 0.68);
+  --glass-bg: rgba(255, 255, 255, 0.42);
+}
+
+.dark {
+  /* ── Primary stays same (reads well on dark) ── */
+  --color-primary: #7C5CE7;
+  --color-primary-hover: #8B6FEF;
+  --color-primary-soft: rgba(124, 92, 231, 0.12);
+
+  /* ── Text (inverted) ── */
+  --color-ink: #f0f0f5;
+  --color-body: #c8c8d4;
+  --color-muted: #9090a0;
+  --color-muted-soft: #686880;
+
+  /* ── Hairlines (dark) ── */
+  --color-hairline: #2e2e3d;
+  --color-hairline-soft: #252535;
+  --color-border-strong: #3d3d52;
+
+  /* ── Semantic (dark-adjusted) ── */
+  --color-danger: #f87171;
+
+  /* ── Shadow (deeper for dark mode) ── */
+  --shadow-alchemy-card: 0 0 0 1px rgba(124, 92, 231, 0.06),
+                          0 1px 2px rgba(0, 0, 0, 0.15),
+                          0 4px 12px rgba(0, 0, 0, 0.25);
+  --shadow-alchemy-glass: 0 0 0 1px rgba(124, 92, 231, 0.05),
+                           0 1px 4px rgba(0, 0, 0, 0.18);
+
+  /* ── Glass Surface Backgrounds (dark) ── */
+  --glass-card-bg: rgba(18, 18, 30, 0.42);
+  --glass-card-bg-hover: rgba(28, 28, 42, 0.55);
+  --glass-bg: rgba(18, 18, 30, 0.30);
+}
+
+/* ==============================================
+   2. Base Layer
+   ============================================== */
 @layer base {
   body {
-    @apply text-gray-800 dark:text-gray-100 antialiased;
+    @apply antialiased;
+    color: var(--color-ink);
     min-height: 100vh;
+    font-family: 'Noto Sans SC', 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
   }
 
-  /* Background image is the hero — only a whisper of overlay for text readability */
   .bg-body {
     background:
-      linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.25) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.18) 100%),
       var(--bg-image, none);
     background-size: cover;
     background-position: center;
@@ -26,187 +108,359 @@
 
   .dark .bg-body {
     background:
-      linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.30) 100%),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.28) 100%),
       var(--bg-image, none);
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
   }
 
+  /* ── Selection ── */
   ::selection {
-    @apply bg-gray-300/40 dark:bg-gray-500/30;
+    background: rgba(124, 92, 231, 0.18);
+    color: var(--color-ink);
   }
 
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
+  /* ── Smooth scroll ── */
+  html { scroll-behavior: smooth; }
+
+  /* ── Focus ring ── */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 8px;
   }
 }
 
-/* ===== Background pattern overlay (barely visible atmosphere) ===== */
-.bg-pattern {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.12;
-  background-image:
-    radial-gradient(circle at 20% 50%, rgba(255,255,255,0.15) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.10) 0%, transparent 50%);
+/* ==============================================
+   3. Glass Surfaces — The heart of Alchemy
+   ============================================== */
+@layer components {
+  /* ── Glass Card: heavy presence (articles, post cards, feature blocks) ── */
+  .glass-card {
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    background: var(--glass-card-bg);
+    border: 1px solid var(--color-hairline);
+    box-shadow: var(--shadow-alchemy-card);
+    transition: all 200ms ease;
+  }
+
+  .glass-card:hover {
+    background: var(--glass-card-bg-hover);
+    border-color: var(--color-border-strong);
+    transform: translateY(-2px);
+  }
+
+  /* ── Glass: light presence (header, footer, pills, buttons) ── */
+  .glass {
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    background: var(--glass-bg);
+    border: 1px solid var(--color-hairline);
+    box-shadow: var(--shadow-alchemy-glass);
+    transition: all 200ms ease;
+  }
+
+  .glass:hover {
+    border-color: var(--color-border-strong);
+  }
+
+  /* ── Glass Code: for code blocks ── */
+  .glass-code {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(248, 250, 252, 0.75);
+    border: 1px solid var(--color-hairline);
+    border-radius: 16px;
+  }
+
+  .dark .glass-code {
+    background: rgba(15, 15, 20, 0.55);
+  }
 }
 
-.dark .bg-pattern {
-  opacity: 0.15;
-  background-image:
-    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04) 0%, transparent 50%);
+/* ==============================================
+   4. Gradient Text — Alchemy ink gradient
+   ============================================== */
+@layer components {
+  .gradient-text {
+    /* Matches --color-ink (#1a1a2e) and --color-body (#3d3d5c) in light mode */
+    background-image: linear-gradient(135deg, var(--color-ink) 0%, var(--color-body) 50%, var(--color-ink) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .dark .gradient-text {
+    /* Pure white → soft violet-gray for depth on dark */
+    background-image: linear-gradient(135deg, #ffffff 0%, #b0b0c8 50%, #e0e0f0 100%);
+  }
 }
 
-/* ===== Grid texture (subtle) ===== */
-.bg-grid {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.06;
-  background-size: 60px 60px;
-  background-image:
-    linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px);
+/* ==============================================
+   5. Buttons — Alchemy button system
+   ============================================== */
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 20px;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.25;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 150ms ease, box-shadow 150ms ease;
+    box-shadow: 0 2px 8px rgba(124, 92, 231, 0.25);
+  }
+  .btn-primary:hover {
+    background: var(--color-primary-hover);
+    box-shadow: 0 4px 16px rgba(124, 92, 231, 0.35);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 20px;
+    background: transparent;
+    color: var(--color-ink);
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.25;
+    border: 1px solid var(--color-hairline);
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .btn-secondary:hover {
+    border-color: var(--color-border-strong);
+    background: rgba(124, 92, 231, 0.04);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 16px;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.43;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+  .btn-ghost:hover {
+    color: var(--color-ink);
+    background: var(--color-primary-soft);
+  }
 }
 
-.dark .bg-grid {
-  opacity: 0.08;
-  background-image:
-    linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px);
+/* ==============================================
+   6. Typography — Alchemy type scale
+   ============================================== */
+@layer components {
+  .heading-1 {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+
+  .heading-2 {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.009em;
+    color: var(--color-ink);
+  }
+
+  .heading-3 {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--color-ink);
+  }
+
+  .body-lg {
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--color-body);
+  }
+
+  .body-md {
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--color-body);
+  }
+
+  .body-sm {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.43;
+    color: var(--color-muted);
+  }
+
+  .caption {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.3;
+    color: var(--color-muted-soft);
+  }
 }
 
-/* ===== Glass card (highly transparent) ===== */
-.glass {
-  @apply backdrop-blur-xl bg-white/50 dark:bg-black/40;
-  @apply border border-white/20 dark:border-white/10;
-  @apply shadow-lg shadow-black/5 dark:shadow-black/25;
+/* ==============================================
+   7. Section Title — primary-color prefix bar
+   ============================================== */
+.section-title {
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.009em;
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.glass-hover {
-  @apply transition-all duration-300;
+.section-title::before {
+  content: '';
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
+  background: var(--color-primary);
+  display: inline-block;
+  flex-shrink: 0;
 }
 
-.glass-hover:hover {
-  @apply -translate-y-1 shadow-xl shadow-black/10 dark:shadow-black/30;
-  @apply border-white/30 dark:border-white/10;
-}
-
-/* ===== Enhanced Glass Card (even more transparent, stronger blur) ===== */
-.glass-card {
-  @apply backdrop-blur-2xl;
-  @apply bg-white/60 dark:bg-black/40;
-  @apply border border-white/10 dark:border-white/5;
-  @apply shadow-lg shadow-black/5 dark:shadow-black/20;
-  @apply transition-all duration-300;
-}
-
-.glass-card:hover {
-  @apply bg-white/70 dark:bg-black/50;
-  @apply border-white/25 dark:border-white/10;
-  @apply shadow-xl shadow-black/5 dark:shadow-black/30;
-}
-
-/* Card with link behavior */
-a.glass-card:hover,
-.glass-card-link:hover {
-  @apply -translate-y-1 border-white/30 dark:border-white/10;
-}
-
-/* ===== Gradient text (neutral) ===== */
-.gradient-text {
-  @apply bg-clip-text text-transparent;
-  background-image: linear-gradient(135deg, #999999 0%, #555555 50%, #777777 100%);
-}
-
-.dark .gradient-text {
-  background-image: linear-gradient(135deg, #ffffff 0%, #aaaaaa 50%, #cccccc 100%);
-}
-
-.gradient-text-warm {
-  @apply bg-clip-text text-transparent;
-  background-image: linear-gradient(135deg, #888888 0%, #666666 40%, #999999 100%);
-}
-
-.dark .gradient-text-warm {
-  background-image: linear-gradient(135deg, #eeeeee 0%, #bbbbbb 40%, #dddddd 100%);
-}
-
-/* ===== Prose overrides ===== */
+/* ==============================================
+   8. Prose — Article content styling
+   ============================================== */
 .prose {
-  @apply max-w-none;
+  max-width: none;
 }
 
-/* Raw <pre> fallback (without rehype-pretty-code wrapper) */
-.prose pre {
-  @apply rounded-2xl border border-gray-200 dark:border-white/10 shadow-md my-6 overflow-x-auto p-4;
-  background: #f8fafc !important;
+.prose h2 {
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-ink);
+  margin-top: 40px;
+  margin-bottom: 14px;
 }
 
-.dark .prose pre {
-  background: #0f0f14 !important;
+.prose h3 {
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-ink);
+  margin-top: 28px;
+  margin-bottom: 10px;
 }
 
-.prose pre code {
-  @apply text-sm leading-relaxed;
-}
-
-.prose img {
-  @apply rounded-2xl shadow-lg;
+.prose p {
+  margin: 12px 0;
+  line-height: 1.5;
+  color: var(--color-ink);
 }
 
 .prose a {
-  @apply text-gray-700 dark:text-gray-300 decoration-gray-300/50 hover:decoration-gray-500 dark:hover:decoration-gray-300 transition;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.prose a:hover {
+  text-decoration: underline;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: var(--color-ink);
 }
 
 .prose blockquote {
-  @apply border-l-gray-300 dark:border-l-gray-600 bg-gray-50/50 dark:bg-white/10 rounded-r-2xl py-1 italic;
+  border-left: 3px solid var(--color-primary);
+  padding-left: 16px;
+  margin: 20px 0;
+  color: var(--color-body);
+  font-style: italic;
 }
 
-/* ===== Code blocks (rehype-pretty-code v0.14+ Shiki-based) ===== */
-/* v0.14+ wraps code in <figure data-rehype-pretty-code-figure"> */
+.prose ul,
+.prose ol {
+  padding-left: 24px;
+  margin: 12px 0;
+}
+
+.prose li {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.prose img {
+  border-radius: 12px;
+  margin: 24px 0;
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--color-hairline);
+  margin: 40px 0;
+}
+
+/* ── Code blocks ── */
 .prose figure[data-rehype-pretty-code-figure] {
-  @apply relative my-6;
+  @apply relative my-5 rounded-2xl overflow-hidden;
+  border: 1px solid var(--color-hairline);
 }
 
 .prose figure[data-rehype-pretty-code-figure] pre {
-  @apply my-0 rounded-2xl border border-gray-200 dark:border-white/10 shadow-md;
-  background: #f8fafc !important;
+  margin: 0;
+  padding: 20px 24px;
+  overflow-x: auto;
+  background: rgba(248, 250, 252, 0.85) !important;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .dark .prose figure[data-rehype-pretty-code-figure] pre {
-  background: #0f0f14 !important;
+  background: rgba(15, 15, 20, 0.75) !important;
 }
 
-.prose figure[data-rehype-pretty-code-figure] pre code {
-  @apply text-sm leading-relaxed;
-}
-
-/* Code block titles (```title.ext) */
-.prose figcaption[data-rehype-pretty-code-title] {
-  @apply text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-white/10 px-4 py-2 rounded-t-2xl border border-b-0 border-gray-200 dark:border-white/10 font-mono;
-}
-
-/* Highlighted lines via rehype-pretty-code */
-.prose span[data-highlighted-line] {
-  @apply bg-gray-200/50 dark:bg-white/10 border-l-4 border-gray-400 dark:border-gray-500 pl-3 -ml-3;
-}
-
-/* Inline code (NOT inside pre/code blocks from rehype-pretty-code) */
 .prose code:not(pre code) {
-  @apply px-1.5 py-0.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-sm font-medium;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.875em;
+  font-weight: 400;
 }
 
-/* ===== Shiki dual-theme: class-based dark mode switch ===== */
-/* rehype-pretty-code outputs spans with data-theme containing both theme names.
-   The browser uses CSS custom properties (--shiki-light / --shiki-dark).
-   Without these rules, only the light theme renders regardless of dark mode. */
+/* ── Shiki dual-theme ── */
 code[data-theme*=" "],
 code[data-theme*=" "] span {
   color: var(--shiki-light);
@@ -219,9 +473,11 @@ code[data-theme*=" "] span {
   background-color: var(--shiki-dark-bg);
 }
 
-/* ===== Scrollbar ===== */
+/* ==============================================
+   9. Scrollbar — Minimal
+   ============================================== */
 ::-webkit-scrollbar {
-  @apply w-2;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -229,227 +485,145 @@ code[data-theme*=" "] span {
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  background: #d1d5db;
+  border-radius: 9999px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400 dark:bg-gray-600;
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
 }
 
-/* ===== Pagefind overrides ===== */
+/* ==============================================
+   10. Pagefind — Search UI tokens
+   ============================================== */
 :root {
-  --pagefind-ui-scale: 1;
-  --pagefind-ui-primary: #555555;
-  --pagefind-ui-text: #1e293b;
-  --pagefind-ui-background: #ffffff;
-  --pagefind-ui-border: #e5e7eb;
-  --pagefind-ui-border-width: 2px;
-  --pagefind-ui-border-radius: 16px;
+  --pagefind-ui-primary: var(--color-primary);
+  --pagefind-ui-text: var(--color-ink);
+  --pagefind-ui-background: #fff;
+  --pagefind-ui-border: #ddd;
+  --pagefind-ui-border-width: 1px;
+  --pagefind-ui-border-radius: 12px;
   --pagefind-ui-font: inherit;
 }
 
 .dark {
-  --pagefind-ui-primary: #999999;
-  --pagefind-ui-text: #e2e8f0;
   --pagefind-ui-background: #1a1a2e;
-  --pagefind-ui-border: #333355;
+  --pagefind-ui-border: #2e2e3d;
 }
 
-/* ===== Theme Transition: View Transitions API ===== */
+/* ==============================================
+   11. Theme Transition
+   ============================================== */
 ::view-transition-old(root) {
-  animation: themeFadeOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: fade-out 0.2s ease both;
 }
 
 ::view-transition-new(root) {
-  animation: themeFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+  animation: fade-in 0.2s ease 0.05s both;
 }
 
-@keyframes themeFadeOut {
-  from { opacity: 1; filter: blur(0); }
-  to { opacity: 0; filter: blur(4px); }
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
 }
 
-@keyframes themeFadeIn {
-  from { opacity: 0; filter: blur(4px); }
-  to { opacity: 1; filter: blur(0); }
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-/* ===== Theme Transition: Fallback overlay (non-View-Transitions browsers) ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==============================================
+   12. Theme Transition Overlay (circular reveal)
+   ============================================== */
 .theme-transition-overlay {
   position: fixed;
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  clip-path: circle(0% at var(--toggle-x, 50%) var(--toggle-y, 50%));
-  animation: themeOverlayIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-.theme-transition-overlay[data-theme="dark"] {
-  background: rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  left: var(--toggle-x, 50%);
+  top: var(--toggle-y, 50%);
+  width: 300vmax;
+  height: 300vmax;
+  margin-left: -150vmax;
+  margin-top: -150vmax;
+  background: var(--color-ink);
+  animation: themeOverlayIn 0.35s ease-in-out forwards;
 }
 
 .theme-transition-overlay[data-theme="light"] {
-  background: rgba(255, 255, 255, 0.5);
+  background: #ffffff;
 }
 
 .theme-transition-overlay.reverse {
-  animation: themeOverlayOut 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: themeOverlayOut 0.35s ease-in-out forwards;
 }
 
 @keyframes themeOverlayIn {
-  from { clip-path: circle(0% at var(--toggle-x, 50%) var(--toggle-y, 50%)); }
-  to { clip-path: circle(100% at var(--toggle-x, 50%) var(--toggle-y, 50%)); }
+  from {
+    transform: translate(-50%, -50%) scale(0);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 @keyframes themeOverlayOut {
-  from { clip-path: circle(100% at var(--toggle-x, 50%) var(--toggle-y, 50%)); }
-  to { clip-path: circle(0% at var(--toggle-x, 50%) var(--toggle-y, 50%)); }
-}
-
-/* ===== Smooth theme transition on color-related properties ===== */
-section, article, .glass-card, .glass {
-  transition-property: background-color, border-color, box-shadow, transform;
-  transition-duration: 0.3s;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ===== Animations ===== */
-@keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  33% { transform: translateY(-8px) rotate(1deg); }
-  66% { transform: translateY(-4px) rotate(-1deg); }
-}
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.3); }
-}
-
-@keyframes sparkle {
-  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
-  50% { opacity: 1; transform: scale(1) rotate(180deg); }
-}
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideRight {
-  from { opacity: 0; transform: translateX(-16px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes borderGlow {
-  0%, 100% { border-color: rgba(255,255,255,0.4); box-shadow: 0 0 12px rgba(255,255,255,0.15); }
-  50% { border-color: rgba(255,255,255,0.6); box-shadow: 0 0 20px rgba(255,255,255,0.25); }
-}
-
-@keyframes gradientFlow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,0.1), 0 0 16px rgba(255,255,255,0.05); }
-  50% { box-shadow: 0 0 16px rgba(255,255,255,0.2), 0 0 32px rgba(255,255,255,0.1); }
-}
-
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.animate-float { animation: float 6s ease-in-out infinite; }
-.animate-twinkle { animation: twinkle 2s ease-in-out infinite; }
-.animate-fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-fade-in { animation: fadeIn 0.5s ease-out both; }
-.animate-scale-in { animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-slide-right { animation: slideRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-slide-in-left { animation: slideInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
-  background-size: 200% 100%;
-  animation: shimmer 3s infinite;
-}
-.animate-border-glow { animation: borderGlow 3s ease-in-out infinite; }
-.animate-gradient-flow {
-  background-size: 200% 200%;
-  animation: gradientFlow 4s ease infinite;
-}
-.animate-pulse-glow { animation: pulseGlow 2.5s ease-in-out infinite; }
-
-/* ===== Hover lift utility ===== */
-.hover-lift {
-  @apply transition-all duration-300;
-}
-.hover-lift:hover {
-  @apply -translate-y-1 shadow-lg;
-}
-
-/* ===== Section title with accent bar ===== */
-.section-title {
-  @apply flex items-center gap-3 text-lg lg:text-xl font-bold text-gray-800 dark:text-gray-200;
-}
-.section-title::before {
-  content: '';
-  @apply w-1 h-5 rounded-full bg-gray-400 dark:bg-gray-500 inline-block flex-shrink-0;
-}
-
-/* ===== Enhanced link underline animation (neutral) ===== */
-.nav-link-underline {
-  position: relative;
-}
-
-.nav-link-underline::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  width: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #999999, #cccccc);
-  border-radius: 1px;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.dark .nav-link-underline::after {
-  background: linear-gradient(90deg, #aaaaaa, #dddddd);
-}
-
-.nav-link-underline:hover::after,
-.nav-link-underline.active::after {
-  left: 0;
-  width: 100%;
-}
-
-/* ===== Motion-safe: disable animations for reduced-motion users ===== */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  from {
+    transform: translate(-50%, -50%) scale(1);
   }
+  to {
+    transform: translate(-50%, -50%) scale(0);
+  }
+}
+
+/* ==============================================
+   13. Animations — Shared keyframes
+   ============================================== */
+
+/* Scale-in for cards appearing */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out both;
+}
+
+/* Fade-up for content blocks */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.4s ease-out both;
 }

@@ -13,13 +13,13 @@ export default function PrivacyPage() {
         <h1 className="text-3xl lg:text-4xl font-bold mb-2">
           <span className="gradient-text">隐私政策</span>
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 text-sm">
+        <p className="body-sm">
           最后更新：2025年7月14日
         </p>
       </div>
 
       <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12">
-        <div className="prose prose-gray dark:prose-invert max-w-none">
+        <div className="prose max-w-none">
           <h2>1. 数据收集</h2>
           <p>
             本博客为纯静态网站，本身不收集任何个人数据。我们使用以下第三方服务，它们可能有各自的数据收集政策：

@@ -31,7 +31,7 @@ export default async function CategoryPage({ params }: { params: PageParams }) {
         <h1 className="text-3xl lg:text-4xl font-bold mb-2">
           <span className="gradient-text">{category}</span>
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 text-sm">
+        <p className="body-sm">
           共 {posts.length} 篇文章
         </p>
       </div>

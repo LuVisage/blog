@@ -1,7 +1,8 @@
 'use client'
 
-import { useRef, type ReactNode } from 'react'
-import { motion, useInView } from 'motion/react'
+import { useRef, type ReactNode, useEffect } from 'react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { cn } from '@/lib/utils'
 
 interface AnimatedContentProps {
@@ -15,18 +16,13 @@ interface AnimatedContentProps {
   duration?: number
   /** Delay in seconds. Default 0. */
   delay?: number
-  /** Easing curve. Default cubic-bezier. */
-  ease?: [number, number, number, number]
-  /** Viewport threshold (0-1). Default 0.2. */
-  threshold?: number
   /** Whether to animate only once. Default true. */
   once?: boolean
 }
 
 /**
- * AnimatedContent — reveals content with a slide + fade when scrolled into view.
- * Adapted from React Bits' AnimatedContent component.
- * Uses Framer Motion (motion) + Intersection Observer (useInView).
+ * AnimatedContent — reveals content with a slide + fade using GSAP ScrollTrigger.
+ * Replaces the Framer Motion version for better scroll performance.
  */
 export function AnimatedContent({
   children,
@@ -35,51 +31,57 @@ export function AnimatedContent({
   distance = 24,
   duration = 0.6,
   delay = 0,
-  ease = [0.16, 1, 0.3, 1],
-  threshold = 0.2,
   once = true,
 }: AnimatedContentProps) {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once, margin: '-20px 0px 0px 0px' })
+  const ref = useRef<HTMLDivElement>(null)
 
-  // Compute initial transform based on direction
-  const getInitial = () => {
-    switch (direction) {
-      case 'up':
-        return { y: distance, opacity: 0 }
-      case 'down':
-        return { y: -distance, opacity: 0 }
-      case 'left':
-        return { x: distance, opacity: 0 }
-      case 'right':
-        return { x: -distance, opacity: 0 }
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    // Respect reduced motion
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (mq.matches) {
+      gsap.set(el, { opacity: 1, x: 0, y: 0 })
+      return
     }
-  }
 
-  const getAnimate = () => {
-    switch (direction) {
-      case 'up':
-      case 'down':
-        return { y: 0, opacity: 1 }
-      case 'left':
-      case 'right':
-        return { x: 0, opacity: 1 }
+    const getFromVars = () => {
+      switch (direction) {
+        case 'up': return { y: distance, opacity: 0 }
+        case 'down': return { y: -distance, opacity: 0 }
+        case 'left': return { x: distance, opacity: 0 }
+        case 'right': return { x: -distance, opacity: 0 }
+      }
     }
-  }
 
-  return (
-    <motion.div
-      ref={ref}
-      initial={getInitial()}
-      animate={isInView ? getAnimate() : getInitial()}
-      transition={{
+    const getToVars = (dir: string) => {
+      switch (dir) {
+        case 'up': case 'down': return { y: 0, opacity: 1 }
+        case 'left': case 'right': return { x: 0, opacity: 1 }
+      }
+    }
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el, getFromVars(), {
+        ...getToVars(direction),
         duration,
         delay,
-        ease,
-      }}
-      className={cn(className)}
-    >
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: el,
+          start: 'top 85%',
+          once,
+        },
+      })
+    }, el)
+
+    return () => ctx.revert()
+  }, [direction, distance, duration, delay, once])
+
+  return (
+    <div ref={ref} className={cn(className)}>
       {children}
-    </motion.div>
+    </div>
   )
 }

@@ -4,6 +4,7 @@ import { getAllSeries } from '@/lib/posts'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { WobbleCard } from '@/components/ui/wobble-card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { IconBooks, IconArrowRight } from '@tabler/icons-react'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export default function SeriesPage() {
           <h1 className="text-3xl lg:text-4xl font-bold mb-2">
             <span className="gradient-text">系列</span>
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
+          <p className="body-sm">
             共 {series.length} 个系列
           </p>
         </div>
@@ -37,20 +38,15 @@ export default function SeriesPage() {
                 className="group rounded-2xl glass-card p-5 sm:p-6 block"
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl">📚</span>
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors">
-                    {name}
-                  </h3>
+                  <IconBooks size={28} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
+                  <h3 className="heading-3">{name}</h3>
                 </div>
-                <p className="text-sm text-gray-700 dark:text-gray-300">
+                <p className="body-sm">
                   共 {count} 篇文章
                 </p>
-                <div className="mt-3 flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300 group-hover:gap-2 transition-all">
+                <div className="mt-3 flex items-center gap-1 caption group-hover:gap-2 transition-all">
                   <span>查看系列</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
+                  <IconArrowRight size={12} strokeWidth={2} />
                 </div>
               </Link>
               </WobbleCard>
@@ -59,7 +55,7 @@ export default function SeriesPage() {
         </div>
       ) : (
         <EmptyState
-          icon="📚"
+          icon={<IconBooks size={40} strokeWidth={1.5} style={{ color: 'var(--color-muted-soft)' }} />}
           title="还没有系列文章~"
           description="在文章 frontmatter 中添加 series 和 seriesOrder 字段"
         />

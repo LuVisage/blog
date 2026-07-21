@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { IconFlameFilled } from '@tabler/icons-react'
 
 // ── Types ──────────────────────────────────────────────
 
@@ -166,7 +167,7 @@ export function AIHotNews() {
         {/* Header */}
         <div className="flex items-center justify-between mb-4 lg:mb-5">
           <h2 className="text-base lg:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-            <span className="text-lg">🔥</span>
+            <IconFlameFilled size={20} className="text-orange-400" />
             AI 热榜
             <span className="text-xs font-normal text-gray-600 dark:text-gray-400 bg-white/50 dark:bg-white/10 px-2 py-0.5 rounded-full">
               近 7 日热门

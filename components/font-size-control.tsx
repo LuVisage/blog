@@ -5,8 +5,6 @@ import { useEffect, useState } from 'react'
 type FontSize = 'small' | 'medium' | 'large'
 
 const STORAGE_KEY = 'blog-font-size'
-
-/* Tailwind Typography size modifiers */
 const PROSE_CLASSES = ['prose-sm', 'prose-base', 'prose-lg'] as const
 
 const SIZE_CLASS: Record<FontSize, string> = {
@@ -34,32 +32,29 @@ export function FontSizeControl() {
 
   useEffect(() => {
     if (!mounted) return
-
-    // Find the .prose content container and apply Typography size modifiers
     const proseEl = document.querySelector('.prose')
     if (!proseEl) return
-
-    // Remove all prose size classes, then add the selected one
     proseEl.classList.remove(...PROSE_CLASSES)
     proseEl.classList.add(SIZE_CLASS[size])
-
     localStorage.setItem(STORAGE_KEY, size)
   }, [size, mounted])
 
   if (!mounted) return null
 
+  const baseBtnClass = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150'
+
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-xs text-gray-600 dark:text-gray-400">字体：</span>
+      <span className="text-xs" style={{ color: 'var(--color-muted-soft)' }}>字体：</span>
       {(['small', 'medium', 'large'] as FontSize[]).map((s) => (
         <button
           key={s}
           onClick={() => setSize(s)}
-          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-            size === s
-              ? 'bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300'
-              : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-          }`}
+          className={baseBtnClass}
+          style={{
+            backgroundColor: size === s ? 'var(--color-primary-soft)' : 'transparent',
+            color: size === s ? 'var(--color-ink)' : 'var(--color-muted)',
+          }}
         >
           {s === 'small' ? '小' : s === 'medium' ? '中' : '大'}
         </button>

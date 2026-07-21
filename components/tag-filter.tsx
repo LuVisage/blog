@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import type { PostMeta } from '@/lib/posts'
 import { PostList } from '@/components/post-card'
-import { TagBadge } from '@/components/tag-badge'
+import { IconTag, IconX } from '@tabler/icons-react'
 
 interface Props {
   posts: PostMeta[]
@@ -24,7 +24,7 @@ export function TagFilter({ posts, tags }: Props) {
         <h1 className="text-3xl font-bold mb-2">
           <span className="gradient-text">标签</span>
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 text-sm">
+        <p className="body-sm">
           共 {tags.length} 个标签 · {posts.length} 篇文章
         </p>
       </div>
@@ -35,13 +35,13 @@ export function TagFilter({ posts, tags }: Props) {
           {/* "All" button */}
           <button
             onClick={() => setSelectedTag(null)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-              selectedTag === null
-                ? 'bg-gray-500 text-white shadow-md shadow-black/10 scale-105'
-                : 'bg-gradient-to-r from-white/10 to-white/5 dark:from-white/5 dark:to-white/5 text-gray-700 dark:text-gray-300 border border-white/20 dark:border-white/10 hover:border-white/30 hover:scale-105'
-            }`}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-200"
+            style={{
+              backgroundColor: selectedTag === null ? 'var(--color-ink)' : 'transparent',
+              color: selectedTag === null ? '#fff' : 'var(--color-body)',
+              border: selectedTag === null ? 'none' : '1px solid var(--color-hairline)',
+            }}
           >
-            <span className="text-[10px]">📋</span>
             全部
             <span className="text-[10px] opacity-70">({posts.length})</span>
           </button>
@@ -49,13 +49,14 @@ export function TagFilter({ posts, tags }: Props) {
             <button
               key={tag}
               onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-                selectedTag === tag
-                  ? 'bg-gray-500 text-white shadow-md shadow-black/10 scale-105'
-                  : 'bg-gradient-to-r from-white/10 to-white/5 dark:from-white/5 dark:to-white/5 text-gray-700 dark:text-gray-300 border border-white/20 dark:border-white/10 hover:border-white/30 hover:scale-105'
-              }`}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-200"
+              style={{
+                backgroundColor: selectedTag === tag ? 'var(--color-ink)' : 'transparent',
+                color: selectedTag === tag ? '#fff' : 'var(--color-body)',
+                border: selectedTag === tag ? 'none' : '1px solid var(--color-hairline)',
+              }}
             >
-              <span className="text-[10px]">✦</span>
+              <IconTag size={10} strokeWidth={2.5} />
               {tag}
               <span className="text-[10px] opacity-70">{count}</span>
             </button>
@@ -64,13 +65,20 @@ export function TagFilter({ posts, tags }: Props) {
       </div>
 
       {/* Results */}
-      <div className="animate-fade-in-up" key={selectedTag ?? '__all__'}>
+      <div className="animate-fade-up" key={selectedTag ?? '__all__'}>
         {selectedTag && (
           <div className="flex items-center gap-2 mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-              筛选：<span className="text-gray-800">#{selectedTag}</span>
+            <h2 className="heading-2 flex items-center gap-2">
+              筛选：<span style={{ color: 'var(--color-primary)' }}>#{selectedTag}</span>
             </h2>
-            <span className="text-sm text-gray-600 dark:text-gray-400">
+            <button
+              onClick={() => setSelectedTag(null)}
+              className="btn-ghost text-xs h-8 px-2"
+            >
+              <IconX size={12} strokeWidth={2} />
+              清除
+            </button>
+            <span className="body-sm">
               {filteredPosts.length} 篇文章
             </span>
           </div>

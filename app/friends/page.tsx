@@ -3,6 +3,7 @@ import { SITE, FRIENDS } from '@/lib/constants'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { WobbleCard } from '@/components/ui/wobble-card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { IconLink, IconHeart, IconExternalLink } from '@tabler/icons-react'
 
 export const metadata: Metadata = {
   title: '友链',
@@ -17,7 +18,7 @@ export default function FriendsPage() {
           <h1 className="text-3xl lg:text-4xl font-bold mb-2">
             <span className="gradient-text">友链</span>
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
+          <p className="body-sm">
             同道中人的博客
           </p>
         </div>
@@ -35,37 +36,22 @@ export default function FriendsPage() {
                 className="group rounded-2xl glass-card p-5 sm:p-6 flex items-start gap-4 block"
               >
                 {/* Avatar */}
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/50 dark:bg-white/10 border border-white/10 dark:border-white/10 flex items-center justify-center overflow-hidden">
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl glass flex items-center justify-center overflow-hidden">
                   {friend.avatar ? (
                     <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-lg">🔗</span>
+                    <IconLink size={20} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} />
                   )}
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-800 dark:text-gray-200 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors">
-                    {friend.name}
-                  </h3>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 line-clamp-2">
+                  <h3 className="heading-3">{friend.name}</h3>
+                  <p className="body-sm mt-1 line-clamp-2">
                     {friend.description}
                   </p>
                 </div>
 
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="flex-shrink-0 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 transition-colors mt-1"
-                >
-                  <path d="M7 17l9.2-9.2M17 17V7H7" />
-                </svg>
+                <IconExternalLink size={16} strokeWidth={1.5} className="flex-shrink-0 mt-1" style={{ color: 'var(--color-muted)' }} />
               </a>
               </WobbleCard>
             </AnimatedContent>
@@ -73,7 +59,7 @@ export default function FriendsPage() {
         </div>
       ) : (
         <EmptyState
-          icon="🤝"
+          icon={<IconLink size={40} strokeWidth={1.5} style={{ color: 'var(--color-muted-soft)' }} />}
           title="还没有友链~"
           description="在 lib/constants.ts 中配置 FRIENDS"
         />
@@ -82,21 +68,22 @@ export default function FriendsPage() {
       {/* Exchange info */}
       <AnimatedContent direction="up" delay={0.3}>
         <div className="mt-8 rounded-2xl glass-card p-6 text-center">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-            💌 交换友链
+          <h3 className="heading-3 mb-3 flex items-center justify-center gap-2">
+            <IconHeart size={18} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
+            交换友链
           </h3>
-          <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+          <p className="body-sm mb-3">
             如果你也是 AI/技术方向的博客，欢迎交换友链！
           </p>
-          <div className="inline-flex flex-col sm:flex-row items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-            <code className="px-2 py-1 rounded-lg bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300">
+          <div className="inline-flex flex-col sm:flex-row items-center gap-2 caption">
+            <code className="px-2 py-1 rounded-lg glass" style={{ color: 'var(--color-ink)' }}>
               {SITE.title}
             </code>
-            <span className="hidden sm:inline">—</span>
-            <code className="px-2 py-1 rounded-lg bg-white/50 dark:bg-white/10 text-gray-800 dark:text-gray-300">
+            <span className="hidden sm:inline" style={{ color: 'var(--color-muted-soft)' }}>—</span>
+            <code className="px-2 py-1 rounded-lg glass" style={{ color: 'var(--color-ink)' }}>
               {SITE.url}
             </code>
-            <span className="hidden sm:inline">—</span>
+            <span className="hidden sm:inline" style={{ color: 'var(--color-muted-soft)' }}>—</span>
             <span>{SITE.description.slice(0, 30)}...</span>
           </div>
         </div>
