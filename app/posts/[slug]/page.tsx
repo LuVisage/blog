@@ -117,18 +117,34 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           {/* Prev/Next */}
           <nav className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
-            {prev ? (
-              <Link href={`/posts/${prev.slug}`} className="glass-card rounded-2xl p-5 text-left">
-                <span className="caption flex items-center gap-1 mb-1.5"><IconChevronLeft size={12} strokeWidth={2} /> 上一篇</span>
+            {prev && (
+              <Link href={`/posts/${prev.slug}`} className="glass-card rounded-2xl p-5 group">
+                <span className="caption flex items-center gap-1 mb-1.5">
+                  <IconChevronLeft size={12} strokeWidth={2} /> 上一篇
+                </span>
                 <p className="body-sm font-medium line-clamp-1" style={{ color: 'var(--color-ink)' }}>{prev.title}</p>
               </Link>
-            ) : <div />}
-            {next && (
-              <Link href={`/posts/${next.slug}`} className="glass-card rounded-2xl p-5 text-right">
-                <span className="caption flex items-center justify-end gap-1 mb-1.5">下一篇 <IconChevronRight size={12} strokeWidth={2} /></span>
-                <p className="body-sm font-medium line-clamp-1" style={{ color: 'var(--color-ink)' }}>{next.title}</p>
-              </Link>
             )}
+            <Link
+              href={next ? `/posts/${next.slug}` : '/posts'}
+              className={`glass-card rounded-2xl p-5 group ${next ? 'text-right' : ''} ${!prev && next ? 'sm:col-start-2' : ''}`}
+            >
+              {next ? (
+                <>
+                  <span className="caption flex items-center justify-end gap-1 mb-1.5">
+                    下一篇 <IconChevronRight size={12} strokeWidth={2} />
+                  </span>
+                  <p className="body-sm font-medium line-clamp-1" style={{ color: 'var(--color-ink)' }}>{next.title}</p>
+                </>
+              ) : (
+                <>
+                  <span className="caption flex items-center justify-end gap-1 mb-1.5">
+                    返回列表 <IconChevronRight size={12} strokeWidth={2} />
+                  </span>
+                  <p className="body-sm font-medium line-clamp-1" style={{ color: 'var(--color-ink)' }}>查看更多文章</p>
+                </>
+              )}
+            </Link>
           </nav>
 
           {/* Series Navigation */}
