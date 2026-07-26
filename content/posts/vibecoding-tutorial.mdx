@@ -62,13 +62,15 @@ Vibe Coding 这个概念由 Andrej Karpathy 在 2025 年提出，简单说就是
 
 Windows 10 系统的同学可以在应用商店内搜索并安装 **Windows Terminal** 软件（Win11 自带，名字叫做终端）。
 
-![Windows 应用商店搜索 Windows Terminal](/images/vibecoding/yuque/terminal-win10-store.png)
+![Windows 应用商店搜索 Windows Terminal](/images/vibecoding/yuque/njs-01.png)
 
 1. 找到软件终端，并打开（Win10 系统没有自带，请参考上图，在应用软件内下载安装即可）
 
-2. 打开终端程序，如下图
+![搜索"终端"选择最佳匹配](/images/vibecoding/yuque/njs-02.png)
 
-![Windows PowerShell 窗口——默认标题栏显示 Windows PowerShell](/images/vibecoding/yuque/njs-search.png)
+2. 打开终端程序，如下图——默认标题栏显示 Windows PowerShell：
+
+![PowerShell 窗口——默认标题栏显示 Windows PowerShell](/images/vibecoding/yuque/njs-03.png)
 
 > Windows 的终端分为 2 种类型：
 > - **CMD**，传统的老式命令提示符
@@ -78,21 +80,31 @@ Windows 10 系统的同学可以在应用商店内搜索并安装 **Windows Term
 
 我们安装的这个终端软件，默认打开的就是：**PowerShell**，如果需要打开老式的 **CMD 命令提示符** 可以按下图所示操作：
 
-![在终端中切换到 CMD 命令提示符](/images/vibecoding/yuque/njs-powershell2.png)
+![在终端中切换到 CMD 命令提示符](/images/vibecoding/yuque/njs-04.png)
 
 **Mac 用户：**
 
 1. 找到应用程序 **终端** 打开
 
-![Mac 系统中找到终端应用](/images/vibecoding/yuque/njs-cmd-powershell.png)
+![Mac 系统中找到终端应用](/images/vibecoding/yuque/njs-05.png)
 
 2. 点击打开，即可打开终端程序
 
-![Mac 终端窗口](/images/vibecoding/yuque/njs-mac-terminal.png)
+![Mac 终端窗口](/images/vibecoding/yuque/njs-06.png)
+
+---
 
 ### 1.2 终端基础命令
 
-现在你有了一个黑窗口，接下来需要知道几个最基本的命令（不用背，用到时回来查）：
+现在你有了一个黑窗口，接下来需要知道几个最基本的命令（不用背，用到时回来查）。以下截图来自语雀课程终端命令行基础页面。
+
+![终端打开——Windows Terminal 界面](/images/vibecoding/yuque/term-01.png)
+
+![终端打开——选择 PowerShell](/images/vibecoding/yuque/term-02.png)
+
+![终端打开——Mac 终端](/images/vibecoding/yuque/term-03.png)
+
+![终端打开——终端窗口展示](/images/vibecoding/yuque/term-04.png)
 
 **路径与目录操作：**
 
@@ -120,6 +132,12 @@ Windows 10 系统的同学可以在应用商店内搜索并安装 **Windows Term
 | `Ctrl+C` | **终止当前命令**（不是复制！） |
 | `Ctrl+L` | 清屏（Mac）/ `cls`（Win） |
 
+![终端命令演示——切换目录与列出文件](/images/vibecoding/yuque/term-05.png)
+
+![终端命令演示——文件操作](/images/vibecoding/yuque/term-06.png)
+
+![终端命令演示——综合练习](/images/vibecoding/yuque/term-07.png)
+
 > **💡**：终端里 `Ctrl+C` 不是复制！复制用 `Ctrl+Shift+C`（PowerShell）或 `Cmd+C`（Mac）。删除命令不可恢复，操作前确认清楚。
 
 ---
@@ -131,50 +149,56 @@ Claude Code 基于 Node.js 运行，这是我们的第一块砖。
 **Windows 部署：**
 
 1. 找到课程 `资料\NodeJS` 中提供的 `node-v24.16.0-x64.msi` 文件，双击打开运行；
-2. 一路下一步即可，如下系列图
+2. 一路下一步即可，如下系列图：
 
-![Node.js 安装向导——第1步：Welcome 页面](/images/vibecoding/yuque/nodejs-install1.png)
+![Node.js 安装向导——第1步：Welcome 页面](/images/vibecoding/yuque/njs-07.png)
 
-![Node.js 安装——第5步：Custom Setup](/images/vibecoding/yuque/njs-install-step5.png)
+![Node.js 安装——第2步：许可协议](/images/vibecoding/yuque/njs-08.png)
 
-![Node.js 安装——第6步：Native Modules 选项](/images/vibecoding/yuque/njs-install-step6.png)
+![Node.js 安装——第3步：选择安装目录](/images/vibecoding/yuque/njs-09.png)
 
-![Node.js 安装——第7步：Ready to Install](/images/vibecoding/yuque/njs-install-step7.png)
+![Node.js 安装——第4步：Custom Setup](/images/vibecoding/yuque/njs-10.png)
 
-![Node.js 安装——第8步：安装完成](/images/vibecoding/yuque/njs-install-step8.png)
+![Node.js 安装——第5步：Native Modules 选项](/images/vibecoding/yuque/njs-11.png)
+
+![Node.js 安装——第6步：Ready to Install](/images/vibecoding/yuque/njs-12.png)
+
+![Node.js 安装——第7步：安装进度](/images/vibecoding/yuque/njs-13.png)
+
+![Node.js 安装——第8步：安装完成](/images/vibecoding/yuque/njs-14.png)
 
 > 也可自行前往 [nodejs.org](https://nodejs.org) 下载 LTS 版本安装。
 
 **验证之前——修复 PowerShell 脚本运行禁止问题：**
 
-以管理员身份打开终端，执行：
+以管理员身份打开终端：
 
-![以管理员身份打开终端——搜索 PowerShell，右键"以管理员身份运行"](/images/vibecoding/yuque/njs-admin-terminal.png)
+![以管理员身份打开终端——搜索 PowerShell，右键"以管理员身份运行"](/images/vibecoding/yuque/njs-15.png)
 
-![以管理员身份打开终端——显示"管理员"标题](/images/vibecoding/yuque/njs-set-exec.png)
+![以管理员身份打开终端——显示"管理员"标题](/images/vibecoding/yuque/njs-16.png)
+
+执行如下命令：
 
 ```powershell
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-![Set-ExecutionPolicy 命令执行成功提示](/images/vibecoding/yuque/njs-set-exec-cmd.png)
+![Set-ExecutionPolicy 命令执行成功提示](/images/vibecoding/yuque/njs-17.png)
 
 **验证 Node.js 部署：**
 
-打开终端，分别执行：
+打开终端软件，分别执行：
+
+![终端中执行验证命令——输入 node --version 和 npm --version](/images/vibecoding/yuque/njs-18.png)
 
 ```bash
 node --version   # 应显示 v24.x.x 或更高
 npm --version    # 应显示 11.x.x 或更高
 ```
 
-![终端中执行验证命令——输入 node --version 和 npm --version](/images/vibecoding/yuque/njs-verify-cmd.png)
-
 如下图，显示版本号即表示部署成功：
 
-![终端验证——显示 Node.js 和 npm 版本号](/images/vibecoding/yuque/njs-verify-result.png)
-
-![终端验证——显示 Node.js 和 npm 版本号（备选视图）](/images/vibecoding/yuque/nodejs-verify.png)
+![终端验证——显示 Node.js 和 npm 版本号](/images/vibecoding/yuque/njs-19.png)
 
 > **国内用户加速**：先把 npm 镜像源切到国内，后面装 Claude Code 快很多：
 > ```bash
@@ -186,38 +210,32 @@ npm --version    # 应显示 11.x.x 或更高
 1. 找到 `资料\NodeJS` 中的 `node-v24.16.0.pkg`，双击打开运行；
 2. 一路下一步进行安装即可，如下系列图示：
 
-![Mac Node.js 安装——第1步：介绍页](/images/vibecoding/yuque/njs-mac-install1.png)
+![Mac Node.js 安装——第1步：介绍页](/images/vibecoding/yuque/njs-20.png)
 
-![Mac Node.js 安装——第2步：选择安装目录](/images/vibecoding/yuque/njs-mac-terminal2.png)
+![Mac Node.js 安装——第2步：许可协议](/images/vibecoding/yuque/njs-21.png)
 
-![Mac Node.js 安装——第3步：许可协议](/images/vibecoding/yuque/njs-mac-install2.png)
+![Mac Node.js 安装——第3步：选择安装目录](/images/vibecoding/yuque/njs-22.png)
 
-![Mac Node.js 安装——第4步：安装类型](/images/vibecoding/yuque/njs-mac-install3.png)
+![Mac Node.js 安装——第4步：安装类型](/images/vibecoding/yuque/njs-23.png)
 
-![Mac Node.js 安装——第5步：开始安装](/images/vibecoding/yuque/njs-mac-install4.png)
+![Mac Node.js 安装——第5步：开始安装](/images/vibecoding/yuque/njs-24.png)
 
-![Mac Node.js 安装——第6步：安装完成](/images/vibecoding/yuque/njs-mac-install5.png)
+![Mac Node.js 安装——第6步：安装进度](/images/vibecoding/yuque/njs-25.png)
+
+![Mac Node.js 安装——第7步：安装完成](/images/vibecoding/yuque/njs-26.png)
 
 安装完成。
 
 **Mac 验证：**
 
-打开终端软件：
-
-![Mac 打开终端验证 Node.js 安装](/images/vibecoding/yuque/njs-mac-verify1.png)
-
-执行：
+打开终端软件，执行：
 
 ```bash
 node --version
 npm --version
 ```
 
-![Mac 终端执行验证命令](/images/vibecoding/yuque/njs-mac-verify2.png)
-
-查看输出如下图，显示版本号即表示成功：
-
-![Mac 终端验证结果——显示版本号](/images/vibecoding/yuque/njs-mac-verify3.png)
+查看输出显示版本号即表示成功。
 
 ---
 
@@ -230,14 +248,21 @@ npm --version
 1. 找到课程 `资料\Python环境` 中的 `python-3.14.6-amd64.exe`，双击运行；
 2. **务必勾选 Add python.exe to PATH**——漏了这步后面到处报错！
 
-![Python 安装——务必勾选 Add python.exe to PATH](/images/vibecoding/yuque/python-path.png)
+![Python 安装——务必勾选 Add python.exe to PATH](/images/vibecoding/yuque/py-01.png)
 
 3. 勾选两个框后，点击 Customize installation
 
-![Python 安装选项——点击 Customize installation](/images/vibecoding/yuque/python-install.png)
+![Python 安装选项——点击 Customize installation](/images/vibecoding/yuque/py-02.png)
 
-4. 选择安装路径，不要带有中文，不建议安装在 C 盘（课程示例：`D:\dev\sdk\Python\Python314`）
-5. 一路下一步完成安装（安装过程约 4 张截图，全部默认选项即可）
+4. 安装选项页面，全部默认即可
+
+![Python 安装选项页](/images/vibecoding/yuque/py-03.png)
+
+5. 选择安装路径，不要带有中文，不建议安装在 C 盘（课程示例：`D:\dev\sdk\Python\Python314`）
+
+![Python 安装——选择安装路径](/images/vibecoding/yuque/py-04.png)
+
+6. 一路下一步完成安装。
 
 **验证：**
 
@@ -247,6 +272,8 @@ npm --version
 python --version  # 应显示 3.10.x 或更高
 pip --version     # 应显示 24.x 或更高
 ```
+
+![Python 验证——显示 Python 和 pip 版本号](/images/vibecoding/yuque/py-05.png)
 
 > **国内用户加速**：切一下 pip 镜像源：
 > ```bash
@@ -269,10 +296,43 @@ pip --version     # 应显示 24.x 或更高
 
 1. 找到课程 `资料\git` 中的 `Git-2.54.0-64-bit.exe`，双击运行；
 
-![Git 安装向导——GNU General Public License 页面](/images/vibecoding/yuque/git-install.png)
+![Git 安装向导——GNU General Public License 页面](/images/vibecoding/yuque/git-01.png)
 
 2. 选择安装目录——不要带空格、不要带中文、不建议放 C 盘
-3. 后续的操作，**全部一路下一步即可**（约 15 步向导，从 Select Components 到 Completing the Git Setup Wizard，所有选项用默认值）
+
+![Git 安装——选择安装目录](/images/vibecoding/yuque/git-02.png)
+
+3. 后续的操作，**全部一路下一步即可**（所有选项用默认值），详情见下面系列图：
+
+![Git 安装——Select Components](/images/vibecoding/yuque/git-03.png)
+
+![Git 安装——Select Start Menu Folder](/images/vibecoding/yuque/git-04.png)
+
+![Git 安装——Choosing the default editor used by Git](/images/vibecoding/yuque/git-05.png)
+
+![Git 安装——Adjusting the name of the initial branch](/images/vibecoding/yuque/git-06.png)
+
+![Git 安装——Adjusting your PATH environment](/images/vibecoding/yuque/git-07.png)
+
+![Git 安装——Choosing the SSH executable](/images/vibecoding/yuque/git-08.png)
+
+![Git 安装——Choosing HTTPS transport backend](/images/vibecoding/yuque/git-09.png)
+
+![Git 安装——Configuring the line ending conversions](/images/vibecoding/yuque/git-10.png)
+
+![Git 安装——Choosing terminal emulator for Git Bash](/images/vibecoding/yuque/git-11.png)
+
+![Git 安装——What should git pull do by default](/images/vibecoding/yuque/git-12.png)
+
+![Git 安装——Git Credential Manager](/images/vibecoding/yuque/git-13.png)
+
+![Git 安装——Extra options](/images/vibecoding/yuque/git-14.png)
+
+![Git 安装——Experimental options](/images/vibecoding/yuque/git-15.png)
+
+![Git 安装——Installing progress](/images/vibecoding/yuque/git-16.png)
+
+![Git 安装——Completing the Git Setup Wizard](/images/vibecoding/yuque/git-17.png)
 
 **验证：**
 
@@ -280,10 +340,31 @@ pip --version     # 应显示 24.x 或更高
 git --version   # 应显示 2.x.x
 ```
 
+![Git 验证——显示版本号 Git version 2.54.0](/images/vibecoding/yuque/git-18.png)
+
 **Mac 部署：**
 
-1. 打开终端，执行 `xcode-select --install`，点击安装（约 10 分钟）；
-2. 验证：`git --version`，显示版本号即成功。
+1. 打开终端
+
+![Mac 终端打开](/images/vibecoding/yuque/git-19.png)
+
+2. 执行 `xcode-select --install`
+
+![xcode-select --install 弹窗](/images/vibecoding/yuque/git-20.png)
+
+3. 点击安装，一般 10 分钟搞定
+
+![xcode-select 安装进度](/images/vibecoding/yuque/git-21.png)
+
+![xcode-select 安装中](/images/vibecoding/yuque/git-22.png)
+
+![xcode-select 安装完成](/images/vibecoding/yuque/git-23.png)
+
+**验证：**
+
+在终端输入 `git --version`，显示版本号即表示成功。
+
+![Mac Git 验证——显示版本号](/images/vibecoding/yuque/git-24.png)
 
 ---
 
@@ -304,9 +385,11 @@ npm config set registry https://registry.npmmirror.com
 npm install -g @anthropic-ai/claude-code
 ```
 
-![Claude Code 终端安装过程——等待 1~5 分钟](/images/vibecoding/deploy-claude-code.jpg)
+![Claude Code Windows 终端安装过程——等待 1~5 分钟](/images/vibecoding/yuque/cc-01.png)
 
 如图，执行后等待大概 1~5 分钟（视网络速度）。
+
+![Claude Code Windows 安装完成](/images/vibecoding/yuque/cc-02.png)
 
 3. 验证：
 
@@ -314,18 +397,26 @@ npm install -g @anthropic-ai/claude-code
 claude --version
 ```
 
-![Claude Code 安装成功——显示版本号](/images/vibecoding/yuque/cc-install.png)
-
 至此安装成功。
 
 **Mac 部署：**
 
+1. 打开终端程序
+2. 执行如下命令：
+
 ```bash
+# 如果网络环境不太好可以先执行这条命令
 npm config set registry https://registry.npmmirror.com
+
+# 执行如下命令，开始安装 Claude Code
 sudo npm install -g @anthropic-ai/claude-code
 ```
 
-执行命令后需要输入 Mac 系统密码（正常输入即可，无任何反馈），等待 1~5 分钟安装完成。然后 `claude --version` 验证。
+执行命令后需要输入 Mac 系统密码（正常输入即可，无任何反馈），等待 1~5 分钟安装完成。
+
+![Claude Code Mac 终端安装过程](/images/vibecoding/yuque/cc-03.png)
+
+3. 验证：`claude --version`，至此安装成功。
 
 ---
 
@@ -336,7 +427,7 @@ sudo npm install -g @anthropic-ai/claude-code
 1. 注册 [platform.deepseek.com](https://platform.deepseek.com)，酌情充值（¥10 够用很久）
 2. 创建 API Key，起个名字（随意）
 
-![DeepSeek 开放平台——创建 API Key](/images/vibecoding/yuque/cc-deepseek-key.png)
+![DeepSeek 开放平台——创建 API Key](/images/vibecoding/yuque/cc-04.png)
 
 3. **⚠️ 点击创建后立即复制保存！API Key 只显示这一次！**
 
@@ -374,7 +465,7 @@ sudo npm install -g @anthropic-ai/claude-code
 
 4. 先问一个简单问题：**你是什么大模型？**
 
-![Claude Code 测试——成功显示 DeepSeek 集成](/images/vibecoding/yuque/cc-test.png)
+![Claude Code 测试——成功显示 DeepSeek 集成](/images/vibecoding/yuque/cc-05.png)
 
 可以正常显示是 DeepSeek——🎉 恭喜！环境部署完毕！从现在开始，你只需要做两件事：**清楚地表达需求，以及疯狂点 Yes。**
 
@@ -390,13 +481,47 @@ Claude Code 是命令行工具。但对于非专业人士——甚至专业人�
 - Windows：`VSCodeUserSetup-x64-1.124.2.exe`
 - Mac：`VSCode-darwin-universal.dmg`
 
-或自行前往 https://code.visualstudio.com 下载。安装过程全程下一步即可。
+或自行前往 https://code.visualstudio.com 下载。
 
-**启动 VS Code 并改为中文版：**
+**Windows 系统安装：**
+
+打开安装包，同意协议点击下一步。
+
+![VS Code 安装——同意协议](/images/vibecoding/yuque/vsc-01.png)
+
+![VS Code 安装——选择安装目录](/images/vibecoding/yuque/vsc-02.png)
+
+![VS Code 安装——选择开始菜单文件夹](/images/vibecoding/yuque/vsc-03.png)
+
+![VS Code 安装——选择附加任务](/images/vibecoding/yuque/vsc-04.png)
+
+![VS Code 安装——准备安装](/images/vibecoding/yuque/vsc-05.png)
+
+**Mac 系统安装：**
+
+找到安装包双击打开，等待进度条完成，然后在应用程序中找到 Visual Studio Code 打开。
+
+**修改 VS Code 为中文版：**
 
 打开 VS Code 后，在插件市场搜索 `chinese`，点击 install 安装。
 
-![VS Code 中文语言包——安装后点击 Change Language and Restart](/images/vibecoding/yuque/vscode-plugin.png)
+![VS Code 插件市场——搜索 chinese](/images/vibecoding/yuque/vsc-06.png)
+
+![VS Code 中文语言包——点击 install](/images/vibecoding/yuque/vsc-07.png)
+
+![VS Code 中文语言包——安装中](/images/vibecoding/yuque/vsc-08.png)
+
+![VS Code 中文语言包——安装完成](/images/vibecoding/yuque/vsc-09.png)
+
+![VS Code 中文语言包——点击 Change Language and Restart](/images/vibecoding/yuque/vsc-10.png)
+
+![VS Code 重启后——中文界面](/images/vibecoding/yuque/vsc-11.png)
+
+![VS Code 中文界面确认](/images/vibecoding/yuque/vsc-12.png)
+
+![VS Code 中文汉化完成效果](/images/vibecoding/yuque/vsc-13.png)
+
+![VS Code 中文版最终效果](/images/vibecoding/yuque/vsc-14.png)
 
 安装后点击 Change Language and Restart，软件自动重启，完成中文汉化。
 
@@ -404,11 +529,21 @@ Claude Code 是命令行工具。但对于非专业人士——甚至专业人�
 
 在 VS Code 插件市场中搜索 `claude`，找到 **Claude Code For VS Code**（Anthropic 官方发布），点击安装。
 
-![VS Code 中 Claude Code 插件——测试连接成功](/images/vibecoding/deploy-vscode.jpg)
+![VS Code 插件市场——搜索 claude](/images/vibecoding/yuque/vsc-15.png)
 
-![VS Code Claude Code 插件——成功读取 DeepSeek 配置并可用](/images/vibecoding/yuque/vscode-test.png)
+![找到 Claude Code For VS Code 插件](/images/vibecoding/yuque/vsc-16.png)
 
-装好后侧边栏出现 Claude Code 图标，点击就能在编辑器里和 AI 对话。
+![Claude Code 插件——点击安装](/images/vibecoding/yuque/vsc-17.png)
+
+![Claude Code 插件——安装中](/images/vibecoding/yuque/vsc-18.png)
+
+![Claude Code 插件——安装完成，点击信任](/images/vibecoding/yuque/vsc-19.png)
+
+装好后侧边栏出现 Claude Code 图标。如果找不到 UI，按 `Ctrl+Shift+P` 呼出命令面板，选择 "Claude Code: Open" 恢复窗口。
+
+![VS Code Claude Code 插件——移动到右侧边栏](/images/vibecoding/yuque/vsc-20.png)
+
+![VS Code Claude Code 插件——测试连接成功，读取到 DeepSeek 配置](/images/vibecoding/yuque/vsc-21.png)
 
 **实用技巧：**
 - 选中代码按 `Ctrl+Shift+L`（Mac 用 `Cmd+Shift+L`）直接发给 Claude
@@ -427,18 +562,25 @@ Claude Code 是命令行工具。但对于非专业人士——甚至专业人�
 
 在电脑中创建文件夹 `黑马记账APP`，用 VS Code 打开它。
 
+![用 VS Code 打开黑马记账APP 文件夹](/images/vibecoding/yuque/app-01.png)
+
 ### 选择决策方案
 
 点击 Claude Code 面板的举手图标，有三种方案供选择：
 - **Ask before edits**：每次文件修改都弹窗请求手动审批
 - **Edit automatically**：代码修改自动执行，终端命令仍需审批
 - **Plan mode**：AI 先完整扫描、设计方案，不直接改文件，等你确认后再执行
-
-![VS Code Claude Code 面板——选择 Plan mode 并拉满 Effort](/images/vibecoding/yuque/entry-planmode.png)
+- **Effort（max）**：控制 Claude 处理任务时的思考深度和上下文分析力度
 
 我们选择 **Plan mode**，并把 Effort 拉满。以非专业人士视角，由 AI 给方案并解释，我们做决策。
 
+![VS Code Claude Code 面板——决策方案选择](/images/vibecoding/yuque/app-02.png)
+
+![选择 Plan mode 并拉满 Effort](/images/vibecoding/yuque/app-03.png)
+
 ### 准备产品文档（CLAUDE.md）
+
+CLAUDE.md 是项目级文档，用于描述整个项目中关于 Claude Code 应当注意的事项，对整个工作流程的项目级控制。
 
 在对话中输入如下提示词：
 
@@ -451,42 +593,207 @@ Claude Code 是命令行工具。但对于非专业人士——甚至专业人�
 >
 > 注意：在整个项目开发过程中，任何关于技术方面的事情，我无法提供具体的要求，必须是你列出方案给我，并向我解释各个方案，由我来决定，请将这个要求详细记录在 CLAUDE.md 中，在整个项目期间遵守；
 
-Claude Code 经过思考后给出了选择。课程按如下方式选择：方案 B（Tauri + React），勾选阅读支出统计图表、数据导出 Excel/CSV。确认后点击 Submit answers。
+Claude Code 经过思考后给出了选择。
 
-![Claude Code 给出技术方案选项——勾选所需功能后提交](/images/vibecoding/yuque/entry-prd.png)
+![Claude Code 给出技术方案选择](/images/vibecoding/yuque/app-04.png)
+
+课程按如下方式选择：方案 B（Tauri + React），勾选阅读支出统计图表、数据导出 Excel/CSV。
+
+![选择方案 B，勾选图表和导出功能](/images/vibecoding/yuque/app-05.png)
+
+确认后点击 Submit answers。
+
+![点击 Submit answers 提交选择](/images/vibecoding/yuque/app-06.png)
+
+![方案确认中](/images/vibecoding/yuque/app-07.png)
 
 Claude Code 生成 CLAUDE.md 时，选择 **"Yes, and manually approve edits"**（每次手动批准修改），保持对项目的控制感。
 
+![Claude Code 询问修改批准方式](/images/vibecoding/yuque/app-08.png)
+
+![选择手动批准每次修改](/images/vibecoding/yuque/app-09.png)
+
+![CLAUDE.md 文件生成中，点击 Yes 批准](/images/vibecoding/yuque/app-10.png)
+
 ### 项目初始化
 
-Claude Code 按照方案自动推进：
-1. **项目环境检查**：扫描 Node.js、Rust 是否齐全 → 点 Yes
-2. **Rust 环境安装**：Tauri 需要 Rust → 点 Yes 自动部署
-3. **初始化项目环境**：`npm create` 创建 Tauri + React 框架 → 点 Yes
-4. **确认项目名称**：package.json 中 name 栏是拼音（`heimajizhang`），确认即可
+Claude Code 按照方案自动推进。
 
-![Claude Code 创建项目——初始化项目代码文件](/images/vibecoding/yuque/entry-create.png)
+**项目环境检查：** 扫描 Node.js、Rust 是否齐全 → 点 Yes
+
+![项目环境检查——Claude Code 询问是否执行命令](/images/vibecoding/yuque/app-11.png)
+
+![环境检查执行中](/images/vibecoding/yuque/app-12.png)
+
+**Rust 环境安装：** Tauri 需要 Rust → 点 Yes 自动部署
+
+![Rust 环境安装——点击 Yes 自动部署](/images/vibecoding/yuque/app-13.png)
+
+![Rust 安装进行中](/images/vibecoding/yuque/app-14.png)
+
+**初始化项目环境：** `npm create` 创建 Tauri + React 框架 → 点 Yes
+
+![初始化项目环境——点击 Yes](/images/vibecoding/yuque/app-15.png)
+
+![项目初始化执行中](/images/vibecoding/yuque/app-16.png)
+
+如果后续提问过多，可以选择选项 2，让后续不再询问 npm create 相关。
+
+![选择后续不再询问 npm create 相关](/images/vibecoding/yuque/app-17.png)
+
+**确认项目名称：** package.json 中 name 栏是拼音（`heimajizhang`），确认即可。
+
+![确认项目名称——package.json name 为 heimajizhang](/images/vibecoding/yuque/app-18.png)
 
 后续遇到文件修改，大体看一下没问题就点击 Yes。
 
+![文件修改确认——大体查看后点击 Yes](/images/vibecoding/yuque/app-19.png)
+
+### 项目代码文件开发
+
+经过一顿 Yes 的点击后，前端相关代码已经产出。
+
+![前端代码生成中](/images/vibecoding/yuque/app-20.png)
+
+现在 Claude Code 提示创建 Tauri 后端配置文件，需要创建文件夹，点击 Yes 批准。
+
+![创建 Tauri 后端配置文件——点击 Yes](/images/vibecoding/yuque/app-21.png)
+
+![Tauri 配置创建中](/images/vibecoding/yuque/app-22.png)
+
+后续又是一堆 Yes，如果嫌麻烦可以点击 Yes, allow all edits this session。
+
+![点击 Yes, allow all edits this session 自动批准](/images/vibecoding/yuque/app-23.png)
+
+![代码文件持续生成中](/images/vibecoding/yuque/app-24.png)
+
+![更多文件修改确认](/images/vibecoding/yuque/app-25.png)
+
+**项目依赖包：** 此时要执行 npm install 命令下载项目依赖包。
+
+![npm install 下载项目依赖——点击 Yes](/images/vibecoding/yuque/app-26.png)
+
+假设我们看不懂命令是做什么的，就可以询问 Claude Code。Claude Code 给出了解释，确认没问题，发送允许即可。
+
+![依赖包安装进行中](/images/vibecoding/yuque/app-27.png)
+
+![依赖包安装完成](/images/vibecoding/yuque/app-28.png)
+
+**前端构建：** OK 的话就点击 Yes，不明白是什么作用就可以让 Claude Code 先解释一下。
+
+![前端构建——点击 Yes](/images/vibecoding/yuque/app-29.png)
+
+![前端构建执行中](/images/vibecoding/yuque/app-30.png)
+
+**数据存储方案选择：** 可以查看一下 Claude Code 给出的描述，选择即可。我们选择 A，简单方便。
+
+![数据存储方案选择——选择方案 A](/images/vibecoding/yuque/app-31.png)
+
+**项目构建：** 点击 Yes 准备开始构建项目。
+
+![项目构建——点击 Yes](/images/vibecoding/yuque/app-32.png)
+
+![项目构建进行中](/images/vibecoding/yuque/app-33.png)
+
 ### 功能开发——全程做选择题
 
-随着开发推进，AI 不断抛出选择题：
-- **数据存储方案**：A（本地 SQLite）vs B（云端）→ 选 A，简单方便
-- **统计图表库**：A（Recharts）vs B（ECharts）→ 让 AI 解释后选择
-- **导出格式**：Excel / CSV → 两个都要
+随着开发推进，AI 不断抛出选择题，每一步 AI 都会解释各方案的优劣势。你不需要懂技术，只需要根据常识做判断。
 
-每一步 AI 都会解释各方案的优劣势。你不需要懂技术，只需要根据常识做判断。
+![功能开发——AI 开始编写代码](/images/vibecoding/yuque/app-34.png)
+
+![前端界面代码生成](/images/vibecoding/yuque/app-35.png)
+
+![记账功能开发中](/images/vibecoding/yuque/app-36.png)
+
+![分类管理功能开发](/images/vibecoding/yuque/app-37.png)
+
+![支出记录功能开发](/images/vibecoding/yuque/app-38.png)
+
+![数据持久化功能](/images/vibecoding/yuque/app-39.png)
+
+![数据库操作代码](/images/vibecoding/yuque/app-40.png)
+
+![图表统计功能开发](/images/vibecoding/yuque/app-41.png)
+
+**统计图表库和导出库选择：** App 要实现图表，现在有 2 个方案选择图表库。
+
+![统计图表库方案选择——选择方案 A](/images/vibecoding/yuque/app-42.png)
+
+![图表库安装中](/images/vibecoding/yuque/app-43.png)
+
+![图表功能代码生成](/images/vibecoding/yuque/app-44.png)
+
+![导出功能开发](/images/vibecoding/yuque/app-45.png)
+
+![更多功能开发确认](/images/vibecoding/yuque/app-46.png)
+
+![Bug 自动修复中](/images/vibecoding/yuque/app-47.png)
+
+![代码调整与优化](/images/vibecoding/yuque/app-48.png)
+
+![前端页面完善](/images/vibecoding/yuque/app-49.png)
+
+![UI 界面优化](/images/vibecoding/yuque/app-50.png)
+
+![功能测试](/images/vibecoding/yuque/app-51.png)
+
+![最终代码审查](/images/vibecoding/yuque/app-52.png)
+
+![项目文件结构确认](/images/vibecoding/yuque/app-53.png)
+
+![开发完成——项目概览](/images/vibecoding/yuque/app-54.png)
+
+![全部功能开发完毕](/images/vibecoding/yuque/app-55.png)
 
 ### 打包 APP
 
-**Mac 系统**：AI 直接编译生成 `.app` 文件。
+这一步很容易出现问题，AI 会不断地修改代码、修复 BUG、重试操作，保持耐心。遇到错误自己修复，重新执行编译。
 
-**Windows 系统**：如果在 Mac 上开发，把项目文件夹复制到 Windows 电脑，用 VS Code 打开，发送：
+**MacOS 生成：** 课件是在 MacOS 下编写，所以打包的是 MacOS 程序。
+
+![MacOS 打包——开始编译](/images/vibecoding/yuque/app-56.png)
+
+![MacOS 打包——编译进行中](/images/vibecoding/yuque/app-57.png)
+
+![MacOS 打包——处理依赖](/images/vibecoding/yuque/app-58.png)
+
+![MacOS 打包——编译输出](/images/vibecoding/yuque/app-59.png)
+
+![MacOS 打包——遇到错误自动修复](/images/vibecoding/yuque/app-60.png)
+
+![MacOS 打包——修复后重新编译](/images/vibecoding/yuque/app-61.png)
+
+![MacOS 打包——编译成功](/images/vibecoding/yuque/app-62.png)
+
+![MacOS 打包——生成 .app 文件](/images/vibecoding/yuque/app-63.png)
+
+![MacOS 打包——应用图标和文件](/images/vibecoding/yuque/app-64.png)
+
+![MacOS 打包完成——APP 运行效果](/images/vibecoding/yuque/app-65.png)
+
+**Windows 生成：** 课件是在 MacOS 下编写，所以打包的是 MacOS 程序。如果打包 Windows.exe 可以将项目同步到 Windows 平台后让 Claude Code 再次打包即可。项目文件夹复制到 Windows 电脑，然后用 VS Code 打开这个项目文件夹。
+
+向 Claude Code 发送如下提示词，继续打包流程：
 
 > 请帮我将项目打包为 Windows 的 exe 程序；此项目内容在 MacOS 系统下构建，已经完成了 Mac 版本的程序打包，所以复制到 Windows 系统下，你帮我继续打包 Windows 版本的程序 exe
 
-AI 自动识别平台差异、重新部署环境、编译生成 `.exe`。
+后续操作遇到 yes 确认即可。一些环境在 Windows 上需要重新部署，Claude Code 会自动部署。
+
+![Windows 打包——重新部署环境](/images/vibecoding/yuque/app-66.png)
+
+![Windows 打包——编译方案选择，选择方案 A](/images/vibecoding/yuque/app-67.png)
+
+![Windows 打包——环境安装进行中](/images/vibecoding/yuque/app-68.png)
+
+![Windows 打包——编译开始](/images/vibecoding/yuque/app-69.png)
+
+![Windows 打包——编译进行中](/images/vibecoding/yuque/app-70.png)
+
+![Windows 打包——生成 .exe 文件](/images/vibecoding/yuque/app-71.png)
+
+![Windows 打包——安装程序界面](/images/vibecoding/yuque/app-72.png)
+
+![Windows 打包完成——APP 运行效果](/images/vibecoding/yuque/app-73.png)
 
 ### 费用：¥1.30
 
@@ -654,6 +961,7 @@ Hooks 在特定事件前后自动执行脚本——"每当 AI 准备做某件事
 **Hook 脚本可访问的环境变量：** `CLAUDE_EVENT_TYPE`、`CLAUDE_COMMAND`、`CLAUDE_FILE_PATH`、`CLAUDE_WORKING_DIR`
 
 **配置示例**——每次改完 tsx 文件自动格式化：
+
 ```json
 {
   "hooks": {
@@ -750,6 +1058,7 @@ MCP（Model Context Protocol）给 Claude Code 添加额外工具——像浏览
 | Context7 | 实时文档查询 |
 
 配置示例：
+
 ```json
 {
   "mcpServers": {
@@ -893,7 +1202,11 @@ Claude Code 思考 1-2 分钟，给出完整架构方案：技术栈选型理由
 
 ### 3.3 第二步：项目初始化 + 疯狂点 Yes
 
-切换 Edit Mode，Claude Code 开始：检查环境 → 创建目录 → 安装依赖（LangChain、FastAPI、ChromaDB、React…）→ 生成 CLAUDE.md → 初始化数据库。你的工作：**点 Yes。**
+切换 Edit Mode，Claude Code 开始：检查环境 → 创建目录 → 安装依赖（LangChain、FastAPI、ChromaDB、React…）→ 生成 CLAUDE.md → 初始化数据库。
+
+![RAG 项目 init 提示词——Claude Code 开始分析方案](/images/vibecoding/yuque/p3-02.png)
+
+你的工作：**点 Yes。**
 
 ### 3.4 第三步：功能开发
 
