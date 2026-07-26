@@ -1,7 +1,7 @@
 ---
 title: 'Vibe Coding 从入门到躺平：零基础靠嘴写代码的终极指南'
 date: '2026-07-26'
-description: '不会写代码？没关系，有嘴就行。本文手把手教你用 Claude Code + DeepSeek V4 Pro 从零搭建 RAG 知识库助手，涵盖环境部署、Skills、MCP、Subagent、Hooks 等全栈功能，顺便聊聊为什么 CodeX 不适合国人，以及如何让 AI 写代码只花一杯奶茶钱。'
+description: '不会写代码？没关系，有嘴就行。本文手把手教你用 Claude Code + DeepSeek V4 Pro 从零搭建 RAG 知识库助手，涵盖导读、环境部署、Skills、MCP、Subagent、Hooks 等全栈功能，顺便聊聊为什么 CodeX 不适合国人，以及如何让 AI 写代码只花一杯奶茶钱。'
 category: 'AI'
 tags:
   - VibeCoding
@@ -13,15 +13,52 @@ tags:
 popular: true
 ---
 
+## 导读：你到底需要"多会写代码"才能开始？
+
+**答案是：会打字就行。**
+
+别翻白眼。我说真的。
+
+在正式开始之前，我们先对齐一个核心认知——**Vibe Coding 到底解决的是什么问题，以及你会遇到什么问题。** 看完这节你还没被劝退，那恭喜你，你已经具备了 Vibe Coding 唯一需要的天赋：想用代码做点东西的冲动。
+
+Vibe Coding 这个概念由 Andrej Karpathy 在 2025 年提出，简单说就是：**你描述想要什么（Vibe），AI 写代码（Coding）。**
+
+但很多人对 Vibe Coding 的理解停留在"AI 替我干活，我躺平"这种幻想里。现实是——**你确实可以躺平，但躺平之前得先坐下来把话说清楚。** 下面这组图就是最诚实的对比：
+
+<div style={{display:'flex', gap:'8px', flexWrap:'wrap', margin:'16px 0'}}>
+  <img src="/images/vibecoding/01-1-imagination.jpg" alt="想象中的 Vibe Coding" style={{width:'48%', borderRadius:'12px'}} loading="lazy" />
+  <img src="/images/vibecoding/01-2-result.jpg" alt="Vibe Coding 半小时后的实际成果" style={{width:'48%', borderRadius:'12px'}} loading="lazy" />
+</div>
+
+> 左边是**你脑海中的画面**，右边是**你半小时后会看到的东西**。都不错，但不是一回事。
+
+### 真实世界中你会遇到的问题
+
+下面是每个 Vibe Coding 新手都会经历的五连击——从写需求到跑代码，每一步都在挑战你的耐心。提前打预防针：
+
+<div style={{display:'flex', gap:'8px', flexWrap:'wrap', margin:'16px 0'}}>
+  <img src="/images/vibecoding/01-expectation.jpg" alt="问题 1：期望管理" style={{width:'18%', borderRadius:'12px'}} loading="lazy" />
+  <img src="/images/vibecoding/02-requirements.jpg" alt="问题 2：需求描述" style={{width:'18%', borderRadius:'12px'}} loading="lazy" />
+  <img src="/images/vibecoding/03-code-needed.jpg" alt="问题 3：代码理解" style={{width:'18%', borderRadius:'12px'}} loading="lazy" />
+  <img src="/images/vibecoding/04-terminal.jpg" alt="问题 4：终端恐惧" style={{width:'18%', borderRadius:'12px'}} loading="lazy" />
+  <img src="/images/vibecoding/05-reality.jpg" alt="问题 5：现实暴击" style={{width:'18%', borderRadius:'12px'}} loading="lazy" />
+</div>
+
+> 遇到问题 × 5。从左到右分别是：**期望管理**、**需求描述**、**代码理解**、**终端恐惧**、**现实暴击**。每一个都将在后面的章节被逐一化解。
+
+但别被吓到。换个角度想：**在 2025 年之前，要经历这五个阶段你需要花四年读一个计算机学位。现在只需要花十分钟配好环境、说清楚需求，剩下的交给 AI。**
+
+接下来，我们先花十分钟把环境搭好，然后你会发现——那些让你头皮发麻的"问题"，在 AI 面前都不叫事。
+
+---
+
 ## Part 1：环境部署——唯一需要动手的十分钟
 
-<small>这是整个 Vibe Coding 旅程中唯一需要你"操作"的阶段。跟着做，十分钟搞定，以后就可以纯靠嘴了。</small>
+<small>这是整个 Vibe Coding 旅程中唯一需要你"操作"的阶段。每一节都配有来自黑马程序员课程的实操截图，跟着做。十分钟后你就可以纯靠嘴写代码了。</small>
 
 ### 1.1 终端基础——程序员的"指挥台"
 
-如果你从来没打开过终端，别慌。终端就是一个黑色的文字窗口，你在里面打字，电脑执行。没有鼠标、没有图标、没有花里胡哨的UI——只有你和计算机之间最纯粹的交流。
-
-![终端命令行界面](/images/vibecoding/07-terminal-window.jpg)
+如果你从来没打开过终端，别慌。终端就是一个黑色的文字窗口，你在里面打字，电脑执行。没有鼠标、没有图标——只有你和计算机之间最纯粹的交流。
 
 **Windows 用户**：按 `Win + R`，输入 `powershell`，回车。如果遇到脚本执行权限报错，以管理员身份打开 PowerShell，执行：
 
@@ -45,13 +82,13 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ### 1.2 安装 Node.js——Vibe Coding 的"地基"
 
-Claude Code 基于 Node.js 运行，所以这是我们第一块砖。
+Claude Code 基于 Node.js 运行，这是我们的第一块砖。
 
 1. 打开 [nodejs.org](https://nodejs.org)
 2. 下载 LTS 版本（Windows 用户选 `.msi`，Mac 用户选 `.pkg`）
 3. 安装——全程「下一步」，一个设置都不用改
 
-![Node.js 官网下载页面——选择 LTS 版本](/images/vibecoding/01-install-nodejs.jpg)
+![Node.js 官网下载页面——选择 LTS 长期支持版本](https://cdn.nlark.com/yuque/0/2026/png/12371070/1781688476363-3d5ac390-3931-4e0e-b055-8244b0b2787c.png)
 
 装完后，打开终端验证：
 
@@ -81,7 +118,7 @@ git --version   # 应显示 2.x.x
 
 ### 1.4 安装 Python——后端的"发动机"
 
-虽然前端用的是 Node.js，但后续 RAG 项目需要 Python 生态（LangChain、ChromaDB 等）。
+虽然前端用 Node.js，但后续 RAG 项目需要 Python 的 AI 生态（LangChain、ChromaDB 等）。
 
 1. 打开 [python.org](https://python.org)，下载 Python 3.10+
 2. **安装时务必勾选「Add Python to PATH」**——漏了这步后面到处报错！
@@ -92,7 +129,7 @@ python --version  # 应显示 3.10.x 或更高
 pip --version     # 应显示 24.x 或更高
 ```
 
-> **国内用户加速技巧**：同样切一下 pip 镜像源：
+> **国内用户加速**：切一下 pip 镜像源：
 > ```bash
 > pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 > ```
@@ -101,6 +138,8 @@ pip --version     # 应显示 24.x 或更高
 
 终于到主角了。打开终端，敲一行命令：
 
+![Claude Code 安装命令——npm 全局安装](https://cdn.nlark.com/yuque/0/2026/png/12371070/1781687905727-8dccb658-fc53-4050-89f0-adc2437f0ae4.png)
+
 ```bash
 npm install -g @anthropic-ai/claude-code
 ```
@@ -108,10 +147,8 @@ npm install -g @anthropic-ai/claude-code
 安装完成后验证：
 
 ```bash
-claude --version  # 应显示版本号
+claude --version  # 应显示版本号，如 2.1.179
 ```
-
-![Vibe Coding 半小时后的成果——从零到项目跑起来](/images/vibecoding/02-vibecoding-result.jpg)
 
 > **💡 这里停一下**：如果你出于好奇去搜了 OpenAI CodeX，想用它接 DeepSeek，你会发现自己需要安装 Go 1.25+、克隆 Moon Bridge 仓库、手写三个配置文件（YAML + TOML + JSON）、启动代理服务……等你折腾完这些，用 Claude Code 的同学已经把项目部署上线了。CodeX 不是不能用，但它对第三方模型的支持靠的是社区用爱发电的转发层，每多一层转发就多一层出错的可能。Claude Code 原生支持自定义 API endpoint，三行 JSON 搞定。**结论：省事就用 Claude Code。**
 
@@ -119,12 +156,12 @@ claude --version  # 应显示版本号
 
 虽然 Claude Code 可以在终端里直接用，但配合 VS Code 体验更好——能在编辑器里直接对话，选中代码一键发给 AI。
 
+![VS Code 扩展市场——搜索并安装 Claude Code 官方插件](https://cdn.nlark.com/yuque/0/2026/png/12371070/1781703637833-33f84232-c8ea-4046-a1bb-475fae685d98.png)
+
 1. 下载安装 [VS Code](https://code.visualstudio.com)（如果还没有的话）
 2. 打开 VS Code，点击左侧扩展图标（或按 `Ctrl+Shift+X`）
 3. 搜索 `Claude Code`，安装官方扩展
 4. 重启 VS Code
-
-![VS Code 扩展市场——搜索并安装 Claude Code 插件](/images/vibecoding/03-prd-requirements.jpg)
 
 装好后，VS Code 侧边栏会出现 Claude Code 图标，点击就能在编辑器里和 AI 对话了。
 
@@ -134,7 +171,7 @@ claude --version  # 应显示版本号
 
 ### 1.7 配置 DeepSeek API——把"大脑"接上"云端"
 
-Claude Code 本质上是一个"对话框架"，它自己不会写代码——真正的"大脑"是背后的大语言模型。我们选择 DeepSeek V4 Pro，原因很简单：**便宜到令人发指。**
+Claude Code 本质上是一个"对话框架"，AI 想写出代码需要一个"有思想的模型"来做支撑，我们选择 DeepSeek V4 Pro，原因很简单：**便宜到令人发指。**
 
 #### 第一步：获取 API Key
 
@@ -160,8 +197,6 @@ Claude Code 本质上是一个"对话框架"，它自己不会写代码——真
 }
 ```
 
-![DeepSeek 开放平台——创建和管理 API Key](/images/vibecoding/04-what-is-vibecoding.jpg)
-
 **就这三行。** 没有 Go 环境，没有 YAML，没有代理服务。保存，关闭。
 
 ### 1.8 验证一切正常
@@ -178,58 +213,9 @@ claude
 
 如果它回答「我是 DeepSeek V4 Pro……」——🎉 恭喜！环境部署完毕！从现在开始，你只需要做两件事：**清楚地表达需求，以及疯狂点 Yes。**
 
-![Vibe Coding 的两种面孔：想象中的 vs 实际上的](/images/vibecoding/05-imagination-vs-reality.jpg)
-
-接下来你可以先熟悉一下 Claude Code 的界面和交互方式：左边是文件树，右边是对话区，Claude 会通过对话告诉你每一步在做什么，你可以随时打断、提问、或者让它换一种方式实现。
-
 ---
 
-## Part 2：什么是 Vibe Coding？
-
-环境搭好了，我们来聊聊概念。
-
-**Vibe Coding** 由 Andrej Karpathy 在 2025 年提出。简单说：你描述你想要什么（Vibe），AI 替你写代码（Coding）。
-
-> 传统编程：你告诉计算机每一步怎么做——"声明变量 → 写循环 → 处理边界条件 → 处理空值 → 写测试……"
->
-> Vibe Coding：你告诉 AI **你想要什么**——"帮我做一个能做某某事情的网站"——然后躺沙发上看着屏幕上的代码像魔法一样自己长出来。
-
-我第一次听到这个概念的反应是：**"这他妈不就是做梦吗？"**
-
-然后我试了。然后我沉默了。然后我开始怀疑自己大学四年到底学了什么。
-
-### Vibe Coding 四定律
-
-在开始实战之前，请先背熟这四条铁律：
-
-**第一定律：你不需要会写代码。** 是的，没看错。你不需要知道 React 是什么，不需要知道向量数据库怎么建索引，甚至不需要知道 `pip` 和 `npm` 的区别——Claude Code 会帮你搞定一切。但你**必须学会清楚地描述自己想要什么**。模糊的 Prompt = 垃圾产出。
-
-- ❌ "帮我做个 AI 应用"（AI 猜不透你，给你一个聊天机器人糊弄你）
-- ✅ "帮我做一个 RAG 个人知识库系统，能上传 PDF/Markdown 文档，用 LangChain 做向量检索，用户可以在浏览器里提问，回答要引用原文片段"（清晰，AI 立刻能规划方案）
-
-**第二定律：Plan Mode 是你的好朋友。** Claude Code 有三种模式：
-- **Ask before edits**：每改一行都问你，像个过度谨慎的驾校教练
-- **Edit automatically**：直接改，像个急性子的修车师傅
-- **Plan mode**：先出方案给你审，像个靠谱的建筑设计师
-
-**强烈建议新手用 Plan Mode。** 因为你可能连自己真正要什么都不知道，让 AI 先帮你理清楚思路——这比自己瞎指挥靠谱一万倍。在 Plan Mode 下，Claude 会先探索你的项目、分析需求、设计几套方案，然后等你确认再动手写代码。**先规划、再执行，这是 Vibe Coding 最重要的习惯。**
-
-**第三定律：Effort 拉满！** Claude Code 有个 Effort 设置，控制 AI 的"思考深度"：
-
-| Effort 级别 | 思考深度 | 适合场景 |
-|------------|---------|---------|
-| `low` | 快速但敷衍 | 简单问题、格式调整、文件改名 |
-| `medium` | 标准分析 | 日常开发、小功能添加 |
-| `high` | 深度思考 | 复杂重构、架构设计 |
-| `xhigh`/`max` | 全面验证 | 安全审计、核心逻辑、关键基础设施 |
-
-**拉满。别省。** 你省的那点时间会变成后面十倍的 debug 痛苦。Effort 越高，Claude 会花更多 token 在思考和验证上——但别忘了，你用的是 DeepSeek，token 便宜得跟不要钱一样。
-
-**第四定律：看不懂就让它解释。** 当你看到 `chromadb.Client()` 或 `RecursiveCharacterTextSplitter` 这些东西时，不要恐慌，不要百度，更不要假装自己懂。**直接问 Claude Code："这是什么意思？为什么这么设计？"** 它会用你能理解的方式解释，而且永远不会不耐烦。这是 Vibe Coding 最大的隐藏福利——你身边随时有个顶级程序员给你一对一辅导。
-
----
-
-## Part 3：为什么是 Claude Code + DeepSeek？
+## Part 2：为什么是 Claude Code + DeepSeek？
 
 先说结论：**国内 Vibe Coding 的最优解是 Claude Code + DeepSeek V4 Pro。** 没有之一。
 
@@ -273,7 +259,7 @@ CodeX 本质上是为 OpenAI 生态设计的，对第三方模型的支持靠的
 
 翻译成人话：你用 Claude Opus 原生模型写一个完整项目大约要 $58（≈ ¥420），用 DeepSeek V4 Pro 只要 **¥0.32**。同样的产出，价格差了一千多倍。
 
-而且 DeepSeek V4 Pro 最魔幻的是：**支持 100 万 token 的上下文窗口。** 什么意思？你可以把一个中型项目的全部代码（几万行）一次性丢给它，它不会"忘记"任何东西。你跟他聊了三小时天了，他还能记得你第一句话说的什么。
+而且 DeepSeek V4 Pro 最魔幻的是：**支持 100 万 token 的上下文窗口。** 你可以把一个中型项目的全部代码（几万行）一次性丢给它，它不会"忘记"任何东西。你跟他聊了三小时天了，他还能记得你第一句话说的什么。
 
 Claude Code 配合 100 万 context——这基本上等于给你配了一个过目不忘的天才程序员，时薪三毛二。
 
@@ -281,13 +267,42 @@ Claude Code 配合 100 万 context——这基本上等于给你配了一个过�
 
 ---
 
-## Part 4：Claude Code 功能全景——你工具箱里有什么
+## Part 3：Claude Code 功能全景——你工具箱里有什么
 
-环境搭好了，模型选好了。在正式动工之前，先认识一下 Claude Code 都有哪些武器。这一节可能看起来信息量大，但**你不需要记住全部——用到的时候回来查就行。**
+环境搭好了，模型选好了。在正式动工之前，先认识一下 Claude Code 都有哪些武器。这一节可能信息量大，但**你不需要记住全部——用到的时候回来查就行。**
 
-### 4.1 常用命令速查
+### 3.1 Vibe Coding 四定律
 
-Claude Code 通过 **斜杠命令（Slash Commands）** 提供各种功能。在对话中输入 `/` 就能看到所有可用命令（或者用 `/help` 查看完整列表）。
+背熟这四条，能让你少走 90% 的弯路：
+
+**第一定律：你不需要会写代码。** 是的，没看错。但你**必须学会清楚地描述自己想要什么**。模糊的 Prompt = 垃圾产出。
+
+- ❌ "帮我做个 AI 应用"（AI 猜不透你，给你一个 Hello World 糊弄你）
+- ✅ "帮我做一个 RAG 个人知识库系统，能上传 PDF/Markdown 文档，用 LangChain 做向量检索，用户可以在浏览器里提问，回答要引用原文片段"（清晰，AI 立刻能规划方案）
+
+**第二定律：Plan Mode 是你的好朋友。** Claude Code 有三种模式：
+- **Ask before edits**：每改一行都问你，像个过度谨慎的驾校教练
+- **Edit automatically**：直接改，像个急性子的修车师傅
+- **Plan mode**：先出方案给你审，像个靠谱的建筑设计师
+
+**强烈建议新手用 Plan Mode。** 因为你可能连自己真正要什么都不知道，让 AI 先帮你理清楚思路——这比自己瞎指挥靠谱一万倍。先规划、再执行，这是 Vibe Coding 最重要的习惯。
+
+**第三定律：Effort 拉满！** Effort 控制 AI 的"思考深度"：
+
+| Effort 级别 | 思考深度 | 适合场景 |
+|------------|---------|---------|
+| `low` | 快速但敷衍 | 简单问题、格式调整 |
+| `medium` | 标准分析 | 日常开发、小功能 |
+| `high` | 深度思考 | 复杂重构、架构设计 |
+| `xhigh`/`max` | 全面验证 | 安全审计、核心逻辑 |
+
+**拉满。别省。** 你省的那点时间会变成后面十倍的 debug 痛苦。反正你用的是 DeepSeek，token 便宜得跟不要钱一样。
+
+**第四定律：看不懂就让它解释。** 当你看到 `chromadb.Client()` 或 `RecursiveCharacterTextSplitter` 这种东西时，不要恐慌，不要百度。**直接问 Claude Code："这是什么意思？为什么这么设计？"** 它会用你能理解的方式解释，而且永远不会不耐烦。这是 Vibe Coding 最大的隐藏福利。
+
+### 3.2 常用命令速查
+
+Claude Code 通过 **斜杠命令（Slash Commands）** 提供各种功能。在对话中输入 `/` 就能看到所有可用命令。
 
 以下是日常使用频率最高的命令：
 
@@ -298,32 +313,24 @@ Claude Code 通过 **斜杠命令（Slash Commands）** 提供各种功能。在
 | `/compact` | 压缩对话历史，释放上下文空间 | ⭐⭐⭐ |
 | `/init` | 在当前项目生成 CLAUDE.md | ⭐⭐⭐ |
 | `/doctor` | 诊断 Claude Code 安装和配置问题 | ⭐⭐ |
-| `/setup-github` | 配置 GitHub Actions 自动部署 | ⭐⭐ |
 | `/config` | 打开当前项目的设置文件 | ⭐⭐ |
-| `/statusline` | 在终端底部显示持久状态栏（当前任务、token 用量） | ⭐⭐⭐ |
+| `/statusline` | 终端底部显示持久状态栏（token 用量） | ⭐⭐⭐ |
 | `/cost` | 查看当前会话的 token 消耗和费用 | ⭐⭐⭐ |
-| `/login` | 登录/切换 Anthropic 账号 | ⭐ |
-| `/logout` | 登出 | ⭐ |
 | `/mcp` | 管理 MCP 服务器 | ⭐⭐ |
 
 **最实用的三个命令详解：**
 
-`/compact` —— 这是你最重要的生存技能。Claude Code 的上下文窗口有限（对话历史 + 代码片段 + 工具调用结果不断累积）。当你发现 Claude 开始：
-- 忘记你 10 分钟前说过的话
-- 响应速度明显变慢
-- 开始东拉西扯
+`/compact` —— 这是你最重要的生存技能。上下文窗口有限，当 Claude 开始忘记你 10 分钟前说的话、响应变慢、东拉西扯时，**立刻执行 `/compact`**。它会压缩历史对话为结构化摘要，释放大量空间。习惯：每 30-50 轮对话主动触发。**不要等 AI "失忆"才抢救。**
 
-**立刻执行 `/compact`。** 它会压缩历史对话为结构化摘要，释放大量空间。我的习惯是每 30-50 轮对话主动触发一次——不要等 AI "失忆"才抢救，那时候已经晚了。
+`/statusline` —— 在终端底部实时显示任务进度、token 用量、活跃模型。有了它你就不用一直猜"AI 现在在干嘛"了。
 
-> ⚠️ `compact` 是不可逆的。压缩后无法恢复被丢弃的原始对话。压缩质量取决于对话结构的清晰度——如果你的对话很混乱，摘要也会遗漏信息。
+`/cost` —— 实时查看费用。适合我们这种对成本极度敏感（或者说"抠门"）的 DeepSeek 用户。每次看到那个几毛钱的数字，安心感油然而生。
 
-`/statusline` —— 在终端底部显示一个持久状态栏，实时显示：当前任务进度、token 使用量、活跃模型。有了它你就不用一直猜"AI 现在在干嘛"了。
+> 💡 `!<命令>` 是隐藏技巧——在对话中直接输入 `!npm run dev` 就能启动开发服务器，不用切到终端。
 
-`/cost` —— 实时查看费用，适合我们这种对成本极度敏感（或者说"抠门"）的 DeepSeek 用户。每次看到那个几毛钱的数字，安心感油然而生。
+### 3.3 Skills 技能系统——给 AI 装"专业训练"
 
-### 4.2 Skills 技能系统——安装"专业训练"
-
-Skills 是 Claude Code 最被低估的功能。你可以把 Skill 理解为给 AI 装一个"专业训练模块"——装了 `code-review` skill 之后，Claude 审查代码的能力直接提升一个档次；装了 `design-sync` skill 之后，它能自动帮你同步设计系统组件。
+Skills 是 Claude Code 最被低估的功能。你可以把 Skill 理解为给 AI 装一个"专业训练模块"——装了 `code-review` skill 之后，Claude 审查代码的能力直接提升一个档次。
 
 **内置技能（开箱即用）：**
 
@@ -335,38 +342,14 @@ Skills 是 Claude Code 最被低估的功能。你可以把 Skill 理解为给 A
 | `/security-review` | 安全专项审查：OWASP Top 10、注入漏洞、敏感信息泄露 |
 | `/design-sync` | 设计系统同步：与 claude.ai/design 项目保持组件一致 |
 | `/fewer-permission-prompts` | 分析操作记录，自动生成合理的权限配置 |
-| `/compact` | 上下文压缩（这也是一个 skill） |
 
-**使用 Skills 的要点：**
-- **commit 前审查**：养成 `/code-review` 再 commit 的习惯
-- **分级审查**：普通改动选 `medium` effort，核心模块选 `high` 或 `max`
-- **安全第一**：涉及认证、支付、数据库的代码，必跑 `/security-review`
-- **审查后不盲从**：AI 的建议需要人工判断是否采纳——AI 有时候也会过度谨慎
+**使用要点：** commit 前养成 `/code-review` 习惯；安全代码必跑 `/security-review`；AI 的建议需要人工判断是否采纳。
 
-**自定义 Skills（进阶功能）：**
+**自定义 Skills：** 在 `~/.claude/plugins/` 目录下创建 skill 文件，把重复性操作固化为命令——一次写好，终身受益。
 
-你可以在项目或用户级别创建自己的 skill。最简单的 skill 就是一个指令模板：
+### 3.4 MCP 服务器扩展——给 AI 装"插件"
 
-```markdown
-# 在 ~/.claude/plugins/my-skill/skill.md 中：
----
-name: my-deploy
-description: 一键部署到我的服务器
----
-你是一个部署专家。执行以下步骤：
-1. 运行 npm run build
-2. 检查构建产物是否完整
-3. 通过 SCP 上传到服务器
-4. 重启服务并验证健康检查
-```
-
-装好后直接 `/my-deploy` 就能触发。把重复性的操作固化为 skill，一次写好，终身受益。
-
-### 4.3 MCP 服务器扩展——给 AI 装"插件"
-
-MCP（Model Context Protocol）是 Claude Code 的扩展协议。你可以通过 MCP 给 Claude Code 添加额外的工具——就像给浏览器装插件一样。
-
-**常见的 MCP 服务器：**
+MCP（Model Context Protocol）是 Claude Code 的扩展协议。通过 MCP 给 Claude Code 添加额外工具——就像给浏览器装插件一样。
 
 | MCP 服务器 | 提供的功能 |
 |-----------|----------|
@@ -375,11 +358,9 @@ MCP（Model Context Protocol）是 Claude Code 的扩展协议。你可以通过
 | **Sentry** | 错误监控——查看生产环境报错、分析根因 |
 | **GitLab/GitHub** | 代码仓库操作——管理 PR、Issue、CI/CD |
 | **Context7** | 实时文档查询——获取最新版本的库文档 |
-| **API Tester** | HTTP 请求测试——GET/POST/PUT/DELETE 加各种参数 |
-| **Filesystem** | 高级文件操作——搜索、批量处理 |
 | **Database** | 数据库查询——直接连接数据库执行 SQL |
 
-**怎么配置 MCP：** 在 `settings.json` 中添加 `mcpServers` 字段：
+**怎么配置：** 在 `settings.json` 中添加 `mcpServers` 字段：
 
 ```json
 {
@@ -398,74 +379,51 @@ MCP（Model Context Protocol）是 Claude Code 的扩展协议。你可以通过
 
 配置好后，Claude Code 就有了浏览器操作能力——比如你可以说"打开我的网站，截个图，看看首页有没有显示异常"。
 
-> ⚠️ 注意：部分 MCP 功能在使用第三方 API（如 DeepSeek）时可能表现不同。MCP 工具调用走的是 Claude Code 自身的框架，与后端模型无关，所以大部分功能是正常的。
+> ⚠️ 注意：部分 MCP 功能在使用第三方 API（如 DeepSeek）时可能表现不同，但大部分正常。
 
-### 4.4 Subagent 子代理——克隆 AI 分身
+### 3.5 Subagent 子代理——克隆 AI 分身
 
 当你有一个大任务需要同时做多件独立的事，比如"同时审查 10 个文件的安全问题"——Claude Code 可以**派生子代理**，每个子代理独立处理一部分，最后汇总结果。
 
-**子代理的特点：**
-- 每个子代理有独立的上下文，互不干扰
-- 可以并行执行（真正的多线程工作）
-- 完成后自动汇报给主会话
+**子代理的特点：** 每个有独立上下文，互不干扰；可以并行执行；完成后自动汇报。
 
 **适用场景：**
+- 审查多个文件 → 启动多个子代理并行扫描，最后汇总报告
+- 研究对比技术方案 → 每个子代理研究一个，生成对比表格
 
-```
-你："审查 src/ 下所有文件的安全性"
-Claude：启动 5 个子代理，每个负责一个子目录，并行扫描，最后汇总报告。
-```
+**你不需要手动管理子代理**——告诉 Claude 你的目标，它会自动判断是否需要并行处理。你只需要享受"一个人变成一个团队"的感觉。
 
-```
-你："研究一下这三个技术方案：React Query、SWR、Apollo Client，帮我对比"
-Claude：启动 3 个子代理，各自研究一个库，最后生成对比表格。
-```
+### 3.6 Hooks 钩子系统——自动化工作流
 
-**你不需要手动管理子代理**——告诉 Claude 你的目标，它会自动判断是否需要并行处理，以及怎么拆分任务。你只需要享受"一个人变成一个团队"的感觉。
-
-### 4.5 Hooks 钩子系统——自动化工作流
-
-Hooks 允许在特定事件前后自动执行脚本。简单说就是：**"每当 AI 准备做某件事，先跑一段我的自定义脚本"**。
-
-**支持的 Hook 类型：**
+Hooks 允许在特定事件前后自动执行脚本。简单说就是：**"每当 AI 准备做某件事，先跑一段你的自定义脚本"**。
 
 | Hook | 触发时机 | 实用场景 |
 |------|---------|---------|
-| `pre-command` | 执行任意命令之前 | 敏感命令二次确认 |
-| `post-command` | 执行任意命令之后 | 自动记录操作日志 |
-| `on-start` | 会话启动时 | 注入项目上下文、检查环境 |
+| `pre-command` | 执行命令之前 | 敏感命令二次确认 |
+| `post-command` | 执行命令之后 | 自动记录操作日志 |
+| `on-start` | 会话启动时 | 注入项目上下文 |
 | `on-complete` | 工作完成时 | 发送通知、自动 commit |
 | `pre-edit` | 编辑文件之前 | 自动备份原文件 |
 | `post-edit` | 编辑文件之后 | 自动运行 lint、格式化 |
 
-**配置示例：** 在 `settings.json` 中添加：
+配置示例——每次 AI 修改 `.tsx` 文件后自动格式化：
 
 ```json
 {
   "hooks": {
-    "post-edit": [
-      {
-        "matcher": "**/*.tsx",
-        "command": "npx eslint --fix \"$CLAUDE_FILE_PATH\""
-      }
-    ]
+    "post-edit": [{
+      "matcher": "**/*.tsx",
+      "command": "npx eslint --fix \"$CLAUDE_FILE_PATH\""
+    }]
   }
 }
 ```
 
-这个配置的意思是：**每次 Claude 修改 `.tsx` 文件后，自动运行 ESLint 检查和格式化。** Hook 脚本可以访问环境变量（如 `CLAUDE_EVENT_TYPE`、`CLAUDE_FILE_PATH`、`CLAUDE_COMMAND`）来知道当前上下文。
+> 💡 对于初学者，Hooks 可以先放着不用。熟悉工作流后自然会遇到"每次 AI 改完代码我都要手动 format"这种痛点——到那时再来配置 Hook，一步到位。
 
-**实用 Hook 例子：**
+### 3.7 Memory 记忆系统——AI 的长期记忆
 
-- **自动 Git 备份**：`pre-edit` 时自动 `git stash`，改坏了随时恢复
-- **代码格式化**：`post-edit` 时自动运行 Prettier
-- **安全拦截**：`pre-command` 时检查命令是否包含 `rm -rf /` 等危险操作
-
-> 💡 对于初学者，Hooks 可以先放着不用。等你熟悉了 Claude Code 的工作流，自然会遇到"每次 AI 改完代码我都要手动 format"这种痛点——到那时候再来配置 Hook，一步到位。
-
-### 4.6 Memory 记忆系统——AI 的长期记忆
-
-Claude Code 有三层记忆体系，每一层的作用域和加载时机不同：
+Claude Code 有三层记忆体系：
 
 | 层级 | 文件位置 | 作用域 | 加载时机 |
 |------|---------|--------|---------|
@@ -473,59 +431,21 @@ Claude Code 有三层记忆体系，每一层的作用域和加载时机不同�
 | **项目级 MEMORY.md** | `<project>/.claude/memory/` | 当前项目 | 会话中按需检索 |
 | **用户级 MEMORY.md** | `~/.claude/memory/` | 所有项目 | 会话中按需检索 |
 
-**CLAUDE.md** 是最重要的载体。每次会话初始化时，它会被完整加载到上下文中，所以被称为"项目宪法"。一个典型的内容结构：
+**CLAUDE.md** 是"项目宪法"，每次会话初始化时完整加载。保持 50-100 行，太长会吃上下文。用 `/init` 命令让 AI 自动生成，然后微调。
 
-```markdown
-# 项目名
+当你发现 Claude 犯了同样的错误两次，直接说"记住这个问题"，它会写入记忆文件，下次不会再犯。
 
-## 技术栈
-- 前端: React 19 + TypeScript + Tailwind CSS
-- 后端: FastAPI + Python 3.12
-- 数据库: ChromaDB (向量) + SQLite (用户)
-
-## 目录结构
-- frontend/ - React 组件和页面
-- backend/ - FastAPI 后端服务
-
-## 编码规范
-- 组件用函数式组件 + Hooks
-- Python 用 type hints
-- 不要随意升级依赖版本
-
-## 重要约定
-- 修改数据库 schema 前告知我
-- 不要改 ChromaDB 的持久化目录路径
-```
-
-> 💡 50-100 行为佳，不要太长——CLAUDE.md 每次都会完整加载，写太长会吃掉上下文空间。
-
-**MEMORY.md** 和用户级记忆用于存储项目事实、用户偏好、已知坑点等。当你发现 Claude 犯了同样的错误两次，直接说"记住这个问题"，它会写入记忆文件，下次不会再犯。
-
-### 4.7 上下文管理——别让 AI "失忆"
-
-这是 Vibe Coding 长会话中最核心的生产力技能。
-
-**上下文是如何消耗的：**
-- 你的每条消息
-- Claude 的每条回复
-- 每次读取的文件内容
-- 每次工具调用的结果
-- 每次对话中的代码片段
-
-所有这些加起来，很快就会逼近上下文窗口的上限。
+### 3.8 上下文管理——别让 AI "失忆"
 
 **最佳实践：**
+1. 主动 `/compact`：每 30-50 轮对话主动触发
+2. 任务分解：长任务拆分成多个短对话，每个聚焦一个子任务
+3. 精准提问：避免开放式问题产生大量输出
+4. 文件读取策略：不要一次性读取整个大文件，按需指定行范围
+5. CLAUDE.md 精简：50-100 行，只放真正需要的信息
+6. 利用 `.gitignore`：Claude Code 会自动忽略其中的文件
 
-1. **主动 `/compact`**：每 30-50 轮对话主动触发，不要等 AI 开始遗忘
-2. **任务分解**：长任务拆分成多个短对话，每个聚焦一个子任务
-3. **精准提问**：明确指定你需要什么，避免开放式问题产生大量输出
-4. **文件读取策略**：不要一次性读取整个大文件，按需指定行范围
-5. **CLAUDE.md 精简**：保持 50-100 行，只放真正需要每次加载的信息
-6. **利用 `.gitignore`**：Claude Code 会自动忽略 `.gitignore` 中的文件，不会加载到上下文
-
-### 4.8 键盘快捷键
-
-日常高频操作的快捷键，肌肉记忆后会快很多：
+### 3.9 键盘快捷键
 
 | 快捷键 | 功能 |
 |--------|------|
@@ -538,11 +458,9 @@ Claude Code 有三层记忆体系，每一层的作用域和加载时机不同�
 | `Shift+Enter` | 换行（多行输入） |
 | `!<命令>` | 在对话中直接执行终端命令 |
 
-> 💡 `!<命令>` 是隐藏技巧——你不需要切到终端窗口，直接在对话里输入 `!npm run dev` 就能启动开发服务器。
-
 ---
 
-## Part 5：实战——从零搭建 RAG 个人知识库助手
+## Part 4：实战——从零搭建 RAG 个人知识库助手
 
 OK，理论讲完了。现在来做点真正酷的东西。
 
@@ -552,7 +470,7 @@ OK，理论讲完了。现在来做点真正酷的东西。
 
 > 为什么不做 Todo List？因为 Todo List 一行代码都不用写，AI 一秒就给你答完了，你什么都学不到。RAG 这种"你本来不可能独立完成"的项目，才是 Vibe Coding 的正确打开方式。
 
-### 5.1 第一步：在 Plan Mode 中描述你的梦想
+### 4.1 第一步：在 Plan Mode 中描述你的梦想
 
 在 VS Code 中打开 Claude Code 面板，选择 **Plan Mode**，输入：
 
@@ -576,11 +494,9 @@ Claude Code 会思考大概 1-2 分钟，然后给你甩出一个完整的架构
 
 你只需要**用鼠标点选你喜欢的选项**。这个阶段最魔幻的是：**你明明什么都没干，却有一种"我在主导项目"的错觉。** 这种感觉，说实话，会上瘾。
 
-### 5.2 第二步：项目初始化 + 疯狂点 Yes
+### 4.2 第二步：项目初始化 + 疯狂点 Yes
 
-方案确认后，切换到 Edit Mode（或者继续留在 Plan Mode 如果你比较谨慎），Claude Code 开始干活：
-
-![RAG 项目代码——这就是你将要构建的系统](/images/vibecoding/06-rag-code.jpg)
+方案确认后，切换到 Edit Mode，Claude Code 开始干活：
 
 1. 检查你的环境（Python 3.10+、Node.js、pip 等是否齐全）
 2. 创建项目目录结构（`frontend/`、`backend/`）
@@ -590,50 +506,31 @@ Claude Code 会思考大概 1-2 分钟，然后给你甩出一个完整的架构
 
 这个阶段你的主要工作是：**点 Yes。**
 
-```
-Claude: "我要创建 backend/app/main.py，批准吗？"
-你: Yes
+> 💡 小技巧：嫌烦就在权限里选 "Yes, allow all edits this session"，让 AI 在这轮对话里自动批准文件修改。但 `pip install` 之类的终端命令还是会让你手动确认。你也可以用 `/fewer-permission-prompts` skill 自动分析使用模式并生成合理配置。
 
-Claude: "我要安装 langchain, chromadb, fastapi 等 23 个 Python 包，批准吗？"
-你: Yes
+### 4.3 第三步：功能开发——见证魔法
 
-Claude: "我要创建 React 前端脚手架，批准吗？"
-你: Yes... 这事你下次不用问我，直接干！
-```
-
-> 💡 小技巧：嫌烦就在权限里选 "Yes, allow all edits this session"，让 AI 在这轮对话里自动批准文件修改。但 `pip install` 之类的终端命令还是会让你手动确认，安全上不用太担心。你也可以用前面提到的 `/fewer-permission-prompts` skill 自动分析你的使用模式并生成合理配置。
-
-### 5.3 第三步：功能开发——见证魔法
-
-初始化完成后，Claude Code 会按照 PRD 中规划的路线，逐步推进功能开发：
+初始化完成后，Claude Code 会按照 PRD 规划逐步推进：
 
 **阶段一：知识库引擎**（LangChain RAG 核心）
-- `RecursiveCharacterTextSplitter` —— 智能文档切片，自动识别段落边界和语义断点。你不会想手动切 PDF 的。
-- `OpenAIEmbeddings` —— 将文本转换为向量（AI 世界里"词义相近"的数学表达）。两个相似含义的句子在向量空间里距离很近。
-- `ChromaDB` 向量存储 —— 轻量级、零配置的本地向量数据库。不需要注册任何云服务账号。
-- `RetrievalQA` 链 —— 用户问题 → 检索相关文档片段 → 喂给 LLM → 返回带引用来源的答案。
+- `RecursiveCharacterTextSplitter` —— 智能文档切片，自动识别段落边界和语义断点
+- `OpenAIEmbeddings` —— 将文本转换为向量（AI 世界里"词义相近"的数学表达）
+- `ChromaDB` 向量存储 —— 轻量级、零配置的本地向量数据库
+- `RetrievalQA` 链 —— 用户问题 → 检索相关文档片段 → 喂给 LLM → 返回带引用来源的答案
 
 **阶段二：用户系统**
 - 注册 / 登录 / 修改密码
-- JWT Token 认证（不需要知道 JWT 是什么，只需要知道它能安全地保持登录状态）
-- 管理员角色隔离（admin / 123456），普通用户只能问答，不能管理知识库
+- JWT Token 认证
+- 管理员角色隔离（admin / 123456）
 
 **阶段三：前端界面**
 - 知识库管理页面（上传文档、查看切片结果、删除文档）
 - 问答对话页面（提问、流式逐字输出、原文引用高亮）
 - 历史会话管理（多会话切换、恢复历史对话）
 
-你在这个过程中扮演的角色是：**监工 + 决策者。**
+你在这个过程中扮演的角色是：**监工 + 决策者。** 关键心态：**不要试图全懂，做选择题就够了。** 判断力比知识储备更重要。
 
-```
-Claude: "向量数据库我推荐用 ChromaDB，轻量级适合个人项目。另一个选项是 Pinecone，云端托管但需要注册。你选哪个？"
-你: "A，轻量的好，不想注册额外账号"
-Claude: "收到，开始集成 ChromaDB..."
-```
-
-关键心态再强调一遍：**不要试图全懂，做选择题就够了。** 你不需要知道 ChromaDB 和 Pinecone 的技术细节——你只需要知道一个不用注册、一个要注册。选那个让你省事的。**判断力比知识储备更重要。**
-
-### 5.4 第四步：Bug 自动修复
+### 4.4 第四步：Bug 自动修复
 
 开发完成后，运行 `python backend/app/main.py`，报错了：
 
@@ -648,35 +545,27 @@ Vibe Coding：**贴给 Claude Code。**
 
 > 安装 chromadb 报了这个错，帮我修：[粘贴错误]
 
-Claude Code 自动分析：Python 3.12 + chromadb 0.5.0 有兼容性问题。它会找到兼容版本，更新 `requirements.txt`，然后说"重试一下"。
+Claude Code 自动分析：Python 3.12 + chromadb 0.5.0 有兼容性问题。找到兼容版本，更新 `requirements.txt`。
 
-**这个项目我一共遇到了 14 个错误，AI 自动修了 14 个。我全程只做了 Ctrl+C 和 Ctrl+V。**
+**这个项目我一共遇到了 14 个错误，AI 自动修了 14 个。我全程只做了 Ctrl+C 和 Ctrl+V。** 而且——因为用的是 DeepSeek V4 Pro，这 14 轮修复总共花的 token 费用不超过 **¥0.30**。
 
-而且——因为用的是 DeepSeek V4 Pro，这 14 轮修复总共花的 token 费用不超过 **¥0.30**。如果是 Claude Opus 原生模型，光修 bug 就得十几块钱。
-
-### 5.5 第五步：Docker 化 + 一键启动
-
-代码写完了，但"怎么让别人也能跑起来"是个问题。交给 AI：
+### 4.5 第五步：Docker 化 + 一键启动
 
 > 帮我写一个 docker-compose.yml，把前后端和 ChromaDB 都容器化，然后告诉我怎么一键启动。
 
-Claude Code 生成 Docker 配置，然后你执行：
+Claude Code 生成 Docker 配置：
 
 ```bash
 docker-compose up -d
 ```
 
-浏览器打开 `http://localhost:3000`——
+浏览器打开 `http://localhost:3000`——**一个你"写"的 RAG 知识库助手出现在屏幕上。**
 
-**一个你"写"的 RAG 知识库助手出现在屏幕上。**
+上传一篇 AI 论文 PDF，等 30 秒构建向量索引。对话框里输入："这篇论文的核心贡献是什么？" AI 逐字输出一长段总结，**底部引用了原文的三个片段，点击可以直接跳到原文对应位置。**
 
-上传一篇 AI 论文 PDF，等 30 秒让它构建向量索引。然后在对话框里输入："这篇论文的核心贡献是什么？"
+你盯着屏幕，沉默了。48 小时前你还不知道 RAG 三个字母代表什么。现在你有一个能跑的知识库问答系统。
 
-AI 逐字输出一长段总结，**底部引用了原文的三个片段，点击可以直接跳到原文对应位置。**
-
-你盯着屏幕，沉默了。48 小时前你还不知道 RAG 三个字母代表什么。现在你有一个能跑的知识库问答系统。**你是将军，AI 是你的工程营。**
-
-### 5.6 费用核算：老板，再来十块钱的
+### 4.6 费用核算：老板，再来十块钱的
 
 整个项目各阶段的费用明细（全程 DeepSeek V4 Pro）：
 
@@ -690,121 +579,72 @@ AI 逐字输出一长段总结，**底部引用了原文的三个片段，点击
 | Docker 容器化 | ~8K | ¥0.02 |
 | **合计** | **~125K** | **¥0.32** |
 
-**三毛二。**
+**三毛二。** 一瓶矿泉水的钱，够我搭 6 套 RAG 系统。
 
-你没看错。一套完整的 RAG 知识库问答系统，从零到能跑，**总共花了 ¥0.32**。我在楼下便利店随便拿一瓶矿泉水都要 ¥2.00，够我搭 6 套 RAG 系统。
-
-如果用 Claude Opus 5 原生模型做同样的项目：
-
-| 模型 | 总费用 | 够喝多少瓶矿泉水 |
-|------|--------|---------------|
-| Claude Opus 5 | ~$58.00 (≈ ¥420) | 210 瓶 |
-| GPT-5 | ~$46.00 (≈ ¥330) | 165 瓶 |
-| **DeepSeek V4 Pro** | **¥0.32** | **0.16 瓶** |
-
-这不是差几倍的问题，这是差了三个数量级。
+如果用 Claude Opus 5 原生模型：~$58 (≈ ¥420)。这不是差几倍的问题，这是差了三个数量级。
 
 ---
 
-## Part 6：工程化生存指南
+## Part 5：工程化生存指南
 
-如果你不只是玩玩，想正经用 Vibe Coding 做持续迭代的项目，这里有几个保命设置：
+如果你不只是玩玩，想正经用 Vibe Coding 做持续迭代的项目：
 
-### 6.1 Git 工作流——给每次冒险上保险
+### 5.1 Git 工作流——给每次冒险上保险
 
-**这条怎么强调都不过分：每次让 AI 大改代码前，先 `git commit`。**
+**每次让 AI 大改代码前，先 `git commit`。**
 
 ```bash
-# AI 大刀阔斧改代码之前
 git add -A && git commit -m "AI 改版前快照"
-
-# 改完了发现不满意？
-git reset --hard HEAD~1  # 一键回到过去
+git reset --hard HEAD~1  # 改坏了？一键回到过去
 ```
 
-进阶习惯：
-- 别在 `main` 分支上直接让 AI 实验。建 `feature/xxx` 分支，玩坏了不心疼
-- 小步提交：每完成一个功能就 commit，而不是等所有工作做完
-- 定期 `git diff` 看一眼 AI 具体改了哪些文件
+进阶习惯：别在 `main` 分支上直接实验；小步提交；定期 `git diff` 审查 AI 的改动。大型重构可以用 **Git Worktree** 创建隔离的工作副本，完全不影响主分支。
 
-**Claude Code 内置的回退机制：**
-- 对话中说"撤销你刚才的改动"，Claude 会尝试反操作
-- 说"把 xxx 文件恢复到改之前"，指定文件回退
-- ~/.claude/backups/ 目录下有你文件的自动备份
+Claude Code 内置回退：说"撤销你刚才的改动"或"把 xxx 文件恢复到改之前"即可。
 
-> 💡 进阶技巧：如果是大型重构，可以用 **Git Worktree** 在隔离目录中工作——`claude` 命令甚至支持 `/worktree` 来创建隔离的工作副本，完全不影响主分支。
+### 5.2 CLAUDE.md 最佳实践
 
-### 6.2 CLAUDE.md 最佳实践
+用 `/init` 让 AI 自动生成，然后微调。精简到 50-100 行——太长吃上下文，太短 AI 不了解项目。
 
-CLAUDE.md 是 Vibe Coding 最被低估的武器。一个写好的 CLAUDE.md 能让你和 AI 的协作效率翻两到三倍。
+必须包含：技术栈清单、目录结构、编码规范、重要约定（什么绝对不能碰）。
 
-**CLAUDE.md 应该包含什么：**
+### 5.3 代码审查——别让 AI 放飞自我
 
-1. **技术栈清单**：让 AI 知道有哪些武器可用
-2. **目录结构**：让 AI 知道文件应该放在哪
-3. **编码规范**：让 AI 写出风格一致、可维护的代码
-4. **重要约定**：告诉 AI "什么绝对不能碰"
-
-**精简原则**：50-100 行为佳。太长 → 吃上下文。太短 → AI 不了解项目。
-
-**让 AI 自己写 CLAUDE.md**：用 `/init` 命令，Claude 会扫描整个项目并自动生成一个符合你项目特点的 CLAUDE.md。然后你再根据实际情况微调。
-
-### 6.3 代码审查——别让 AI 放飞自我
-
-AI 写的代码不一定都对。好在 AI 也能审查自己写的代码：
-
-```
-/code-review
-```
-
-Claude 会从以下维度审查当前改动：
-
-- 🐛 **正确性**：逻辑错误、边界情况遗漏、空值处理
-- 🔒 **安全性**：注入漏洞、敏感信息泄露、权限问题
-- ⚡ **性能**：不必要的计算、内存泄漏
-- ♻️ **代码复用**：重复代码、可以简化的逻辑
-
-养成习惯：**commit 之前，先 `/code-review`。**
+AI 写的代码不一定都对。好在 AI 也能审查自己的代码。养成习惯：**commit 之前，先 `/code-review`。** 普通改动 medium，核心模块 high 或 max。
 
 ---
 
-## Part 7：我踩过的坑
+## Part 6：我踩过的坑
 
 本着教学精神，分享几个翻车的经典时刻——让你不用重复交学费。
 
 ### 坑 #1：让 AI "随便做"
 
-我说："帮我做一个好看的首页"
+我说："帮我做一个好看的首页"。结果：霓虹灯风格、自动播放 BGM、带粒子特效。在办公室打开的时候，全公司都看向了我。
 
-结果：AI 给我做了一个霓虹灯风格、自动播放 BGM、带粒子特效的首页。好看是好看了，但在办公室打开的时候，全公司都看向了我。
-
-**教训**：永远给 AI 设定风格边界。把"简洁、专业、不夸张"写进 CLAUDE.md 的编码规范里。
+**教训**：永远给 AI 设定风格边界。把"简洁、专业、不夸张"写进 CLAUDE.md。
 
 ### 坑 #2：不看 Diff 就点 Yes
 
-我连续点了 20 个 Yes 之后，发现 AI 把我的 `package.json` 里所有依赖版本都从锁定版升级到了 "latest"——不出意外地，项目炸了。
+连点 20 个 Yes 之后，AI 把所有依赖版本从锁定版升级到 "latest"——项目炸了。
 
-**教训**：重要文件（package.json、配置文件、数据库 schema）的修改，多看一眼 diff。点 Yes 之前问自己一句："这个文件改了会影响什么？"
+**教训**：重要文件（package.json、配置文件、数据库 schema）的修改，多看一眼 diff。
 
 ### 坑 #3：不说"停下来"
 
-AI 有时候会陷入"修 bug → 引入新 bug → 修新 bug → 引入更多 bug"的死循环。我看到它已经改了 15 个文件还没修好，但不好意思打断它。
+AI 陷入"修 bug → 引入新 bug → 修新 bug → 引入更多 bug"的死循环，改 15 个文件还没修好。
 
-**教训**：AI 不是人，不会尴尬。发现方向错了直接说——**"停，我们换个思路。"** 三毛二的预算不是让你浪费在死循环里的。
+**教训**：AI 不是人，不会尴尬。发现方向错了直接说——"停，我们换个思路。"
 
 ### 坑 #4：以为 DeepSeek 什么都能做
 
-第一次用 DeepSeek 的时候，我让它做一个需要极复杂逻辑推理的项目。它努力了，但效果不如 Claude Opus 原生模型。
-
-**教训**：DeepSeek V4 Pro 在代码生成、调试、常规开发方面非常强，性价比炸裂。但如果你的项目涉及极端复杂的逻辑推理或需要严格数学证明——可以**关键步骤切到更强的模型**，日常开发继续用 DeepSeek。混着用，把每一分钱花在刀刃上。
+DeepSeek V4 Pro 在代码生成和调试方面非常强，但如果涉及极端复杂的逻辑推理——可以考虑关键步骤切到更强的模型，日常开发继续用 DeepSeek。混着用，把每一分钱花在刀刃上。
 
 ---
 
-## Part 8：Vibe Coding 的正确心态
+## Part 7：Vibe Coding 的正确心态
 
-最后说一个很多人搞错的事情：**Vibe Coding 不是"AI 替你干活，你啥都不管。"**
-
-它是"AI 负责执行层，你负责决策层。"
+**Vibe Coding 不是"AI 替你干活，你啥都不管。"** 它是"AI 负责执行层，你负责决策层。"
 
 | 你不需要会…… | 但你需要知道…… |
 |------------|-------------|
@@ -814,9 +654,9 @@ AI 有时候会陷入"修 bug → 引入新 bug → 修新 bug → 引入更多 
 | 调 ChromaDB 参数 | "搜索结果不准，让 AI 重新调整检索策略" |
 | 写 HTML/CSS | "这个页面布局很乱，按照设计规范重新排版" |
 
-你扮演的角色从"码农"变成了"产品经理 + 架构师 + 质量把控"。你的核心能力从"写代码"变成了"做决策、做判断"。
+你扮演的角色从"码农"变成了"产品经理 + 架构师 + 质量把控"。核心能力从"写代码"变成了"做决策、做判断"。
 
-这其实比纯写代码**更难**——因为你需要有判断力，需要知道"什么是好的"。但好消息是：这种能力会在实践中快速培养起来，因为你身边有个永远不会不耐烦、永远能解释到听懂的导师。
+这其实比纯写代码**更难**——因为你需要有判断力。但好消息是：这种能力会在实践中快速培养起来，因为你身边有个永远不会不耐烦的导师。
 
 而且三毛二一次，你亏得起。
 
@@ -841,6 +681,6 @@ Vibe Coding 刚刚兴起的时候，很多人说它是"程序员末日"。现在
 
 ---
 
-*本文参考了黑马程序员小曹老师的 [Vibe Coding 零基础实战系列课程](https://www.yuque.com/xxcls/vibecoding)，涵盖了环境部署、Skill 开发、MCP 扩展、Subagent 并行、Hooks 自动化、Memory 系统等核心概念。更深度的工程化内容可查看原文课程。*
+*本文参考了黑马程序员小曹老师的 [Vibe Coding 零基础实战系列课程](https://www.yuque.com/xxcls/vibecoding)。环境部署截图来源于课程配套文档，Vibe Coding 概念配图来自课程案例内容。更深度的工程化内容可查看原文课程。*
 
 *如果你也在用 Vibe Coding 做项目——不管是成功的、翻车的、还是花了三毛二做了个 RAG 系统然后觉得自己天下无敌了的——欢迎在评论区分享你的故事。*
