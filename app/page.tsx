@@ -7,6 +7,7 @@ import { AuroraBackground } from '@/components/ui/aurora-background'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { TerminalGreeting } from '@/components/ui/terminal-greeting'
 import { StatsTile, StatsTileRow } from '@/components/ui/stats-tile'
+import { CurrentYear } from '@/components/ui/current-year'
 import {
   IconBook, IconBrandGithub, IconSparkles,
   IconArticle, IconFolderFilled, IconTag, IconRss,
@@ -101,7 +102,7 @@ export default function HomePage() {
                 icon={<IconTag size={18} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />}
               />
               <StatsTile
-                value={new Date().getFullYear()}
+                value={<CurrentYear />}
                 label="至今"
                 icon={<IconSparkles size={18} strokeWidth={1.5} style={{ color: 'var(--color-accent-gold)' }} />}
               />

@@ -3,24 +3,27 @@
 import { useEffect, useRef, useState } from 'react'
 
 interface StatsTileProps {
-  value: number
+  value: number | React.ReactNode
   label: string
   icon?: React.ReactNode
   suffix?: string
 }
 
 export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
+  const isNumber = typeof value === 'number'
+  const numValue = isNumber ? value : 0
   const [displayValue, setDisplayValue] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
   const animated = useRef(false)
 
   useEffect(() => {
+    if (!isNumber) return
     const el = ref.current
-    if (!el || animated.current || value === 0) return
+    if (!el || animated.current || numValue === 0) return
 
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
     if (mq.matches) {
-      setDisplayValue(value)
+      setDisplayValue(numValue)
       animated.current = true
       return
     }
@@ -29,7 +32,7 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
       ([entry]) => {
         if (entry?.isIntersecting && !animated.current) {
           animated.current = true
-          animateCount(0, value, 800, setDisplayValue)
+          animateCount(0, numValue, 800, setDisplayValue)
           observer.disconnect()
         }
       },
@@ -38,7 +41,7 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
 
     observer.observe(el)
     return () => observer.disconnect()
-  }, [value])
+  }, [isNumber, numValue])
 
   return (
     <div
@@ -50,7 +53,7 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
         className="text-2xl sm:text-3xl font-bold font-mono"
         style={{ color: 'var(--color-ink)' }}
       >
-        {displayValue}
+        {isNumber ? displayValue : value}
         {suffix}
       </div>
       <div className="text-xs" style={{ color: 'var(--color-muted)' }}>

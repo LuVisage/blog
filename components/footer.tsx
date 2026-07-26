@@ -1,10 +1,11 @@
+'use client'
+
 import Link from 'next/link'
 import { SITE, SOCIAL_LINKS } from '@/lib/constants'
+import { CurrentYear } from '@/components/ui/current-year'
 import { IconSparkles, IconHeartFilled, IconBrandGithub, IconMail } from '@tabler/icons-react'
 
 export function Footer() {
-  const year = new Date().getFullYear()
-
   return (
     <footer className="relative z-10 mt-auto pb-8">
       <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -42,7 +43,7 @@ export function Footer() {
           </div>
 
           <p className="text-xs" style={{ color: 'var(--color-muted-soft)' }}>
-            &copy; {year} {SITE.author.name} — Built with <IconHeartFilled size={11} className="inline" style={{ color: '#ef4444' }} /> and Next.js
+            &copy; <CurrentYear /> {SITE.author.name} — Built with <IconHeartFilled size={11} className="inline" style={{ color: '#ef4444' }} /> and Next.js
           </p>
         </div>
       </div>
