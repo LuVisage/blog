@@ -21,7 +21,7 @@ popular: true
 
 如果你从来没打开过终端，别慌。终端就是一个黑色的文字窗口，你在里面打字，电脑执行。没有鼠标、没有图标、没有花里胡哨的UI——只有你和计算机之间最纯粹的交流。
 
-![终端界面基础说明](/images/vibecoding/07-terminal-basics.jpg)
+![终端命令行界面](/images/vibecoding/07-terminal-window.jpg)
 
 **Windows 用户**：按 `Win + R`，输入 `powershell`，回车。如果遇到脚本执行权限报错，以管理员身份打开 PowerShell，执行：
 
@@ -51,7 +51,7 @@ Claude Code 基于 Node.js 运行，所以这是我们第一块砖。
 2. 下载 LTS 版本（Windows 用户选 `.msi`，Mac 用户选 `.pkg`）
 3. 安装——全程「下一步」，一个设置都不用改
 
-![Node.js 安装界面](/images/vibecoding/01-nodejs-setup.jpg)
+![Node.js 官网下载页面——选择 LTS 版本](/images/vibecoding/01-install-nodejs.jpg)
 
 装完后，打开终端验证：
 
@@ -111,7 +111,7 @@ npm install -g @anthropic-ai/claude-code
 claude --version  # 应显示版本号
 ```
 
-![Claude Code 安装完成界面](/images/vibecoding/02-claude-code-install.jpg)
+![Vibe Coding 半小时后的成果——从零到项目跑起来](/images/vibecoding/02-vibecoding-result.jpg)
 
 > **💡 这里停一下**：如果你出于好奇去搜了 OpenAI CodeX，想用它接 DeepSeek，你会发现自己需要安装 Go 1.25+、克隆 Moon Bridge 仓库、手写三个配置文件（YAML + TOML + JSON）、启动代理服务……等你折腾完这些，用 Claude Code 的同学已经把项目部署上线了。CodeX 不是不能用，但它对第三方模型的支持靠的是社区用爱发电的转发层，每多一层转发就多一层出错的可能。Claude Code 原生支持自定义 API endpoint，三行 JSON 搞定。**结论：省事就用 Claude Code。**
 
@@ -124,7 +124,7 @@ claude --version  # 应显示版本号
 3. 搜索 `Claude Code`，安装官方扩展
 4. 重启 VS Code
 
-![VS Code 中的 Claude Code 集成](/images/vibecoding/03-vscode-integration.jpg)
+![VS Code 扩展市场——搜索并安装 Claude Code 插件](/images/vibecoding/03-prd-requirements.jpg)
 
 装好后，VS Code 侧边栏会出现 Claude Code 图标，点击就能在编辑器里和 AI 对话了。
 
@@ -160,7 +160,7 @@ Claude Code 本质上是一个"对话框架"，它自己不会写代码——真
 }
 ```
 
-![DeepSeek API 配置界面](/images/vibecoding/04-deepseek-config.jpg)
+![DeepSeek 开放平台——创建和管理 API Key](/images/vibecoding/04-what-is-vibecoding.jpg)
 
 **就这三行。** 没有 Go 环境，没有 YAML，没有代理服务。保存，关闭。
 
@@ -178,7 +178,7 @@ claude
 
 如果它回答「我是 DeepSeek V4 Pro……」——🎉 恭喜！环境部署完毕！从现在开始，你只需要做两件事：**清楚地表达需求，以及疯狂点 Yes。**
 
-![Claude Code 对话界面](/images/vibecoding/05-claude-code-ui.jpg)
+![Vibe Coding 的两种面孔：想象中的 vs 实际上的](/images/vibecoding/05-imagination-vs-reality.jpg)
 
 接下来你可以先熟悉一下 Claude Code 的界面和交互方式：左边是文件树，右边是对话区，Claude 会通过对话告诉你每一步在做什么，你可以随时打断、提问、或者让它换一种方式实现。
 
@@ -580,7 +580,7 @@ Claude Code 会思考大概 1-2 分钟，然后给你甩出一个完整的架构
 
 方案确认后，切换到 Edit Mode（或者继续留在 Plan Mode 如果你比较谨慎），Claude Code 开始干活：
 
-![RAG 项目初始化过程](/images/vibecoding/06-rag-project-setup.jpg)
+![RAG 项目代码——这就是你将要构建的系统](/images/vibecoding/06-rag-code.jpg)
 
 1. 检查你的环境（Python 3.10+、Node.js、pip 等是否齐全）
 2. 创建项目目录结构（`frontend/`、`backend/`）
