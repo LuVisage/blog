@@ -84,16 +84,20 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </blockquote>
     ),
-    img: ({ alt, src, ...props }) => (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={alt || ''}
-        className="my-6 rounded-xl shadow-lg w-full"
-        loading="lazy"
-        {...props as ImgHTMLAttributes<HTMLImageElement>}
-      />
-    ),
+    img: ({ alt, src, ...props }) => {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
+      const imgSrc = src?.startsWith('/') && !src.startsWith(basePath) ? `${basePath}${src}` : src
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imgSrc}
+          alt={alt || ''}
+          className="my-6 rounded-xl shadow-lg w-full"
+          loading="lazy"
+          {...props as ImgHTMLAttributes<HTMLImageElement>}
+        />
+      )
+    },
     hr: (props) => (
       <hr
         className="my-8"
