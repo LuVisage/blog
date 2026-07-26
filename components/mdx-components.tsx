@@ -136,6 +136,11 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </td>
     ),
+    small: ({ children, ...props }) => (
+      <small className="text-sm leading-relaxed" style={{ color: 'var(--color-muted)' }} {...props}>
+        {children}
+      </small>
+    ),
     strong: ({ children, ...props }) => (
       <strong className="font-semibold" style={{ color: 'var(--color-ink)' }} {...props}>
         {children}
