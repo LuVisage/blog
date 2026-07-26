@@ -1,0 +1,669 @@
+- generic [ref=f93e8]:
+  - generic [ref=f93e9]:
+    - generic [ref=f93e11]:
+      - generic "终端（命令行）的基础使用" [ref=f93e13]:
+        - generic "title-mark-emoji" [ref=f93e14]: 🔒
+      - generic [ref=f93e23]:
+        - img [ref=f93e591] [cursor=pointer]:
+          - generic [ref=f93e594]: MD
+        - button [ref=f93e32] [cursor=pointer]
+        - link "免费使用" [ref=f93e36] [cursor=pointer]:
+          - /url: /login?goto=https%3A%2F%2Fwww.yuque.com%2Fxxcls%2Fvibecoding%2Fuse_terminal
+    - generic [ref=f93e51]:
+      - generic [ref=f93e52]:
+        - generic [ref=f93e53]:
+          - generic [ref=f93e56]:
+            - heading [level=1] [ref=f93e57]:
+              - generic "title-mark-emoji" [ref=f93e58]: 🔒
+            - heading "终端（命令行）的基础使用" [level=1] [ref=f93e61]
+          - article [ref=f93e63]:
+            - generic [ref=f93e68]:
+              - generic [ref=f93e69]: 目标：掌握最常用的终端命令，能够打开终端、切换目录、管理文件、运行简单程序。 不需要背大量命令，掌握 10 个左右核心命令即可顺利开始 Claude Code 的学习。
+              - generic [ref=f93e71]: 一、打开终端
+              - generic [ref=f93e85]: Windows
+              - generic [ref=f93e99]:
+                - text: Windows 10 系统的同学可以在应用商店内搜索并安装
+                - generic [ref=f93e100]: Windows Terminal
+                - text: 软件（Win11 自带，名字叫做终端）
+              - generic [ref=f93e105]:
+                - generic:
+                  - generic: TERMIUSISAMODENSSHCLIENTDESIGNEDFORPRODUCTIVIT
+                  - generic: INDOWS终端程序是一款新式快速,高效,强大且高效
+                  - generic: WINDOWS终端是一款新式.快速,高效,强大且高效的..
+                  - generic: ANDCOLLABORATION.CONNECTWITHONECLICKFROMDESKTOP..
+                  - generic: 是WINDOWS终端的预览版本,其中包含最新功能.
+                  - generic: 的终端应用程序,适用于命令行工具和命令提示符.,
+                  - generic: TERMIUS-MODERNSS
+                  - generic: 4.8应用开发人员工具
+                  - generic: 4.6应用开发人员工具
+                  - generic: 48应用开发人员工具
+                  - generic: WINDOWSTEMINAL
+                  - generic: WINDOWSTERMINAL
+                  - generic: CARIRTTOPOETIEATRATOEUK
+                  - generic: PREVIEW
+                  - generic: MICROSOFTSTORE
+                  - generic: 终端"
+                  - generic: 微信小游戏
+                  - generic: CLIENT
+                  - generic: 所有分类
+                  - generic: 免费下蚊
+                  - generic: 免费下蒙
+                  - generic: A
+                  - generic: 三筛选器
+                  - generic: 移动应用
+                  - generic: CONNECTWITH
+                  - generic: 免费下载
+                  - generic: 端讯应用宝
+                  - generic: 田
+                  - generic: 应用
+                  - generic: 主题
+                  - generic: HUB
+                  - generic: 游戏
+                  - generic: SS
+                  - generic: 中
+                  - generic: 终端
+                  - generic: 应用
+                  - generic: 口
+                  - generic: "6"
+                - img "image.png" [ref=f93e595]
+              - generic [ref=f93e108]:
+                - generic [ref=f93e109]: "1."
+                - generic [ref=f93e117]: 找到软件终端，并打开（Win10 系统没有自带，请参考上图，在应用软件内下载安装即可）
+              - generic [ref=f93e121]:
+                - generic:
+                  - generic: 命令提示符
+                  - generic: 最佳匹配
+                  - generic: 终端
+                  - generic: 更多
+                  - generic: 应用
+                  - generic: 文档
+                  - generic: 网页
+                  - generic: 应用
+                  - generic: 应用
+                  - generic: 设置
+                  - generic: 应用
+                  - generic: 终端
+                  - generic: 全部
+                - img "image.png" [ref=f93e596]
+              - generic [ref=f93e123]:
+                - generic [ref=f93e124]: "2."
+                - generic [ref=f93e132]: 打开终端程序，如下图
+              - generic [ref=f93e135]:
+                - generic [ref=f93e136]:
+                  - generic:
+                    - generic: 尝试新的跨平台POWERSHELLHTTPS://AKA.MS/PSCORE6
+                    - generic: 版权所有(C)MICROSOFTCORPORATION.保留所有权利
+                    - generic: PSC:LUSERSLCAOYU>
+                    - generic: WINDOWSPOWERSHELL
+                    - generic: WINDOWSPOWERSHEL
+                  - img "image.png" [ref=f93e597]
+                - generic [ref=f93e138]: 默认标题栏显示 Windows PowerShell
+              - generic [ref=f93e143]:
+                - generic [ref=f93e144]: Windows 的终端分为 2 种类型：
+                - generic [ref=f93e145]:
+                  - generic [ref=f93e146]: ●
+                  - generic [ref=f93e155]:
+                    - generic [ref=f93e156]: CMD
+                    - text: ，传统的老式命令提示符
+                - generic [ref=f93e158]:
+                  - generic [ref=f93e159]: ●
+                  - generic [ref=f93e168]:
+                    - generic [ref=f93e169]: PowerShell
+                    - text: ，微软推出的新一代命令行
+                - generic [ref=f93e171]:
+                  - text: 为了更好的兼容现代化软件和
+                  - generic [ref=f93e172]: Claude Code
+                  - text: 的特性，课程选择 Windows 中的
+                  - generic [ref=f93e174]: PowerShell
+                  - text: 作为终端使用；
+              - generic [ref=f93e177]:
+                - generic [ref=f93e178]:
+                  - text: 我们安装的这个终端软件，默认打开的就是：
+                  - generic [ref=f93e179]: PowerShell
+                  - text: ，如果需要打开老式的
+                  - generic [ref=f93e181]: CMD 命令提示符
+                  - text: 可以按下图所示操作：
+                - generic [ref=f93e186]:
+                  - generic:
+                    - generic: PSC:USERSLCAOYU>
+                    - generic: WINDOWSPOWERSHELL
+                    - generic: 权所有(CMICROSOFT
+                    - generic: 尝试新的跨平台
+                    - generic: WINDOWSPOWERSHELL
+                    - generic: WINDOWSPOWERSHEL
+                    - generic: AZURECLOUDSHEL
+                    - generic: POWERSHELLH
+                    - generic: CTRL+SHIFT+P
+                    - generic: 命令提示符
+                    - generic: CTR+SHIFT+1
+                    - generic: CTRL+SHIFT+2
+                    - generic: 命令面板
+                    - generic: CTRL+SHIFT+3
+                    - generic: CORP
+                    - generic: CTR+
+                    - generic: 关于
+                    - generic: 设警
+                    - generic: 茶
+                    - generic: EY
+                    - generic: 品
+                  - img "image.png" [ref=f93e598]
+              - generic [ref=f93e189]: Mac
+              - generic [ref=f93e203]:
+                - generic [ref=f93e204]: "1."
+                - generic [ref=f93e212]:
+                  - text: 找到应用程序
+                  - generic [ref=f93e213]: 终端
+                  - text: 打开
+              - generic [ref=f93e218]:
+                - generic:
+                  - generic: 一终端
+                  - generic: TER
+                  - generic: 娱乐
+                  - generic: 人
+                  - generic: 终端
+                  - generic: 仓1
+                - img "image.png" [ref=f93e599]
+              - generic [ref=f93e220]:
+                - generic [ref=f93e221]: "2."
+                - generic [ref=f93e229]: 点击打开，即可打开终端程序
+              - generic [ref=f93e234]:
+                - img "image.png"
+              - generic [ref=f93e236]: 二、路径与目录操作（核心）
+              - generic [ref=f93e263]:
+                - text: 1. 当前所在路径 –
+                - generic [ref=f93e264]: pwd
+                - text: （Mac/Linux） /
+                - generic [ref=f93e266]: cd
+                - text: （Windows 显示当前目录）
+              - table [ref=f93e272]:
+                - rowgroup [ref=f93e278]:
+                  - row [ref=f93e279]:
+                    - cell [ref=f93e280]
+                    - cell [ref=f93e283]
+                    - cell [ref=f93e286]
+                    - cell [ref=f93e289]
+                  - row [ref=f93e292]:
+                    - cell [ref=f93e293]
+                    - cell "cd 或 echo %cd%" [ref=f93e296]:
+                      - generic [ref=f93e298]:
+                        - generic [ref=f93e299]: cd
+                        - text: 或
+                        - generic [ref=f93e301]: echo %cd%
+                    - cell "pwd" [ref=f93e303]
+                    - cell "pwd" [ref=f93e308]
+              - generic [ref=f93e327]:
+                - text: 2. 切换目录 –
+                - generic [ref=f93e328]: cd
+              - generic [ref=f93e330]: bash
+              - generic [ref=f93e334]: 示例：
+              - generic [ref=f93e600]:
+                - generic [ref=f93e601]: ●
+                - generic [ref=f93e604]:
+                  - text: Windows CMD：
+                  - generic [ref=f93e605]: cd C:\Users\你的用户名\Documents
+              - generic [ref=f93e607]:
+                - generic [ref=f93e608]: ●
+                - generic [ref=f93e611]:
+                  - text: Mac/Linux：
+                  - generic [ref=f93e612]: cd /Users/你的用户名/Documents
+                  - text: 或
+                  - generic [ref=f93e614]: cd ~/Documents
+              - generic [ref=f93e632]:
+                - text: 3. 列出当前目录内容 –
+                - generic [ref=f93e633]: ls
+                - text: /
+                - generic [ref=f93e635]: dir
+              - table [ref=f93e641]:
+                - rowgroup [ref=f93e646]:
+                  - row [ref=f93e647]:
+                    - cell [ref=f93e648]
+                    - cell [ref=f93e651]
+                    - cell [ref=f93e654]
+                  - row [ref=f93e657]:
+                    - cell [ref=f93e658]
+                    - cell "dir" [ref=f93e661]
+                    - cell [ref=f93e666]
+                  - row [ref=f93e669]:
+                    - cell [ref=f93e670]
+                    - cell "ls" [ref=f93e673]
+                    - cell [ref=f93e678]
+                  - row [ref=f93e681]:
+                    - cell [ref=f93e682]
+                    - cell "ls" [ref=f93e685]
+                    - cell [ref=f93e690]
+                  - row [ref=f93e693]:
+                    - cell [ref=f93e694]
+                    - cell "ls -l （详细信息） ls -a （包含隐藏文件）" [ref=f93e697]:
+                      - generic [ref=f93e698]:
+                        - generic [ref=f93e699]: ls -l
+                        - generic [ref=f93e702]:
+                          - text: （详细信息）
+                          - generic [ref=f93e703]: ls -a
+                        - generic [ref=f93e705]: （包含隐藏文件）
+                    - cell [ref=f93e706]
+              - generic [ref=f93e712]: 三、文件和目录的增删改（基础）
+              - generic [ref=f93e726]: 1. 创建目录
+              - table [ref=f93e744]:
+                - rowgroup [ref=f93e748]:
+                  - row [ref=f93e749]:
+                    - cell [ref=f93e750]
+                    - cell [ref=f93e753]
+                  - row [ref=f93e756]:
+                    - cell [ref=f93e757]
+                    - cell "mkdir 文件夹名" [ref=f93e760]
+                  - row [ref=f93e765]:
+                    - cell [ref=f93e766]
+                    - cell "mkdir 文件夹名 或 New-Item -ItemType Directory 文件夹名" [ref=f93e769]:
+                      - generic [ref=f93e770]:
+                        - generic [ref=f93e771]: mkdir 文件夹名
+                        - generic [ref=f93e774]:
+                          - text: 或
+                          - generic [ref=f93e775]: New-Item -ItemType Directory 文件夹名
+                  - row [ref=f93e777]:
+                    - cell [ref=f93e778]
+                    - cell "mkdir 文件夹名" [ref=f93e781]
+              - generic [ref=f93e789]: 2. 创建空文件
+              - table [ref=f93e807]:
+                - rowgroup [ref=f93e811]:
+                  - row [ref=f93e812]:
+                    - cell [ref=f93e813]
+                    - cell [ref=f93e816]
+                  - row [ref=f93e819]:
+                    - cell [ref=f93e820]
+                    - cell "type nul > 文件名.txt 或 echo. > 文件名.txt" [ref=f93e823]:
+                      - generic [ref=f93e824]:
+                        - generic [ref=f93e825]: type nul > 文件名.txt
+                        - generic [ref=f93e828]:
+                          - text: 或
+                          - generic [ref=f93e829]: echo. > 文件名.txt
+                  - row [ref=f93e831]:
+                    - cell [ref=f93e832]
+                    - cell "New-Item 文件名.txt 或 \"\" > 文件名.txt" [ref=f93e835]:
+                      - generic [ref=f93e836]:
+                        - generic [ref=f93e837]: New-Item 文件名.txt
+                        - generic [ref=f93e840]:
+                          - text: 或
+                          - generic [ref=f93e841]: "\"\" > 文件名.txt"
+                  - row [ref=f93e843]:
+                    - cell [ref=f93e844]
+                    - cell "touch 文件名.txt" [ref=f93e847]
+              - generic [ref=f93e855]: 3. 删除文件
+              - table [ref=f93e873]:
+                - rowgroup [ref=f93e877]:
+                  - row [ref=f93e878]:
+                    - cell [ref=f93e879]
+                    - cell [ref=f93e882]
+                  - row [ref=f93e885]:
+                    - cell [ref=f93e886]
+                    - cell "del 文件名" [ref=f93e889]
+                  - row [ref=f93e894]:
+                    - cell [ref=f93e895]
+                    - cell "Remove-Item 文件名 （也可用 del ）" [ref=f93e898]:
+                      - generic [ref=f93e899]:
+                        - generic [ref=f93e900]: Remove-Item 文件名
+                        - generic [ref=f93e903]:
+                          - text: （也可用
+                          - generic [ref=f93e904]: del
+                        - generic [ref=f93e906]: ）
+                  - row [ref=f93e907]:
+                    - cell [ref=f93e908]
+                    - cell "rm 文件名" [ref=f93e911]
+              - generic [ref=f93e919]: 4. 删除空目录
+              - table [ref=f93e937]:
+                - rowgroup [ref=f93e941]:
+                  - row [ref=f93e942]:
+                    - cell [ref=f93e943]
+                    - cell [ref=f93e946]
+                  - row [ref=f93e949]:
+                    - cell [ref=f93e950]
+                    - cell "rmdir 文件夹名" [ref=f93e953]
+                  - row [ref=f93e958]:
+                    - cell [ref=f93e959]
+                    - cell "Remove-Item 文件夹名" [ref=f93e962]
+                  - row [ref=f93e967]:
+                    - cell [ref=f93e968]
+                    - cell "rmdir 文件夹名 （仅空目录） rm -r 文件夹名 （删除目录及其内容，谨慎使用）" [ref=f93e971]:
+                      - generic [ref=f93e972]:
+                        - generic [ref=f93e973]: rmdir 文件夹名
+                        - generic [ref=f93e976]:
+                          - text: （仅空目录）
+                          - generic [ref=f93e977]: rm -r 文件夹名
+                        - generic [ref=f93e979]: （删除目录及其内容，谨慎使用）
+              - generic [ref=f93e980]:
+                - text: ⚠️ 删除操作不可恢复，请小心，尤其
+                - generic [ref=f93e981]: rm -r
+                - text: 。
+              - generic [ref=f93e986]: 四、查看文件内容
+              - table [ref=f93e1004]:
+                - rowgroup [ref=f93e1009]:
+                  - row [ref=f93e1010]:
+                    - cell [ref=f93e1011]
+                    - cell [ref=f93e1014]
+                    - cell [ref=f93e1017]
+                  - row [ref=f93e1020]:
+                    - cell [ref=f93e1021]
+                    - cell "type 文件名.txt" [ref=f93e1024]
+                    - cell [ref=f93e1029]
+                  - row [ref=f93e1032]:
+                    - cell [ref=f93e1033]
+                    - cell "cat 文件名.txt 或 Get-Content" [ref=f93e1036]:
+                      - generic [ref=f93e1037]:
+                        - generic [ref=f93e1038]: cat 文件名.txt
+                        - generic [ref=f93e1041]:
+                          - text: 或
+                          - generic [ref=f93e1042]: Get-Content
+                    - cell [ref=f93e1044]
+                  - row [ref=f93e1047]:
+                    - cell [ref=f93e1048]
+                    - cell "cat 文件名.txt" [ref=f93e1051]
+                    - cell [ref=f93e1056]
+                  - row [ref=f93e1059]:
+                    - cell [ref=f93e1060]
+                    - cell "less 文件名.txt" [ref=f93e1063]
+                    - cell [ref=f93e1068]
+                  - row [ref=f93e1071]:
+                    - cell [ref=f93e1072]
+                    - cell "head -n 5 文件名.txt" [ref=f93e1075]
+                    - cell [ref=f93e1080]
+              - generic [ref=f93e1086]: 五、清屏
+              - table [ref=f93e1104]:
+                - rowgroup [ref=f93e1108]:
+                  - row [ref=f93e1109]:
+                    - cell [ref=f93e1110]
+                    - cell [ref=f93e1113]
+                  - row [ref=f93e1116]:
+                    - cell [ref=f93e1117]
+                    - cell "cls" [ref=f93e1120]
+                  - row [ref=f93e1125]:
+                    - cell [ref=f93e1126]
+                    - cell "cls 或 Clear-Host" [ref=f93e1129]:
+                      - generic [ref=f93e1130]:
+                        - generic [ref=f93e1131]: cls
+                        - generic [ref=f93e1134]:
+                          - text: 或
+                          - generic [ref=f93e1135]: Clear-Host
+                  - row [ref=f93e1137]:
+                    - cell [ref=f93e1138]
+                    - cell "clear 或 Ctrl + L" [ref=f93e1141]:
+                      - generic [ref=f93e1142]:
+                        - generic [ref=f93e1143]: clear
+                        - generic [ref=f93e1146]:
+                          - text: 或
+                          - generic [ref=f93e1147]: Ctrl + L
+              - generic [ref=f93e1152]: 六、常用快捷键（通用）
+              - table [ref=f93e1170]:
+                - rowgroup [ref=f93e1174]:
+                  - row [ref=f93e1175]:
+                    - cell [ref=f93e1176]
+                    - cell [ref=f93e1179]
+                  - row [ref=f93e1182]:
+                    - cell "Tab" [ref=f93e1183]
+                    - cell [ref=f93e1188]
+                  - row [ref=f93e1191]:
+                    - cell "↑ / ↓" [ref=f93e1192]:
+                      - generic [ref=f93e1193]:
+                        - generic [ref=f93e1194]: ↑
+                        - generic [ref=f93e1197]:
+                          - text: /
+                          - generic [ref=f93e1198]: ↓
+                    - cell [ref=f93e1200]
+                  - row [ref=f93e1203]:
+                    - cell "Ctrl + C" [ref=f93e1204]
+                    - cell [ref=f93e1209]
+                  - row [ref=f93e1212]:
+                    - cell "Ctrl + L" [ref=f93e1213]
+                    - cell [ref=f93e1218]
+                  - row [ref=f93e1221]:
+                    - cell "Ctrl + A / Ctrl + E" [ref=f93e1222]:
+                      - generic [ref=f93e1223]:
+                        - generic [ref=f93e1224]: Ctrl + A
+                        - generic [ref=f93e1227]:
+                          - text: /
+                          - generic [ref=f93e1228]: Ctrl + E
+                    - cell [ref=f93e1230]
+                  - row [ref=f93e1233]:
+                    - cell "Ctrl + R" [ref=f93e1234]
+                    - cell [ref=f93e1239]
+              - generic [ref=f93e1246]: 七、最小化练习
+              - generic [ref=f93e1260]: 在您的电脑上打开终端，依次执行（以 Mac/Linux 为例，Windows 类似）：
+              - generic [ref=f93e1268]: 八、总结 – 您只需牢记这些（复习卡片）
+              - table [ref=f93e1286]:
+                - rowgroup [ref=f93e1291]:
+                  - row [ref=f93e1292]:
+                    - cell [ref=f93e1293]
+                    - cell [ref=f93e1296]
+                    - cell [ref=f93e1299]
+                  - row [ref=f93e1302]:
+                    - cell [ref=f93e1303]
+                    - cell "cd" [ref=f93e1306]
+                    - cell "cd" [ref=f93e1311]
+                  - row [ref=f93e1316]:
+                    - cell [ref=f93e1317]
+                    - cell "dir" [ref=f93e1320]
+                    - cell "ls" [ref=f93e1325]
+                  - row [ref=f93e1330]:
+                    - cell [ref=f93e1331]
+                    - cell "mkdir" [ref=f93e1334]
+                    - cell "mkdir" [ref=f93e1339]
+                  - row [ref=f93e1344]:
+                    - cell [ref=f93e1345]
+                    - cell "type nul > 文件" [ref=f93e1348]
+                    - cell "touch" [ref=f93e1353]
+                  - row [ref=f93e1358]:
+                    - cell [ref=f93e1359]
+                    - cell "del" [ref=f93e1362]
+                    - cell "rm" [ref=f93e1367]
+                  - row [ref=f93e1372]:
+                    - cell [ref=f93e1373]
+                    - cell "type" [ref=f93e1376]
+                    - cell "cat" [ref=f93e1381]
+                  - row [ref=f93e1386]:
+                    - cell [ref=f93e1387]
+                    - cell "cls" [ref=f93e1390]
+                    - cell "clear" [ref=f93e1395]
+                  - row [ref=f93e1400]:
+                    - cell [ref=f93e1401]
+                    - cell "Tab" [ref=f93e1404]
+                    - cell "Tab" [ref=f93e1409]
+                  - row [ref=f93e1414]:
+                    - cell [ref=f93e1415]
+                    - cell "↑" [ref=f93e1418]
+                    - cell "↑" [ref=f93e1423]
+              - generic [ref=f93e1428]: 掌握以上内容，您已经完全具备使用终端配合 Claude Code 的能力。开始愉快的 AI 编程之旅吧！🚀
+            - generic [ref=f93e1432]:
+              - paragraph [ref=f93e1435]: 8 人点赞
+              - list [ref=f93e1436]:
+                - listitem [ref=f93e1437]:
+                  - img "yuki" [ref=f93e1439] [cursor=pointer]
+                - listitem [ref=f93e1440]:
+                  - img ".0" [ref=f93e1442] [cursor=pointer]
+                - listitem [ref=f93e1443]:
+                  - img "w." [ref=f93e1445] [cursor=pointer]
+                - listitem [ref=f93e1446]:
+                  - img "以山河入梦" [ref=f93e1448] [cursor=pointer]
+                - listitem [ref=f93e1449]:
+                  - img "一个王朝的背影" [ref=f93e1451] [cursor=pointer]
+                - listitem [ref=f93e1452]:
+                  - img "斜阳雨月" [ref=f93e1454] [cursor=pointer]
+                - listitem [ref=f93e1455]:
+                  - img "韩某" [ref=f93e1457] [cursor=pointer]
+                - listitem [ref=f93e1458]:
+                  - img "小小曹老师" [ref=f93e1460] [cursor=pointer]
+              - generic [ref=f93e1461] [cursor=pointer]: "8"
+        - generic [ref=f93e336]:
+          - generic [ref=f93e1466]:
+            - generic [ref=f93e1467]:
+              - generic [ref=f93e1468]: 
+              - link "小小曹老师" [ref=f93e1472] [cursor=pointer]:
+                - /url: /xxcls
+            - generic [ref=f93e1474]:
+              - generic [ref=f93e1475]: 
+              - generic [ref=f93e1476]: 06-17 17:36
+            - generic [ref=f93e1477]:
+              - generic [ref=f93e1478]: 
+              - text: "11556"
+            - generic [ref=f93e1480]:
+              - generic [ref=f93e1481]: 
+              - text: "1"
+            - generic [ref=f93e1482]: IP 属地安徽
+            - generic [ref=f93e1484] [cursor=pointer]: 举报
+          - generic [ref=f93e1487]:
+            - text: 分享到：
+            - link [ref=f93e1488] [cursor=pointer]:
+              - /url: https://service.weibo.com/share/share.php?url=https%3A%2F%2Fwww.yuque.com%2Fxxcls%2Fvibecoding%2Fuse_terminal&pic=https%3A%2F%2Fcdn.nlark.com%2Fyuque%2F0%2F2026%2Fpng%2F12371070%2F1781698950797-45213f6a-3a71-4746-a8aa-52545bd522df.png&title=%E7%BB%88%E7%AB%AF%EF%BC%88%E5%91%BD%E4%BB%A4%E8%A1%8C%EF%BC%89%E7%9A%84%E5%9F%BA%E7%A1%80%E4%BD%BF%E7%94%A8%20%7C%20%E7%9B%AE%E6%A0%87%EF%BC%9A%E6%8E%8C%E6%8F%A1%E6%9C%80%E5%B8%B8%E7%94%A8%E7%9A%84%E7%BB%88%E7%AB%AF%E5%91%BD%E4%BB%A4%EF%BC%8C%E8%83%BD%E5%A4%9F%E6%89%93%E5%BC%80%E7%BB%88%E7%AB%AF%E3%80%81%E5%88%87%E6%8D%A2%E7%9B%AE%E5%BD%95%E3%80%81%E7%AE%A1%E7%90%86%E6%96%87%E4%BB%B6%E3%80%81%E8%BF%90%E8%A1%8C%E7%AE%80%E5%8D%95%E7%A8%8B%E5%BA%8F%E3%80%82%E4%B8%8D%E9%9C%80%E8%A6%81%E8%83%8C%E5%A4%A7%E9%87%8F%E5%91%BD%E4%BB%A4%EF%BC%8C%E6%8E%8C%E6%8F%A1%2010%20%E4%B8%AA%E5%B7%A6%E5%8F%B3%E6%A0%B8%E5%BF%83%E5%91%BD%E4%BB%A4%E5%8D%B3%E5%8F%AF%E9%A1%BA%E5%88%A9%E5%BC%80%E5%A7%8B%20Claude%20Code%20%E7%9A%84%E5%AD%A6%E4%B9%A0%E3%80%82%E4%B8%80%E3%80%81%E6%89%93%E5%BC%80%E7%BB%88%E7%AB%AFWindowsWindows%2010%20%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%90%8C%E5%AD%A6%E5%8F%AF%E4%BB%A5%E5%9C%A8%E5%BA%94%E7%94%A8%E5%95%86%E5%BA%97%E5%86%85%E6%90%9C%E7%B4%A2%E5%B9%B6%E5%AE%89%E8%A3%85%20Windows%20Terminal%E8%BD%AF%E4%BB%B6%EF%BC%88Wi...
+        - generic [ref=f93e1496]:
+          - generic [ref=f93e1498]:
+            - generic [ref=f93e1499]:
+              - tablist [ref=f93e1501]:
+                - tab "全部评论 (1)" [selected] [ref=f93e1505] [cursor=pointer]
+              - generic [ref=f93e1508] [cursor=pointer]:
+                - combobox [ref=f93e1510]
+                - generic: 全部人员
+            - generic [ref=f93e1518]:
+              - link [ref=f93e1520] [cursor=pointer]:
+                - /url: /sunye-v8174
+                - img "sunye" [ref=f93e1522]
+              - generic [ref=f93e1524]:
+                - generic [ref=f93e1525]:
+                  - link "sunye" [ref=f93e1526] [cursor=pointer]:
+                    - /url: /sunye-v8174
+                  - link "07-12 20:18" [ref=f93e1527] [cursor=pointer]:
+                    - /url: "#comment-51364706"
+                  - generic [ref=f93e1528]: IP 属地山东
+                - generic [ref=f93e1530]: 这文档 像是AI生成的
+            - generic [ref=f93e1537]: 注册 / 登录 语雀进行评论
+          - generic [ref=f93e1540] [cursor=pointer]: "1"
+      - generic [ref=f93e1544]: 1289字
+      - generic [ref=f93e1548]:
+        - img "语雀" [ref=f93e1550]
+        - generic [ref=f93e1552]:
+          - link "关于语雀" [ref=f93e1553] [cursor=pointer]:
+            - /url: /help/about
+          - link "使用帮助" [ref=f93e1554] [cursor=pointer]:
+            - /url: /help
+          - link "数据安全" [ref=f93e1555] [cursor=pointer]:
+            - /url: /about/security
+          - link "服务协议" [ref=f93e1556] [cursor=pointer]:
+            - /url: /terms
+          - link "English" [ref=f93e1558] [cursor=pointer]:
+            - /url: "?language=en-us"
+          - link "快速注册" [ref=f93e1559] [cursor=pointer]:
+            - /url: /login
+  - generic [ref=f93e338]:
+    - generic [ref=f93e339]:
+      - generic [ref=f93e341]:
+        - link [ref=f93e342] [cursor=pointer]:
+          - /url: /dashboard
+        - link "小小曹老师" [ref=f93e353] [cursor=pointer]:
+          - /url: /xxcls
+      - generic "VibeCoding零基础实战开发" [ref=f93e364]
+    - navigation [ref=f93e371]:
+      - generic [ref=f93e373] [cursor=pointer]:
+        - generic [ref=f93e376]: 搜索
+        - generic [ref=f93e377]: Ctrl + J
+      - generic [ref=f93e378] [cursor=pointer]: 首页
+      - generic [ref=f93e382]:
+        - generic [ref=f93e383]: 目录
+        - tabpanel [ref=f93e397]:
+          - generic [ref=f93e401]:
+            - generic "「分组」- 😃Part1 环境部署" [ref=f93e408] [cursor=pointer]: 😃Part1 环境部署
+            - link "title-mark-emoji NodeJS部署" [ref=f93e411] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/pf4z6gqdqmzi43gl
+              - generic "NodeJS部署" [ref=f93e414]:
+                - generic "title-mark-emoji" [ref=f93e415]: 📊
+            - link "title-mark-emoji Python环境部署" [ref=f93e419] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/deploy_py
+              - generic "Python环境部署" [ref=f93e422]:
+                - generic "title-mark-emoji" [ref=f93e423]: 🚀
+            - link "title-mark-emoji git部署" [ref=f93e427] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/deploy_git
+              - generic "git部署" [ref=f93e430]:
+                - generic "title-mark-emoji" [ref=f93e431]: 📑
+            - link "title-mark-emoji Claude Code部署" [ref=f93e435] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/deploy_cc
+              - generic "Claude Code部署" [ref=f93e438]:
+                - generic "title-mark-emoji" [ref=f93e439]: 🖥️
+            - link "title-mark-emoji Claude Code和VScode集成" [ref=f93e443] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/alzdopq4gcl0czst
+              - generic "Claude Code和VScode集成" [ref=f93e446]:
+                - generic "title-mark-emoji" [ref=f93e447]: 🎨
+            - link "title-mark-emoji 入门实战项目" [ref=f93e451] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/wmmswml3wi874b7v
+              - generic "入门实战项目" [ref=f93e454]:
+                - generic "title-mark-emoji" [ref=f93e455]: 😼
+            - link "title-mark-emoji Part2 工程化控制和Agent开发" [ref=f93e459] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/ia0yu2m1v3sl537p
+              - generic "Part2 工程化控制和Agent开发" [ref=f93e462]:
+                - generic "title-mark-emoji" [ref=f93e463]: 😄
+            - link "title-mark-emoji Part3 LangChain RAG项目实战" [ref=f93e467] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/mtwqfc61tifo9cgi
+              - generic "Part3 LangChain RAG项目实战" [ref=f93e470]:
+                - generic "title-mark-emoji" [ref=f93e471]: 🤣
+            - link "title-mark-emoji 扩展 CodeX集成DeepSeek" [ref=f93e475] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/dnm8scnrde9ep45e
+              - generic "扩展 CodeX集成DeepSeek" [ref=f93e478]:
+                - generic "title-mark-emoji" [ref=f93e479]: 🤗
+            - link "title-mark-emoji 终端（命令行）的基础使用" [ref=f93e483] [cursor=pointer]:
+              - /url: /xxcls/vibecoding/use_terminal
+              - generic "终端（命令行）的基础使用" [ref=f93e486]:
+                - generic "title-mark-emoji" [ref=f93e487]: 🔒
+  - generic [ref=f93e495]:
+    - generic [ref=f93e496]: 大纲
+    - generic [ref=f93e507]:
+      - generic [ref=f93e509]:
+        - generic [ref=f93e510] [cursor=pointer]: 
+        - generic "一、打开终端" [ref=f93e513]:
+          - link "一、打开终端" [ref=f93e514] [cursor=pointer]:
+            - /url: "#Z8LWk"
+      - generic "Windows" [ref=f93e517]:
+        - link "Windows" [ref=f93e518] [cursor=pointer]:
+          - /url: "#MFwce"
+      - generic "Mac" [ref=f93e521]:
+        - link "Mac" [ref=f93e522] [cursor=pointer]:
+          - /url: "#PJ9nK"
+      - generic [ref=f93e524]:
+        - generic [ref=f93e525] [cursor=pointer]: 
+        - generic "二、路径与目录操作（核心）" [ref=f93e528]:
+          - link "二、路径与目录操作（核心）" [ref=f93e529] [cursor=pointer]:
+            - /url: "#77d1114e"
+      - generic "1. 当前所在路径 – pwd（Mac/Linux） / cd（Windows 显示当前目录）" [ref=f93e532]:
+        - link "1. 当前所在路径 – pwd（Mac/Linux） / cd（Windows 显示当前目录）" [ref=f93e533] [cursor=pointer]:
+          - /url: "#a1ca4b40"
+      - generic "2. 切换目录 – cd" [ref=f93e536]:
+        - link "2. 切换目录 – cd" [ref=f93e537] [cursor=pointer]:
+          - /url: "#acab21ac"
+      - generic "3. 列出当前目录内容 – ls / dir" [ref=f93e540]:
+        - link "3. 列出当前目录内容 – ls / dir" [ref=f93e541] [cursor=pointer]:
+          - /url: "#8c4d5ce2"
+      - generic [ref=f93e543]:
+        - generic [ref=f93e544] [cursor=pointer]: 
+        - generic "三、文件和目录的增删改（基础）" [ref=f93e547]:
+          - link "三、文件和目录的增删改（基础）" [ref=f93e548] [cursor=pointer]:
+            - /url: "#5c7cbe9c"
+      - generic "1. 创建目录" [ref=f93e551]:
+        - link "1. 创建目录" [ref=f93e552] [cursor=pointer]:
+          - /url: "#d87cece3"
+      - generic "2. 创建空文件" [ref=f93e555]:
+        - link "2. 创建空文件" [ref=f93e556] [cursor=pointer]:
+          - /url: "#aba6c0d0"
+      - generic "3. 删除文件" [ref=f93e559]:
+        - link "3. 删除文件" [ref=f93e560] [cursor=pointer]:
+          - /url: "#b30a884a"
+      - generic "4. 删除空目录" [ref=f93e563]:
+        - link "4. 删除空目录" [ref=f93e564] [cursor=pointer]:
+          - /url: "#50ed3987"
+      - generic "四、查看文件内容" [ref=f93e567]:
+        - link "四、查看文件内容" [ref=f93e568] [cursor=pointer]:
+          - /url: "#1fc1ccf2"
+      - generic "五、清屏" [ref=f93e571]:
+        - link "五、清屏" [ref=f93e572] [cursor=pointer]:
+          - /url: "#bc50450f"
+      - generic "六、常用快捷键（通用）" [ref=f93e575]:
+        - link "六、常用快捷键（通用）" [ref=f93e576] [cursor=pointer]:
+          - /url: "#25bf1370"
+      - generic "七、最小化练习" [ref=f93e579]:
+        - link "七、最小化练习" [ref=f93e580] [cursor=pointer]:
+          - /url: "#OGWn3"
+      - generic "八、总结 – 您只需牢记这些（复习卡片）" [ref=f93e583]:
+        - link "八、总结 – 您只需牢记这些（复习卡片）" [ref=f93e584] [cursor=pointer]:
+          - /url: "#hLWt7"
