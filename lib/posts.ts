@@ -33,7 +33,7 @@ export interface ArchiveYear {
 
 const postsDirectory = join(process.cwd(), 'content', 'posts')
 
-/** Parse reading time from word count (Chinese: ~300 chars/min, English: ~200 words/min) */
+/** Parse reading time from word count (Chinese: ~400 chars/min, English: ~225 words/min) */
 function estimateReadingTime(text: string): number {
   const cleaned = text.replace(/```[\s\S]*?```/g, '').replace(/[#*\->`|~]/g, '')
   const chineseChars = (cleaned.match(/[一-鿿]/g) || []).length
@@ -41,7 +41,7 @@ function estimateReadingTime(text: string): number {
     .replace(/[一-鿿]/g, '')
     .split(/\s+/)
     .filter(Boolean).length
-  const minutes = Math.ceil(chineseChars / 300 + englishWords / 200)
+  const minutes = Math.ceil(chineseChars / 400 + englishWords / 225)
   return Math.max(1, minutes)
 }
 
