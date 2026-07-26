@@ -92,7 +92,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         <img
           src={imgSrc}
           alt={alt || ''}
-          className="my-6 rounded-xl shadow-lg w-full"
+          className="my-6 rounded-xl shadow-lg max-w-full h-auto"
           loading="lazy"
           {...props as ImgHTMLAttributes<HTMLImageElement>}
         />
