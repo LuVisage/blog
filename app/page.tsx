@@ -11,7 +11,7 @@ import { CurrentYear } from '@/components/ui/current-year'
 import {
   IconBook, IconBrandGithub, IconSparkles,
   IconArticle, IconFolderFilled, IconTag, IconRss,
-  IconMail, IconArrowRight, IconFlame,
+  IconMail, IconArrowRight, IconFlame, IconChevronDown,
 } from '@tabler/icons-react'
 import Link from 'next/link'
 
@@ -108,6 +108,13 @@ export default function HomePage() {
                 icon={<IconSparkles size={18} strokeWidth={1.5} style={{ color: 'var(--color-accent-gold)' }} />}
               />
             </StatsTileRow>
+
+            {/* Scroll-down indicator */}
+            <div className="flex justify-center mt-8">
+              <span className="animate-bounce inline-flex items-center justify-center w-8 h-8 rounded-full glass cursor-default" aria-hidden="true">
+                <IconChevronDown size={16} strokeWidth={2} style={{ color: 'var(--color-muted)' }} />
+              </span>
+            </div>
           </div>
         </AuroraBackground>
       </section>

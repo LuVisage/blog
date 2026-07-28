@@ -34,7 +34,7 @@ export function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="relative px-3 py-1.5 rounded-xl text-sm font-medium transition-colors duration-150"
+                  className="relative px-3 py-1.5 rounded-xl text-sm font-medium transition-colors duration-150 cursor-pointer"
                   style={{
                     color: isActive ? 'var(--color-ink)' : 'var(--color-muted)',
                     backgroundColor: isActive ? 'rgba(255,255,255,0.5)' : 'transparent',

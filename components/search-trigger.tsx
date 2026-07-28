@@ -21,7 +21,7 @@ export function SearchTrigger() {
   return (
     <button
       onClick={() => router.push('/search')}
-      className="btn-ghost h-8 px-3 text-sm gap-1.5"
+      className="btn-ghost h-8 px-3 text-sm gap-1.5 cursor-pointer"
     >
       <IconSearch size={14} strokeWidth={1.5} />
       <span>搜索</span>
