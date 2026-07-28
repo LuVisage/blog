@@ -46,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://api.github.com" crossOrigin="anonymous" />
       </head>
       <body className="flex flex-col min-h-screen relative bg-body">
+        <a href="#main-content" className="skip-to-content">跳到主要内容</a>
         <ThemeProvider>
           <GSAPProvider>
           {/* Subtle floating particles — just enough for atmosphere */}
@@ -58,7 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
           <BackgroundDecor />
           <Header />
-          <main className="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10">
+          <main id="main-content" className="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10">
             {children}
           </main>
           <Footer />

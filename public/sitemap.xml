@@ -2,75 +2,69 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://LuVisage.github.io/blog/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>1.0</priority>
     <changefreq>daily</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/posts/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.9</priority>
     <changefreq>daily</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/archive/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.7</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/categories/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.6</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/tags/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.6</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/series/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.5</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/search/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.3</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/about/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/projects/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/friends/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.3</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/privacy/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.1</priority>
     <changefreq>yearly</changefreq>
-  </url>
-  <url>
-    <loc>https://LuVisage.github.io/blog/posts/vibecoding-tutorial/</loc>
-    <lastmod>2026-07-26</lastmod>
-    <priority>0.85</priority>
-    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/posts/lora-trainer-intro/</loc>
@@ -85,98 +79,56 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://LuVisage.github.io/blog/tags/VibeCoding/</loc>
-    <lastmod>2026-07-26</lastmod>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://LuVisage.github.io/blog/tags/Claude%20Code/</loc>
-    <lastmod>2026-07-26</lastmod>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://LuVisage.github.io/blog/tags/DeepSeek/</loc>
-    <lastmod>2026-07-26</lastmod>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://LuVisage.github.io/blog/tags/AI%E5%BC%80%E5%8F%91/</loc>
-    <lastmod>2026-07-26</lastmod>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://LuVisage.github.io/blog/tags/%E9%9B%B6%E5%9F%BA%E7%A1%80%E7%BC%96%E7%A8%8B/</loc>
-    <lastmod>2026-07-26</lastmod>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://LuVisage.github.io/blog/tags/%E5%AE%9E%E6%88%98%E6%95%99%E7%A8%8B/</loc>
-    <lastmod>2026-07-26</lastmod>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
     <loc>https://LuVisage.github.io/blog/tags/AI/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/tags/LoRA/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/tags/%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%BE%AE%E8%B0%83/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/tags/%E5%BC%80%E6%BA%90%E5%B7%A5%E5%85%B7/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/tags/LLM/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/tags/Blog/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/tags/AI%20Agent/</loc>
-    <lastmod>2026-07-26</lastmod>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://LuVisage.github.io/blog/categories/AI/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/categories/Blog/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/series/%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA/</loc>
-    <lastmod>2026-07-26</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <priority>0.5</priority>
     <changefreq>monthly</changefreq>
   </url>

@@ -6,23 +6,11 @@
   <link href="https://LuVisage.github.io/blog" rel="alternate"/>
   <link href="https://LuVisage.github.io/blog/atom.xml" rel="self"/>
   <id>https://LuVisage.github.io/blog/</id>
-  <updated>2026-07-26T00:00:00.000Z</updated>
+  <updated>2026-07-21T00:00:00.000Z</updated>
   <author>
     <name>Baron_Zhang</name>
     <email>1977928878@qq.com</email>
   </author>
-  <entry>
-    <title>Vibe Coding 从入门到躺平：零基础靠嘴写代码的终极指南</title>
-    <link href="https://LuVisage.github.io/blog/posts/vibecoding-tutorial/"/>
-    <id>https://LuVisage.github.io/blog/posts/vibecoding-tutorial/</id>
-    <published>2026-07-26T00:00:00.000Z</published>
-    <updated>2026-07-26T00:00:00.000Z</updated>
-    <summary>不会写代码？没关系，有嘴就行。本文手把手教你用 Claude Code + DeepSeek V4 Pro 从零搭建 RAG 知识库助手，涵盖导读、环境部署、Skills、MCP、Subagent、Hooks 等全栈功能，顺便聊聊为什么 CodeX 不适合国人，以及如何让 AI 写代码只花一杯奶茶钱。</summary>
-    <author>
-      <name>Baron_Zhang</name>
-      <email>1977928878@qq.com</email>
-    </author>
-  </entry>
   <entry>
     <title>介绍 lora-trainer：一键搞定大模型 LoRA 微调</title>
     <link href="https://LuVisage.github.io/blog/posts/lora-trainer-intro/"/>

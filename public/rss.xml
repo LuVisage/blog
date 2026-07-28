@@ -6,16 +6,8 @@
     <link>https://LuVisage.github.io/blog</link>
     <description>AI 探索者 &amp; Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sun, 26 Jul 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Tue, 21 Jul 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://LuVisage.github.io/blog/rss.xml" rel="self" type="application/rss+xml"/>
-    <item>
-      <title>Vibe Coding 从入门到躺平：零基础靠嘴写代码的终极指南</title>
-      <link>https://LuVisage.github.io/blog/posts/vibecoding-tutorial/</link>
-      <guid>https://LuVisage.github.io/blog/posts/vibecoding-tutorial/</guid>
-      <description>不会写代码？没关系，有嘴就行。本文手把手教你用 Claude Code + DeepSeek V4 Pro 从零搭建 RAG 知识库助手，涵盖导读、环境部署、Skills、MCP、Subagent、Hooks 等全栈功能，顺便聊聊为什么 CodeX 不适合国人，以及如何让 AI 写代码只花一杯奶茶钱。</description>
-      <pubDate>Sun, 26 Jul 2026 00:00:00 GMT</pubDate>
-      
-    </item>
     <item>
       <title>介绍 lora-trainer：一键搞定大模型 LoRA 微调</title>
       <link>https://LuVisage.github.io/blog/posts/lora-trainer-intro/</link>

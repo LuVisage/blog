@@ -11,7 +11,7 @@ import { CurrentYear } from '@/components/ui/current-year'
 import {
   IconBook, IconBrandGithub, IconSparkles,
   IconArticle, IconFolderFilled, IconTag, IconRss,
-  IconMail, IconArrowRight,
+  IconMail, IconArrowRight, IconFlame,
 } from '@tabler/icons-react'
 import Link from 'next/link'
 
@@ -22,7 +22,8 @@ export default function HomePage() {
   const categories = getAllCategories()
 
   const popularPosts = getPopularPosts(6)
-  const recentOthers = posts.slice(0, 4) // max 4 recent posts
+  const popularSlugs = new Set(popularPosts.map(p => p.slug))
+  const recentOthers = posts.filter(p => !popularSlugs.has(p.slug)).slice(0, 4) // deduped recent posts
 
   return (
     <div>
@@ -119,7 +120,7 @@ export default function HomePage() {
           <div className="glass-card rounded-2xl p-6 sm:p-8 flex flex-col h-full">
             {/* Title */}
             <div className="flex items-center gap-2 mb-6">
-              <span className="text-lg">🔥</span>
+              <IconFlame size={20} strokeWidth={1.5} style={{ color: 'var(--color-accent-gold)' }} />
               <h2 className="heading-2">热门文章</h2>
             </div>
 
@@ -169,9 +170,9 @@ export default function HomePage() {
                 ))}
               </div>
             ) : (
-              <div className="flex-1 flex items-center justify-center" style={{ color: 'var(--color-muted)' }}>
+              <div className="flex-1 flex flex-col items-center justify-center" style={{ color: 'var(--color-muted)' }}>
                 <IconArticle size={40} strokeWidth={1.5} className="mx-auto mb-3" style={{ color: 'var(--color-primary)' }} />
-                <p className="text-sm">还没有文章，开始写作吧 ✨</p>
+                <p className="text-sm">还没有文章，开始写作吧</p>
               </div>
             )}
           </div>

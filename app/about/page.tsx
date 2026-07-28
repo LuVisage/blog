@@ -2,7 +2,14 @@ import type { Metadata } from 'next'
 import { SITE, ABOUT, SOCIAL_LINKS } from '@/lib/constants'
 import { AvatarImage } from '@/components/avatar-image'
 import { AnimatedContent } from '@/components/ui/animated-content'
-import { IconBrandGithub, IconMail, IconTools, IconCalendarClock } from '@tabler/icons-react'
+import { IconBrandGithub, IconMail, IconTools, IconCalendarClock, IconRobot, IconBrain, IconPencil, IconCode } from '@tabler/icons-react'
+
+const FOCUS_ICONS: Record<string, React.ReactNode> = {
+  '🤖': <IconRobot size={18} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />,
+  '🧠': <IconBrain size={18} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />,
+  '🛠️': <IconTools size={18} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />,
+  '📝': <IconPencil size={18} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />,
+}
 
 export const metadata: Metadata = {
   title: '关于',
@@ -93,7 +100,7 @@ export default function AboutPage() {
             <ul className="my-4 space-y-2">
               {ABOUT.focusAreas.map((area, i) => (
                 <li key={i} className="body-md flex items-start gap-2">
-                  <span className="flex-shrink-0 mt-0.5">{area.icon}</span>
+                  <span className="flex-shrink-0 mt-0.5">{FOCUS_ICONS[area.icon] || area.icon}</span>
                   <span>
                     <strong className="font-semibold" style={{ color: 'var(--color-ink)' }}>{area.title}</strong>
                     {'：'}{area.desc}

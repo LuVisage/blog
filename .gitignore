@@ -26,3 +26,6 @@ npm-debug.log*
 # vercel
 .vercel/
 tsconfig.tsbuildinfo
+
+# playwright MCP temp
+.playwright-mcp/
