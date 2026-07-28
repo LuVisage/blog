@@ -25,8 +25,4 @@ npm-debug.log*
 
 # vercel
 .vercel/
-.playwright-mcp/
 tsconfig.tsbuildinfo
-
-# temp image staging
-write/
