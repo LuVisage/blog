@@ -24,7 +24,9 @@ export default function HomePage() {
 
   const popularPosts = getPopularPosts(6)
   const popularSlugs = new Set(popularPosts.map(p => p.slug))
-  const recentOthers = posts.filter(p => !popularSlugs.has(p.slug)).slice(0, 4)
+  // 去重：先过滤掉热门文章，如果去重后为空（文章太少），则回退到全部最新文章
+  const deduped = posts.filter(p => !popularSlugs.has(p.slug)).slice(0, 4)
+  const recentOthers = deduped.length > 0 ? deduped : posts.slice(0, 4)
 
   return (
     <div>
