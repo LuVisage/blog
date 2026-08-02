@@ -22,7 +22,8 @@ export default function SeriesPage() {
           <h1 className="text-3xl lg:text-4xl font-bold mb-2">
             <span className="gradient-text">系列</span>
           </h1>
-          <p className="body-sm">
+          <p className="body-sm flex items-center gap-1.5">
+            <IconBooks size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
             共 {series.length} 个系列
           </p>
         </div>
@@ -37,14 +38,16 @@ export default function SeriesPage() {
                 href={`/series/${name}`}
                 className="group rounded-2xl glass-card p-5 sm:p-6 block"
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <IconBooks size={28} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
-                  <h3 className="heading-3">{name}</h3>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary-soft)' }}>
+                    <IconBooks size={22} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
+                  </div>
+                  <h3 className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{name}</h3>
                 </div>
-                <p className="body-sm">
+                <p className="body-sm mb-3">
                   共 {count} 篇文章
                 </p>
-                <div className="mt-3 flex items-center gap-1 caption group-hover:gap-2 transition-all">
+                <div className="flex items-center gap-1 caption group-hover:gap-2 transition-all group-hover:text-[var(--color-primary)]">
                   <span>查看系列</span>
                   <IconArrowRight size={12} strokeWidth={2} />
                 </div>

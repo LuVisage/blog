@@ -8,10 +8,10 @@ export function TerminalGreeting() {
         border: '1px solid var(--color-hairline)',
       }}
     >
-      <span style={{ color: 'var(--color-primary)' }}>$</span>
-      <span>echo "AI 探索者 & Agent 开发者"</span>
+      <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>$</span>
+      <span>echo &quot;AI 探索者 &amp; Agent 开发者&quot;</span>
       <span
-        className="inline-block w-2 h-4 ml-0.5 rounded-sm"
+        className="inline-block w-2 h-4 ml-0.5 rounded-sm animate-pulse"
         style={{ background: 'var(--color-primary)' }}
       />
     </div>

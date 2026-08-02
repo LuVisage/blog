@@ -4,7 +4,7 @@ import { getAllPosts, getPaginatedPosts } from '@/lib/posts'
 import { PostList } from '@/components/post-card'
 import { Pagination } from '@/components/pagination'
 import { AnimatedContent } from '@/components/ui/animated-content'
-import { BlurText } from '@/components/ui/blur-text'
+import { IconArticle } from '@tabler/icons-react'
 
 export const metadata: Metadata = {
   title: '文章',
@@ -24,15 +24,10 @@ export default function PostsPage() {
       <AnimatedContent direction="up">
         <div className="mb-8 lg:mb-10">
           <h1 className="text-3xl lg:text-4xl font-bold mb-2">
-            <BlurText
-              text="文章"
-              duration={0.04}
-              delay={0.1}
-              as="span"
-              className="gradient-text"
-            />
+            <span className="gradient-text">文章</span>
           </h1>
-          <p className="body-sm lg:text-base">
+          <p className="body-sm flex items-center gap-1.5">
+            <IconArticle size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
             共 {totalPosts} 篇文章
           </p>
         </div>

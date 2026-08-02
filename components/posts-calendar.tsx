@@ -14,7 +14,7 @@ interface Props {
 }
 
 const MONTH_COUNT = 6
-const DAY_SIZE = 12
+const DAY_SIZE = 13
 
 export function PostsCalendar({ posts }: Props) {
   const [tooltip, setTooltip] = useState<{ date: Date; posts: PostMeta[]; x: number; y: number } | null>(null)
@@ -55,37 +55,37 @@ export function PostsCalendar({ posts }: Props) {
 
   if (posts.length === 0) return null
 
-  // Calendar day cell color based on post count
   const getCellStyle = (hasPost: boolean, isMulti: boolean): React.CSSProperties => {
     if (!hasPost) return {
       background: 'var(--color-hairline-soft)',
-      boxShadow: '0 0 0 1px var(--color-hairline)',
+      boxShadow: '0 0 0 0.5px var(--color-hairline)',
     }
     if (isMulti) return {
-      background: 'var(--color-ink)',
-      boxShadow: '0 0 0 1px var(--color-border-strong)',
+      background: 'var(--color-primary)',
+      boxShadow: '0 0 0 0.5px var(--color-border-strong)',
     }
     return {
-      background: 'var(--color-muted)',
+      background: 'var(--color-primary)',
+      opacity: 0.6,
     }
   }
 
   return (
-    <div className="rounded-2xl glass-card p-4 sm:p-6">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="rounded-2xl glass-card p-5 sm:p-6" style={{ cursor: 'default' }}>
+      <div className="flex items-center gap-2 mb-5">
         <IconCalendar size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
         <span className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
           文章日历
         </span>
-        <span className="text-xs ml-auto" style={{ color: 'var(--color-muted)' }}>
+        <span className="text-xs ml-auto px-2 py-0.5 rounded-full glass" style={{ color: 'var(--color-muted)' }}>
           {posts.length} 篇
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-6">
+      <div className="flex flex-wrap gap-5 sm:gap-6">
         {months.map(({ month, days, label }) => (
           <div key={label} className="flex flex-col gap-1">
-            <span className="text-[11px] leading-none mb-1" style={{ color: 'var(--color-muted-soft)' }}>
+            <span className="text-[11px] leading-none mb-1 font-medium" style={{ color: 'var(--color-muted-soft)' }}>
               {label}
             </span>
             <div
@@ -106,10 +106,11 @@ export function PostsCalendar({ posts }: Props) {
                     style={{
                       width: DAY_SIZE,
                       height: DAY_SIZE,
-                      ...(isFuture ? {} : getCellStyle(hasPost, dayPosts.length > 1)),
-                      borderRadius: 2,
+                      ...(isFuture ? { background: 'transparent' } : getCellStyle(hasPost, dayPosts.length > 1)),
+                      borderRadius: 3,
+                      cursor: hasPost ? 'pointer' : 'default',
                     }}
-                    className="transition-all hover:scale-150 hover:z-10 relative"
+                    className="transition-transform hover:scale-150 hover:z-10 relative"
                     title={hasPost
                       ? `${format(day, 'yyyy年M月d日', { locale: zhCN })}\n${dayPosts.map((p) => p.title).join('\n')}`
                       : format(day, 'M月d日', { locale: zhCN })
@@ -147,15 +148,15 @@ export function PostsCalendar({ posts }: Props) {
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-4 text-[10px]" style={{ color: 'var(--color-muted-soft)' }}>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] inline-block" style={{ background: 'var(--color-hairline-soft)', boxShadow: '0 0 0 1px var(--color-hairline)' }} /> 无
+      <div className="flex items-center gap-4 mt-5 text-[10px] font-medium" style={{ color: 'var(--color-muted-soft)' }}>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-[2px] inline-block" style={{ background: 'var(--color-hairline-soft)', boxShadow: '0 0 0 0.5px var(--color-hairline)' }} /> 无
         </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] inline-block" style={{ background: 'var(--color-muted)' }} /> 1 篇
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-[2px] inline-block opacity-60" style={{ background: 'var(--color-primary)' }} /> 1 篇
         </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-[2px] inline-block" style={{ background: 'var(--color-ink)' }} /> 多篇
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-[2px] inline-block" style={{ background: 'var(--color-primary)' }} /> 多篇
         </span>
       </div>
     </div>

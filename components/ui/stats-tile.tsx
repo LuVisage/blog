@@ -32,7 +32,7 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
       ([entry]) => {
         if (entry?.isIntersecting && !animated.current) {
           animated.current = true
-          animateCount(0, numValue, 800, setDisplayValue)
+          animateCount(0, numValue, 900, setDisplayValue)
           observer.disconnect()
         }
       },
@@ -46,24 +46,23 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
   return (
     <div
       ref={ref}
-      className="glass-card rounded-2xl p-5 sm:p-6 text-center flex flex-col items-center justify-center gap-2 min-h-[96px]"
+      className="glass-card rounded-2xl p-5 sm:p-6 text-center flex flex-col items-center justify-center gap-2 min-h-[100px]"
     >
-      {icon && <div className="mb-1">{icon}</div>}
+      {icon && <div className="mb-0.5">{icon}</div>}
       <div
-        className="text-2xl sm:text-3xl font-bold font-mono"
+        className="text-2xl sm:text-3xl font-bold font-mono tracking-tight"
         style={{ color: 'var(--color-ink)' }}
       >
         {isNumber ? displayValue : value}
         {suffix}
       </div>
-      <div className="text-xs" style={{ color: 'var(--color-muted)' }}>
+      <div className="text-xs font-medium tracking-wide uppercase" style={{ color: 'var(--color-muted)' }}>
         {label}
       </div>
     </div>
   )
 }
 
-/** Smooth count-up animation using requestAnimationFrame */
 function animateCount(
   from: number,
   to: number,
@@ -86,7 +85,7 @@ function animateCount(
 
 export function StatsTileRow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
       {children}
     </div>
   )

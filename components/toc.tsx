@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { IconList } from '@tabler/icons-react'
 
 interface TocItem {
   id: string
@@ -73,17 +74,10 @@ export function TableOfContents() {
 
   return (
     <>
-      {/* Desktop: sidebar TOC — fills parent height, parent provides card shell */}
-      <nav className="hidden xl:flex xl:flex-col xl:h-full">
+      {/* Desktop: sidebar TOC */}
+      <nav className="hidden xl:flex xl:flex-col">
         <h4 className="text-xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--color-body)' }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="8" y1="6" x2="21" y2="6" />
-            <line x1="8" y1="12" x2="21" y2="12" />
-            <line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" />
-            <line x1="3" y1="12" x2="3.01" y2="12" />
-            <line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
+          <IconList size={14} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
           目录
         </h4>
         <ul className="space-y-0.5 flex-1 overflow-y-auto">
@@ -97,6 +91,7 @@ export function TableOfContents() {
                   color: activeId === id ? 'var(--color-ink)' : 'var(--color-body)',
                   fontWeight: activeId === id ? 500 : 400,
                   borderColor: activeId === id ? 'var(--color-primary)' : 'transparent',
+                  paddingLeft: level === 3 ? '1.5rem' : '0.75rem',
                 }}
               >
                 {text}
@@ -113,14 +108,7 @@ export function TableOfContents() {
           className="flex items-center gap-2 px-4 py-2.5 rounded-2xl glass text-sm transition-colors w-full"
           style={{ color: 'var(--color-ink)' }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="8" y1="6" x2="21" y2="6" />
-            <line x1="8" y1="12" x2="21" y2="12" />
-            <line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" />
-            <line x1="3" y1="12" x2="3.01" y2="12" />
-            <line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
+          <IconList size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
           文章目录
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -132,14 +120,14 @@ export function TableOfContents() {
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className={`ml-auto transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            className={`ml-auto transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
           >
             <path d="m6 9 6 6 6-6" />
           </svg>
         </button>
 
         {isOpen && (
-          <div className="mt-2 rounded-2xl glass p-4">
+          <div className="mt-2 rounded-2xl glass p-4 animate-scale-in">
             <ul className="space-y-0.5">
               {headings.map(({ id, text, level }) => (
                 <li key={id}>
@@ -149,10 +137,12 @@ export function TableOfContents() {
                       handleClick(e, id)
                       setIsOpen(false)
                     }}
-                    className={`block text-sm py-1.5 transition-colors ${level === 3 ? 'ml-4 text-xs' : ''}`}
+                    className="block text-sm py-1.5 transition-colors"
                     style={{
                       color: activeId === id ? 'var(--color-ink)' : 'var(--color-body)',
                       fontWeight: activeId === id ? 500 : 400,
+                      paddingLeft: level === 3 ? '1.5rem' : '0.25rem',
+                      borderLeft: activeId === id ? '2px solid var(--color-primary)' : '2px solid transparent',
                     }}
                   >
                     {text}

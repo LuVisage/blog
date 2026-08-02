@@ -48,9 +48,9 @@ const FOOTER_GROUPS: { title: string; links: FooterLink[] }[] = [
 export function Footer() {
   return (
     <footer className="relative z-10 mt-auto">
-      {/* Divider */}
+      {/* Subtle top border gradient */}
       <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <hr className="mb-10" style={{ borderColor: 'var(--color-hairline)' }} />
+        <hr className="mb-10 opacity-50" style={{ borderColor: 'var(--color-hairline)' }} />
       </div>
 
       <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
@@ -68,14 +68,14 @@ export function Footer() {
             <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--color-muted)' }}>
               记录 AI 开发的学习与实战历程。
             </p>
-            {/* Social links in footer, NOT header — best practice */}
+            {/* Social links */}
             <div className="flex items-center gap-2">
               {SOCIAL_LINKS.github && (
                 <a
                   href={SOCIAL_LINKS.github}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-lg glass flex items-center justify-center cursor-pointer"
+                  className="w-9 h-9 rounded-lg glass flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
                   style={{ color: 'var(--color-muted)' }}
                   aria-label="GitHub"
                 >
@@ -85,7 +85,7 @@ export function Footer() {
               {SOCIAL_LINKS.email && (
                 <a
                   href={`mailto:${SOCIAL_LINKS.email}`}
-                  className="w-9 h-9 rounded-lg glass flex items-center justify-center cursor-pointer"
+                  className="w-9 h-9 rounded-lg glass flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
                   style={{ color: 'var(--color-muted)' }}
                   aria-label="Email"
                 >
@@ -131,15 +131,15 @@ export function Footer() {
         >
           <p>
             &copy; <CurrentYear /> {SITE.author.name} &mdash; Built with{' '}
-            <IconHeartFilled size={11} className="inline align-middle" style={{ color: '#ef4444' }} />{' '}
+            <IconHeartFilled size={11} className="inline align-middle" style={{ color: 'var(--color-danger)' }} />{' '}
             and Next.js
           </p>
           <div className="flex items-center gap-3">
-            <Link href="/privacy" className="no-underline cursor-pointer" style={{ color: 'var(--color-muted-soft)' }}>
+            <Link href="/privacy" className="no-underline cursor-pointer hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-muted-soft)' }}>
               隐私
             </Link>
             <span>·</span>
-            <a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`} className="no-underline cursor-pointer" style={{ color: 'var(--color-muted-soft)' }}>
+            <a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`} className="no-underline cursor-pointer hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-muted-soft)' }}>
               RSS
             </a>
           </div>

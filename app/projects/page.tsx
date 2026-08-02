@@ -3,7 +3,7 @@ import { SITE, PROJECTS } from '@/lib/constants'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { WobbleCard } from '@/components/ui/wobble-card'
 import { EmptyState } from '@/components/ui/empty-state'
-import { IconExternalLink, IconStarFilled, IconCode } from '@tabler/icons-react'
+import { IconExternalLink, IconStarFilled, IconCode, IconFolderCode } from '@tabler/icons-react'
 
 export const metadata: Metadata = {
   title: '项目',
@@ -18,7 +18,8 @@ export default function ProjectsPage() {
           <h1 className="text-3xl lg:text-4xl font-bold mb-2">
             <span className="gradient-text">项目</span>
           </h1>
-          <p className="body-sm">
+          <p className="body-sm flex items-center gap-1.5">
+            <IconFolderCode size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
             个人项目与开源作品
           </p>
         </div>
@@ -36,8 +37,8 @@ export default function ProjectsPage() {
                   className="group rounded-2xl glass-card p-5 sm:p-6 flex flex-col block"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="heading-3">{project.name}</h3>
-                    <IconExternalLink size={16} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} />
+                    <h3 className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{project.name}</h3>
+                    <IconExternalLink size={16} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} className="flex-shrink-0 group-hover:text-[var(--color-primary)] transition-colors" />
                   </div>
 
                   <p className="body-sm flex-1 mb-4 leading-relaxed">
@@ -45,15 +46,15 @@ export default function ProjectsPage() {
                   </p>
 
                   {project.repo && (
-                    <div className="flex items-center gap-1 caption mb-3" style={{ color: 'var(--color-accent-gold)' }}>
+                    <div className="flex items-center gap-1.5 caption mb-3 px-2.5 py-1 rounded-full glass w-fit" style={{ color: 'var(--color-accent-gold)' }}>
                       <IconStarFilled size={12} />
-                      <span>{project.repo}</span>
+                      <span className="font-mono">{project.repo}</span>
                     </div>
                   )}
 
                   <div className="flex flex-wrap gap-1.5">
                     {project.tags.map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 rounded-full text-xs glass" style={{ color: 'var(--color-ink)' }}>
+                      <span key={tag} className="px-2.5 py-1 rounded-full text-xs font-medium glass" style={{ color: 'var(--color-ink)' }}>
                         {tag}
                       </span>
                     ))}

@@ -62,7 +62,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ReadingProgress />
 
-      <div className="xl:flex xl:gap-6">
+      <div className="xl:flex xl:gap-8">
         <article className="flex-1 min-w-0">
           {/* Mobile TOC */}
           <div className="xl:hidden mb-6"><TableOfContents /></div>
@@ -76,72 +76,94 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </div>
 
           {/* Article header */}
-          <header className="mb-6">
+          <header className="mb-8">
             {post.category && (
               <Link
                 href={`/categories/${post.category}`}
-                className="inline-flex items-center gap-1.5 mb-4 px-3 py-1 rounded-full text-xs font-medium glass"
+                className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full text-xs font-medium glass hover:bg-[var(--color-primary-soft)] transition-all"
               >
                 <IconFolderFilled size={12} style={{ color: 'var(--color-primary)' }} />
-                {post.category}
+                <span style={{ color: 'var(--color-primary)' }}>{post.category}</span>
               </Link>
             )}
-            <h1 className="heading-1 mb-4" style={{ fontSize: 'clamp(32px, 4vw, 48px)' }}>
+            <h1 className="heading-1 mb-4" style={{ fontSize: 'clamp(30px, 4vw, 46px)' }}>
               <span className="gradient-text">{post.title}</span>
             </h1>
             <div className="flex flex-wrap items-center gap-3 caption mb-4">
               <span className="flex items-center gap-1.5">
-                <IconCalendar size={14} strokeWidth={1.5} />
+                <IconCalendar size={14} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} />
                 {format(date, 'yyyy 年 M 月 d 日', { locale: zhCN })}
               </span>
-              {post.updated && <span>更新于 {format(parseISO(post.updated), 'yyyy 年 M 月 d 日', { locale: zhCN })}</span>}
-              <span>·</span>
-              <span className="flex items-center gap-1.5"><IconClock size={14} strokeWidth={1.5} /> {post.readingTime} 分钟阅读</span>
-              {post.series && <><span>·</span><Link href={`/series/${post.series}`} style={{ color: 'var(--color-primary)' }}>{post.series}</Link></>}
+              {post.updated && (
+                <span style={{ color: 'var(--color-muted-soft)' }}>
+                  更新于 {format(parseISO(post.updated), 'yyyy 年 M 月 d 日', { locale: zhCN })}
+                </span>
+              )}
+              <span style={{ color: 'var(--color-hairline)' }}>·</span>
+              <span className="flex items-center gap-1.5">
+                <IconClock size={14} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} />
+                {post.readingTime} 分钟阅读
+              </span>
+              {post.series && (
+                <>
+                  <span style={{ color: 'var(--color-hairline)' }}>·</span>
+                  <Link
+                    href={`/series/${post.series}`}
+                    className="px-2 py-0.5 rounded-full text-xs font-medium glass hover:bg-[var(--color-primary-soft)] transition-all"
+                    style={{ color: 'var(--color-primary)' }}
+                  >
+                    {post.series}
+                  </Link>
+                </>
+              )}
             </div>
             {post.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">{post.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}</div>
+              <div className="flex flex-wrap gap-2">
+                {post.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
+              </div>
             )}
           </header>
 
           {/* Article content */}
-          <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12 prose max-w-none mb-8">
+          <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12 prose max-w-none mb-8" style={{ cursor: 'default' }}>
             <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
           </div>
 
           {/* Share + Like */}
-          <div className="mb-8 p-5 rounded-2xl glass-card flex items-center justify-between flex-wrap gap-3">
+          <div className="mb-8 p-5 rounded-2xl glass-card flex items-center justify-between flex-wrap gap-4" style={{ cursor: 'default' }}>
             <SocialShare title={post.title} url={postUrl} />
             <LikeButton slug={slug} />
           </div>
 
           {/* Prev/Next */}
           <nav className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-            {prev && (
+            {prev ? (
               <Link href={`/posts/${prev.slug}`} className="glass-card rounded-2xl p-5 group">
                 <span className="caption flex items-center gap-1 mb-1.5">
                   <IconChevronLeft size={12} strokeWidth={2} /> 上一篇
                 </span>
-                <p className="body-sm font-medium line-clamp-1" style={{ color: 'var(--color-ink)' }}>{prev.title}</p>
+                <p className="body-sm font-semibold line-clamp-1 group-hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-ink)' }}>{prev.title}</p>
               </Link>
+            ) : (
+              <div />
             )}
             <Link
               href={next ? `/posts/${next.slug}` : '/posts'}
-              className={`glass-card rounded-2xl p-5 group ${next ? 'text-right' : ''} ${!prev && next ? 'sm:col-start-2' : ''}`}
+              className={`glass-card rounded-2xl p-5 group text-right`}
             >
               {next ? (
                 <>
                   <span className="caption flex items-center justify-end gap-1 mb-1.5">
                     下一篇 <IconChevronRight size={12} strokeWidth={2} />
                   </span>
-                  <p className="body-sm font-medium line-clamp-1" style={{ color: 'var(--color-ink)' }}>{next.title}</p>
+                  <p className="body-sm font-semibold line-clamp-1 group-hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-ink)' }}>{next.title}</p>
                 </>
               ) : (
                 <>
                   <span className="caption flex items-center justify-end gap-1 mb-1.5">
                     返回列表 <IconChevronRight size={12} strokeWidth={2} />
                   </span>
-                  <p className="body-sm font-medium line-clamp-1" style={{ color: 'var(--color-ink)' }}>查看更多文章</p>
+                  <p className="body-sm font-semibold line-clamp-1" style={{ color: 'var(--color-ink)' }}>查看更多文章</p>
                 </>
               )}
             </Link>
@@ -149,27 +171,27 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           {/* Series Navigation */}
           {seriesPosts.length > 1 && (
-            <div className="mb-8 p-5 sm:p-6 rounded-2xl glass-card">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5" style={{ color: 'var(--color-ink)' }}>
-                <IconFolderFilled size={14} style={{ color: 'var(--color-primary)' }} />
+            <div className="mb-8 p-5 sm:p-6 rounded-2xl glass-card" style={{ cursor: 'default' }}>
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--color-ink)' }}>
+                <span className="w-1.5 h-5 rounded-full" style={{ background: 'var(--color-primary)' }} />
                 系列文章：{post.series}
               </h3>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {seriesPosts.map((sp, i) => {
                   const isCurrent = sp.slug === slug
                   return (
                     <div
                       key={sp.slug}
-                      className={`flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
                         isCurrent ? '' : 'hover:bg-[var(--color-primary-soft)]'
                       }`}
                       style={{
-                        color: isCurrent ? 'var(--color-primary)' : 'var(--color-body)',
+                        color: isCurrent ? 'var(--color-ink)' : 'var(--color-body)',
                         fontWeight: isCurrent ? 600 : 400,
                         background: isCurrent ? 'var(--color-primary-soft)' : 'transparent',
                       }}
                     >
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold"
+                      <span className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold"
                         style={{
                           color: isCurrent ? '#fff' : 'var(--color-muted)',
                           background: isCurrent ? 'var(--color-primary)' : 'var(--color-hairline-soft)',
@@ -179,7 +201,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                       {isCurrent ? (
                         <span>{sp.title}</span>
                       ) : (
-                        <Link href={`/posts/${sp.slug}`} className="flex-1 no-underline" style={{ color: 'var(--color-body)' }}>
+                        <Link href={`/posts/${sp.slug}`} className="flex-1 no-underline hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-body)' }}>
                           {sp.title}
                         </Link>
                       )}
@@ -195,9 +217,9 @@ export default async function PostPage({ params }: { params: PageParams }) {
           <div className="mt-8 p-6 sm:p-8 rounded-3xl glass-card"><GiscusComments /></div>
         </article>
 
-        {/* Desktop TOC — tall sidebar, aligns with navbar right edge */}
-        <aside className="hidden xl:flex xl:flex-col xl:w-52 xl:flex-shrink-0">
-          <div className="sticky top-28 rounded-2xl glass-card p-5 min-h-[calc(100vh-9rem)] flex flex-col">
+        {/* Desktop TOC sidebar */}
+        <aside className="hidden xl:flex xl:flex-col xl:w-56 xl:flex-shrink-0">
+          <div className="sticky top-28 rounded-2xl glass-card p-5" style={{ maxHeight: 'calc(100vh - 8rem)', cursor: 'default' }}>
             <TableOfContents />
           </div>
         </aside>

@@ -3,13 +3,9 @@ import Link from 'next/link'
 
 interface EmptyStateProps {
   className?: string
-  /** Icon shown above the text. Can be emoji string or React node. */
   icon?: React.ReactNode
-  /** Primary text. */
   title?: string
-  /** Secondary hint text. */
   description?: string
-  /** Optional action button. */
   action?: {
     label: string
     href?: string
@@ -30,15 +26,14 @@ export function EmptyState({
   action,
 }: EmptyStateProps) {
   return (
-    <div className={cn('text-center py-16 sm:py-20', className)}>
+    <div className={cn('text-center py-20 sm:py-24', className)}>
       {/* Floating icon */}
-      <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full glass mb-6 animate-float">
-        {typeof icon === 'string' ? (
-          <span className="text-3xl sm:text-4xl" role="img" aria-hidden="true">
-            {icon}
-          </span>
-        ) : (
-          icon
+      <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-2xl glass mb-6 animate-float">
+        {icon || (
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-muted-soft)' }}>
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
         )}
       </div>
 
@@ -51,7 +46,7 @@ export function EmptyState({
           {action.href ? (
             <Link
               href={action.href}
-              className="btn-ghost inline-flex items-center gap-2"
+              className="btn-primary inline-flex items-center gap-2"
             >
               {action.icon}
               {action.label}
@@ -59,7 +54,7 @@ export function EmptyState({
           ) : action.onClick ? (
             <button
               onClick={action.onClick}
-              className="btn-ghost inline-flex items-center gap-2"
+              className="btn-primary inline-flex items-center gap-2"
             >
               {action.icon}
               {action.label}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { IconBrandX, IconBrandWeibo, IconCopy, IconCheck } from '@tabler/icons-react'
+import { IconBrandX, IconBrandWeibo, IconCopy, IconCheck, IconShare } from '@tabler/icons-react'
 
 interface SocialShareProps {
   title: string
@@ -46,7 +46,10 @@ export function SocialShare({ title, url }: SocialShareProps) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="caption mr-1">分享：</span>
+      <span className="caption flex items-center gap-1 mr-1">
+        <IconShare size={14} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} />
+        分享
+      </span>
 
       {shareLinks.map((link) => (
         <a
@@ -54,7 +57,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs transition-all hover:-translate-y-0.5"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-soft)]"
           style={{ color: 'var(--color-ink)' }}
           title={`分享到 ${link.name}`}
         >
@@ -65,12 +68,12 @@ export function SocialShare({ title, url }: SocialShareProps) {
 
       <button
         onClick={handleCopy}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs transition-all hover:-translate-y-0.5"
-        style={{ color: 'var(--color-ink)' }}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-soft)]"
+        style={{ color: copied ? 'var(--color-success)' : 'var(--color-ink)' }}
       >
         {copied ? (
           <>
-            <IconCheck size={14} strokeWidth={2} style={{ color: 'var(--color-success)' }} />
+            <IconCheck size={14} strokeWidth={2} />
             已复制
           </>
         ) : (

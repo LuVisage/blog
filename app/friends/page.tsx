@@ -3,7 +3,7 @@ import { SITE, FRIENDS } from '@/lib/constants'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { WobbleCard } from '@/components/ui/wobble-card'
 import { EmptyState } from '@/components/ui/empty-state'
-import { IconLink, IconHeart, IconExternalLink } from '@tabler/icons-react'
+import { IconLink, IconHeart, IconExternalLink, IconUsers } from '@tabler/icons-react'
 
 export const metadata: Metadata = {
   title: '友链',
@@ -18,7 +18,8 @@ export default function FriendsPage() {
           <h1 className="text-3xl lg:text-4xl font-bold mb-2">
             <span className="gradient-text">友链</span>
           </h1>
-          <p className="body-sm">
+          <p className="body-sm flex items-center gap-1.5">
+            <IconUsers size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
             同道中人的博客
           </p>
         </div>
@@ -35,7 +36,6 @@ export default function FriendsPage() {
                 rel="noopener noreferrer"
                 className="group rounded-2xl glass-card p-5 sm:p-6 flex items-start gap-4 block"
               >
-                {/* Avatar */}
                 <div className="flex-shrink-0 w-12 h-12 rounded-xl glass flex items-center justify-center overflow-hidden">
                   {friend.avatar ? (
                     <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
@@ -45,13 +45,13 @@ export default function FriendsPage() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className="heading-3">{friend.name}</h3>
+                  <h3 className="font-semibold" style={{ color: 'var(--color-ink)' }}>{friend.name}</h3>
                   <p className="body-sm mt-1 line-clamp-2">
                     {friend.description}
                   </p>
                 </div>
 
-                <IconExternalLink size={16} strokeWidth={1.5} className="flex-shrink-0 mt-1" style={{ color: 'var(--color-muted)' }} />
+                <IconExternalLink size={16} strokeWidth={1.5} className="flex-shrink-0 mt-1 group-hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-muted)' }} />
               </a>
               </WobbleCard>
             </AnimatedContent>
@@ -67,24 +67,22 @@ export default function FriendsPage() {
 
       {/* Exchange info */}
       <AnimatedContent direction="up" delay={0.3}>
-        <div className="mt-8 rounded-2xl glass-card p-6 text-center">
+        <div className="mt-8 rounded-2xl glass-card p-6 text-center" style={{ cursor: 'default' }}>
           <h3 className="heading-3 mb-3 flex items-center justify-center gap-2">
             <IconHeart size={18} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
             交换友链
           </h3>
-          <p className="body-sm mb-3">
+          <p className="body-sm mb-4">
             如果你也是 AI/技术方向的博客，欢迎交换友链！
           </p>
           <div className="inline-flex flex-col sm:flex-row items-center gap-2 caption">
-            <code className="px-2 py-1 rounded-lg glass" style={{ color: 'var(--color-ink)' }}>
+            <code className="px-2.5 py-1 rounded-lg glass font-medium" style={{ color: 'var(--color-ink)' }}>
               {SITE.title}
             </code>
             <span className="hidden sm:inline" style={{ color: 'var(--color-muted-soft)' }}>—</span>
-            <code className="px-2 py-1 rounded-lg glass" style={{ color: 'var(--color-ink)' }}>
+            <code className="px-2.5 py-1 rounded-lg glass font-medium" style={{ color: 'var(--color-ink)' }}>
               {SITE.url}
             </code>
-            <span className="hidden sm:inline" style={{ color: 'var(--color-muted-soft)' }}>—</span>
-            <span>{SITE.description.slice(0, 30)}...</span>
           </div>
         </div>
       </AnimatedContent>

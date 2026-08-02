@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { SITE } from '@/lib/constants'
 import { getAllCategories, getPostsByCategory } from '@/lib/posts'
 import { PostList } from '@/components/post-card'
+import { IconFolderFilled } from '@tabler/icons-react'
 
 type PageParams = Promise<{ category: string }>
 
@@ -31,7 +32,8 @@ export default async function CategoryPage({ params }: { params: PageParams }) {
         <h1 className="text-3xl lg:text-4xl font-bold mb-2">
           <span className="gradient-text">{category}</span>
         </h1>
-        <p className="body-sm">
+        <p className="body-sm flex items-center gap-1.5">
+          <IconFolderFilled size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
           共 {posts.length} 篇文章
         </p>
       </div>

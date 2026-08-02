@@ -21,20 +21,11 @@ export function SearchTrigger() {
   return (
     <button
       onClick={() => router.push('/search')}
-      className="btn-ghost h-8 px-3 text-sm gap-1.5 cursor-pointer"
+      className="w-9 h-9 rounded-xl glass flex items-center justify-center cursor-pointer transition-all hover:border-[var(--color-primary)] group"
+      aria-label="搜索"
+      title="搜索 (Ctrl+K)"
     >
-      <IconSearch size={14} strokeWidth={1.5} />
-      <span>搜索</span>
-      <kbd
-        className="hidden lg:inline-flex items-center ml-1 px-1.5 py-0.5 rounded text-[10px] font-mono"
-        style={{
-          backgroundColor: 'var(--color-primary-soft)',
-          color: 'var(--color-muted-soft)',
-          border: '1px solid var(--color-hairline)',
-        }}
-      >
-        ⌘K
-      </kbd>
+      <IconSearch size={16} strokeWidth={1.5} className="group-hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-muted)' }} />
     </button>
   )
 }

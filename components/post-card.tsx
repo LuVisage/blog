@@ -3,19 +3,9 @@ import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { PostMeta } from '@/lib/posts'
 import { EmptyState } from '@/components/ui/empty-state'
-import { IconFileText, IconClock, IconCircleFilled } from '@tabler/icons-react'
+import { IconFileText, IconClock, IconFolderFilled } from '@tabler/icons-react'
 
-function PipelineDot({ color }: { color: string }) {
-  return (
-    <span className="inline-flex items-center" title={color}>
-      <IconCircleFilled size={6} style={{ color }} />
-    </span>
-  )
-}
-
-export function PostCard({ post, featured = false }: { post: PostMeta; featured?: boolean; index?: number }) {
-  const date = parseISO(post.date)
-
+export function PostCard({ post, featured = false }: { post: PostMeta; featured?: boolean }) {
   return (
     <Link
       href={`/posts/${post.slug}`}
@@ -23,50 +13,44 @@ export function PostCard({ post, featured = false }: { post: PostMeta; featured?
         featured ? 'lg:flex-row' : 'flex-col'
       }`}
     >
-      {/* Pipeline spine (left accent bar) */}
+      {/* Left accent bar with gradient */}
       <div
-        className={`flex-shrink-0 transition-colors duration-300 ${
+        className={`flex-shrink-0 transition-all duration-300 group-hover:opacity-80 ${
           featured ? 'w-1.5' : 'w-1'
         }`}
-        style={{ background: 'var(--color-primary)' }}
+        style={{ background: 'linear-gradient(180deg, var(--color-primary), rgba(124,92,231,0.3))' }}
       />
 
       <div className="flex flex-col p-5 sm:p-6 flex-1">
-        {/* Top row: category + date + pipeline dots */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            {post.category ? (
-              <span
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold glass"
-                style={{ color: 'var(--color-body)' }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }} />
-                {post.category}
-              </span>
-            ) : (
-              <span />
-            )}
-            {featured && (
-              <span
-                className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                style={{ color: 'var(--color-success)', background: 'rgba(16,185,129,0.1)' }}
-              >
-                精选
-              </span>
-            )}
-          </div>
-
-          {/* Pipeline dots (right side) */}
-          <div className="flex items-center gap-0.5">
-            <PipelineDot color="var(--color-primary)" />
-            <PipelineDot color={post.readingTime > 5 ? 'var(--color-accent-gold)' : 'var(--color-success)'} />
-            <PipelineDot color={post.tags.length > 2 ? 'var(--color-primary)' : 'var(--color-hairline)'} />
-          </div>
+        {/* Top row: category + date */}
+        <div className="flex items-center gap-2 mb-3">
+          {post.category ? (
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold glass"
+              style={{ color: 'var(--color-primary)' }}
+            >
+              <IconFolderFilled size={10} />
+              {post.category}
+            </span>
+          ) : (
+            <span />
+          )}
+          {featured && (
+            <span
+              className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+              style={{ color: 'var(--color-success)', background: 'rgba(16,185,129,0.1)' }}
+            >
+              精选
+            </span>
+          )}
+          <span className="ml-auto text-[10px] font-mono" style={{ color: 'var(--color-muted-soft)' }}>
+            {format(parseISO(post.date), 'M月d日', { locale: zhCN })}
+          </span>
         </div>
 
         {/* Title */}
         <h3
-          className={`font-semibold mb-2 transition-colors duration-150 ${
+          className={`font-semibold mb-2 transition-colors duration-150 group-hover:text-[var(--color-primary)] ${
             featured ? 'text-xl' : 'text-base'
           }`}
           style={{ color: 'var(--color-ink)', fontFamily: "'Inter', system-ui, sans-serif" }}
@@ -77,30 +61,27 @@ export function PostCard({ post, featured = false }: { post: PostMeta; featured?
         {/* Description */}
         {post.description && (
           <p
-            className={`line-clamp-2 mb-4 flex-1 ${featured ? 'text-sm' : 'text-sm'}`}
+            className="text-sm line-clamp-2 mb-3 flex-1 leading-relaxed"
             style={{ color: 'var(--color-body)' }}
           >
             {post.description}
           </p>
         )}
 
-        {/* Footer: time + tags */}
+        {/* Footer: reading time + tags count */}
         <div
           className="flex items-center justify-between pt-3 mt-auto caption"
           style={{ borderTop: '1px solid var(--color-hairline)' }}
         >
           <span className="flex items-center gap-1.5" style={{ color: 'var(--color-muted)' }}>
             <IconClock size={12} strokeWidth={1.5} />
-            {post.readingTime} 分钟
+            {post.readingTime} 分钟阅读
           </span>
 
-          <div className="flex items-center gap-1.5">
-            <time dateTime={post.date} className="text-xs font-mono" style={{ color: 'var(--color-muted-soft)' }}>
-              {format(date, 'M月d日', { locale: zhCN })}
-            </time>
+          <div className="flex items-center gap-2">
             {post.tags.length > 0 && (
-              <span className="text-[10px]" style={{ color: 'var(--color-muted-soft)' }}>
-                · {post.tags.length} 标签
+              <span className="text-[10px] px-2 py-0.5 rounded-full glass" style={{ color: 'var(--color-muted)' }}>
+                {post.tags.length} 个标签
               </span>
             )}
           </div>
@@ -123,7 +104,7 @@ export function PostList({ posts, featured = false }: { posts: PostMeta[]; featu
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
       {posts.map((post, i) => (
         <PostCard key={post.slug} post={post} featured={featured && i === 0} />
       ))}

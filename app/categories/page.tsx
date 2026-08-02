@@ -16,7 +16,6 @@ export default function CategoriesPage() {
   const categories = getAllCategories()
   const allPosts = getAllPosts()
 
-  // Build category → latest post map
   const latestByCategory = new Map<string, { slug: string; title: string }>()
   allPosts.forEach(post => {
     if (post.category && !latestByCategory.has(post.category)) {
@@ -31,7 +30,8 @@ export default function CategoriesPage() {
           <h1 className="text-3xl lg:text-4xl font-bold mb-2">
             <span className="gradient-text">分类</span>
           </h1>
-          <p className="body-sm">
+          <p className="body-sm flex items-center gap-1.5">
+            <IconFolderFilled size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
             共 {categories.length} 个分类
           </p>
         </div>
@@ -48,16 +48,18 @@ export default function CategoriesPage() {
                     href={`/categories/${category}`}
                     className="group rounded-2xl glass-card p-5 sm:p-6 block"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <IconFolderFilled size={28} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold glass" style={{ color: 'var(--color-ink)' }}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary-soft)' }}>
+                        <IconFolderFilled size={20} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold glass" style={{ color: 'var(--color-ink)' }}>
                         {count}
                       </span>
                     </div>
-                    <h3 className="heading-3">{category}</h3>
-                    <p className="body-sm mt-1">{count} 篇文章</p>
+                    <h3 className="text-lg font-semibold mb-1" style={{ color: 'var(--color-ink)' }}>{category}</h3>
+                    <p className="body-sm">{count} 篇文章</p>
                     {latest && (
-                      <p className="text-xs mt-2 line-clamp-1 flex items-center gap-1 group-hover:text-[var(--color-primary)] transition-colors"
+                      <p className="text-xs mt-3 line-clamp-1 flex items-center gap-1.5 group-hover:text-[var(--color-primary)] transition-colors"
                         style={{ color: 'var(--color-muted)' }}>
                         <IconArrowRight size={12} strokeWidth={1.5} />
                         {latest.title}
