@@ -1,7 +1,7 @@
 export function TerminalGreeting() {
   return (
     <div
-      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-mono text-sm"
+      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl font-mono text-xs sm:text-sm max-w-full"
       style={{
         background: 'var(--color-primary-soft)',
         color: 'var(--color-body)',
@@ -9,9 +9,9 @@ export function TerminalGreeting() {
       }}
     >
       <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>$</span>
-      <span>echo &quot;AI 探索者 &amp; Agent 开发者&quot;</span>
+      <span className="truncate">echo &quot;AI 探索者 &amp; Agent 开发者&quot;</span>
       <span
-        className="inline-block w-2 h-4 ml-0.5 rounded-sm animate-pulse"
+        className="inline-block w-1.5 sm:w-2 h-3.5 sm:h-4 ml-0.5 rounded-sm animate-pulse flex-shrink-0"
         style={{ background: 'var(--color-primary)' }}
       />
     </div>

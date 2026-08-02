@@ -86,7 +86,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                 <span style={{ color: 'var(--color-primary)' }}>{post.category}</span>
               </Link>
             )}
-            <h1 className="heading-1 mb-4" style={{ fontSize: 'clamp(30px, 4vw, 46px)' }}>
+            <h1 className="heading-1 mb-4" style={{ fontSize: 'clamp(24px, 5vw, 46px)' }}>
               <span className="gradient-text">{post.title}</span>
             </h1>
             <div className="flex flex-wrap items-center gap-3 caption mb-4">
@@ -125,7 +125,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </header>
 
           {/* Article content */}
-          <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12 prose max-w-none mb-8" style={{ cursor: 'default' }}>
+          <div className="rounded-2xl sm:rounded-3xl glass-card p-5 sm:p-10 lg:p-12 prose max-w-none mb-8" style={{ cursor: 'default' }}>
             <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
           </div>
 

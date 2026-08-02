@@ -37,8 +37,8 @@ export function Header() {
             className="flex items-center gap-1.5 text-lg font-bold no-underline"
             style={{ fontFamily: "'ZCOOL KuaiLe', cursive" }}
           >
-            <IconSparkles size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
-            <span className="gradient-text">{SITE.title}</span>
+            <IconSparkles size={18} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
+            <span className="gradient-text text-base sm:text-lg">{SITE.title}</span>
           </Link>
 
           {/* Desktop nav */}

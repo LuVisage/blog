@@ -17,14 +17,25 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
   const animated = useRef(false)
 
   useEffect(() => {
-    if (!isNumber) return
+    if (!isNumber || numValue === 0) {
+      setDisplayValue(0)
+      return
+    }
     const el = ref.current
-    if (!el || animated.current || numValue === 0) return
+    if (!el || animated.current) return
 
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
     if (mq.matches) {
       setDisplayValue(numValue)
       animated.current = true
+      return
+    }
+
+    // If already visible (e.g. above the fold on mobile), animate immediately
+    const rect = el.getBoundingClientRect()
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      animated.current = true
+      animateCount(0, numValue, 600, setDisplayValue)
       return
     }
 
