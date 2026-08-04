@@ -36,7 +36,8 @@ export async function fetchPlaylist(playlistId: string): Promise<Song[]> {
   const data: unknown = await res.json()
   if (!Array.isArray(data)) throw new Error('歌单数据格式异常')
   if (data.length === 0) throw new Error('该歌单没有歌曲')
-  return data as Song[]
+  // Validate each entry has required fields before casting
+  return (data as Song[]).filter(s => s.url && s.title)
 }
 
 /** 解析 LRC 歌词，按时间排序 */

@@ -163,7 +163,7 @@ function LyricsDisplay({ lrc, currentTime }: { lrc: string; currentTime: number 
 
   useEffect(() => {
     if (activeIndex < 0 || !containerRef.current) return
-    const el = containerRef.current.children[activeIndex] as HTMLElement | undefined
+    const el = containerRef.current.querySelector(`[data-lyric-index="${activeIndex}"]`) as HTMLElement | undefined
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [activeIndex])
 
@@ -178,6 +178,7 @@ function LyricsDisplay({ lrc, currentTime }: { lrc: string; currentTime: number 
         return (
           <p
             key={i}
+            data-lyric-index={i}
             className="transition-all duration-300 px-1"
             style={{
               color: isActive ? 'var(--color-accent-gold)' : 'var(--color-muted-soft)',

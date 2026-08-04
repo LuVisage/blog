@@ -92,8 +92,10 @@ export function Header() {
         {mobileMenuOpen && (
           <div
             className="md:hidden fixed inset-0 z-40 bg-black/25 backdrop-blur-sm"
+            role="button"
+            tabIndex={0}
             onClick={() => setMobileMenuOpen(false)}
-            aria-hidden="true"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setMobileMenuOpen(false) }}
           />
         )}
 

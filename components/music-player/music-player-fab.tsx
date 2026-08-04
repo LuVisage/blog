@@ -2,6 +2,7 @@
 
 import { useMusicPlayer } from './music-player-context'
 import { MusicPlayer } from './music-player'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { IconMusic } from '@tabler/icons-react'
 
 export function MusicPlayerFAB() {
@@ -59,11 +60,16 @@ export function MusicPlayerFAB() {
           <div
             className="fixed inset-0 z-[-1] md:hidden"
             style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+            role="button"
+            tabIndex={0}
             onClick={() => toggleExpanded(false)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') toggleExpanded(false) }}
           />
 
           <div className="animate-scale-in">
-            <MusicPlayer onClose={() => toggleExpanded(false)} />
+            <ErrorBoundary>
+              <MusicPlayer onClose={() => toggleExpanded(false)} />
+            </ErrorBoundary>
           </div>
         </div>
       )}

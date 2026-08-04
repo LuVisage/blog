@@ -105,6 +105,13 @@
     background-attachment: fixed;
   }
 
+  /* iOS Safari jank fix: background-attachment: fixed causes scroll jank + disappearing bg */
+  @supports (-webkit-touch-callout: none) {
+    .bg-body, .dark .bg-body {
+      background-attachment: scroll;
+    }
+  }
+
   .dark .bg-body {
     background:
       linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.30) 100%),

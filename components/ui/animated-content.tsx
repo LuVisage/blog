@@ -55,7 +55,7 @@ export function AnimatedContent({
       }
     }
 
-    const getToVars = (dir: string) => {
+    const getToVars = (dir: 'up' | 'down' | 'left' | 'right') => {
       switch (dir) {
         case 'up': case 'down': return { y: 0, opacity: 1 }
         case 'left': case 'right': return { x: 0, opacity: 1 }
