@@ -47,6 +47,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://api.github.com" crossOrigin="anonymous" />
       </head>
       <body className="flex flex-col min-h-screen relative bg-body">
+        {/* SVG filter for liquid glass distortion */}
+        <svg style={{ position: 'absolute', width: 0, height: 0 }} aria-hidden="true">
+          <filter id="lg-filter" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="noise" />
+            <feGaussianBlur in="noise" stdDeviation="1.8" result="smooth-noise" />
+            <feDisplacementMap in="SourceGraphic" in2="smooth-noise" scale="22" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </svg>
         <a href="#main-content" className="skip-to-content">跳到主要内容</a>
         <ThemeProvider>
           <MusicPlayerProvider>
