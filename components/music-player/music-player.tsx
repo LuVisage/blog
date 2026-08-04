@@ -49,87 +49,96 @@ function SpectrumBars({ isPlaying }: { isPlaying: boolean }) {
 // Vinyl Disc — cover image + transparent CD ring + grooves
 // ============================================================
 function VinylDisc({ cover, isPlaying }: { cover: string; isPlaying: boolean }) {
+  const discSize = 88 // same as square cover
   return (
+    // Outer container — handles positioning only (no animation)
     <div
-      className="absolute rounded-full overflow-hidden"
+      className="absolute"
       style={{
-        width: 140,
-        height: 140,
+        width: discSize,
+        height: discSize,
         top: '50%',
-        left: 35,
-        transform: 'translateY(-50%)',
+        left: 44,
+        marginTop: -discSize / 2,
         zIndex: 0,
-        animationName: isPlaying ? 'rotate' : 'none',
-        animationDuration: '3s',
-        animationTimingFunction: 'linear',
-        animationIterationCount: 'infinite',
       }}
     >
-      {/* Cover image fills disc */}
-      <img
-        src={cover}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        loading="lazy"
-      />
-
-      {/* Transparent CD ring — multi-layer gradient overlay */}
+      {/* Inner disc — spins, transform won't conflict with outer positioning */}
       <div
-        className="absolute inset-0"
+        className="w-full h-full rounded-full overflow-hidden"
         style={{
-          background: `
-            radial-gradient(
-              circle at center,
-              transparent 0,
-              transparent 9px,
-              rgba(0,0,0,0.08) 10px,
-              rgba(0,0,0,0.06) 11px,
-              rgba(255,255,255,0.12) 12px,
-              rgba(0,0,0,0.04) 13px,
-              rgba(255,255,255,0.06) 14px,
-              transparent 15px
-            )
-          `,
+          animationName: isPlaying ? 'rotate' : 'none',
+          animationDuration: '3s',
+          animationTimingFunction: 'linear',
+          animationIterationCount: 'infinite',
         }}
-      />
+      >
+        {/* Cover image fills disc */}
+        <img
+          src={cover}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
 
-      {/* Vinyl grooves on outer ring */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `
-            repeating-radial-gradient(
-              circle at center,
-              transparent 0,
-              transparent 52,
-              rgba(0,0,0,0.03) 52,
-              rgba(0,0,0,0.08) 53,
-              rgba(0,0,0,0.03) 54,
-              transparent 54,
-              transparent 56,
-              rgba(0,0,0,0.02) 56,
-              rgba(0,0,0,0.06) 57,
-              transparent 57
-            )
-          `,
-        }}
-      />
+        {/* Transparent CD ring — multi-layer gradient overlay */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(
+                circle at center,
+                transparent 0,
+                transparent 7px,
+                rgba(0,0,0,0.08) 8px,
+                rgba(0,0,0,0.06) 9px,
+                rgba(255,255,255,0.12) 10px,
+                rgba(0,0,0,0.04) 11px,
+                rgba(255,255,255,0.06) 12px,
+                transparent 13px
+              )
+            `,
+          }}
+        />
 
-      {/* Outer rim */}
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          border: '2px solid rgba(0,0,0,0.25)',
-        }}
-      />
+        {/* Vinyl grooves on outer ring */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `
+              repeating-radial-gradient(
+                circle at center,
+                transparent 0,
+                transparent 32,
+                rgba(0,0,0,0.03) 32,
+                rgba(0,0,0,0.08) 33,
+                rgba(0,0,0,0.03) 34,
+                transparent 34,
+                transparent 35,
+                rgba(0,0,0,0.02) 35,
+                rgba(0,0,0,0.06) 36,
+                transparent 36
+              )
+            `,
+          }}
+        />
 
-      {/* Subtle shine */}
-      <div
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{
-          background: 'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.03) 47%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 53%, transparent 60%)',
-        }}
-      />
+        {/* Outer rim */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            border: '2px solid rgba(0,0,0,0.25)',
+          }}
+        />
+
+        {/* Subtle shine */}
+        <div
+          className="absolute inset-0 rounded-full pointer-events-none"
+          style={{
+            background: 'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.03) 47%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 53%, transparent 60%)',
+          }}
+        />
+      </div>
     </div>
   )
 }
@@ -333,7 +342,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
             {/* Cover + Disc + Info row */}
             <div className="flex gap-4">
               {/* Left: Cover + Disc */}
-              <div className="relative flex-shrink-0" style={{ width: 160, height: 140 }}>
+              <div className="relative flex-shrink-0" style={{ width: 132, height: 88 }}>
                 {/* Spinning disc — behind cover, right half exposed */}
                 <VinylDisc cover={currentSong.pic} isPlaying={isPlaying} />
 
@@ -343,9 +352,8 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
                   style={{
                     width: 88,
                     height: 88,
-                    top: '50%',
+                    top: 0,
                     left: 0,
-                    transform: 'translateY(-50%)',
                     zIndex: 10,
                     border: '2px solid rgba(255,255,255,0.2)',
                   }}
