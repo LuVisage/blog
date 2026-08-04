@@ -28,7 +28,7 @@ export function MusicPlayerFAB() {
           {isLoaded && playlist.length > 0 && (
             <div
               className="px-3 py-1.5 rounded-xl text-xs animate-fade-up glass-liquid"
-              style={{ color: 'var(--color-body)' }}
+              style={{ color: 'var(--color-ink)' }}
             >
               点击查看黑胶唱片
             </div>
@@ -56,7 +56,7 @@ export function MusicPlayerFAB() {
             {!isLoading && !error && (
               <IconMusic
                 size={18}
-                style={{ color: isPlaying ? 'var(--color-primary)' : 'var(--color-muted)' }}
+                style={{ color: isPlaying ? 'var(--color-primary)' : 'var(--color-ink)' }}
                 strokeWidth={1.5}
               />
             )}

@@ -846,15 +846,8 @@ code[data-theme*=" "] span {
 /* ==============================================
    13.5 Music Player — minimal gap when expanded
    ============================================== */
-/* Add just enough right padding so content doesn't
-   touch the player panel (single-digit px gap).
-   Player is only 280px, and centered content has
-   natural right margin on wide screens — so we
-   only pad the diff. */
 html[data-music-player-open] #main-content {
-  --player-w: min(280px, calc(100vw - 2.5rem));
-  --natural-r-margin: calc((100vw - 64rem) / 2);
-  padding-right: max(0px, calc(var(--player-w) - var(--natural-r-margin) + 6px));
+  padding-right: calc(min(280px, calc(100vw - 2.5rem)) + 0.5rem) !important;
   transition: padding-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

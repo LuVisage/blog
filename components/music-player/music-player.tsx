@@ -168,7 +168,7 @@ function LyricsDisplay({ lrc, currentTime }: { lrc: string; currentTime: number 
   }, [activeIndex])
 
   if (lines.length === 0) {
-    return <p className="text-xs text-center py-2" style={{ color: 'var(--color-body)' }}>暂无歌词</p>
+    return <p className="text-xs text-center py-2" style={{ color: 'var(--color-ink)' }}>暂无歌词</p>
   }
 
   return (
@@ -181,7 +181,7 @@ function LyricsDisplay({ lrc, currentTime }: { lrc: string; currentTime: number 
             data-lyric-index={i}
             className="transition-all duration-300 px-1"
             style={{
-              color: isActive ? 'var(--color-accent-gold)' : 'var(--color-body)',
+              color: isActive ? 'var(--color-accent-gold)' : 'var(--color-ink)',
               fontWeight: isActive ? 600 : 400,
               fontSize: isActive ? '0.82rem' : '0.7rem',
               transform: isActive ? 'scale(1.04)' : 'scale(1)',
@@ -204,7 +204,7 @@ function ProgressBar({ current, duration }: { current: number; duration: number 
   const pct = duration > 0 ? (current / duration) * 100 : 0
   return (
     <div className="flex items-center gap-1.5 w-full">
-      <span className="text-[10px] tabular-nums w-9 text-right" style={{ color: 'var(--color-body)' }}>{formatTime(current)}</span>
+      <span className="text-[10px] tabular-nums w-9 text-right" style={{ color: 'var(--color-ink)' }}>{formatTime(current)}</span>
       <div
         className="flex-1 h-1 rounded-full relative overflow-hidden"
         style={{ background: 'var(--color-hairline-soft)' }}
@@ -214,7 +214,7 @@ function ProgressBar({ current, duration }: { current: number; duration: number 
           style={{ width: `${pct}%`, background: 'var(--color-primary)' }}
         />
       </div>
-      <span className="text-[10px] tabular-nums w-9" style={{ color: 'var(--color-body)' }}>{formatTime(duration)}</span>
+      <span className="text-[10px] tabular-nums w-9" style={{ color: 'var(--color-ink)' }}>{formatTime(duration)}</span>
     </div>
   )
 }
@@ -238,9 +238,9 @@ function VolumeControl({ volume, onChange }: { volume: number; onChange: (v: num
         aria-label={volume === 0 ? '取消静音' : '静音'}
       >
         {volume === 0 ? (
-          <IconVolumeOff size={14} style={{ color: 'var(--color-body)' }} strokeWidth={1.5} />
+          <IconVolumeOff size={14} style={{ color: 'var(--color-ink)' }} strokeWidth={1.5} />
         ) : (
-          <IconVolume size={14} style={{ color: 'var(--color-body)' }} strokeWidth={1.5} />
+          <IconVolume size={14} style={{ color: 'var(--color-ink)' }} strokeWidth={1.5} />
         )}
       </button>
       <input
@@ -272,7 +272,7 @@ function PlaylistInput({ currentId, onLoad }: { currentId: string; onLoad: (id: 
         aria-label="切换歌单"
         aria-expanded={show}
       >
-        <IconList size={15} style={{ color: 'var(--color-body)' }} strokeWidth={1.5} />
+        <IconList size={15} style={{ color: 'var(--color-ink)' }} strokeWidth={1.5} />
       </button>
       {show && (
         <form
@@ -317,7 +317,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-1">
           <PlaylistInput currentId={playlistId} onLoad={loadPlaylist} />
           <button onClick={onClose} className="p-2 rounded-md cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors" aria-label="关闭">
-            <IconX size={15} style={{ color: 'var(--color-body)' }} strokeWidth={1.5} />
+            <IconX size={15} style={{ color: 'var(--color-ink)' }} strokeWidth={1.5} />
           </button>
         </div>
       </div>
@@ -365,7 +365,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
                     <img src={currentSong.pic} alt={currentSong.title} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center" style={{ background: '#1a1a2e' }}>
-                      <span className="text-xs" style={{ color: 'var(--color-body)' }}>No Cover</span>
+                      <span className="text-xs" style={{ color: 'var(--color-ink)' }}>No Cover</span>
                     </div>
                   )}
                 </div>
@@ -376,7 +376,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-ink)' }}>
                   {currentSong.title}
                 </p>
-                <p className="text-xs truncate mb-2" style={{ color: 'var(--color-body)' }}>
+                <p className="text-xs truncate mb-2" style={{ color: 'var(--color-ink)' }}>
                   {currentSong.author}
                 </p>
 
@@ -395,7 +395,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
             {/* Controls */}
             <div className="flex items-center justify-center gap-3">
               <button onClick={prev} className="p-2 rounded-lg cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors" aria-label="上一首">
-                <IconPlayerSkipBackFilled size={20} style={{ color: 'var(--color-body)' }} />
+                <IconPlayerSkipBackFilled size={20} style={{ color: 'var(--color-ink)' }} />
               </button>
 
               <button
@@ -412,7 +412,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
               </button>
 
               <button onClick={next} className="p-2 rounded-lg cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors" aria-label="下一首">
-                <IconPlayerSkipForwardFilled size={20} style={{ color: 'var(--color-body)' }} />
+                <IconPlayerSkipForwardFilled size={20} style={{ color: 'var(--color-ink)' }} />
               </button>
 
               <div className="w-px h-5" style={{ background: 'var(--color-hairline)' }} />
@@ -429,7 +429,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
                       onClick={() => playSong(i)}
                       className="w-full text-left px-2 py-1 rounded-lg text-xs truncate transition-colors cursor-pointer"
                       style={{
-                        color: i === currentIndex ? 'var(--color-primary)' : 'var(--color-body)',
+                        color: i === currentIndex ? 'var(--color-primary)' : 'var(--color-ink)',
                         background: i === currentIndex ? 'var(--color-primary-soft)' : 'transparent',
                         fontWeight: i === currentIndex ? 500 : 400,
                       }}
