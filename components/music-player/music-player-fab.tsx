@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useMusicPlayer } from './music-player-context'
 import { MusicPlayer } from './music-player'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
@@ -9,16 +8,6 @@ import { IconMusic } from '@tabler/icons-react'
 export function MusicPlayerFAB() {
   const { state, toggleExpanded } = useMusicPlayer()
   const { isPlaying, isExpanded, isLoading, error, isLoaded, playlist } = state
-
-  // Notify the layout when the player expands so content can make room
-  useEffect(() => {
-    if (isExpanded) {
-      document.documentElement.setAttribute('data-music-player-open', '')
-    } else {
-      document.documentElement.removeAttribute('data-music-player-open')
-    }
-    return () => { document.documentElement.removeAttribute('data-music-player-open') }
-  }, [isExpanded])
 
   return (
     <>

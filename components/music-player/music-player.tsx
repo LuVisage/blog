@@ -50,7 +50,7 @@ function SpectrumBars({ isPlaying }: { isPlaying: boolean }) {
 // Vinyl Disc — cover image + transparent CD ring + grooves
 // ============================================================
 function VinylDisc({ cover, isPlaying }: { cover: string; isPlaying: boolean }) {
-  const discSize = 88 // same as square cover
+  const discSize = 72 // same as square cover
   return (
     // Outer container — handles positioning only (no animation)
     <div
@@ -59,7 +59,7 @@ function VinylDisc({ cover, isPlaying }: { cover: string; isPlaying: boolean }) 
         width: discSize,
         height: discSize,
         top: '50%',
-        left: 44,
+        left: 36,
         marginTop: -discSize / 2,
         zIndex: 0,
       }}
@@ -172,7 +172,7 @@ function LyricsDisplay({ lrc, currentTime }: { lrc: string; currentTime: number 
   }
 
   return (
-    <div ref={containerRef} className="overflow-y-auto max-h-[120px] scroll-smooth space-y-1 py-2">
+    <div ref={containerRef} className="overflow-y-auto max-h-[80px] scroll-smooth space-y-0.5 py-1">
       {lines.map((line, i) => {
         const isActive = i === activeIndex
         return (
@@ -307,8 +307,8 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
     <div
       className="glass-liquid glass-liquid-strong rounded-2xl overflow-hidden flex flex-col"
       style={{
-        width: 'min(340px, calc(100vw - 32px))',
-        maxHeight: 'calc(100vh - 120px)',
+        width: 'min(280px, calc(100vw - 40px))',
+        maxHeight: 'calc(100vh - 140px)',
       }}
     >
       {/* Header */}
@@ -323,7 +323,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
         {isLoading && (
           <div className="flex flex-col items-center gap-3 py-12">
             <IconRefresh size={28} className="animate-spin" style={{ color: 'var(--color-primary)' }} strokeWidth={1.5} />
@@ -343,9 +343,9 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
         {isLoaded && currentSong && !isLoading && (
           <>
             {/* Cover + Disc + Info row */}
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               {/* Left: Cover + Disc */}
-              <div className="relative flex-shrink-0" style={{ width: 132, height: 88 }}>
+              <div className="relative flex-shrink-0" style={{ width: 108, height: 72 }}>
                 {/* Spinning disc — behind cover, right half exposed */}
                 <VinylDisc cover={currentSong.pic} isPlaying={isPlaying} />
 
@@ -353,8 +353,8 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
                 <div
                   className="absolute rounded-xl overflow-hidden shadow-xl"
                   style={{
-                    width: 88,
-                    height: 88,
+                    width: 72,
+                    height: 72,
                     top: 0,
                     left: 0,
                     zIndex: 10,
@@ -421,8 +421,8 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
 
             {/* Playlist */}
             {playlist.length > 1 && (
-              <div className="rounded-xl p-2.5" style={{ border: '1px solid var(--color-hairline-soft)' }}>
-                <div className="max-h-28 overflow-y-auto space-y-0.5">
+              <div className="rounded-xl p-2" style={{ border: '1px solid var(--color-hairline-soft)' }}>
+                <div className="max-h-24 overflow-y-auto space-y-0.5">
                   {playlist.map((song, i) => (
                     <button
                       key={`${song.title}-${i}`}
