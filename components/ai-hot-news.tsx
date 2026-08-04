@@ -121,7 +121,7 @@ export function AIHotNews() {
   // ── Loading skeleton ─────────────────────────────
   if (loading) {
     return (
-      <div className="rounded-2xl glass-card p-6 sm:p-7" style={{ cursor: 'default' }}>
+      <div className="rounded-2xl glass-liquid p-6 sm:p-7" style={{ cursor: 'default' }}>
         <div className="flex items-center gap-2 mb-5">
           <div className="h-5 w-24 rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
         </div>
@@ -146,13 +146,13 @@ export function AIHotNews() {
 
   // ── Ready ──────────────────────────────────────
   return (
-    <div className="rounded-2xl glass-card p-6 sm:p-7" style={{ cursor: 'default' }}>
+    <div className="rounded-2xl glass-liquid p-6 sm:p-7" style={{ cursor: 'default' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-base lg:text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--color-ink)' }}>
           <IconFlame size={20} strokeWidth={1.5} style={{ color: 'var(--color-accent-gold)' }} />
           AI 热榜
-          <span className="text-[10px] font-normal px-2 py-0.5 rounded-full glass" style={{ color: 'var(--color-muted)' }}>
+          <span className="text-[10px] font-normal px-2 py-0.5 rounded-full glass-liquid" style={{ color: 'var(--color-muted)' }}>
             近 7 日
           </span>
         </h2>
@@ -212,7 +212,7 @@ export function AIHotNews() {
                   {repo.topics.slice(0, 3).map((t) => (
                     <span
                       key={t}
-                      className="text-[10px] px-1.5 py-0.5 rounded-full glass font-medium" style={{ color: 'var(--color-body)' }}
+                      className="text-[10px] px-1.5 py-0.5 rounded-full glass-liquid font-medium" style={{ color: 'var(--color-body)' }}
                     >
                       {t}
                     </span>

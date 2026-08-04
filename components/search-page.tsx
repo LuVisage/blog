@@ -118,7 +118,7 @@ export function SearchPage() {
         <p className="body-sm flex items-center gap-2">
           <IconSearch size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
           也可以使用
-          <kbd className="px-2 py-0.5 rounded-lg glass text-xs font-mono font-medium" style={{ color: 'var(--color-muted)' }}>
+          <kbd className="px-2 py-0.5 rounded-lg glass-liquid text-xs font-mono font-medium" style={{ color: 'var(--color-muted)' }}>
             <IconCommand size={11} strokeWidth={2} className="inline -mt-0.5" />K
           </kbd>
           快捷键打开
@@ -126,7 +126,7 @@ export function SearchPage() {
       </div>
 
       {/* Search input */}
-      <div className="rounded-3xl glass-card p-4 sm:p-6 mb-4" style={{ cursor: 'default' }}>
+      <div className="rounded-3xl glass-liquid p-4 sm:p-6 mb-4" style={{ cursor: 'default' }}>
         <div className="relative">
           <IconSearch size={18} strokeWidth={1.5} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-muted)' }} />
           <input
@@ -135,7 +135,7 @@ export function SearchPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜索文章..."
             autoFocus
-            className="w-full pl-12 pr-12 py-3.5 rounded-2xl glass text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
+            className="w-full pl-12 pr-12 py-3.5 rounded-2xl glass-liquid text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
             style={{ color: 'var(--color-ink)' }}
           />
           {loading && (
@@ -146,7 +146,7 @@ export function SearchPage() {
           {!loading && query && (
             <button
               onClick={() => setQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs px-2 py-0.5 rounded-md glass"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs px-2 py-0.5 rounded-md glass-liquid"
               style={{ color: 'var(--color-muted)' }}
             >
               清除

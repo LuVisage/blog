@@ -35,7 +35,7 @@ export function TagFilter({ posts, tags }: Props) {
       </div>
 
       {/* Tag cloud */}
-      <div className="rounded-3xl glass-card p-6 sm:p-8 mb-8" style={{ cursor: 'default' }}>
+      <div className="rounded-3xl glass-liquid p-6 sm:p-8 mb-8" style={{ cursor: 'default' }}>
         <div className="flex flex-wrap gap-2">
           {/* "All" button */}
           <button
@@ -91,7 +91,7 @@ export function TagFilter({ posts, tags }: Props) {
         {filteredPosts.length > 0 ? (
           <PostList posts={filteredPosts} />
         ) : selectedTag ? (
-          <div className="text-center py-16 glass-card rounded-3xl" style={{ cursor: 'default' }}>
+          <div className="text-center py-16 glass-liquid rounded-3xl" style={{ cursor: 'default' }}>
             <IconSearch size={36} strokeWidth={1} style={{ color: 'var(--color-muted-soft)' }} className="mx-auto mb-3" />
             <p className="body-sm">该标签下暂无文章</p>
           </div>

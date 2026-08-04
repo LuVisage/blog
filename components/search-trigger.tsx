@@ -21,7 +21,7 @@ export function SearchTrigger() {
   return (
     <button
       onClick={() => router.push('/search')}
-      className="w-9 h-9 rounded-xl glass flex items-center justify-center cursor-pointer transition-all hover:border-[var(--color-primary)] group"
+      className="w-9 h-9 rounded-xl glass-liquid flex items-center justify-center cursor-pointer transition-all hover:border-[var(--color-primary)] group"
       aria-label="搜索"
       title="搜索 (Ctrl+K)"
     >

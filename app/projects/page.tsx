@@ -34,7 +34,7 @@ export default function ProjectsPage() {
                   href={project.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group rounded-2xl glass-card p-5 sm:p-6 flex flex-col block"
+                  className="group rounded-2xl glass-liquid p-5 sm:p-6 flex flex-col block"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{project.name}</h3>
@@ -46,7 +46,7 @@ export default function ProjectsPage() {
                   </p>
 
                   {project.repo && (
-                    <div className="flex items-center gap-1.5 caption mb-3 px-2.5 py-1 rounded-full glass w-fit" style={{ color: 'var(--color-accent-gold)' }}>
+                    <div className="flex items-center gap-1.5 caption mb-3 px-2.5 py-1 rounded-full glass-liquid w-fit" style={{ color: 'var(--color-accent-gold)' }}>
                       <IconStarFilled size={12} />
                       <span className="font-mono">{project.repo}</span>
                     </div>
@@ -54,7 +54,7 @@ export default function ProjectsPage() {
 
                   <div className="flex flex-wrap gap-1.5">
                     {project.tags.map((tag) => (
-                      <span key={tag} className="px-2.5 py-1 rounded-full text-xs font-medium glass" style={{ color: 'var(--color-ink)' }}>
+                      <span key={tag} className="px-2.5 py-1 rounded-full text-xs font-medium glass-liquid" style={{ color: 'var(--color-ink)' }}>
                         {tag}
                       </span>
                     ))}

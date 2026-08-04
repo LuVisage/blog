@@ -48,7 +48,7 @@ export default async function SeriesDetailPage({ params }: { params: PageParams 
       </div>
 
       {/* Series outline */}
-      <div className="rounded-2xl glass-card p-5 sm:p-6 mb-8" style={{ cursor: 'default' }}>
+      <div className="rounded-2xl glass-liquid p-5 sm:p-6 mb-8" style={{ cursor: 'default' }}>
         <h3 className="heading-3 mb-4 flex items-center gap-2">
           <IconList size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
           系列目录
@@ -60,7 +60,7 @@ export default async function SeriesDetailPage({ params }: { params: PageParams 
               href={`/posts/${post.slug}`}
               className="flex items-center gap-3 px-3 py-2.5 -mx-3 rounded-xl hover:bg-[var(--color-primary-soft)] transition-all duration-200 group"
             >
-              <span className="flex-shrink-0 w-7 h-7 rounded-lg glass text-xs font-bold flex items-center justify-center font-mono" style={{ color: 'var(--color-ink)' }}>
+              <span className="flex-shrink-0 w-7 h-7 rounded-lg glass-liquid text-xs font-bold flex items-center justify-center font-mono" style={{ color: 'var(--color-ink)' }}>
                 {post.seriesOrder ?? i + 1}
               </span>
               <span className="flex-1 text-sm font-medium truncate group-hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-body)' }}>

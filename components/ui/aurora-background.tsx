@@ -17,7 +17,7 @@ interface AuroraBackgroundProps {
 /**
  * Aurora Background — an animated northern-lights-inspired canvas background.
  * Adapted from Aceternity UI's aurora-background component.
- * Matches the blog's neutral glass morphism aesthetic.
+ * Matches the blog's neutral glass-liquid morphism aesthetic.
  */
 export function AuroraBackground({
   className,

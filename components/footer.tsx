@@ -25,7 +25,7 @@ export function Footer() {
                 href={SOCIAL_LINKS.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-lg glass flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
+                className="w-9 h-9 rounded-lg glass-liquid flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
                 style={{ color: 'var(--color-muted)' }}
                 aria-label="GitHub"
               >
@@ -35,7 +35,7 @@ export function Footer() {
             {SOCIAL_LINKS.email && (
               <a
                 href={`mailto:${SOCIAL_LINKS.email}`}
-                className="w-9 h-9 rounded-lg glass flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
+                className="w-9 h-9 rounded-lg glass-liquid flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
                 style={{ color: 'var(--color-muted)' }}
                 aria-label="Email"
               >
@@ -44,7 +44,7 @@ export function Footer() {
             )}
             <a
               href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`}
-              className="w-9 h-9 rounded-lg glass flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
+              className="w-9 h-9 rounded-lg glass-liquid flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
               style={{ color: 'var(--color-muted)' }}
               aria-label="RSS"
             >

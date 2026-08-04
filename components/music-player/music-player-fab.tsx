@@ -17,7 +17,7 @@ export function MusicPlayerFAB() {
             <div
               className="px-3 py-1.5 rounded-xl text-xs animate-fade-up"
               style={{
-                background: 'var(--glass-card-bg)',
+                background: 'var(--glass-liquid-bg)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
                 color: 'var(--color-muted)',

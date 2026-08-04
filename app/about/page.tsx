@@ -34,7 +34,7 @@ export default function AboutPage() {
 
       {/* Hero card */}
       <AnimatedContent direction="up" delay={0.1}>
-        <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12 mb-8" style={{ cursor: 'default' }}>
+        <div className="rounded-3xl glass-liquid p-6 sm:p-10 lg:p-12 mb-8" style={{ cursor: 'default' }}>
           <div className="flex flex-col sm:flex-row items-start gap-6 sm:gap-8">
             {/* Avatar */}
             <div className="flex-shrink-0">
@@ -59,7 +59,7 @@ export default function AboutPage() {
                     href={SOCIAL_LINKS.github}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-sm no-underline transition-all hover:bg-[var(--color-primary-soft)]"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-liquid text-sm no-underline transition-all hover:bg-[var(--color-primary-soft)]"
                     style={{ color: 'var(--color-ink)' }}
                   >
                     <IconBrandGithub size={14} strokeWidth={1.5} />
@@ -69,7 +69,7 @@ export default function AboutPage() {
                 {SOCIAL_LINKS.email && (
                   <a
                     href={`mailto:${SOCIAL_LINKS.email}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-sm no-underline transition-all hover:bg-[var(--color-primary-soft)]"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-liquid text-sm no-underline transition-all hover:bg-[var(--color-primary-soft)]"
                     style={{ color: 'var(--color-ink)' }}
                   >
                     <IconMail size={14} strokeWidth={1.5} />
@@ -84,7 +84,7 @@ export default function AboutPage() {
 
       {/* Bio */}
       <AnimatedContent direction="up" delay={0.15}>
-        <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12 mb-8" style={{ cursor: 'default' }}>
+        <div className="rounded-3xl glass-liquid p-6 sm:p-10 lg:p-12 mb-8" style={{ cursor: 'default' }}>
           <div className="prose max-w-none">
             <p className="body-md leading-relaxed mb-4">
               我专注于 AI Agent 开发与大模型应用实践。在这个博客里，我分享 AI 开发中的实战经验与技术思考，记录构建智能体应用的探索过程。
@@ -114,7 +114,7 @@ export default function AboutPage() {
 
       {/* Skills */}
       <AnimatedContent direction="up" delay={0.2}>
-        <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12 mb-8" style={{ cursor: 'default' }}>
+        <div className="rounded-3xl glass-liquid p-6 sm:p-10 lg:p-12 mb-8" style={{ cursor: 'default' }}>
           <h3 className="heading-3 mb-5 flex items-center gap-2">
             <IconTools size={20} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
             技术栈
@@ -123,7 +123,7 @@ export default function AboutPage() {
             {ABOUT.skills.map((skill) => (
               <span
                 key={skill}
-                className="px-3.5 py-2 rounded-full text-sm font-medium glass transition-all hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary)]"
+                className="px-3.5 py-2 rounded-full text-sm font-medium glass-liquid transition-all hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary)]"
                 style={{ color: 'var(--color-ink)' }}
               >
                 {skill}
@@ -135,7 +135,7 @@ export default function AboutPage() {
 
       {/* Timeline */}
       <AnimatedContent direction="up" delay={0.25}>
-        <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12" style={{ cursor: 'default' }}>
+        <div className="rounded-3xl glass-liquid p-6 sm:p-10 lg:p-12" style={{ cursor: 'default' }}>
           <h3 className="heading-3 mb-6 flex items-center gap-2">
             <IconCalendarClock size={20} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
             时间线

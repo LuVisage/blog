@@ -57,7 +57,7 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
   return (
     <div
       ref={ref}
-      className="glass-card rounded-2xl p-5 sm:p-6 text-center flex flex-col items-center justify-center gap-2 min-h-[100px]"
+      className="glass-liquid rounded-2xl p-5 sm:p-6 text-center flex flex-col items-center justify-center gap-2 min-h-[100px]"
     >
       {icon && <div className="mb-0.5">{icon}</div>}
       <div

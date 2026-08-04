@@ -24,7 +24,7 @@ export function Header() {
     <header className="sticky top-3 z-50 w-full px-4">
       <div className="max-w-5xl xl:max-w-6xl mx-auto">
         <div
-          className="flex items-center justify-between h-14 px-4 sm:px-6 rounded-2xl glass transition-all duration-300"
+          className="flex items-center justify-between h-14 px-4 sm:px-6 rounded-2xl glass-liquid transition-all duration-300"
           style={{
             boxShadow: scrolled
               ? '0 4px 16px rgba(0,0,0,0.06)'
@@ -73,7 +73,7 @@ export function Header() {
             <ThemeToggle />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden w-9 h-9 rounded-xl glass flex items-center justify-center cursor-pointer"
+              className="md:hidden w-9 h-9 rounded-xl glass-liquid flex items-center justify-center cursor-pointer"
               aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
               aria-expanded={mobileMenuOpen}
             >
@@ -99,7 +99,7 @@ export function Header() {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <nav className="md:hidden relative z-50 mt-2 rounded-2xl glass overflow-hidden animate-scale-in" role="navigation" aria-label="移动端导航">
+          <nav className="md:hidden relative z-50 mt-2 rounded-2xl glass-liquid overflow-hidden animate-scale-in" role="navigation" aria-label="移动端导航">
             <div className="px-2 py-2 space-y-0.5">
               {NAV_LINKS.map((link) => {
                 const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href)

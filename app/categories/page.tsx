@@ -46,13 +46,13 @@ export default function CategoriesPage() {
                 <WobbleCard intensity={4} gloss={true}>
                   <Link
                     href={`/categories/${category}`}
-                    className="group rounded-2xl glass-card p-5 sm:p-6 block"
+                    className="group rounded-2xl glass-liquid p-5 sm:p-6 block"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary-soft)' }}>
                         <IconFolderFilled size={20} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
                       </div>
-                      <span className="px-2.5 py-1 rounded-full text-xs font-bold glass" style={{ color: 'var(--color-ink)' }}>
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold glass-liquid" style={{ color: 'var(--color-ink)' }}>
                         {count}
                       </span>
                     </div>

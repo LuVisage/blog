@@ -57,7 +57,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-soft)]"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-liquid text-xs font-medium transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-soft)]"
           style={{ color: 'var(--color-ink)' }}
           title={`分享到 ${link.name}`}
         >
@@ -68,7 +68,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
 
       <button
         onClick={handleCopy}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-xs font-medium transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-soft)]"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-liquid text-xs font-medium transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-soft)]"
         style={{ color: copied ? 'var(--color-success)' : 'var(--color-ink)' }}
       >
         {copied ? (

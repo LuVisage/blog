@@ -275,7 +275,7 @@ function PlaylistInput({ currentId, onLoad }: { currentId: string; onLoad: (id: 
       {show && (
         <form
           onSubmit={(e) => { e.preventDefault(); const t = value.trim(); if (t && t !== currentId) onLoad(t); setShow(false) }}
-          className="absolute right-0 top-full mt-2 p-3 rounded-xl glass-card z-50 flex items-center gap-2 shadow-lg"
+          className="absolute right-0 top-full mt-2 p-3 rounded-xl glass-liquid z-50 flex items-center gap-2 shadow-lg"
           style={{ minWidth: 220 }}
         >
           <input

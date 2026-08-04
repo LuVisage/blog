@@ -82,7 +82,7 @@ export default function HomePage() {
                       href={SOCIAL_LINKS.github}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="glass-card rounded-xl inline-flex items-center gap-2 h-11 px-5 text-base font-medium no-underline hover-lift"
+                      className="glass-liquid rounded-xl inline-flex items-center gap-2 h-11 px-5 text-base font-medium no-underline hover-lift"
                       style={{ color: 'var(--color-ink)' }}
                     >
                       <IconBrandGithub size={18} strokeWidth={1.5} />
@@ -127,7 +127,7 @@ export default function HomePage() {
 
               {/* Scroll-down indicator */}
               <div className="flex justify-center mt-8">
-                <span className="animate-bounce inline-flex items-center justify-center w-9 h-9 rounded-full glass cursor-default opacity-60" aria-hidden="true">
+                <span className="animate-bounce inline-flex items-center justify-center w-9 h-9 rounded-full glass-liquid cursor-default opacity-60" aria-hidden="true">
                   <IconChevronDown size={16} strokeWidth={2} style={{ color: 'var(--color-muted)' }} />
                 </span>
               </div>
@@ -141,12 +141,12 @@ export default function HomePage() {
 
         {/* Popular Posts — spans 2 cols */}
         <AnimatedContent direction="up" delay={0.05} className="lg:col-span-2">
-          <div className="glass-card rounded-2xl p-5 sm:p-8 flex flex-col h-full" style={{ cursor: 'default' }}>
+          <div className="glass-liquid rounded-2xl p-5 sm:p-8 flex flex-col h-full" style={{ cursor: 'default' }}>
             <div className="flex items-center gap-2 mb-4 sm:mb-6">
               <IconFlame size={22} strokeWidth={1.5} style={{ color: 'var(--color-accent-gold)' }} />
               <h2 className="heading-2">热门文章</h2>
               {popularPosts.length > 0 && (
-                <span className="text-xs ml-auto px-2 py-0.5 rounded-full glass" style={{ color: 'var(--color-muted)' }}>
+                <span className="text-xs ml-auto px-2 py-0.5 rounded-full glass-liquid" style={{ color: 'var(--color-muted)' }}>
                   Top {popularPosts.length}
                 </span>
               )}
@@ -188,7 +188,7 @@ export default function HomePage() {
                         </p>
                       )}
                       {post.category && (
-                        <span className="inline-block text-[10px] font-medium mt-1.5 px-2 py-0.5 rounded-full glass" style={{ color: 'var(--color-primary)' }}>
+                        <span className="inline-block text-[10px] font-medium mt-1.5 px-2 py-0.5 rounded-full glass-liquid" style={{ color: 'var(--color-primary)' }}>
                           {post.category}
                         </span>
                       )}
@@ -220,7 +220,7 @@ export default function HomePage() {
       <AnimatedContent direction="up" delay={0.15}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-16">
           {/* About Card */}
-          <Link href="/about" className="glass-card rounded-2xl p-4 sm:p-6 flex flex-col items-center text-center gap-2 sm:gap-3 group">
+          <Link href="/about" className="glass-liquid rounded-2xl p-4 sm:p-6 flex flex-col items-center text-center gap-2 sm:gap-3 group">
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center gradient-border"
               style={{ background: 'var(--color-primary-soft)' }}>
               <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
@@ -235,7 +235,7 @@ export default function HomePage() {
 
           {/* GitHub Card */}
           <a href={SOCIAL_LINKS.github} target="_blank" rel="noopener noreferrer"
-            className="glass-card rounded-2xl p-4 sm:p-6 flex flex-col items-center text-center gap-2 sm:gap-3 group">
+            className="glass-liquid rounded-2xl p-4 sm:p-6 flex flex-col items-center text-center gap-2 sm:gap-3 group">
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center gradient-border"
               style={{ background: 'var(--color-primary-soft)' }}>
               <IconBrandGithub size={28} strokeWidth={1.5} style={{ color: 'var(--color-ink)' }} />
@@ -249,7 +249,7 @@ export default function HomePage() {
           </a>
 
           {/* Categories Card */}
-          <Link href="/categories" className="glass-card rounded-2xl p-4 sm:p-6 flex flex-col items-center text-center gap-2 sm:gap-3 group">
+          <Link href="/categories" className="glass-liquid rounded-2xl p-4 sm:p-6 flex flex-col items-center text-center gap-2 sm:gap-3 group">
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center gradient-border"
               style={{ background: 'var(--color-primary-soft)' }}>
               <IconFolderFilled size={28} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
@@ -259,7 +259,7 @@ export default function HomePage() {
             {categories.length > 0 && (
               <div className="flex flex-wrap gap-1 justify-center mt-auto">
                 {categories.slice(0, 3).map(cat => (
-                  <span key={cat.category} className="px-2 py-0.5 rounded-md text-[10px] font-medium glass" style={{ color: 'var(--color-body)' }}>
+                  <span key={cat.category} className="px-2 py-0.5 rounded-md text-[10px] font-medium glass-liquid" style={{ color: 'var(--color-body)' }}>
                     {cat.category}
                   </span>
                 ))}
@@ -268,7 +268,7 @@ export default function HomePage() {
           </Link>
 
           {/* Tags Card */}
-          <Link href="/tags" className="glass-card rounded-2xl p-4 sm:p-6 flex flex-col items-center text-center gap-2 sm:gap-3 group">
+          <Link href="/tags" className="glass-liquid rounded-2xl p-4 sm:p-6 flex flex-col items-center text-center gap-2 sm:gap-3 group">
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center gradient-border"
               style={{ background: 'var(--color-primary-soft)' }}>
               <IconTag size={28} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
@@ -278,7 +278,7 @@ export default function HomePage() {
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1 justify-center mt-auto">
                 {tags.slice(0, 4).map(tag => (
-                  <span key={tag.tag} className="px-2 py-0.5 rounded-md text-[10px] font-medium glass" style={{ color: 'var(--color-body)' }}>
+                  <span key={tag.tag} className="px-2 py-0.5 rounded-md text-[10px] font-medium glass-liquid" style={{ color: 'var(--color-body)' }}>
                     #{tag.tag}
                   </span>
                 ))}
@@ -306,7 +306,7 @@ export default function HomePage() {
           {recentOthers.length > 0 ? (
             <PostList posts={recentOthers} />
           ) : (
-            <div className="text-center py-12 glass-card rounded-3xl" style={{ cursor: 'default' }}>
+            <div className="text-center py-12 glass-liquid rounded-3xl" style={{ cursor: 'default' }}>
               <IconArticle size={40} strokeWidth={1.5} className="mx-auto mb-3" style={{ color: 'var(--color-muted-soft)' }} />
               <p className="body-sm">发表你的第一篇文章吧</p>
             </div>

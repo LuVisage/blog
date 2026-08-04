@@ -5,7 +5,7 @@ export function TagBadge({ tag, count }: { tag: string; count?: number }) {
   return (
     <Link
       href={`/tags/${tag}`}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium glass transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-soft)]"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium glass-liquid transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-soft)]"
       style={{ color: 'var(--color-body)' }}
     >
       <IconTag size={11} style={{ color: 'var(--color-primary)' }} strokeWidth={2.5} />

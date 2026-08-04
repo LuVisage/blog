@@ -9,7 +9,7 @@ export function PostCard({ post, featured = false }: { post: PostMeta; featured?
   return (
     <Link
       href={`/posts/${post.slug}`}
-      className={`glass-card flex rounded-2xl group overflow-hidden ${
+      className={`glass-liquid flex rounded-2xl group overflow-hidden ${
         featured ? 'lg:flex-row' : 'flex-col'
       }`}
     >
@@ -26,7 +26,7 @@ export function PostCard({ post, featured = false }: { post: PostMeta; featured?
         <div className="flex items-center gap-2 mb-3">
           {post.category ? (
             <span
-              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold glass"
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold glass-liquid"
               style={{ color: 'var(--color-primary)' }}
             >
               <IconFolderFilled size={10} />
@@ -80,7 +80,7 @@ export function PostCard({ post, featured = false }: { post: PostMeta; featured?
 
           <div className="flex items-center gap-2">
             {post.tags.length > 0 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full glass" style={{ color: 'var(--color-muted)' }}>
+              <span className="text-[10px] px-2 py-0.5 rounded-full glass-liquid" style={{ color: 'var(--color-muted)' }}>
                 {post.tags.length} 个标签
               </span>
             )}

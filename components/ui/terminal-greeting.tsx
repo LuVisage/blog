@@ -3,7 +3,7 @@ export function TerminalGreeting() {
     <div
       className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl font-mono text-xs sm:text-sm max-w-full"
       style={{
-        background: 'var(--glass-card-bg)',
+        background: 'var(--glass-liquid-bg)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         color: 'var(--color-ink)',

@@ -105,7 +105,7 @@ export function TableOfContents() {
       <div className="xl:hidden">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl glass text-sm transition-colors w-full"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl glass-liquid text-sm transition-colors w-full"
           style={{ color: 'var(--color-ink)' }}
         >
           <IconList size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
@@ -127,7 +127,7 @@ export function TableOfContents() {
         </button>
 
         {isOpen && (
-          <div className="mt-2 rounded-2xl glass p-4 animate-scale-in">
+          <div className="mt-2 rounded-2xl glass-liquid p-4 animate-scale-in">
             <ul className="space-y-0.5">
               {headings.map(({ id, text, level }) => (
                 <li key={id}>

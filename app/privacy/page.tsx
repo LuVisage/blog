@@ -22,7 +22,7 @@ export default function PrivacyPage() {
       </AnimatedContent>
 
       <AnimatedContent direction="up" delay={0.1}>
-        <div className="rounded-3xl glass-card p-6 sm:p-10 lg:p-12" style={{ cursor: 'default' }}>
+        <div className="rounded-3xl glass-liquid p-6 sm:p-10 lg:p-12" style={{ cursor: 'default' }}>
           <div className="prose max-w-none">
             <h2>1. 数据收集</h2>
             <p>

@@ -34,9 +34,9 @@ export default function FriendsPage() {
                 href={friend.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group rounded-2xl glass-card p-5 sm:p-6 flex items-start gap-4 block"
+                className="group rounded-2xl glass-liquid p-5 sm:p-6 flex items-start gap-4 block"
               >
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl glass flex items-center justify-center overflow-hidden">
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl glass-liquid flex items-center justify-center overflow-hidden">
                   {friend.avatar ? (
                     <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
                   ) : (
@@ -67,7 +67,7 @@ export default function FriendsPage() {
 
       {/* Exchange info */}
       <AnimatedContent direction="up" delay={0.3}>
-        <div className="mt-8 rounded-2xl glass-card p-6 text-center" style={{ cursor: 'default' }}>
+        <div className="mt-8 rounded-2xl glass-liquid p-6 text-center" style={{ cursor: 'default' }}>
           <h3 className="heading-3 mb-3 flex items-center justify-center gap-2">
             <IconHeart size={18} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
             交换友链
@@ -76,11 +76,11 @@ export default function FriendsPage() {
             如果你也是 AI/技术方向的博客，欢迎交换友链！
           </p>
           <div className="inline-flex flex-col sm:flex-row items-center gap-2 caption">
-            <code className="px-2.5 py-1 rounded-lg glass font-medium" style={{ color: 'var(--color-ink)' }}>
+            <code className="px-2.5 py-1 rounded-lg glass-liquid font-medium" style={{ color: 'var(--color-ink)' }}>
               {SITE.title}
             </code>
             <span className="hidden sm:inline" style={{ color: 'var(--color-muted-soft)' }}>—</span>
-            <code className="px-2.5 py-1 rounded-lg glass font-medium" style={{ color: 'var(--color-ink)' }}>
+            <code className="px-2.5 py-1 rounded-lg glass-liquid font-medium" style={{ color: 'var(--color-ink)' }}>
               {SITE.url}
             </code>
           </div>

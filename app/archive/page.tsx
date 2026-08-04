@@ -151,7 +151,7 @@ export default function ArchivePage() {
                         </div>
 
                         {/* Card */}
-                        <div className="rounded-2xl glass-card p-4 sm:p-6" style={{ cursor: 'default' }}>
+                        <div className="rounded-2xl glass-liquid p-4 sm:p-6" style={{ cursor: 'default' }}>
                           <h3 className="text-lg font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--color-ink)' }}>
                             {MONTH_NAMES[month - 1]}
                             <span className="text-sm font-normal" style={{ color: 'var(--color-muted)' }}>

@@ -80,7 +80,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
             {post.category && (
               <Link
                 href={`/categories/${post.category}`}
-                className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full text-xs font-medium glass hover:bg-[var(--color-primary-soft)] transition-all"
+                className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-full text-xs font-medium glass-liquid hover:bg-[var(--color-primary-soft)] transition-all"
               >
                 <IconFolderFilled size={12} style={{ color: 'var(--color-primary)' }} />
                 <span style={{ color: 'var(--color-primary)' }}>{post.category}</span>
@@ -109,7 +109,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                   <span style={{ color: 'var(--color-hairline)' }}>·</span>
                   <Link
                     href={`/series/${post.series}`}
-                    className="px-2 py-0.5 rounded-full text-xs font-medium glass hover:bg-[var(--color-primary-soft)] transition-all"
+                    className="px-2 py-0.5 rounded-full text-xs font-medium glass-liquid hover:bg-[var(--color-primary-soft)] transition-all"
                     style={{ color: 'var(--color-primary)' }}
                   >
                     {post.series}
@@ -125,12 +125,12 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </header>
 
           {/* Article content */}
-          <div className="rounded-2xl sm:rounded-3xl glass-card p-5 sm:p-10 lg:p-12 prose max-w-none mb-8" style={{ cursor: 'default' }}>
+          <div className="rounded-2xl sm:rounded-3xl glass-liquid p-5 sm:p-10 lg:p-12 prose max-w-none mb-8" style={{ cursor: 'default' }}>
             <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
           </div>
 
           {/* Share + Like */}
-          <div className="mb-8 p-5 rounded-2xl glass-card flex items-center justify-between flex-wrap gap-4" style={{ cursor: 'default' }}>
+          <div className="mb-8 p-5 rounded-2xl glass-liquid flex items-center justify-between flex-wrap gap-4" style={{ cursor: 'default' }}>
             <SocialShare title={post.title} url={postUrl} />
             <LikeButton slug={slug} />
           </div>
@@ -138,7 +138,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
           {/* Prev/Next */}
           <nav className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             {prev ? (
-              <Link href={`/posts/${prev.slug}`} className="glass-card rounded-2xl p-5 group">
+              <Link href={`/posts/${prev.slug}`} className="glass-liquid rounded-2xl p-5 group">
                 <span className="caption flex items-center gap-1 mb-1.5">
                   <IconChevronLeft size={12} strokeWidth={2} /> 上一篇
                 </span>
@@ -149,7 +149,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
             )}
             <Link
               href={next ? `/posts/${next.slug}` : '/posts'}
-              className={`glass-card rounded-2xl p-5 group text-right`}
+              className={`glass-liquid rounded-2xl p-5 group text-right`}
             >
               {next ? (
                 <>
@@ -171,7 +171,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           {/* Series Navigation */}
           {seriesPosts.length > 1 && (
-            <div className="mb-8 p-5 sm:p-6 rounded-2xl glass-card" style={{ cursor: 'default' }}>
+            <div className="mb-8 p-5 sm:p-6 rounded-2xl glass-liquid" style={{ cursor: 'default' }}>
               <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--color-ink)' }}>
                 <span className="w-1.5 h-5 rounded-full" style={{ background: 'var(--color-primary)' }} />
                 系列文章：{post.series}
@@ -214,12 +214,12 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           <RelatedPosts currentSlug={slug} />
 
-          <div className="mt-8 p-6 sm:p-8 rounded-3xl glass-card"><GiscusComments /></div>
+          <div className="mt-8 p-6 sm:p-8 rounded-3xl glass-liquid"><GiscusComments /></div>
         </article>
 
         {/* Desktop TOC sidebar */}
         <aside className="hidden xl:flex xl:flex-col xl:w-56 xl:flex-shrink-0">
-          <div className="sticky top-28 rounded-2xl glass-card p-5" style={{ maxHeight: 'calc(100vh - 8rem)', cursor: 'default' }}>
+          <div className="sticky top-28 rounded-2xl glass-liquid p-5" style={{ maxHeight: 'calc(100vh - 8rem)', cursor: 'default' }}>
             <TableOfContents />
           </div>
         </aside>

@@ -71,13 +71,13 @@ export function PostsCalendar({ posts }: Props) {
   }
 
   return (
-    <div className="rounded-2xl glass-card p-5 sm:p-6" style={{ cursor: 'default' }}>
+    <div className="rounded-2xl glass-liquid p-5 sm:p-6" style={{ cursor: 'default' }}>
       <div className="flex items-center gap-2 mb-5">
         <IconCalendar size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
         <span className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
           文章日历
         </span>
-        <span className="text-xs ml-auto px-2 py-0.5 rounded-full glass" style={{ color: 'var(--color-muted)' }}>
+        <span className="text-xs ml-auto px-2 py-0.5 rounded-full glass-liquid" style={{ color: 'var(--color-muted)' }}>
           {posts.length} 篇
         </span>
       </div>
@@ -133,7 +133,7 @@ export function PostsCalendar({ posts }: Props) {
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 glass-card rounded-xl px-3 py-2 text-xs pointer-events-none animate-scale-in"
+          className="fixed z-50 glass-liquid rounded-xl px-3 py-2 text-xs pointer-events-none animate-scale-in"
           style={{ left: tooltip.x + 16, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
         >
           <p className="font-semibold mb-1" style={{ color: 'var(--color-ink)' }}>

@@ -36,7 +36,7 @@ export default function SeriesPage() {
               <WobbleCard intensity={4} gloss={true}>
               <Link
                 href={`/series/${name}`}
-                className="group rounded-2xl glass-card p-5 sm:p-6 block"
+                className="group rounded-2xl glass-liquid p-5 sm:p-6 block"
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary-soft)' }}>
