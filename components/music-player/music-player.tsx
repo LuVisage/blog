@@ -180,7 +180,7 @@ function LyricsDisplay({ lrc, currentTime }: { lrc: string; currentTime: number 
             key={i}
             className="transition-all duration-300 px-1"
             style={{
-              color: isActive ? '#f59e0b' : 'var(--color-muted-soft)',
+              color: isActive ? 'var(--color-accent-gold)' : 'var(--color-muted-soft)',
               fontWeight: isActive ? 600 : 400,
               fontSize: isActive ? '0.82rem' : '0.7rem',
               transform: isActive ? 'scale(1.04)' : 'scale(1)',
@@ -269,6 +269,7 @@ function PlaylistInput({ currentId, onLoad }: { currentId: string; onLoad: (id: 
         onClick={() => setShow(!show)}
         className="p-2 rounded-md cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors"
         aria-label="切换歌单"
+        aria-expanded={show}
       >
         <IconList size={15} style={{ color: 'var(--color-muted)' }} strokeWidth={1.5} />
       </button>

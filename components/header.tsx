@@ -73,7 +73,7 @@ export function Header() {
             <ThemeToggle />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden w-9 h-9 rounded-xl glass-liquid flex items-center justify-center cursor-pointer"
+              className="md:hidden w-11 h-11 rounded-xl glass-liquid flex items-center justify-center cursor-pointer"
               aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
               aria-expanded={mobileMenuOpen}
             >

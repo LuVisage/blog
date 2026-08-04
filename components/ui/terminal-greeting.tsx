@@ -1,14 +1,8 @@
 export function TerminalGreeting() {
   return (
     <div
-      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl font-mono text-xs sm:text-sm max-w-full"
-      style={{
-        background: 'var(--glass-liquid-bg)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        color: 'var(--color-ink)',
-        border: '1px solid var(--color-hairline)',
-      }}
+      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl font-mono text-xs sm:text-sm max-w-full glass-liquid"
+      style={{ color: 'var(--color-ink)' }}
     >
       <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>$</span>
       <span className="truncate" style={{ color: 'var(--color-ink)' }}>echo &quot;AI 探索者 &amp; Agent 开发者&quot;</span>

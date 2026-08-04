@@ -15,14 +15,8 @@ export function MusicPlayerFAB() {
         <div className="fixed bottom-24 right-6 z-40 flex flex-col items-end gap-1.5">
           {isLoaded && playlist.length > 0 && (
             <div
-              className="px-3 py-1.5 rounded-xl text-xs animate-fade-up"
-              style={{
-                background: 'var(--glass-liquid-bg)',
-                backdropFilter: 'blur(24px)',
-                WebkitBackdropFilter: 'blur(24px)',
-                color: 'var(--color-muted)',
-                border: '1px solid var(--color-hairline)',
-              }}
+              className="px-3 py-1.5 rounded-xl text-xs animate-fade-up glass-liquid"
+              style={{ color: 'var(--color-muted)' }}
             >
               点击查看黑胶唱片
             </div>
@@ -36,7 +30,7 @@ export function MusicPlayerFAB() {
               animation: isPlaying ? 'glowPulse 2.5s ease-in-out infinite' : undefined,
             }}
             aria-label="打开音乐播放器"
-            title={isPlaying ? '正在播放' : isLoading ? '加载中...' : '打开音乐播放器'}
+            title={isPlaying ? '正在播放' : isLoading ? '加载中...' : error ? '加载失败' : '打开音乐播放器'}
           >
             {isLoading && (
               <div

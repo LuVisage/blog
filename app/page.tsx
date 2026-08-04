@@ -51,7 +51,7 @@ export default function HomePage() {
 
               {/* Title */}
               <AnimatedContent direction="up" distance={16} duration={0.5} delay={0.05}>
-                <h1 className="heading-1 mb-2 sm:mb-3" style={{ fontSize: 'clamp(30px, 8vw, 60px)' }}>
+                <h1 className="heading-1 mb-2 sm:mb-3">
                   <span className="gradient-text-accent">{SITE.title}</span>
                 </h1>
               </AnimatedContent>

@@ -18,7 +18,7 @@
   --color-primary-glow: rgba(124, 92, 231, 0.18);
 
   /* ── Warm Accent: Alchemy Gold (stars, flame only) ── */
-  --color-accent-gold: #F59E0B;
+  --color-accent-gold: #b8860b;
 
   /* ── Text ── */
   --color-ink: #1a1a2e;
@@ -33,7 +33,7 @@
 
   /* ── Semantic ── */
   --color-success: #10b981;
-  --color-danger: #ef4444;
+  --color-danger: #d32f2f;
 
   /* ── Alchemy Depth Shadow ── */
   --shadow-alchemy-card: 0 0 0 1px rgba(124, 92, 231, 0.04),
@@ -57,10 +57,12 @@
   --color-primary-soft: rgba(139, 111, 239, 0.12);
   --color-primary-glow: rgba(139, 111, 239, 0.15);
 
+  --color-accent-gold: #fbbf24;
+
   --color-ink: #f0f0f5;
   --color-body: #c8c8d4;
   --color-muted: #9090a0;
-  --color-muted-soft: #686880;
+  --color-muted-soft: #8e8e99;
 
   --color-hairline: #2e2e3d;
   --color-hairline-soft: #252535;
@@ -342,7 +344,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    height: 40px;
+    height: 44px;
     padding: 0 16px;
     background: transparent;
     color: var(--color-muted);
@@ -367,6 +369,7 @@
 @layer components {
   .heading-1 {
     font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: clamp(30px, 8vw, 60px);
     font-weight: 700;
     line-height: 1.12;
     letter-spacing: -0.025em;
@@ -589,6 +592,8 @@
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--color-hairline);
+  display: block;
+  overflow-x: auto;
 }
 
 .prose thead {

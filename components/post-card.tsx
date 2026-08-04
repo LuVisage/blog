@@ -50,7 +50,7 @@ export function PostCard({ post, featured = false }: { post: PostMeta; featured?
 
         {/* Title */}
         <h3
-          className={`font-semibold mb-2 transition-colors duration-150 group-hover:text-[var(--color-primary)] ${
+          className={`font-semibold mb-2 transition-colors duration-150 group-hover:text-[var(--color-primary)] truncate ${
             featured ? 'text-xl' : 'text-base'
           }`}
           style={{ color: 'var(--color-ink)', fontFamily: "'Inter', system-ui, sans-serif" }}
