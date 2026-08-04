@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Music player gap: driven by --player-push custom property ── */
+#main-content {
+  padding-right: var(--player-push, 1rem);
+}
+@media (min-width: 640px) {
+  #main-content {
+    padding-right: var(--player-push, 1.5rem);
+  }
+}
+@media (min-width: 1024px) {
+  #main-content {
+    padding-right: var(--player-push, 2rem);
+  }
+}
+
 /* ============================================
    Alchemy Design System v4.1
    Baron_Zhang Blog — "The space between code and consciousness."

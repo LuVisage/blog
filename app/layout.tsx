@@ -69,7 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
           <BackgroundDecor />
           <Header />
-          <main id="main-content" className="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10 transition-[padding-right] duration-300 ease-out">
+          <main id="main-content" className="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto pl-4 sm:pl-6 lg:pl-8 py-8 sm:py-12 lg:py-16 relative z-10 transition-[padding-right] duration-300 ease-out">
             {children}
           </main>
           <Footer />
