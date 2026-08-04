@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useReducer, useRef, useEffect, useCallback, type Dispatch } from 'react'
+import { createContext, useContext, useReducer, useRef, useEffect, useCallback, useMemo, type Dispatch } from 'react'
 import { type Song, fetchPlaylist, getSavedPlaylistId, savePlaylistId } from '@/lib/music'
 
 // ============================================================
@@ -103,7 +103,6 @@ function reducer(state: PlayerState, action: Action): PlayerState {
 // ============================================================
 interface MusicPlayerCtx {
   state: PlayerState
-  dispatch: Dispatch<Action>
   loadPlaylist: (id: string) => Promise<void>
   play: () => void
   pause: () => void
@@ -112,6 +111,7 @@ interface MusicPlayerCtx {
   prev: () => void
   setVolume: (v: number) => void
   playSong: (index: number) => void
+  toggleExpanded: (open: boolean) => void
 }
 
 const MusicPlayerContext = createContext<MusicPlayerCtx | null>(null)
@@ -129,6 +129,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const [state, dispatch] = useReducer(reducer, initialState)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const shouldAutoPlayRef = useRef(false)
+  const isMountedRef = useRef(true)
+  useEffect(() => () => { isMountedRef.current = false }, [])
 
   // ── Init audio element once ──
   useEffect(() => {
@@ -186,18 +188,21 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   // ── Load playlist from saved ID ──
   const loadPlaylist = useCallback(async (id: string) => {
     savePlaylistId(id)
+    if (!isMountedRef.current) return
     dispatch({ type: 'SET_PLAYLIST_ID', payload: id })
     dispatch({ type: 'SET_LOADING', payload: true })
     dispatch({ type: 'SET_ERROR', payload: null })
     try {
       const songs = await fetchPlaylist(id)
+      if (!isMountedRef.current) return
       dispatch({ type: 'SET_PLAYLIST', payload: songs })
       dispatch({ type: 'SET_CURRENT_INDEX', payload: 0 })
       dispatch({ type: 'SET_LOADED', payload: true })
     } catch (e) {
+      if (!isMountedRef.current) return
       dispatch({ type: 'SET_ERROR', payload: e instanceof Error ? e.message : '加载失败' })
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false })
+      if (isMountedRef.current) dispatch({ type: 'SET_LOADING', payload: false })
     }
   }, [])
 
@@ -290,10 +295,14 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: 'SET_PLAYING', payload: true })
   }, [])
 
-  const ctx: MusicPlayerCtx = {
-    state, dispatch,
-    loadPlaylist, play, pause, toggle, next, prev, setVolume, playSong,
-  }
+  const toggleExpanded = useCallback((open: boolean) => {
+    dispatch({ type: 'SET_EXPANDED', payload: open })
+  }, [])
+
+  const ctx = useMemo<MusicPlayerCtx>(() => ({
+    state,
+    loadPlaylist, play, pause, toggle, next, prev, setVolume, playSong, toggleExpanded,
+  }), [state, loadPlaylist, play, pause, toggle, next, prev, setVolume, playSong, toggleExpanded])
 
   return (
     <MusicPlayerContext.Provider value={ctx}>

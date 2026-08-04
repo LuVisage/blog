@@ -5,7 +5,7 @@ import { MusicPlayer } from './music-player'
 import { IconMusic } from '@tabler/icons-react'
 
 export function MusicPlayerFAB() {
-  const { state, dispatch } = useMusicPlayer()
+  const { state, toggleExpanded } = useMusicPlayer()
   const { isPlaying, isExpanded, isLoading, error, isLoaded, playlist } = state
 
   return (
@@ -29,7 +29,7 @@ export function MusicPlayerFAB() {
           )}
 
           <button
-            onClick={() => dispatch({ type: 'SET_EXPANDED', payload: true })}
+            onClick={() => toggleExpanded(true)}
             className="w-11 h-11 rounded-full glass-liquid flex items-center justify-center cursor-pointer transition-all duration-300 relative"
             style={{
               boxShadow: isPlaying ? '0 0 0 0 rgba(124,92,231,0.4)' : undefined,
@@ -65,11 +65,11 @@ export function MusicPlayerFAB() {
           <div
             className="fixed inset-0 z-[-1] md:hidden"
             style={{ background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
-            onClick={() => dispatch({ type: 'SET_EXPANDED', payload: false })}
+            onClick={() => toggleExpanded(false)}
           />
 
           <div className="animate-scale-in">
-            <MusicPlayer onClose={() => dispatch({ type: 'SET_EXPANDED', payload: false })} />
+            <MusicPlayer onClose={() => toggleExpanded(false)} />
           </div>
         </div>
       )}
