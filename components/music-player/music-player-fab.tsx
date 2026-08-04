@@ -20,8 +20,8 @@ export function MusicPlayerFAB() {
         main.style.removeProperty('--player-push')
         return
       }
-      const GAP = 10
-      const PLAYER_W = 280
+      const GAP = 6
+      const PLAYER_W = 220
       const PLAYER_RIGHT = 24
       const vw = document.documentElement.clientWidth
       const contentW = Math.min(vw, 1024)
