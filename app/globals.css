@@ -23,8 +23,8 @@
   /* ── Text ── */
   --color-ink: #1a1a2e;
   --color-body: #2a2a45;
-  --color-muted: #4e4e68;
-  --color-muted-soft: #6a6a80;
+  --color-muted: #42425c;
+  --color-muted-soft: #4e4e66;
 
   /* ── Hairlines & Borders ── */
   --color-hairline: #d5d5e2;
@@ -187,7 +187,7 @@
   */
   .glass-liquid {
     position: relative;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.18);
     backdrop-filter: url(#lg-filter) blur(3px) contrast(1.02) brightness(0.98) saturate(1.05);
     -webkit-backdrop-filter: blur(3px) contrast(1.02) brightness(0.98) saturate(1.05);
     border: none;
