@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useMusicPlayer } from './music-player-context'
 import { MusicPlayer } from './music-player'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
@@ -9,6 +10,16 @@ export function MusicPlayerFAB() {
   const { state, toggleExpanded } = useMusicPlayer()
   const { isPlaying, isExpanded, isLoading, error, isLoaded, playlist } = state
 
+  // Toggle a data attr so CSS can add a minimal gap between player and content
+  useEffect(() => {
+    if (isExpanded) {
+      document.documentElement.setAttribute('data-music-player-open', '')
+    } else {
+      document.documentElement.removeAttribute('data-music-player-open')
+    }
+    return () => { document.documentElement.removeAttribute('data-music-player-open') }
+  }, [isExpanded])
+
   return (
     <>
       {/* ── FAB Button (collapsed) ── */}
@@ -17,7 +28,7 @@ export function MusicPlayerFAB() {
           {isLoaded && playlist.length > 0 && (
             <div
               className="px-3 py-1.5 rounded-xl text-xs animate-fade-up glass-liquid"
-              style={{ color: 'var(--color-muted)' }}
+              style={{ color: 'var(--color-body)' }}
             >
               点击查看黑胶唱片
             </div>

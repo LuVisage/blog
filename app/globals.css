@@ -843,6 +843,21 @@ code[data-theme*=" "] span {
 @keyframes spectrum-18 { 0%,100%{height:24px} 40%{height:8px} 70%{height:20px} }
 @keyframes spectrum-19 { 0%,100%{height:18px} 20%{height:6px} 50%{height:28px} 80%{height:12px} }
 
+/* ==============================================
+   13.5 Music Player — minimal gap when expanded
+   ============================================== */
+/* Add just enough right padding so content doesn't
+   touch the player panel (single-digit px gap).
+   Player is only 280px, and centered content has
+   natural right margin on wide screens — so we
+   only pad the diff. */
+html[data-music-player-open] #main-content {
+  --player-w: min(280px, calc(100vw - 2.5rem));
+  --natural-r-margin: calc((100vw - 64rem) / 2);
+  padding-right: max(0px, calc(var(--player-w) - var(--natural-r-margin) + 6px));
+  transition: padding-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,
