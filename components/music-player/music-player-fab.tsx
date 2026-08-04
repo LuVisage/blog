@@ -12,30 +12,29 @@ export function MusicPlayerFAB() {
 
   // Push main content right so player panel doesn't overlap it
   useEffect(() => {
-    const GAP = 10       // px between content and player
-    const PLAYER_W = 280
-    const PLAYER_RIGHT = 24 // right-6
-    const CONTENT_MAX_W = 1024 // max-w-5xl
+    const main = document.getElementById('main-content')
+    if (!main) return
 
-    const calcPadding = () => {
-      const main = document.getElementById('main-content')
-      if (!main) return
-      if (isExpanded) {
-        const vw = window.innerWidth
-        const padding = Math.max(0, (CONTENT_MAX_W - vw) / 2 + PLAYER_RIGHT + PLAYER_W + GAP)
-        main.style.paddingRight = `${Math.round(padding)}px`
-        main.style.transition = 'padding-right 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
-      } else {
-        main.style.paddingRight = ''
+    const apply = () => {
+      if (!isExpanded) {
+        main.style.removeProperty('padding-right')
+        return
       }
+      const GAP = 10
+      const PLAYER_W = 280
+      const PLAYER_RIGHT = 24
+      const CONTENT_MAX_W = 1024
+      const vw = document.documentElement.clientWidth
+      const padding = Math.max(0, Math.round((CONTENT_MAX_W - vw) / 2 + PLAYER_RIGHT + PLAYER_W + GAP))
+      // setProperty with 'important' beats ALL CSS, even Tailwind utilities
+      main.style.setProperty('padding-right', `${padding}px`, 'important')
     }
 
-    calcPadding()
-    window.addEventListener('resize', calcPadding)
+    apply()
+    window.addEventListener('resize', apply)
     return () => {
-      window.removeEventListener('resize', calcPadding)
-      const main = document.getElementById('main-content')
-      if (main) main.style.paddingRight = ''
+      window.removeEventListener('resize', apply)
+      main.style.removeProperty('padding-right')
     }
   }, [isExpanded])
 
