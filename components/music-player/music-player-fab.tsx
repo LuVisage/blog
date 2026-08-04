@@ -30,7 +30,7 @@ export function MusicPlayerFAB() {
 
           <button
             onClick={() => dispatch({ type: 'SET_EXPANDED', payload: true })}
-            className="w-11 h-11 rounded-full glass flex items-center justify-center cursor-pointer transition-all duration-300 relative"
+            className="w-11 h-11 rounded-full glass-liquid flex items-center justify-center cursor-pointer transition-all duration-300 relative"
             style={{
               boxShadow: isPlaying ? '0 0 0 0 rgba(124,92,231,0.4)' : undefined,
               animation: isPlaying ? 'glowPulse 2.5s ease-in-out infinite' : undefined,

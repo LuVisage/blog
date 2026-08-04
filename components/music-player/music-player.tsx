@@ -303,11 +303,10 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="glass-card rounded-2xl overflow-hidden flex flex-col"
+      className="glass-liquid rounded-2xl overflow-hidden flex flex-col"
       style={{
         width: 400,
         maxHeight: 'calc(100vh - 120px)',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.15), 0 0 0 1px var(--color-hairline)',
       }}
     >
       {/* Header */}

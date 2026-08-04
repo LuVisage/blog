@@ -65,7 +65,7 @@ export default function HomePage() {
 
               {/* Description */}
               <AnimatedContent direction="up" distance={16} duration={0.5} delay={0.15}>
-                <p className="text-sm sm:text-lg max-w-lg mx-auto mb-6 sm:mb-8 leading-relaxed" style={{ color: 'var(--color-body)' }}>
+                <p className="text-sm sm:text-lg max-w-lg mx-auto mb-6 sm:mb-8 leading-relaxed font-medium" style={{ color: 'var(--color-ink)' }}>
                   {SITE.description}
                 </p>
               </AnimatedContent>
