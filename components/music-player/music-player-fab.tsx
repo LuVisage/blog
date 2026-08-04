@@ -23,9 +23,16 @@ export function MusicPlayerFAB() {
       const GAP = 10
       const PLAYER_W = 280
       const PLAYER_RIGHT = 24
-      const CONTENT_MAX_W = 1024
       const vw = document.documentElement.clientWidth
-      const padding = Math.max(0, Math.round((CONTENT_MAX_W - vw) / 2 + PLAYER_RIGHT + PLAYER_W + GAP))
+      // Actual content-box width of #main-content (capped by max-w-5xl)
+      const contentW = Math.min(vw, 1024)
+      // Right edge of the content box (centered by mx-auto when vw > contentW)
+      const contentRight = vw > contentW ? (vw + contentW) / 2 : vw
+      // Left edge of the player panel
+      const playerLeft = vw - PLAYER_RIGHT - PLAYER_W
+      // How much the player overlaps the content (negative = no overlap)
+      const overlap = contentRight - playerLeft
+      const padding = overlap > 0 ? Math.ceil(overlap + GAP) : 0
       // setProperty with 'important' beats ALL CSS, even Tailwind utilities
       main.style.setProperty('padding-right', `${padding}px`, 'important')
     }
