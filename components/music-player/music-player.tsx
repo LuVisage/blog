@@ -18,75 +18,164 @@ import {
 } from '@tabler/icons-react'
 
 // ============================================================
-// Vinyl Disc
+// Vinyl Disc — realistic black record with grooves + cover
 // ============================================================
 function VinylDisc({ cover, isPlaying }: { cover: string; isPlaying: boolean }) {
   return (
-    <div className="relative w-36 h-36 sm:w-40 sm:h-40 mx-auto flex-shrink-0">
-      {/* Outer ring */}
-      <div className="absolute inset-0 rounded-full bg-[#1a1a1a]" />
-
-      {/* Spinning disc */}
+    <div className="relative w-52 h-52 mx-auto flex-shrink-0">
+      {/* Outer platter shadow */}
       <div
-        className="absolute inset-[6px] rounded-full overflow-hidden"
+        className="absolute -inset-3 rounded-full"
         style={{
-          animation: isPlaying ? 'rotate 20s linear infinite' : 'none',
-          background: `conic-gradient(from 0deg, #1a1a1a 0deg 5deg, #222 5deg 10deg, #1a1a1a 10deg 15deg, #222 15deg 20deg, #1a1a1a 20deg 25deg, #222 25deg 30deg, #1a1a1a 30deg 35deg, #222 35deg 40deg, #1a1a1a 40deg 45deg, #222 45deg 50deg, #1a1a1a 50deg 55deg, #222 55deg 60deg, #1a1a1a 60deg 65deg, #222 65deg 70deg, #1a1a1a 70deg 75deg, #222 75deg 80deg, #1a1a1a 80deg 85deg, #222 85deg 90deg, #1a1a1a 90deg 95deg, #222 95deg 100deg, #1a1a1a 100deg)`,
+          background: 'radial-gradient(circle, rgba(0,0,0,0.12) 60%, transparent 70%)',
         }}
       />
 
-      {/* Cover image */}
-      <div className="absolute inset-[24px] rounded-full overflow-hidden bg-black/40">
-        {cover ? (
-          <img
-            src={cover}
-            alt="cover"
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <IconMusic size={32} style={{ color: 'var(--color-muted-soft)' }} strokeWidth={1} />
-          </div>
-        )}
-      </div>
-
-      {/* Center hole */}
+      {/* Main disc — spins */}
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full z-10"
-        style={{ background: 'var(--color-body)', border: '2px solid var(--color-hairline)' }}
-      />
+        className="absolute inset-0 rounded-full"
+        style={{
+          animation: isPlaying ? 'rotate 3s linear infinite' : 'none',
+        }}
+      >
+        {/* Vinyl grooves: repeating-radial-gradient for realistic texture */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: [
+              'repeating-radial-gradient(circle at center,',
+              '#111 0px, #111 2px,',
+              '#1a1a1a 2px, #1a1a1a 3px,',
+              '#111 3px, #111 5px,',
+              '#1e1e1e 5px, #1e1e1e 6px,',
+              '#111 6px, #111 7px,',
+              '#181818 7px, #181818 8px)',
+            ].join('\n'),
+          }}
+        />
+
+        {/* Outer ring highlight */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            border: '2px solid #2a2a2a',
+          }}
+        />
+
+        {/* Album cover — center 38% of disc */}
+        <div
+          className="absolute rounded-full overflow-hidden"
+          style={{
+            top: '31%',
+            left: '31%',
+            width: '38%',
+            height: '38%',
+          }}
+        >
+          {cover ? (
+            <img
+              src={cover}
+              alt="cover"
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div
+              className="w-full h-full flex items-center justify-center"
+              style={{ background: '#1a1a1a' }}
+            >
+              <IconMusic size={24} style={{ color: '#555' }} strokeWidth={1} />
+            </div>
+          )}
+        </div>
+
+        {/* Label ring around cover */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            top: '29%',
+            left: '29%',
+            width: '42%',
+            height: '42%',
+            border: '1.5px solid #2a2a2a',
+          }}
+        />
+
+        {/* Center spindle */}
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            width: 10,
+            height: 10,
+            background: 'radial-gradient(circle at 40% 35%, #888 0%, #444 40%, #222 100%)',
+            boxShadow: '0 0 0 2px #111',
+          }}
+        />
+
+        {/* Shine/reflection */}
+        <div
+          className="absolute inset-0 rounded-full pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.02) 44%, rgba(255,255,255,0.05) 47%, rgba(255,255,255,0.02) 50%, transparent 54%)',
+          }}
+        />
+      </div>
     </div>
   )
 }
 
 // ============================================================
-// Tonearm
+// Tonearm — realistic curved arm + headshell + needle
 // ============================================================
 function Tonearm({ isPlaying }: { isPlaying: boolean }) {
   return (
     <div
-      className="absolute top-2 right-2 w-20 h-20 pointer-events-none z-20 origin-bottom-right"
+      className="absolute top-0 right-0 pointer-events-none"
       style={{
-        transform: isPlaying ? 'rotate(-8deg)' : 'rotate(8deg)',
-        transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        width: 120,
+        height: 120,
+        zIndex: 20,
+        transform: isPlaying ? 'rotate(6deg)' : 'rotate(-4deg)',
+        transformOrigin: '90px 90px',
+        transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
       }}
     >
-      <svg viewBox="0 0 80 80" className="w-full h-full">
-        {/* Base */}
-        <circle cx="72" cy="72" r="8" fill="var(--color-muted)" />
-        {/* Arm */}
-        <line
-          x1="72" y1="72" x2="20" y2="24"
-          stroke="var(--color-muted)"
+      <svg viewBox="0 0 120 120" className="w-full h-full">
+        {/* Pivot base */}
+        <circle cx="90" cy="90" r="7" fill="#555" />
+        <circle cx="90" cy="90" r="4" fill="#333" />
+
+        {/* Curved arm */}
+        <path
+          d="M 88 86 Q 56 64 38 40"
+          fill="none"
+          stroke="#666"
           strokeWidth="2.5"
           strokeLinecap="round"
         />
-        {/* Head */}
+
+        {/* Headshell */}
         <rect
-          x="11" y="16" width="18" height="14" rx="3"
-          fill="var(--color-muted)"
-          transform="rotate(-45 20 23)"
+          x="24"
+          y="28"
+          width="22"
+          height="10"
+          rx="2"
+          fill="#555"
+          transform="rotate(-40 35 33)"
+        />
+
+        {/* Needle */}
+        <line
+          x1="31"
+          y1="36"
+          x2="27"
+          y2="42"
+          stroke="#ccc"
+          strokeWidth="1"
+          strokeLinecap="round"
+          transform="rotate(-40 35 33)"
         />
       </svg>
     </div>
@@ -123,7 +212,7 @@ function formatTime(s: number): string {
 }
 
 // ============================================================
-// Lyrics
+// Lyrics Display
 // ============================================================
 function LyricsDisplay({ lrc, currentTime }: { lrc: string; currentTime: number }) {
   const lines = parseLrc(lrc || '')
@@ -145,11 +234,11 @@ function LyricsDisplay({ lrc, currentTime }: { lrc: string; currentTime: number 
   }, [activeIndex])
 
   if (lines.length === 0) {
-    return <p className="caption text-center py-4">暂无歌词</p>
+    return <p className="caption text-center py-2">暂无歌词</p>
   }
 
   return (
-    <div ref={containerRef} className="max-h-32 overflow-y-auto space-y-1 py-1 scroll-smooth">
+    <div ref={containerRef} className="max-h-28 overflow-y-auto space-y-0.5 py-1 scroll-smooth">
       {lines.map((line, i) => (
         <p
           key={i}
@@ -168,7 +257,7 @@ function LyricsDisplay({ lrc, currentTime }: { lrc: string; currentTime: number 
 }
 
 // ============================================================
-// Volume Slider
+// Volume Control
 // ============================================================
 function VolumeControl({ volume, onChange }: { volume: number; onChange: (v: number) => void }) {
   return (
@@ -274,15 +363,15 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
     <div
       className="glass-card rounded-2xl overflow-hidden flex flex-col"
       style={{
-        width: 320,
+        width: 340,
         maxHeight: 'calc(100vh - 120px)',
         boxShadow: '0 8px 40px rgba(0,0,0,0.15), 0 0 0 1px var(--color-hairline)',
       }}
     >
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
         <span className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
-          🎵 背景音乐
+          背景音乐
         </span>
         <div className="flex items-center gap-1">
           <PlaylistInput currentId={playlistId} onLoad={loadPlaylist} />
@@ -296,11 +385,11 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {/* ── Body ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {/* Loading */}
         {isLoading && (
-          <div className="flex flex-col items-center gap-3 py-8">
+          <div className="flex flex-col items-center gap-3 py-12">
             <IconRefresh size={28} className="animate-spin" style={{ color: 'var(--color-primary)' }} strokeWidth={1.5} />
             <span className="caption">加载歌单中...</span>
           </div>
@@ -308,12 +397,9 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
 
         {/* Error */}
         {error && !isLoading && (
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
             <span className="caption" style={{ color: 'var(--color-danger)' }}>{error}</span>
-            <button
-              onClick={() => loadPlaylist(playlistId)}
-              className="btn-ghost text-xs"
-            >
+            <button onClick={() => loadPlaylist(playlistId)} className="btn-ghost text-xs">
               <IconRefresh size={14} strokeWidth={1.5} /> 重试
             </button>
           </div>
@@ -322,18 +408,18 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
         {/* Player content */}
         {isLoaded && currentSong && !isLoading && (
           <>
-            {/* Disc + Tonearm */}
-            <div className="relative pt-2">
+            {/* Disc + Tonearm — the hero visual */}
+            <div className="relative">
               <VinylDisc cover={currentSong.pic} isPlaying={isPlaying} />
               <Tonearm isPlaying={isPlaying} />
             </div>
 
             {/* Song info */}
             <div className="text-center space-y-0.5">
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-ink)' }}>
+              <p className="text-sm font-semibold truncate px-2" style={{ color: 'var(--color-ink)' }}>
                 {currentSong.title}
               </p>
-              <p className="text-xs truncate" style={{ color: 'var(--color-muted-soft)' }}>
+              <p className="text-xs truncate px-2" style={{ color: 'var(--color-muted-soft)' }}>
                 {currentSong.author}
               </p>
             </div>
@@ -386,10 +472,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
                   border: '1px solid var(--color-hairline-soft)',
                 }}
               >
-                <p
-                  className="text-xs font-medium mb-2 flex items-center gap-1"
-                  style={{ color: 'var(--color-muted)' }}
-                >
+                <p className="text-xs font-medium mb-1.5 flex items-center gap-1" style={{ color: 'var(--color-muted)' }}>
                   <IconMusic size={12} strokeWidth={1.5} /> 歌词
                 </p>
                 <LyricsDisplay lrc={currentSong.lrc} currentTime={currentTime} />
@@ -400,14 +483,9 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
             {playlist.length > 1 && (
               <div
                 className="rounded-xl p-3"
-                style={{
-                  border: '1px solid var(--color-hairline-soft)',
-                }}
+                style={{ border: '1px solid var(--color-hairline-soft)' }}
               >
-                <p
-                  className="text-xs font-medium mb-2 flex items-center gap-1"
-                  style={{ color: 'var(--color-muted)' }}
-                >
+                <p className="text-xs font-medium mb-1.5 flex items-center gap-1" style={{ color: 'var(--color-muted)' }}>
                   <IconList size={12} strokeWidth={1.5} /> 播放列表 ({playlist.length})
                 </p>
                 <div className="max-h-32 overflow-y-auto space-y-0.5">
