@@ -783,6 +783,12 @@ code[data-theme*=" "] span {
   animation: shimmer 2s ease-in-out infinite;
 }
 
+/* Disc rotation for music player */
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,

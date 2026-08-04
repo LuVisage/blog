@@ -8,6 +8,7 @@ import { Analytics } from '@/components/analytics'
 import { Particles } from '@/components/ui/particles'
 import { BackToTop } from '@/components/back-to-top'
 import { GSAPProvider } from '@/components/gsap-provider'
+import { MusicPlayerProvider, MusicPlayerFAB } from '@/components/music-player'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex flex-col min-h-screen relative bg-body">
         <a href="#main-content" className="skip-to-content">跳到主要内容</a>
         <ThemeProvider>
+          <MusicPlayerProvider>
           <GSAPProvider>
           {/* Subtle floating particles — just enough for atmosphere */}
           <Particles
@@ -64,8 +66,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </main>
           <Footer />
           <BackToTop />
+          <MusicPlayerFAB />
           <Analytics />
           </GSAPProvider>
+          </MusicPlayerProvider>
         </ThemeProvider>
       </body>
     </html>
