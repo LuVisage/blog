@@ -12,7 +12,7 @@ export function MusicPlayerFAB() {
     <>
       {/* ── FAB Button ── */}
       {!isExpanded && (
-        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-1.5">
+        <div className="fixed bottom-24 right-6 z-40 flex flex-col items-end gap-1.5">
           {/* Autoplay hint */}
           {autoplayBlocked && isLoaded && playlist.length > 0 && (
             <div
@@ -64,7 +64,7 @@ export function MusicPlayerFAB() {
 
       {/* ── Expanded Panel ── */}
       {isExpanded && (
-        <div className="fixed bottom-6 right-6 z-40">
+        <div className="fixed bottom-24 right-6 z-40">
           {/* Backdrop for mobile */}
           <div
             className="fixed inset-0 z-[-1] md:hidden"
