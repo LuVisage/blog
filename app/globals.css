@@ -43,7 +43,7 @@
                            0 1px 4px rgba(0, 0, 0, 0.04);
 
   /* ── Liquid Glass Surface ── */
-  --glass-liquid-bg: rgba(255, 255, 255, 0.18);
+  --glass-liquid-bg: rgba(255, 255, 255, 0.24);
 
   /* ── Glass Surface Backgrounds ── */
   --glass-card-bg: rgba(255, 255, 255, 0.72);
@@ -187,7 +187,7 @@
   */
   .glass-liquid {
     position: relative;
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.24);
     backdrop-filter: url(#lg-filter) blur(3px) contrast(1.02) brightness(0.98) saturate(1.05);
     -webkit-backdrop-filter: blur(3px) contrast(1.02) brightness(0.98) saturate(1.05);
     border: none;
@@ -844,10 +844,14 @@ code[data-theme*=" "] span {
 @keyframes spectrum-19 { 0%,100%{height:18px} 20%{height:6px} 50%{height:28px} 80%{height:12px} }
 
 /* ==============================================
-   13.5 Music Player — minimal gap when expanded
+   13.5 Music Player — ~10px gap when expanded
    ============================================== */
+/* Derivation: padding = content-right-edge - player-left-edge + gap
+   content-right-edge = (100vw + content-max-w) / 2
+   player-left-edge = 100vw - right-6 - player-w = 100vw - 314px
+   → padding = (64rem - 100vw) / 2 + 314px           */
 html[data-music-player-open] #main-content {
-  padding-right: calc(min(280px, calc(100vw - 2.5rem)) + 0.5rem) !important;
+  padding-right: max(0px, calc((64rem - 100vw) / 2 + 314px)) !important;
   transition: padding-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
