@@ -847,16 +847,18 @@ code[data-theme*=" "] span {
    13.5 Music Player — Layout push when expanded
    ============================================== */
 /* When the music player panel is open, give main content
-   right-side room so nothing is hidden behind the panel */
+   right-side room so nothing is hidden behind the panel.
+   Only pad the OVERLAP amount, not the full player width. */
 html[data-music-player-open] #main-content {
-  --player-w: min(400px, calc(100vw - 3rem));
-  padding-right: calc(var(--player-w) + 2rem);
+  --player-w: min(340px, calc(100vw - 2rem));
+  --natural-r-margin: calc((100vw - 64rem) / 2);
+  padding-right: max(1rem, calc(var(--player-w) - var(--natural-r-margin) + 0.5rem));
   transition: padding-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* BackToTop: sit just left of the player panel when it's open */
 html[data-music-player-open] .back-to-top-btn {
-  right: calc(1.5rem + min(400px, calc(100vw - 3rem)) + 0.75rem);
+  right: calc(1.5rem + min(340px, calc(100vw - 2rem)) + 0.5rem);
   transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, transform 0.3s ease;
 }
 

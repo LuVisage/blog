@@ -307,7 +307,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
     <div
       className="glass-liquid glass-liquid-strong rounded-2xl overflow-hidden flex flex-col"
       style={{
-        width: 'min(400px, calc(100vw - 48px))',
+        width: 'min(340px, calc(100vw - 32px))',
         maxHeight: 'calc(100vh - 120px)',
       }}
     >
