@@ -33,7 +33,10 @@ function SpectrumBars({ isPlaying }: { isPlaying: boolean }) {
             height: isPlaying ? `${h * 3}px` : '2px',
             background: 'var(--color-primary)',
             opacity: isPlaying ? 0.7 : 0.2,
-            animation: isPlaying ? `spectrum-${i} 1.2s ease-in-out infinite` : 'none',
+            animationName: isPlaying ? `spectrum-${i}` : 'none',
+            animationDuration: '1.2s',
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
             animationDelay: `${BAR_DELAYS[i]}s`,
           }}
         />
@@ -50,13 +53,16 @@ function VinylDisc({ cover, isPlaying }: { cover: string; isPlaying: boolean }) 
     <div
       className="absolute rounded-full overflow-hidden"
       style={{
-        width: 150,
-        height: 150,
+        width: 140,
+        height: 140,
         top: '50%',
-        left: 90,
+        left: 35,
         transform: 'translateY(-50%)',
         zIndex: 0,
-        animation: isPlaying ? 'rotate 3s linear infinite' : 'none',
+        animationName: isPlaying ? 'rotate' : 'none',
+        animationDuration: '3s',
+        animationTimingFunction: 'linear',
+        animationIterationCount: 'infinite',
       }}
     >
       {/* Cover image fills disc */}
@@ -327,16 +333,16 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
             {/* Cover + Disc + Info row */}
             <div className="flex gap-4">
               {/* Left: Cover + Disc */}
-              <div className="relative flex-shrink-0" style={{ width: 150, height: 150 }}>
+              <div className="relative flex-shrink-0" style={{ width: 160, height: 140 }}>
                 {/* Spinning disc — behind cover, right half exposed */}
                 <VinylDisc cover={currentSong.pic} isPlaying={isPlaying} />
 
-                {/* Square cover — in front, left side */}
+                {/* Square cover — in front, covers left half of disc */}
                 <div
                   className="absolute rounded-xl overflow-hidden shadow-xl"
                   style={{
-                    width: 100,
-                    height: 100,
+                    width: 88,
+                    height: 88,
                     top: '50%',
                     left: 0,
                     transform: 'translateY(-50%)',

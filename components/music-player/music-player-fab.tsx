@@ -5,16 +5,15 @@ import { MusicPlayer } from './music-player'
 import { IconMusic } from '@tabler/icons-react'
 
 export function MusicPlayerFAB() {
-  const { state, dispatch, toggle } = useMusicPlayer()
-  const { isPlaying, isExpanded, isLoading, error, isLoaded, playlist, autoplayBlocked } = state
+  const { state, dispatch } = useMusicPlayer()
+  const { isPlaying, isExpanded, isLoading, error, isLoaded, playlist } = state
 
   return (
     <>
-      {/* ── FAB Button ── */}
+      {/* ── FAB Button (collapsed) ── */}
       {!isExpanded && (
         <div className="fixed bottom-24 right-6 z-40 flex flex-col items-end gap-1.5">
-          {/* Autoplay hint */}
-          {autoplayBlocked && isLoaded && playlist.length > 0 && (
+          {isLoaded && playlist.length > 0 && (
             <div
               className="px-3 py-1.5 rounded-xl text-xs animate-fade-up"
               style={{
@@ -25,32 +24,29 @@ export function MusicPlayerFAB() {
                 border: '1px solid var(--color-hairline)',
               }}
             >
-              点击播放背景音乐
+              点击查看黑胶唱片
             </div>
           )}
 
           <button
-            onClick={isLoaded && playlist.length > 0 ? toggle : () => dispatch({ type: 'SET_EXPANDED', payload: true })}
+            onClick={() => dispatch({ type: 'SET_EXPANDED', payload: true })}
             className="w-11 h-11 rounded-full glass flex items-center justify-center cursor-pointer transition-all duration-300 relative"
             style={{
               boxShadow: isPlaying ? '0 0 0 0 rgba(124,92,231,0.4)' : undefined,
               animation: isPlaying ? 'glowPulse 2.5s ease-in-out infinite' : undefined,
             }}
-            aria-label={isPlaying ? '暂停音乐' : '播放音乐'}
-            title={isPlaying ? '暂停' : isLoading ? '加载中...' : '播放背景音乐'}
+            aria-label="打开音乐播放器"
+            title={isPlaying ? '正在播放' : isLoading ? '加载中...' : '打开音乐播放器'}
           >
-            {/* Loading spinner */}
             {isLoading && (
               <div
                 className="w-4 h-4 border-2 rounded-full animate-spin"
                 style={{ borderColor: 'var(--color-hairline)', borderTopColor: 'var(--color-primary)' }}
               />
             )}
-            {/* Error */}
             {error && !isLoading && (
               <IconMusic size={18} style={{ color: 'var(--color-danger)' }} strokeWidth={1.5} />
             )}
-            {/* Normal */}
             {!isLoading && !error && (
               <IconMusic
                 size={18}
