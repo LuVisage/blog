@@ -843,6 +843,23 @@ code[data-theme*=" "] span {
 @keyframes spectrum-18 { 0%,100%{height:24px} 40%{height:8px} 70%{height:20px} }
 @keyframes spectrum-19 { 0%,100%{height:18px} 20%{height:6px} 50%{height:28px} 80%{height:12px} }
 
+/* ==============================================
+   13.5 Music Player — Layout push when expanded
+   ============================================== */
+/* When the music player panel is open, give main content
+   right-side room so nothing is hidden behind the panel */
+html[data-music-player-open] #main-content {
+  --player-w: min(400px, calc(100vw - 3rem));
+  padding-right: calc(var(--player-w) + 2rem);
+  transition: padding-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* BackToTop: sit just left of the player panel when it's open */
+html[data-music-player-open] .back-to-top-btn {
+  right: calc(1.5rem + min(400px, calc(100vw - 3rem)) + 0.75rem);
+  transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, transform 0.3s ease;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,
