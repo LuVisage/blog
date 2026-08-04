@@ -38,7 +38,7 @@ export function PostCard({ post, featured = false }: { post: PostMeta; featured?
           {featured && (
             <span
               className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-              style={{ color: 'var(--color-success)', background: 'rgba(16,185,129,0.1)' }}
+              style={{ color: 'var(--color-success)', background: 'rgba(16,185,129,0.14)' }}
             >
               精选
             </span>

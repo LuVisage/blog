@@ -19,18 +19,18 @@ import {
 // ============================================================
 // Spectrum Visualizer — deterministic bar animation
 // ============================================================
-const BAR_COUNTS = [3, 6, 4, 8, 5, 7, 3, 6, 5, 9, 4, 7, 5, 8, 6, 4, 7, 5, 9, 6]
+const BAR_HEIGHTS = [9, 18, 12, 24, 15, 21, 9, 18, 15, 27, 12, 21, 15, 24, 18, 12, 21, 15, 24, 18]
 const BAR_DELAYS = [0, -0.5, -1.2, -0.3, -0.8, -1.5, -0.2, -0.7, -1.1, -0.4, -0.9, -1.3, -0.1, -0.6, -1.0, -0.5, -1.2, -0.3, -0.8, -0.2]
 
 function SpectrumBars({ isPlaying }: { isPlaying: boolean }) {
   return (
     <div className="flex items-end justify-center gap-[2px] h-8">
-      {BAR_COUNTS.map((h, i) => (
+      {BAR_HEIGHTS.map((h, i) => (
         <div
           key={i}
           className="w-[3px] rounded-full transition-opacity duration-500"
           style={{
-            height: isPlaying ? `${h * 3}px` : '2px',
+            height: isPlaying ? `${h}px` : '2px',
             background: 'var(--color-primary)',
             opacity: isPlaying ? 0.7 : 0.2,
             animationName: `spectrum-${i}`,
@@ -232,7 +232,7 @@ function VolumeControl({ volume, onChange }: { volume: number; onChange: (v: num
   return (
     <div className="flex items-center gap-1">
       <button
-        className="p-1 rounded-md cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors"
+        className="p-2 rounded-md cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors"
         onClick={() => onChange(volume === 0 ? 0.5 : 0)}
         aria-label={volume === 0 ? '取消静音' : '静音'}
       >
@@ -267,7 +267,7 @@ function PlaylistInput({ currentId, onLoad }: { currentId: string; onLoad: (id: 
     <div className="relative">
       <button
         onClick={() => setShow(!show)}
-        className="p-1.5 rounded-md cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors"
+        className="p-2 rounded-md cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors"
         aria-label="切换歌单"
       >
         <IconList size={15} style={{ color: 'var(--color-muted)' }} strokeWidth={1.5} />
@@ -284,7 +284,7 @@ function PlaylistInput({ currentId, onLoad }: { currentId: string; onLoad: (id: 
             className="flex-1 px-3 py-1.5 text-sm rounded-lg border outline-none"
             style={{ background: 'transparent', borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
           />
-          <button type="submit" className="p-1.5 rounded-md cursor-pointer" style={{ background: 'var(--color-primary)', color: '#fff' }} aria-label="加载">
+          <button type="submit" className="p-2 rounded-md cursor-pointer" style={{ background: 'var(--color-primary)', color: '#fff' }} aria-label="加载">
             <IconSearch size={15} strokeWidth={2} />
           </button>
         </form>
@@ -305,7 +305,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
     <div
       className="glass-liquid glass-liquid-strong rounded-2xl overflow-hidden flex flex-col"
       style={{
-        width: 400,
+        width: 'min(400px, calc(100vw - 48px))',
         maxHeight: 'calc(100vh - 120px)',
       }}
     >
@@ -314,7 +314,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
         <span className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>背景音乐</span>
         <div className="flex items-center gap-1">
           <PlaylistInput currentId={playlistId} onLoad={loadPlaylist} />
-          <button onClick={onClose} className="p-1.5 rounded-md cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors" aria-label="关闭">
+          <button onClick={onClose} className="p-2 rounded-md cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors" aria-label="关闭">
             <IconX size={15} style={{ color: 'var(--color-muted)' }} strokeWidth={1.5} />
           </button>
         </div>
@@ -392,7 +392,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
 
             {/* Controls */}
             <div className="flex items-center justify-center gap-3">
-              <button onClick={prev} className="p-1.5 rounded-lg cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors" aria-label="上一首">
+              <button onClick={prev} className="p-2 rounded-lg cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors" aria-label="上一首">
                 <IconPlayerSkipBackFilled size={20} style={{ color: 'var(--color-muted)' }} />
               </button>
 
@@ -409,7 +409,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
                 )}
               </button>
 
-              <button onClick={next} className="p-1.5 rounded-lg cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors" aria-label="下一首">
+              <button onClick={next} className="p-2 rounded-lg cursor-pointer hover:bg-[var(--color-primary-soft)] transition-colors" aria-label="下一首">
                 <IconPlayerSkipForwardFilled size={20} style={{ color: 'var(--color-muted)' }} />
               </button>
 

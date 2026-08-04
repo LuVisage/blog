@@ -1,0 +1,764 @@
+- generic [ref=f5e2]:
+  - generic [ref=f5e3]:
+    - link "Skip to content" [ref=f5e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=f5e6]:
+      - heading "Navigation Menu" [level=2] [ref=f5e7]
+      - generic [ref=f5e8]:
+        - link "Homepage" [ref=f5e10] [cursor=pointer]:
+          - /url: /
+        - generic [ref=f5e13]:
+          - navigation "Global" [ref=f5e16]:
+            - list [ref=f5e17]:
+              - listitem [ref=f5e18]:
+                - button "Platform" [ref=f5e20] [cursor=pointer]
+              - listitem [ref=f5e23]:
+                - button "Solutions" [ref=f5e25] [cursor=pointer]
+              - listitem [ref=f5e28]:
+                - button "Resources" [ref=f5e30] [cursor=pointer]
+              - listitem [ref=f5e33]:
+                - button "Open Source" [ref=f5e35] [cursor=pointer]
+              - listitem [ref=f5e38]:
+                - button "Enterprise" [ref=f5e40] [cursor=pointer]
+              - listitem [ref=f5e43]:
+                - link "Pricing" [ref=f5e44] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+          - generic [ref=f5e46]:
+            - button "Search or jump to…" [ref=f5e49] [cursor=pointer]:
+              - generic [ref=f5e53]: Search or jump to...
+            - link "Sign in" [ref=f5e59] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2FLuVisage%2Fblog%2Factions
+            - link "Sign up" [ref=f5e60] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Factions%2Findex&source=header-repo&source_repo=LuVisage%2Fblog
+            - button "Appearance settings" [ref=f5e63] [cursor=pointer]
+  - main [ref=f5e67]:
+    - generic [ref=f5e68]:
+      - generic [ref=f5e69]:
+        - generic [ref=f5e71]:
+          - link "LuVisage" [ref=f5e75] [cursor=pointer]:
+            - /url: /LuVisage
+          - generic [ref=f5e76]: /
+          - strong [ref=f5e77]:
+            - link "blog" [ref=f5e78] [cursor=pointer]:
+              - /url: /LuVisage/blog
+          - generic [ref=f5e79]: Public
+        - generic [ref=f5e80]:
+          - list:
+            - listitem [ref=f5e81]:
+              - link "You must be signed in to change notification settings" [ref=f5e82] [cursor=pointer]:
+                - /url: /login?return_to=%2FLuVisage%2Fblog
+                - text: Notifications
+            - listitem [ref=f5e85]:
+              - link "Fork 0" [ref=f5e86] [cursor=pointer]:
+                - /url: /login?return_to=%2FLuVisage%2Fblog
+                - text: Fork
+                - generic "0" [ref=f5e89]
+            - listitem [ref=f5e90]:
+              - link "You must be signed in to star a repository" [ref=f5e92] [cursor=pointer]:
+                - /url: /login?return_to=%2FLuVisage%2Fblog
+                - text: Star
+                - generic "0 users starred this repository" [ref=f5e95]: "0"
+      - navigation "Repository" [ref=f5e96]:
+        - list [ref=f5e97]:
+          - listitem [ref=f5e98]:
+            - link "Code" [ref=f5e99] [cursor=pointer]:
+              - /url: /LuVisage/blog
+          - listitem [ref=f5e103]:
+            - link "Issues" [ref=f5e104] [cursor=pointer]:
+              - /url: /LuVisage/blog/issues
+          - listitem [ref=f5e109]:
+            - link "Pull requests" [ref=f5e110] [cursor=pointer]:
+              - /url: /LuVisage/blog/pulls
+          - listitem [ref=f5e114]:
+            - link "Discussions" [ref=f5e115] [cursor=pointer]:
+              - /url: /LuVisage/blog/discussions
+          - listitem [ref=f5e119]:
+            - link "Actions" [ref=f5e120] [cursor=pointer]:
+              - /url: /LuVisage/blog/actions
+          - listitem [ref=f5e124]:
+            - link "Projects" [ref=f5e125] [cursor=pointer]:
+              - /url: /LuVisage/blog/projects
+          - listitem [ref=f5e129]:
+            - link "Security and quality" [ref=f5e130] [cursor=pointer]:
+              - /url: /LuVisage/blog/security
+          - listitem [ref=f5e134]:
+            - link "Insights" [ref=f5e135] [cursor=pointer]:
+              - /url: /LuVisage/blog/pulse
+    - generic [ref=f5e140]:
+      - 'heading "Actions: LuVisage/blog" [level=1] [ref=f5e141]'
+      - generic [ref=f5e144]:
+        - generic [ref=f5e145]:
+          - heading "Actions" [level=2] [ref=f5e147]
+          - navigation "Actions Workflows" [ref=f5e151]:
+            - list [ref=f5e153]:
+              - listitem [ref=f5e154]:
+                - link "All workflows" [ref=f5e155] [cursor=pointer]:
+                  - /url: /LuVisage/blog/actions
+              - listitem [ref=f5e157]
+              - listitem [ref=f5e158]:
+                - list "Workflows" [ref=f5e162]:
+                  - listitem [ref=f5e163]:
+                    - link "Deploy to GitHub Pages" [ref=f5e164] [cursor=pointer]:
+                      - /url: /LuVisage/blog/actions/workflows/deploy.yml
+              - listitem [ref=f5e166]
+              - listitem [ref=f5e167]:
+                - generic [ref=f5e170]:
+                  - heading "Management" [level=3] [ref=f5e172]
+                  - list "Management" [ref=f5e173]:
+                    - listitem [ref=f5e174]:
+                      - link "Caches" [ref=f5e175] [cursor=pointer]:
+                        - /url: /LuVisage/blog/actions/caches
+        - generic [ref=f5e179]:
+          - generic [ref=f5e180]:
+            - generic [ref=f5e181]:
+              - heading "All workflows" [level=2] [ref=f5e183]
+              - search [ref=f5e189]:
+                - combobox "Filter workflow runs" [ref=f5e190]
+            - generic [ref=f5e191]: Showing runs from all workflows
+          - generic [ref=f5e192]:
+            - generic [ref=f5e193]:
+              - strong [ref=f5e196]: 69 workflow runs
+              - generic [ref=f5e197]:
+                - button "Workflow" [ref=f5e201] [cursor=pointer]
+                - button "Event" [ref=f5e207] [cursor=pointer]
+                - button "Status" [ref=f5e213] [cursor=pointer]
+                - button "Branch" [ref=f5e219] [cursor=pointer]
+                - button "Actor" [ref=f5e225] [cursor=pointer]
+            - generic [ref=f5e228]:
+              - generic [ref=f5e230]:
+                - generic [ref=f5e231]:
+                  - 'link "completed successfully: Run 77 of Deploy to GitHub Pages. ✨ 真正的液态玻璃：SVG滤镜液体畸变 + ::before渐变边框环 + background-blend-mode" [ref=f5e232] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30893721581
+                    - img "completed successfully:" [ref=f5e234]
+                    - generic [ref=f5e236]: ✨ 真正的液态玻璃：SVG滤镜液体畸变 + ::before渐变边框环 + background-blend-mode
+                  - generic [ref=f5e237]:
+                    - text: "Deploy to GitHub Pages #77:"
+                    - generic [ref=f5e238]:
+                      - text: Commit
+                      - link "012a00b" [ref=f5e239] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/012a00ba8109ec4b48a8f571b3ba7902434b8570
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e240] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e242] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e244]:
+                  - generic [ref=f5e245]:
+                    - generic "Aug 4, 2026, 16:51 GMT+8" [ref=f5e250]: 9 minutes ago
+                    - generic [ref=f5e251]:
+                      - img "Run duration" [ref=f5e252]
+                      - text: 1m 18s
+                  - group [ref=f5e255]:
+                    - img "Show options" [ref=f5e257] [cursor=pointer]
+              - generic [ref=f5e260]:
+                - generic [ref=f5e261]:
+                  - 'link "completed successfully: Run 76 of Deploy to GitHub Pages. ✨ 全局液态玻璃：glass/glass-card → glass-liquid（31个文件）" [ref=f5e262] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30893180590
+                    - img "completed successfully:" [ref=f5e264]
+                    - generic [ref=f5e266]: ✨ 全局液态玻璃：glass/glass-card → glass-liquid（31个文件）
+                  - generic [ref=f5e267]:
+                    - text: "Deploy to GitHub Pages #76:"
+                    - generic [ref=f5e268]:
+                      - text: Commit
+                      - link "2ab1300" [ref=f5e269] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/2ab130055cdafb00696288c9e2025b03bfd4efb9
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e270] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e272] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e274]:
+                  - generic [ref=f5e275]:
+                    - generic "Aug 4, 2026, 16:43 GMT+8" [ref=f5e280]: 17 minutes ago
+                    - generic [ref=f5e281]:
+                      - img "Run duration" [ref=f5e282]
+                      - text: 1m 17s
+                  - group [ref=f5e285]:
+                    - img "Show options" [ref=f5e287] [cursor=pointer]
+              - generic [ref=f5e290]:
+                - generic [ref=f5e291]:
+                  - 'link "completed successfully: Run 75 of Deploy to GitHub Pages. 🎨 白天模式文字对比度修复 + 音乐播放器液态玻璃效果" [ref=f5e292] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30892646683
+                    - img "completed successfully:" [ref=f5e294]
+                    - generic [ref=f5e296]: 🎨 白天模式文字对比度修复 + 音乐播放器液态玻璃效果
+                  - generic [ref=f5e297]:
+                    - text: "Deploy to GitHub Pages #75:"
+                    - generic [ref=f5e298]:
+                      - text: Commit
+                      - link "f651e41" [ref=f5e299] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/f651e411e1a0a2aeafa5351364672d1cd4a3351a
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e300] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e302] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e304]:
+                  - generic [ref=f5e305]:
+                    - generic "Aug 4, 2026, 16:36 GMT+8" [ref=f5e310]: 24 minutes ago
+                    - generic [ref=f5e311]:
+                      - img "Run duration" [ref=f5e312]
+                      - text: 1m 26s
+                  - group [ref=f5e315]:
+                    - img "Show options" [ref=f5e317] [cursor=pointer]
+              - generic [ref=f5e320]:
+                - generic [ref=f5e321]:
+                  - 'link "completed successfully: Run 74 of Deploy to GitHub Pages. 🐛 修复暂停时碟片回正+变方形：animationPlayState替代animationName:none" [ref=f5e322] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30892141925
+                    - img "completed successfully:" [ref=f5e324]
+                    - generic [ref=f5e326]: 🐛 修复暂停时碟片回正+变方形：animationPlayState替代animationName:none
+                  - generic [ref=f5e327]:
+                    - text: "Deploy to GitHub Pages #74:"
+                    - generic [ref=f5e328]:
+                      - text: Commit
+                      - link "ff7b09c" [ref=f5e329] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/ff7b09cf4315f53c9121aa312c45b5cc064ff76d
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e330] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e332] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e334]:
+                  - generic [ref=f5e335]:
+                    - generic "Aug 4, 2026, 16:29 GMT+8" [ref=f5e340]: 31 minutes ago
+                    - generic [ref=f5e341]:
+                      - img "Run duration" [ref=f5e342]
+                      - text: 1m 17s
+                  - group [ref=f5e345]:
+                    - img "Show options" [ref=f5e347] [cursor=pointer]
+              - generic [ref=f5e350]:
+                - generic [ref=f5e351]:
+                  - 'link "completed successfully: Run 73 of Deploy to GitHub Pages. 🐛 修复碟片尺寸=封面大小 + 旋转不位移（分离定位层与动画层）" [ref=f5e352] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30891845465
+                    - img "completed successfully:" [ref=f5e354]
+                    - generic [ref=f5e356]: 🐛 修复碟片尺寸=封面大小 + 旋转不位移（分离定位层与动画层）
+                  - generic [ref=f5e357]:
+                    - text: "Deploy to GitHub Pages #73:"
+                    - generic [ref=f5e358]:
+                      - text: Commit
+                      - link "7b7b0d2" [ref=f5e359] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/7b7b0d2d2cb2b27f595f8b186af1d03df9a191f2
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e360] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e362] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e364]:
+                  - generic [ref=f5e365]:
+                    - generic "Aug 4, 2026, 16:24 GMT+8" [ref=f5e370]: 36 minutes ago
+                    - generic [ref=f5e371]:
+                      - img "Run duration" [ref=f5e372]
+                      - text: 1m 17s
+                  - group [ref=f5e375]:
+                    - img "Show options" [ref=f5e377] [cursor=pointer]
+              - generic [ref=f5e380]:
+                - generic [ref=f5e381]:
+                  - 'link "completed successfully: Run 72 of Deploy to GitHub Pages. 🧹 清理误提交的截图文件" [ref=f5e382] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30891470716
+                    - img "completed successfully:" [ref=f5e384]
+                    - generic [ref=f5e386]: 🧹 清理误提交的截图文件
+                  - generic [ref=f5e387]:
+                    - text: "Deploy to GitHub Pages #72:"
+                    - generic [ref=f5e388]:
+                      - text: Commit
+                      - link "2301e71" [ref=f5e389] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/2301e716f73656bd7f41557017868533dc70e2bb
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e390] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e392] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e394]:
+                  - generic [ref=f5e395]:
+                    - generic "Aug 4, 2026, 16:19 GMT+8" [ref=f5e400]: 41 minutes ago
+                    - generic [ref=f5e401]:
+                      - img "Run duration" [ref=f5e402]
+                      - text: 1m 49s
+                  - group [ref=f5e405]:
+                    - img "Show options" [ref=f5e407] [cursor=pointer]
+              - generic [ref=f5e410]:
+                - generic [ref=f5e411]:
+                  - 'link "completed successfully: Run 71 of Deploy to GitHub Pages. 🐛 修复：FAB点击展开面板显示碟片 + 调整封面碟片重叠布局 + 修复animation警告" [ref=f5e412] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30891451023
+                    - img "completed successfully:" [ref=f5e414]
+                    - generic [ref=f5e416]: 🐛 修复：FAB点击展开面板显示碟片 + 调整封面碟片重叠布局 + 修复animation警告
+                  - generic [ref=f5e417]:
+                    - text: "Deploy to GitHub Pages #71:"
+                    - generic [ref=f5e418]:
+                      - text: Commit
+                      - link "71a41b7" [ref=f5e419] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/71a41b7d3b4b85619f1584830bf2081bdd7b049a
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e420] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e422] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e424]:
+                  - generic [ref=f5e425]:
+                    - generic "Aug 4, 2026, 16:19 GMT+8" [ref=f5e430]: 41 minutes ago
+                    - generic [ref=f5e431]:
+                      - img "Run duration" [ref=f5e432]
+                      - text: 1m 0s
+                  - group [ref=f5e435]:
+                    - img "Show options" [ref=f5e437] [cursor=pointer]
+              - generic [ref=f5e440]:
+                - generic [ref=f5e441]:
+                  - 'link "completed successfully: Run 70 of Deploy to GitHub Pages. 🎨 重做碟片效果：透明CD环 + 封面碟片重叠 + 频谱动画 + 歌词金色同步高亮" [ref=f5e442] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30890819659
+                    - img "completed successfully:" [ref=f5e444]
+                    - generic [ref=f5e446]: 🎨 重做碟片效果：透明CD环 + 封面碟片重叠 + 频谱动画 + 歌词金色同步高亮
+                  - generic [ref=f5e447]:
+                    - text: "Deploy to GitHub Pages #70:"
+                    - generic [ref=f5e448]:
+                      - text: Commit
+                      - link "a6c0894" [ref=f5e449] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/a6c089480dc6e8fc86b641a0ef855fff062a452b
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e450] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e452] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e454]:
+                  - generic [ref=f5e455]:
+                    - generic "Aug 4, 2026, 16:10 GMT+8" [ref=f5e460]: 50 minutes ago
+                    - generic [ref=f5e461]:
+                      - img "Run duration" [ref=f5e462]
+                      - text: 1m 9s
+                  - group [ref=f5e465]:
+                    - img "Show options" [ref=f5e467] [cursor=pointer]
+              - generic [ref=f5e470]:
+                - generic [ref=f5e471]:
+                  - 'link "completed successfully: Run 69 of Deploy to GitHub Pages. 🎨 重写黑胶碟片：仿真唱片纹理 + 光反射 + 金属主轴 + 弧形唱臂 + 3s旋转" [ref=f5e472] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30889711359
+                    - img "completed successfully:" [ref=f5e474]
+                    - generic [ref=f5e476]: 🎨 重写黑胶碟片：仿真唱片纹理 + 光反射 + 金属主轴 + 弧形唱臂 + 3s旋转
+                  - generic [ref=f5e477]:
+                    - text: "Deploy to GitHub Pages #69:"
+                    - generic [ref=f5e478]:
+                      - text: Commit
+                      - link "0f642d3" [ref=f5e479] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/0f642d3aa48dc565d2dac4865db814079710c22a
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e480] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e482] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e484]:
+                  - generic [ref=f5e485]:
+                    - generic "Aug 4, 2026, 15:54 GMT+8" [ref=f5e490]: Today at 15:54
+                    - generic [ref=f5e491]:
+                      - img "Run duration" [ref=f5e492]
+                      - text: 1m 14s
+                  - group [ref=f5e495]:
+                    - img "Show options" [ref=f5e497] [cursor=pointer]
+              - generic [ref=f5e500]:
+                - generic [ref=f5e501]:
+                  - 'link "completed successfully: Run 68 of Deploy to GitHub Pages. 🐛 修复音乐播放器被回到顶部按钮遮挡" [ref=f5e502] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30889355996
+                    - img "completed successfully:" [ref=f5e504]
+                    - generic [ref=f5e506]: 🐛 修复音乐播放器被回到顶部按钮遮挡
+                  - generic [ref=f5e507]:
+                    - text: "Deploy to GitHub Pages #68:"
+                    - generic [ref=f5e508]:
+                      - text: Commit
+                      - link "f2c0f08" [ref=f5e509] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/f2c0f08e59e6a803d219d97c73fa66c86ee431cd
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e510] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e512] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e514]:
+                  - generic [ref=f5e515]:
+                    - generic "Aug 4, 2026, 15:49 GMT+8" [ref=f5e520]: Today at 15:49
+                    - generic [ref=f5e521]:
+                      - img "Run duration" [ref=f5e522]
+                      - text: 1m 18s
+                  - group [ref=f5e525]:
+                    - img "Show options" [ref=f5e527] [cursor=pointer]
+              - generic [ref=f5e530]:
+                - generic [ref=f5e531]:
+                  - 'link "completed successfully: Run 67 of Deploy to GitHub Pages. 🎵 添加背景音乐播放器：网易云碟片效果 + 歌词显示" [ref=f5e532] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30888887545
+                    - img "completed successfully:" [ref=f5e534]
+                    - generic [ref=f5e536]: 🎵 添加背景音乐播放器：网易云碟片效果 + 歌词显示
+                  - generic [ref=f5e537]:
+                    - text: "Deploy to GitHub Pages #67:"
+                    - generic [ref=f5e538]:
+                      - text: Commit
+                      - link "ef1956e" [ref=f5e539] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/ef1956e8fd1f73a20c50d8bc1cebe7fcaff1e655
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e540] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e542] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e544]:
+                  - generic [ref=f5e545]:
+                    - generic "Aug 4, 2026, 15:42 GMT+8" [ref=f5e550]: Today at 15:42
+                    - generic [ref=f5e551]:
+                      - img "Run duration" [ref=f5e552]
+                      - text: 1m 24s
+                  - group [ref=f5e555]:
+                    - img "Show options" [ref=f5e557] [cursor=pointer]
+              - generic [ref=f5e560]:
+                - generic [ref=f5e561]:
+                  - 'link "completed successfully: Run 66 of Deploy to GitHub Pages. 📱 移动端显示优化" [ref=f5e562] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30740921333
+                    - img "completed successfully:" [ref=f5e564]
+                    - generic [ref=f5e566]: 📱 移动端显示优化
+                  - generic [ref=f5e567]:
+                    - text: "Deploy to GitHub Pages #66:"
+                    - generic [ref=f5e568]:
+                      - text: Commit
+                      - link "044ef78" [ref=f5e569] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/044ef78e18506ca0407be89786a3866bb6e8bb2e
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e570] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e572] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e574]:
+                  - generic [ref=f5e575]:
+                    - generic "Aug 2, 2026, 17:01 GMT+8" [ref=f5e580]: Aug 2, 17:01 GMT+8
+                    - generic [ref=f5e581]:
+                      - img "Run duration" [ref=f5e582]
+                      - text: 2m 14s
+                  - group [ref=f5e585]:
+                    - img "Show options" [ref=f5e587] [cursor=pointer]
+              - generic [ref=f5e590]:
+                - generic [ref=f5e591]:
+                  - 'link "completed successfully: Run 65 of Deploy to GitHub Pages. 📱 移动端显示优化" [ref=f5e592] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30740910382
+                    - img "completed successfully:" [ref=f5e594]
+                    - generic [ref=f5e596]: 📱 移动端显示优化
+                  - generic [ref=f5e597]:
+                    - text: "Deploy to GitHub Pages #65:"
+                    - generic [ref=f5e598]:
+                      - text: Commit
+                      - link "fa8378b" [ref=f5e599] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/fa8378bc5d40def07d7e8ed0b1798d6f90a48fc1
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e600] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e602] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e604]:
+                  - generic [ref=f5e605]:
+                    - generic "Aug 2, 2026, 17:00 GMT+8" [ref=f5e610]: Aug 2, 17:00 GMT+8
+                    - generic [ref=f5e611]:
+                      - img "Run duration" [ref=f5e612]
+                      - text: 1m 16s
+                  - group [ref=f5e615]:
+                    - img "Show options" [ref=f5e617] [cursor=pointer]
+              - generic [ref=f5e620]:
+                - generic [ref=f5e621]:
+                  - 'link "completed successfully: Run 64 of Deploy to GitHub Pages. 🐛 修复最新文章为空bug + 精简footer导航" [ref=f5e622] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30740714094
+                    - img "completed successfully:" [ref=f5e624]
+                    - generic [ref=f5e626]: 🐛 修复最新文章为空bug + 精简footer导航
+                  - generic [ref=f5e627]:
+                    - text: "Deploy to GitHub Pages #64:"
+                    - generic [ref=f5e628]:
+                      - text: Commit
+                      - link "9fad198" [ref=f5e629] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/9fad198172963d12f1a9eb81f7b24cdd9359ded3
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e630] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e632] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e634]:
+                  - generic [ref=f5e635]:
+                    - generic "Aug 2, 2026, 16:55 GMT+8" [ref=f5e640]: Aug 2, 16:55 GMT+8
+                    - generic [ref=f5e641]:
+                      - img "Run duration" [ref=f5e642]
+                      - text: 1m 22s
+                  - group [ref=f5e645]:
+                    - img "Show options" [ref=f5e647] [cursor=pointer]
+              - generic [ref=f5e650]:
+                - generic [ref=f5e651]:
+                  - 'link "completed successfully: Run 63 of Deploy to GitHub Pages. 🎨 UI全面优化 v4.1：基于博客设计最佳实践的视觉升级" [ref=f5e652] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30740578520
+                    - img "completed successfully:" [ref=f5e654]
+                    - generic [ref=f5e656]: 🎨 UI全面优化 v4.1：基于博客设计最佳实践的视觉升级
+                  - generic [ref=f5e657]:
+                    - text: "Deploy to GitHub Pages #63:"
+                    - generic [ref=f5e658]:
+                      - text: Commit
+                      - link "aea9f39" [ref=f5e659] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/aea9f39c9fb6716484252f110fc56882fd3940fe
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e660] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e662] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e664]:
+                  - generic [ref=f5e665]:
+                    - generic "Aug 2, 2026, 16:50 GMT+8" [ref=f5e670]: Aug 2, 16:50 GMT+8
+                    - generic [ref=f5e671]:
+                      - img "Run duration" [ref=f5e672]
+                      - text: 1m 10s
+                  - group [ref=f5e675]:
+                    - img "Show options" [ref=f5e677] [cursor=pointer]
+              - generic [ref=f5e680]:
+                - generic [ref=f5e681]:
+                  - 'link "completed successfully: Run 62 of Deploy to GitHub Pages. 🎨 Round 2 UI修复：基于ux-designer/gsap-core/ui-ux-pro-max三轮审计" [ref=f5e682] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30338903098
+                    - img "completed successfully:" [ref=f5e684]
+                    - generic [ref=f5e686]: 🎨 Round 2 UI修复：基于ux-designer/gsap-core/ui-ux-pro-max三轮审计
+                  - generic [ref=f5e687]:
+                    - text: "Deploy to GitHub Pages #62:"
+                    - generic [ref=f5e688]:
+                      - text: Commit
+                      - link "9d9a12b" [ref=f5e689] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/9d9a12b77621dca67bb8a6f061bbfa8c8dee9fd0
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e690] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e692] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e694]:
+                  - generic [ref=f5e695]:
+                    - generic "Jul 28, 2026, 15:33 GMT+8" [ref=f5e700]: Jul 28, 15:33 GMT+8
+                    - generic [ref=f5e701]:
+                      - img "Run duration" [ref=f5e702]
+                      - text: 1m 12s
+                  - group [ref=f5e705]:
+                    - img "Show options" [ref=f5e707] [cursor=pointer]
+              - generic [ref=f5e710]:
+                - generic [ref=f5e711]:
+                  - 'link "completed successfully: Run 61 of Deploy to GitHub Pages. 🎨 UI/UX 全面优化：基于 UI/UX Pro Max + UX Designer 双 skill 最佳实践" [ref=f5e712] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30338420484
+                    - img "completed successfully:" [ref=f5e714]
+                    - generic [ref=f5e716]: 🎨 UI/UX 全面优化：基于 UI/UX Pro Max + UX Designer 双 skill 最佳实践
+                  - generic [ref=f5e717]:
+                    - text: "Deploy to GitHub Pages #61:"
+                    - generic [ref=f5e718]:
+                      - text: Commit
+                      - link "6a3f58b" [ref=f5e719] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/6a3f58b440fe39abbe8afae43f560d8fc0d183dc
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e720] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e722] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e724]:
+                  - generic [ref=f5e725]:
+                    - generic "Jul 28, 2026, 15:26 GMT+8" [ref=f5e730]: Jul 28, 15:26 GMT+8
+                    - generic [ref=f5e731]:
+                      - img "Run duration" [ref=f5e732]
+                      - text: 58s
+                  - group [ref=f5e735]:
+                    - img "Show options" [ref=f5e737] [cursor=pointer]
+              - generic [ref=f5e740]:
+                - generic [ref=f5e741]:
+                  - 'link "completed successfully: Run 60 of Deploy to GitHub Pages. 📝 修复图文位置不对应：为功能开发/MacOS打包/Windows打包/Git安装/VS Code安装等模块添加分段引导文字，消除图片堆砌问题" [ref=f5e742] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30337219014
+                    - img "completed successfully:" [ref=f5e744]
+                    - generic [ref=f5e746]: 📝 修复图文位置不对应：为功能开发/MacOS打包/Windows打包/Git安装/VS Code安装等模块添加分段引导文字，消除图片堆砌问题
+                  - generic [ref=f5e747]:
+                    - text: "Deploy to GitHub Pages #60:"
+                    - generic [ref=f5e748]:
+                      - text: Commit
+                      - link "a99e659" [ref=f5e749] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/a99e659f8c17ea5cdf53189f305c5c11f8878884
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e750] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e752] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e754]:
+                  - generic [ref=f5e755]:
+                    - generic "Jul 28, 2026, 15:07 GMT+8" [ref=f5e760]: Jul 28, 15:07 GMT+8
+                    - generic [ref=f5e761]:
+                      - img "Run duration" [ref=f5e762]
+                      - text: 1m 19s
+                  - group [ref=f5e765]:
+                    - img "Show options" [ref=f5e767] [cursor=pointer]
+              - generic [ref=f5e770]:
+                - generic [ref=f5e771]:
+                  - 'link "completed successfully: Run 59 of Deploy to GitHub Pages. 🐛 修复1.1节图片错位：移除njs-01~06（实际显示Node.js安装截图，非终端截图），改为纯文字引导（步骤清晰无需配图）" [ref=f5e772] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30336793245
+                    - img "completed successfully:" [ref=f5e774]
+                    - generic [ref=f5e776]: 🐛 修复1.1节图片错位：移除njs-01~06（实际显示Node.js安装截图，非终端截图），改为纯文字引导（步骤清晰无需配图）
+                  - generic [ref=f5e777]:
+                    - text: "Deploy to GitHub Pages #59:"
+                    - generic [ref=f5e778]:
+                      - text: Commit
+                      - link "24fcfcb" [ref=f5e779] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/24fcfcbd7d6555d5f9b709143d9f648020bf47ef
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e780] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e782] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e784]:
+                  - generic [ref=f5e785]:
+                    - generic "Jul 28, 2026, 15:00 GMT+8" [ref=f5e790]: Jul 28, 15:00 GMT+8
+                    - generic [ref=f5e791]:
+                      - img "Run duration" [ref=f5e792]
+                      - text: 1m 26s
+                  - group [ref=f5e795]:
+                    - img "Show options" [ref=f5e797] [cursor=pointer]
+              - generic [ref=f5e800]:
+                - generic [ref=f5e801]:
+                  - 'link "completed successfully: Run 58 of Deploy to GitHub Pages. 🐛 修复终端节图片驴头不对马嘴：term-01~05 与 cc-01~05 完全重复（MD5一致），移除5张错图+1行误导文字，保留唯一文…" [ref=f5e802] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30336186299
+                    - img "completed successfully:" [ref=f5e804]
+                    - generic [ref=f5e806]: 🐛 修复终端节图片驴头不对马嘴：term-01~05 与 cc-01~05 完全重复（MD5一致），移除5张错图+1行误导文字，保留唯一文…
+                  - generic [ref=f5e807]:
+                    - text: "Deploy to GitHub Pages #58:"
+                    - generic [ref=f5e808]:
+                      - text: Commit
+                      - link "02efd24" [ref=f5e809] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/02efd246586f9baaa184781aed870b21b49d8324
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e810] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e812] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e814]:
+                  - generic [ref=f5e815]:
+                    - generic "Jul 28, 2026, 14:50 GMT+8" [ref=f5e820]: Jul 28, 14:50 GMT+8
+                    - generic [ref=f5e821]:
+                      - img "Run duration" [ref=f5e822]
+                      - text: 1m 16s
+                  - group [ref=f5e825]:
+                    - img "Show options" [ref=f5e827] [cursor=pointer]
+              - generic [ref=f5e830]:
+                - generic [ref=f5e831]:
+                  - 'link "completed successfully: Run 57 of Deploy to GitHub Pages. 📸 重写 Vibe Coding 教程：162张语雀图片严格按顺序排列" [ref=f5e832] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30209233250
+                    - img "completed successfully:" [ref=f5e834]
+                    - generic [ref=f5e836]: 📸 重写 Vibe Coding 教程：162张语雀图片严格按顺序排列
+                  - generic [ref=f5e837]:
+                    - text: "Deploy to GitHub Pages #57:"
+                    - generic [ref=f5e838]:
+                      - text: Commit
+                      - link "86dc58b" [ref=f5e839] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/86dc58bae7fb53a0f10b57251e3f57fe60e9c0fe
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e840] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e842] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e844]:
+                  - generic [ref=f5e845]:
+                    - generic "Jul 26, 2026, 23:55 GMT+8" [ref=f5e850]: Jul 26, 23:55 GMT+8
+                    - generic [ref=f5e851]:
+                      - img "Run duration" [ref=f5e852]
+                      - text: 1m 12s
+                  - group [ref=f5e855]:
+                    - img "Show options" [ref=f5e857] [cursor=pointer]
+              - generic [ref=f5e860]:
+                - generic [ref=f5e861]:
+                  - 'link "completed successfully: Run 56 of Deploy to GitHub Pages. 🐛 修复终端节图片顺序：移除误放的nodejs安装图，用terminal-win10-store替换" [ref=f5e862] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30208752349
+                    - img "completed successfully:" [ref=f5e864]
+                    - generic [ref=f5e866]: 🐛 修复终端节图片顺序：移除误放的nodejs安装图，用terminal-win10-store替换
+                  - generic [ref=f5e867]:
+                    - text: "Deploy to GitHub Pages #56:"
+                    - generic [ref=f5e868]:
+                      - text: Commit
+                      - link "ac83c23" [ref=f5e869] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/ac83c236661a6ada4c2a99b537fd0e7d7c3f88a8
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e870] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e872] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e874]:
+                  - generic [ref=f5e875]:
+                    - generic "Jul 26, 2026, 23:41 GMT+8" [ref=f5e880]: Jul 26, 23:41 GMT+8
+                    - generic [ref=f5e881]:
+                      - img "Run duration" [ref=f5e882]
+                      - text: 1m 23s
+                  - group [ref=f5e885]:
+                    - img "Show options" [ref=f5e887] [cursor=pointer]
+              - generic [ref=f5e890]:
+                - generic [ref=f5e891]:
+                  - 'link "completed successfully: Run 55 of Deploy to GitHub Pages. 🐛 修正图片尺寸和顺序：mdx组件去强制全宽 + 终���节恢复语雀原文6图顺序 + njs-mac-terminal2移回Mac安装节" [ref=f5e892] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30208535936
+                    - img "completed successfully:" [ref=f5e894]
+                    - generic [ref=f5e896]: 🐛 修正图片尺寸和顺序：mdx组件去强制全宽 + 终���节恢复语雀原文6图顺序 + njs-mac-terminal2移回Mac安装节
+                  - generic [ref=f5e897]:
+                    - text: "Deploy to GitHub Pages #55:"
+                    - generic [ref=f5e898]:
+                      - text: Commit
+                      - link "5c7b0c5" [ref=f5e899] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/5c7b0c586e9a23d5234b70f8c4a3ca67c2deee82
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e900] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e902] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e904]:
+                  - generic [ref=f5e905]:
+                    - generic "Jul 26, 2026, 23:35 GMT+8" [ref=f5e910]: Jul 26, 23:35 GMT+8
+                    - generic [ref=f5e911]:
+                      - img "Run duration" [ref=f5e912]
+                      - text: 1m 4s
+                  - group [ref=f5e915]:
+                    - img "Show options" [ref=f5e917] [cursor=pointer]
+              - generic [ref=f5e920]:
+                - generic [ref=f5e921]:
+                  - 'link "completed successfully: Run 54 of Deploy to GitHub Pages. 📸 补全19张遗漏的语雀图片：严格按原文顺序排列" [ref=f5e922] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30208338656
+                    - img "completed successfully:" [ref=f5e924]
+                    - generic [ref=f5e926]: 📸 补全19张遗漏的语雀图片：严格按原文顺序排列
+                  - generic [ref=f5e927]:
+                    - text: "Deploy to GitHub Pages #54:"
+                    - generic [ref=f5e928]:
+                      - text: Commit
+                      - link "74e8a45" [ref=f5e929] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/74e8a45340161ab1613a979e6a70b72de9ed091e
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e930] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e932] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e934]:
+                  - generic [ref=f5e935]:
+                    - generic "Jul 26, 2026, 23:30 GMT+8" [ref=f5e940]: Jul 26, 23:30 GMT+8
+                    - generic [ref=f5e941]:
+                      - img "Run duration" [ref=f5e942]
+                      - text: 1m 1s
+                  - group [ref=f5e945]:
+                    - img "Show options" [ref=f5e947] [cursor=pointer]
+              - generic [ref=f5e950]:
+                - generic [ref=f5e951]:
+                  - 'link "completed successfully: Run 53 of Deploy to GitHub Pages. 🐛 修复图片 basePath：next.config.ts 不再覆盖 .env.production 的 NEXT_PUBLIC_BAS…" [ref=f5e952] [cursor=pointer]':
+                    - /url: /LuVisage/blog/actions/runs/30208102389
+                    - img "completed successfully:" [ref=f5e954]
+                    - generic [ref=f5e956]: 🐛 修复图片 basePath：next.config.ts 不再覆盖 .env.production 的 NEXT_PUBLIC_BAS…
+                  - generic [ref=f5e957]:
+                    - text: "Deploy to GitHub Pages #53:"
+                    - generic [ref=f5e958]:
+                      - text: Commit
+                      - link "5ce9dc7" [ref=f5e959] [cursor=pointer]:
+                        - /url: /LuVisage/blog/commit/5ce9dc7303dd3839425c614a7a2b02d90a1621fd
+                      - text: pushed by
+                      - link "LuVisage" [ref=f5e960] [cursor=pointer]:
+                        - /url: /LuVisage
+                - link "main" [ref=f5e962] [cursor=pointer]:
+                  - /url: /LuVisage/blog/tree/refs/heads/main
+                - generic [ref=f5e964]:
+                  - generic [ref=f5e965]:
+                    - generic "Jul 26, 2026, 23:23 GMT+8" [ref=f5e970]: Jul 26, 23:23 GMT+8
+                    - generic [ref=f5e971]:
+                      - img "Run duration" [ref=f5e972]
+                      - text: 1m 17s
+                  - group [ref=f5e975]:
+                    - img "Show options" [ref=f5e977] [cursor=pointer]
+          - navigation "Pagination" [ref=f5e981]:
+            - generic "Previous page" [ref=f5e982]: Previous
+            - emphasis [ref=f5e983] [cursor=pointer]: "1"
+            - link "Page 2" [ref=f5e984] [cursor=pointer]:
+              - /url: /LuVisage/blog/actions?page=2
+              - text: "2"
+            - link "Page 3" [ref=f5e985] [cursor=pointer]:
+              - /url: /LuVisage/blog/actions?page=3
+              - text: "3"
+            - link "Next page" [ref=f5e986] [cursor=pointer]:
+              - /url: /LuVisage/blog/actions?page=2
+              - text: Next
