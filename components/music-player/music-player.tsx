@@ -69,7 +69,7 @@ function VinylDisc({ cover, isPlaying }: { cover: string; isPlaying: boolean }) 
         className="w-full h-full rounded-full overflow-hidden"
         style={{
           animationName: 'rotate',
-          animationDuration: '3s',
+          animationDuration: '8s',
           animationTimingFunction: 'linear',
           animationIterationCount: 'infinite',
           animationPlayState: isPlaying ? 'running' : 'paused',
@@ -305,7 +305,7 @@ export function MusicPlayer({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="glass-liquid glass-liquid-strong rounded-2xl overflow-hidden flex flex-col"
+      className="glass-liquid rounded-2xl overflow-hidden flex flex-col"
       style={{
         width: 'min(220px, calc(100vw - 40px))',
         maxHeight: 'calc(100vh - 160px)',
