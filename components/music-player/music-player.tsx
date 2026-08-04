@@ -33,11 +33,12 @@ function SpectrumBars({ isPlaying }: { isPlaying: boolean }) {
             height: isPlaying ? `${h * 3}px` : '2px',
             background: 'var(--color-primary)',
             opacity: isPlaying ? 0.7 : 0.2,
-            animationName: isPlaying ? `spectrum-${i}` : 'none',
+            animationName: `spectrum-${i}`,
             animationDuration: '1.2s',
             animationTimingFunction: 'ease-in-out',
             animationIterationCount: 'infinite',
             animationDelay: `${BAR_DELAYS[i]}s`,
+            animationPlayState: isPlaying ? 'running' : 'paused',
           }}
         />
       ))}
@@ -67,10 +68,11 @@ function VinylDisc({ cover, isPlaying }: { cover: string; isPlaying: boolean }) 
       <div
         className="w-full h-full rounded-full overflow-hidden"
         style={{
-          animationName: isPlaying ? 'rotate' : 'none',
+          animationName: 'rotate',
           animationDuration: '3s',
           animationTimingFunction: 'linear',
           animationIterationCount: 'infinite',
+          animationPlayState: isPlaying ? 'running' : 'paused',
         }}
       >
         {/* Cover image fills disc */}
