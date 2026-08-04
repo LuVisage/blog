@@ -10,14 +10,33 @@ export function MusicPlayerFAB() {
   const { state, toggleExpanded } = useMusicPlayer()
   const { isPlaying, isExpanded, isLoading, error, isLoaded, playlist } = state
 
-  // Toggle a data attr so CSS can add a minimal gap between player and content
+  // Push main content right so player panel doesn't overlap it
   useEffect(() => {
-    if (isExpanded) {
-      document.documentElement.setAttribute('data-music-player-open', '')
-    } else {
-      document.documentElement.removeAttribute('data-music-player-open')
+    const GAP = 10       // px between content and player
+    const PLAYER_W = 280
+    const PLAYER_RIGHT = 24 // right-6
+    const CONTENT_MAX_W = 1024 // max-w-5xl
+
+    const calcPadding = () => {
+      const main = document.getElementById('main-content')
+      if (!main) return
+      if (isExpanded) {
+        const vw = window.innerWidth
+        const padding = Math.max(0, (CONTENT_MAX_W - vw) / 2 + PLAYER_RIGHT + PLAYER_W + GAP)
+        main.style.paddingRight = `${Math.round(padding)}px`
+        main.style.transition = 'padding-right 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
+      } else {
+        main.style.paddingRight = ''
+      }
     }
-    return () => { document.documentElement.removeAttribute('data-music-player-open') }
+
+    calcPadding()
+    window.addEventListener('resize', calcPadding)
+    return () => {
+      window.removeEventListener('resize', calcPadding)
+      const main = document.getElementById('main-content')
+      if (main) main.style.paddingRight = ''
+    }
   }, [isExpanded])
 
   return (
