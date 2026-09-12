@@ -5,11 +5,14 @@ import { useEffect, useRef, useState } from 'react'
 interface StatsTileProps {
   value: number | React.ReactNode
   label: string
-  icon?: React.ReactNode
   suffix?: string
 }
 
-export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
+/**
+ * One figure in a ledger row — deliberately not a card.
+ * The count-up is the only flourish; hierarchy comes from type, not surface.
+ */
+export function StatsTile({ value, label, suffix = '' }: StatsTileProps) {
   const isNumber = typeof value === 'number'
   const numValue = isNumber ? value : 0
   const [displayValue, setDisplayValue] = useState(0)
@@ -24,14 +27,12 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
     const el = ref.current
     if (!el || animated.current) return
 
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (mq.matches) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setDisplayValue(numValue)
       animated.current = true
       return
     }
 
-    // If already visible (e.g. above the fold on mobile), animate immediately
     const rect = el.getBoundingClientRect()
     if (rect.top < window.innerHeight && rect.bottom > 0) {
       animated.current = true
@@ -55,21 +56,15 @@ export function StatsTile({ value, label, icon, suffix = '' }: StatsTileProps) {
   }, [isNumber, numValue])
 
   return (
-    <div
-      ref={ref}
-      className="glass-liquid rounded-2xl p-5 sm:p-6 text-center flex flex-col items-center justify-center gap-2 min-h-[100px]"
-    >
-      {icon && <div className="mb-0.5">{icon}</div>}
+    <div ref={ref}>
       <div
-        className="text-2xl sm:text-3xl font-bold font-mono tracking-tight"
-        style={{ color: 'var(--color-ink)' }}
+        className="font-serif font-bold leading-none tabular-nums"
+        style={{ fontSize: 30, color: 'var(--ink)', letterSpacing: '-0.02em' }}
       >
         {isNumber ? displayValue : value}
         {suffix}
       </div>
-      <div className="text-xs font-medium tracking-wide uppercase" style={{ color: 'var(--color-muted)' }}>
-        {label}
-      </div>
+      <div className="eyebrow mt-2">{label}</div>
     </div>
   )
 }
@@ -82,22 +77,28 @@ function animateCount(
 ) {
   const start = performance.now()
   function tick(now: number) {
-    const elapsed = now - start
-    const progress = Math.min(elapsed / duration, 1)
-    // easeOutCubic
+    const progress = Math.min((now - start) / duration, 1)
     const eased = 1 - Math.pow(1 - progress, 3)
     onUpdate(Math.round(from + (to - from) * eased))
-    if (progress < 1) {
-      requestAnimationFrame(tick)
-    }
+    if (progress < 1) requestAnimationFrame(tick)
   }
   requestAnimationFrame(tick)
 }
 
+/** Ledger of figures, separated by hairlines. */
 export function StatsTileRow({ children }: { children: React.ReactNode }) {
+  const items = Array.isArray(children) ? children.flat() : [children]
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-      {children}
+    <div className="flex flex-wrap gap-x-8 gap-y-6">
+      {items.map((child, i) => (
+        <div
+          key={i}
+          className="px-8 first:pl-0"
+          style={i > 0 ? { borderLeft: '1px solid var(--line)' } : undefined}
+        >
+          {child}
+        </div>
+      ))}
     </div>
   )
 }

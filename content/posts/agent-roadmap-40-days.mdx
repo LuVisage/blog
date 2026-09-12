@@ -1,0 +1,234 @@
+---
+title: '40 天从零到生产级 Agent：我这一路建立的三个心智模型'
+date: '2026-09-11'
+description: '八周学习笔记的总复盘：LLM 应用其实是把模型接进流程、一切皆 Runnable、图就是状态加节点加边。从 Day 0 盲用 create_agent，到 Day 22 发现它内部就是一张自己画过的图。附真实的得与失。'
+category: 'AI Agent'
+series: 'Agent 学习笔记'
+seriesOrder: 1
+tags:
+  - Agent
+  - LangChain
+  - LangGraph
+  - MCP
+  - 多智能体
+  - LLM
+---
+
+## 第 0 天我就在用 create_agent，完全不知道它是什么
+
+Day 0 装完环境，照着 `hello_agent.py` 敲了一遍：
+
+```python
+agent = create_agent(model, tools=[get_weather], system_prompt='...')
+agent.invoke({'messages': [HumanMessage('北京天气')]})
+```
+
+跑通了，很高兴。然后接下来的五周我都在学一些**看起来和它无关**的东西：消息、模板、Pydantic、LCEL 管道、工具、向量库、图。
+
+到 Day 21，手写了一遍 ReAct 循环之后，教程有句话：「恭喜，你刚刚亲手实现了一个 Agent。」
+
+Day 22 更狠：
+
+> `create_agent` 返回的其实就是一个编译好的 LangGraph 图。
+
+那一刻前面五周的东西全部合流了。**它内部就是一张图：model 节点 → 条件边 → tools 节点 → 回到 model。** 和我 Day 16 手搭的那张，形状一模一样。
+
+如果 Day 0 就有人告诉我这句话，我能省掉很多「这玩意儿到底为什么要学」的抵触。但反过来说，正是因为先手写了一遍，那句话才真的落下来了。
+
+## 三个心智模型
+
+八周下来，真正没白学的部分是三个认知，技术细节都会过时，这三个不会。
+
+### ① LLM 应用 = 把大模型接入流程
+
+模型就是一个函数：输入文字，输出文字。**它没有记忆、没有工具、不会上网。**
+
+所谓「Agent 会思考、会用工具」，全是我们在模型外面搭的流程：喂它什么、拿走它的输出后做什么。
+
+这个认知在 Day 5 被推到极致。第一次看通工具调用的完整往返之后我才意识到：
+
+> 模型没有执行任何东西。它只是说「请帮我调 `get_weather(city=北京)`」。真正执行的是我的 Python 代码。
+
+模型只会**提名**，执行、回填、决定要不要再来一轮，全是流程的事。LangChain 和 LangGraph 就是搭这套流程的乐高。
+
+### ② 一切皆 Runnable
+
+任何「有输入、有输出」的组件都是 Runnable。LLM 是，Prompt 模板是，检索器是，你写的普通函数包一层也是。
+
+它们统一承诺四件事：`invoke` / `ainvoke` / `stream` / `batch`。这就是 LangChain 的万能胶，也是 `|` 管道能成立的原因：
+
+```python
+chain = prompt | model | StrOutputParser()
+```
+
+写自定义 Runnable 的那天有个副作用——**你开始站在框架作者的位置看问题**。以前觉得 API 设计古怪，现在明白每一关都要问两句话：左边输出的类型是什么，右边需要的类型是什么。管道不接，十有八九是这两处没对上。
+
+这个模型的复利在 Day 16 出现：编译后的图本身也是 Runnable。所以 `stream`、`batch`、`invoke` 那套全都能直接用在图上，一点新 API 都不用学。
+
+### ③ 图 = 状态 + 节点 + 边
+
+`State` 是一块共享白板，`Node` 是工位上的工人，`Edge` 是传送带。
+
+最妙的一点：**没有一行代码规定「先 upper 后 reverse」。改顺序 = 改边，节点函数一个字都不用动。**
+
+链是写死的流程，图是把流程从代码里抽出来。等逻辑里出现循环、分支、要停下来等人审批，链就开始扭曲了。
+
+## 八周都干了什么
+
+| 周 | 内容 | 一句话收获 |
+|---|---|---|
+| 1 | LangChain 核心组件 | 消息、模板、结构化输出、LCEL、工具，凑齐 ReAct 的全部零件 |
+| 2 | RAG + Milvus | 模型不会的知识，我们检索了递给它 |
+| 3 | 检索优化 + RAGAS 评估 | 「能跑」和「能答对」之间隔着四层优化 |
+| 4 | LangGraph 图编程 | 循环、分支、中断、持久化，流程控制终于有了形状 |
+| 5 | Agent 开发 | Runtime、Middleware、短期与长期记忆 |
+| 6 | LangSmith | 给车装上仪表盘、行车记录仪和年检制度 |
+| 7 | MCP + 多智能体 | 工具从哪来变了，ReAct 一个字没变 |
+| 8 | Chat UI + 毕业项目 | 把 Agent 变成别人能用的东西 |
+
+下面挑真正改变我认知的几个点。
+
+## 第 1 周：结构化输出的「结构完整，内容尽力而为」
+
+`with_structured_output` 配 Pydantic，输入给得越少它越危险。
+
+我只喂了一句「上海下雨了」，它返回了一个字段齐全的 `Weather`：温度 25、湿度 80、风速 3 级。**这些数字全是它编的。**
+
+schema 保证的是**形状**，不是**真实性**。结构永远完整，内容尽力而为。想清楚这一点，才知道为什么字段描述要写细（`Field(description=...)` 决定大约八成抽取质量），也才知道为什么下游必须自己校验。
+
+同一天还埋了个伏笔：模型答非所问，怎么在生产环境里检测出来？这个问题第 6 周才回答。
+
+## 第 4 周：LangGraph 1.x 的两条硬规则
+
+**并行分支改同一个字段，直接报错。**
+
+```
+InvalidUpdateError: Can receive only one value per step
+```
+
+老版本这里是**悄悄覆盖**——不报错，结果随机丢。教程给的建议很毒辣：合并成一个字段跑一版，亲眼看那个报错，然后你就永远忘不掉了。
+
+**`Command(goto=...)` 只唤醒目标节点，不会重新触发 START 的并行扇出。**
+
+所以循环的第二轮，那个 `plus_ten` 分支根本不执行，日志里只剩 `double`。这是最容易误判的行为——图没坏，是你以为它会重跑。
+
+另外两条：
+
+- 循环没有专门的 API，**回边即循环**。终止条件（比如 `retry_count`）必须放进 State，不然节点函数拿不到。
+- 忘了 `compile()` 会拿到 `'StateGraph' object is not callable`，新手第一坑，我也踩了。
+- State 字段默认是**覆盖不是追加**，想累加要么自己读自己加，要么挂 reducer。
+
+## 第 4 周后半：自动 ≠ 可靠
+
+`interrupt()` 人在回路那天，我一开始觉得这是「不够自动化」的退步。
+
+反过来想：群发消息、退款、不可逆删除、对外发布——**这些恰恰是你不希望它自动跑完的地方**。
+
+```python
+agent = create_agent(model, tools, checkpointer=..., interrupt_before=['tools'])
+```
+
+恢复有三个前提，缺一不可：配了 checkpointer、两次 `thread_id` 一致、用 `Command(resume=值)`。
+
+这里还藏着一个必须分清的概念——**两种「续跑」**：
+
+- 停在 interrupt（`snapshot.next` 有值）：`invoke(None)` 或 `Command(resume=...)` 能接着跑
+- 图已经跑完（`next` 为空）：`invoke(None)` **什么都不重跑**，只能 `update_state` 改状态，或者换个 `thread_id`
+
+我把这两个混过一次，症状是「明明调用了怎么没反应」，且不报错。
+
+## 第 5 周：Agent 的四件武器
+
+`create_agent` 是 LangChain 1.x 唯一官方入口，`create_react_agent` 和 `AgentExecutor` 都已废弃——网上教程满天飞的旧写法，别照抄。
+
+真正值钱的是 Middleware。`@before_model` / `@after_model` / `@wrap_model_call` 三个钩子，加四天王：`ToolRetryMiddleware`、`ModelRetryMiddleware`、`ToolCallLimitMiddleware`、`SummarizationMiddleware`。
+
+其中两个是**成本控制**。Agent 烧钱的两大元凶：无限调工具，和历史滚雪球。而历史滚雪球这个病，Day 2 就多轮对话写过笔记——模型是金鱼，转头就忘，所以你只能自己把历史一路带上，然后它越滚越大。第 5 周的摘要中间件治的正是第 1 周埋下的雷。
+
+记忆分两轨，这个划分我觉得是整个教程讲得最清楚的：
+
+| | 短期记忆 | 长期记忆 |
+|---|---|---|
+| 类比 | 工作记忆 | 笔记本 |
+| 范围 | 一个 thread 内 | 跨 thread、跨天 |
+| 载体 | Checkpointer | Store + 工具 |
+
+**短期失忆，长期不忘。** namespace 必须带 `user_id` 维度，否则记忆会串用户。
+
+## 第 7 周：MCP 是 USB-C，多智能体是组织问题
+
+MCP 解决的是 100 个工具就要 100 份胶水代码。它的三件套：**tools 可执行操作、resources 可读取数据、prompts 可复用模板**；两种传输：**stdio 本机子进程无端口，Streamable HTTP 远程可团队共享**。
+
+对我最有冲击力的一句：
+
+> 你前 5 周学的 ReAct 循环完全不变，变的是工具从哪来。
+
+工具的 `inputSchema` 就是第 3 周 Pydantic schema 的纯 JSON 版，所以它跨语言。接入四步：声明服务器 → 拉起子进程 → 协议发现工具 → JSON Schema 自动转成 LangChain 工具。控制台会刷出 `ListToolsRequest` / `CallToolRequest`，那就是 JSON-RPC 在真实工作。
+
+一个必须知道的坑：同步 `invoke` 会报 `StructuredTool does not support sync invocation`，MCP 工具得走异步。
+
+至于 Supervisor 还是 Swarm，原文的对比表我抄在这，因为这是个**组织问题不是技术问题**：
+
+| | Supervisor 主管路由 | Swarm 交接 |
+|---|---|---|
+| 决策者 | 中央主管 | 每个 Agent 自己 |
+| 转接 | 主管派活 | `transfer_to_xxx` 直接交接 |
+| 类比 | CEO 分配任务 | 客服「我帮你转技术部」 |
+| 优点 | 控制集中、易审计 | 灵活、低延迟 |
+| 缺点 | 主管单点，每步都要回主管 | 可能无限转接，难审计 |
+
+选型：流程固定多步（研究→写作→审稿）用 Supervisor；动态转接（客服）用 Swarm；需要强审计用 Supervisor；Agent 3~5 个用 Supervisor，再多用 Swarm。
+
+**而且——客服这种以检索为主的场景，单 Agent 够用且便宜，别为了酷上多智能体。** 只有上下文爆炸、职责混杂、工具超过二十个，才值得拆。
+
+## 第 8 周：设计文档和能跑的代码不是一回事
+
+毕业项目是「星尘咖啡全栈智能客服」，Day 38 画架构图、写选型表、列 10 条评估集，Day 39 落地。
+
+**第 3 周精心设计的 `LLMChainFilter`，在实现代码里被我直接删了。** import 还留着，函数没调用。原因写在注释里：本地 7b 小模型会把明明相关的文档判成 NO，过滤完召回直接归零。
+
+同一份架构图上画了 Sqlite checkpointer 持久化，实际代码里 `create_agent` 没配 checkpointer，`store` 用的是 `InMemoryStore`——**重启即丢，跨会话偏好是个假的**。
+
+还有一个决策我认为是全套里最值得学的：**把检索做成「工具」，而不是「链」**。
+
+| | 固定 RAG 链 | Agent + 检索工具 |
+|---|---|---|
+| 什么时候检索 | 每题必检 | 模型自己判断 |
+| 闲聊成本 | 照样烧一次检索 | 不检索，省钱 |
+| 能组合吗 | 流程写死 | 可多轮检索、可与订单/记忆工具串起来 |
+
+代价是：**系统提示词里必须写清什么时候该检索**，不写模型要么偷懒不查，要么什么都查。
+
+前端和部署那部分我老实停在设计阶段——`agent-chat-ui` 的脚手架我压根没建，`langgraph build` 的镜像也没打过。所以第 8 周我能拿出手的只有后端那张图。
+
+## 我到底跑过了什么
+
+复盘要是不说清这个，就是给自己脸上贴金。
+
+**有落盘证据的：**
+
+- `week-04` 的 `agent_memory.db` 里有 8 条 checkpoint、12 条 writes，`thread_id` 恰好是 `user-A` 和 `user-B` —— Day 19 的 SqliteSaver 加 `update_state` 那次是真跑通的
+- `capstone_kb.db` 的 schema 写着 `dim=768`，正是 `nomic-embed-text` 的维度；5 条数据，还有一份 `manifest.json.prev` 空清单 —— 说明 `vs.drop()` 重建确实执行过，毕业项目的入库链路是活的
+- `.langgraph_api` 里只有 `graph_id=weather_agent` —— Day 36 的 Server 起来过，Day 40 那个配置没有
+
+**从没跑过的：**
+
+- 第 6 周整周。`.env` 里 `LANGSMITH_API_KEY=` 是空的，`LANGSMITH_TRACING=false`。Run 树、token 费用、Experiment 分数、告警，全是看文档理解，一次都没上报成功
+- 第 8 周前端与部署
+- 任何一条「优化前 vs 优化后」的分数曲线
+
+技术栈是真的本地全栈：`qwen2.5:7b` + `nomic-embed-text`，全走 Ollama，LangChain 1.3.16。**零成本，也正是零成本把能力天花板钉死了**——多步接力、复杂过滤，本地 7b 就是不行。
+
+## 三句话
+
+教程结尾给了三句话，我认同，抄在这里当结尾：
+
+**模型在变，工程不变。** ReAct 循环、图编程、检索-生成、评估闭环这四个心智模型，十年内不会过时。API 我这八周已经亲眼看着 `AgentExecutor` 变成废弃项。
+
+**评估集是你最贵的资产。** 代码可以重写，评估集记录着「什么叫好」。从第一天就该开始攒，而不是等要优化了才想起来。
+
+**去写一个真正有人用的 Agent。** 教程教你造轮子，用户教你造好车。
+
+下一步大概率的顺序是：把 LangSmith 真的接上、把前端脚手架建起来、然后拿一个真实的人来折磨这个客服。
+
+> 这一路的详细技术笔记我拆成了单篇，[RAG 检索优化实战](/posts/rag-retrieval-optimization) 讲的是第 2~3 周四层优化的具体坑和取舍。

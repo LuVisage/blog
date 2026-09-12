@@ -3,15 +3,31 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Baron_Zhang</title>
-    <link>https://LuVisage.github.io/blog</link>
+    <link>https://LuVisage.github.io/blog/</link>
     <description>AI 探索者 &amp; Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。</description>
     <language>zh-CN</language>
-    <lastBuildDate>Tue, 21 Jul 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Sat, 12 Sep 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://LuVisage.github.io/blog/rss.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>RAG 检索优化实战：从「一本正经地胡说」到每句都有出处</title>
+      <link>https://LuVisage.github.io/blog/posts/rag-retrieval-optimization/</link>
+      <guid isPermaLink="true">https://LuVisage.github.io/blog/posts/rag-retrieval-optimization/</guid>
+      <description>把 RAG 从「能跑」调到「能答对」的完整过程：Chunking 怎么切、查询侧三招、BM25 混合检索与 RRF 融合、Rerank 宽召回精排序、父子文档与元数据过滤，最后用 RAGAS 四个指标给整套系统打分。</description>
+      <pubDate>Sat, 12 Sep 2026 00:00:00 GMT</pubDate>
+      
+    </item>
+    <item>
+      <title>40 天从零到生产级 Agent：我这一路建立的三个心智模型</title>
+      <link>https://LuVisage.github.io/blog/posts/agent-roadmap-40-days/</link>
+      <guid isPermaLink="true">https://LuVisage.github.io/blog/posts/agent-roadmap-40-days/</guid>
+      <description>八周学习笔记的总复盘：LLM 应用其实是把模型接进流程、一切皆 Runnable、图就是状态加节点加边。从 Day 0 盲用 create_agent，到 Day 22 发现它内部就是一张自己画过的图。附真实的得与失。</description>
+      <pubDate>Fri, 11 Sep 2026 00:00:00 GMT</pubDate>
+      
+    </item>
     <item>
       <title>介绍 lora-trainer：一键搞定大模型 LoRA 微调</title>
       <link>https://LuVisage.github.io/blog/posts/lora-trainer-intro/</link>
-      <guid>https://LuVisage.github.io/blog/posts/lora-trainer-intro/</guid>
+      <guid isPermaLink="true">https://LuVisage.github.io/blog/posts/lora-trainer-intro/</guid>
       <description>lora-trainer 是一款全流程 LoRA 微调工具，支持数据分析、超参数推荐、显存估算和训练脚本一键生成，让微调大模型不再有门槛。</description>
       <pubDate>Tue, 21 Jul 2026 00:00:00 GMT</pubDate>
       
@@ -19,7 +35,7 @@
     <item>
       <title>Hello World - 我的第一篇博客</title>
       <link>https://LuVisage.github.io/blog/posts/hello-world/</link>
-      <guid>https://LuVisage.github.io/blog/posts/hello-world/</guid>
+      <guid isPermaLink="true">https://LuVisage.github.io/blog/posts/hello-world/</guid>
       <description>这是我的个人博客的第一篇文章，记录搭建博客的过程和未来的写作计划。</description>
       <pubDate>Mon, 13 Jul 2026 00:00:00 GMT</pubDate>
       

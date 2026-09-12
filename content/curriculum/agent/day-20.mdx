@@ -1,0 +1,173 @@
+---
+slug: day-20
+day: 20
+week: 4
+weekTitle: LangGraph 图编程
+weekBlurb: State / Node / Edge、条件边与循环、人在回路、持久化与子图。
+title: 子图 Subgraph —— 把图拆成可复用模块
+lead: 学会把一个大图拆成多个小图（子图）组合使用——代码复用与多智能体架构的第一块基石。
+examples:
+  - examples/day20_subgraph.py
+sourcePath: week-04-langgraph/day-20.md
+---
+
+---
+
+## 20.1 为什么要拆子图？
+
+想象一个电商 Agent：下单流程、支付流程、物流查询、客服转人工……全画在一张大图上，会出现什么？
+
+1. **图大到没法看**：几十个节点几百条边，改一处怕牵动全身；
+2. **没法复用**：支付流程在"下单图"和"退款图"里都要用，复制两份？
+3. **没法分工**：真实团队里，支付组维护支付图、物流组维护物流图。
+
+**子图（Subgraph）** 的解法：每个子流程单独编译成图，父图把子图当作**一个节点**使用：
+
+```
+父图：接单 →【支付子图】→ 发货 → 完成
+              │
+              └─ 校验 → 扣款 → 记账（子图内部三个节点，父图看不见）
+```
+
+**对父图来说，子图就是一个"黑盒节点"**：进去一个状态，出来一个状态。这正是多智能体架构的基础——Day 33 的 Supervisor 模式里，每个"智能体"就是一个子图。
+
+## 20.2 核心语法：子图就是节点
+
+```python
+# 1. 像普通图一样定义、编译子图
+subgraph = StateGraph(State)
+subgraph.add_node(...)
+subgraph.add_edge(...)
+compiled_sub = subgraph.compile()
+
+# 2. 父图把【编译后的子图】当节点加进去
+parent = StateGraph(State)
+parent.add_node("payment", compiled_sub)   # ★ 节点 = 编译后的图！
+parent.add_edge(START, "payment")
+parent.add_edge("payment", END)
+parent_app = parent.compile()
+```
+
+就这一处变化：`add_node` 的第二参数从函数换成**编译后的图**。父图执行到该节点时，会把整个状态传给子图、跑完子图、拿回更新后的状态继续。
+
+> **状态共享规则**：子图用的是**父图同一个 State**。子图只能读写 State 里声明过的字段——所以拆图时，父子图要共用一份 State 定义（或至少字段对齐）。这是最容易被忽略的设计约束。
+
+## 20.3 案例：订单处理流水线
+
+```
+父图：START → 校验订单(validate) → 【支付子图】→ 发货(ship) → END
+支付子图：START → 风控检查(risk_check) → 扣款(deduct) → 记账(record) → END
+```
+
+父图把"支付"视为一步，子图内部三步——**关注点分离**：
+
+- 父图关心业务主流程（订单 → 支付 → 发货）；
+- 子图关心支付细节（风控 → 扣款 → 记账），由"支付团队"独立维护。
+
+## 20.4 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-04-langgraph\examples
+python day20_subgraph.py
+```
+
+## 20.5 案例逐行讲解：`day20_subgraph.py`
+
+```python
+"""Day 20 案例：子图 —— 订单处理流水线（纯 Python 可跑）
+
+注意：父子图共享状态时，Annotated reducer（如 list+add）在子图边界
+可能出现重复应用（LangGraph 已知行为），故本案例 log 用普通字符串手动拼接。
+"""
+from typing import TypedDict
+from langgraph.graph import StateGraph, START, END
+
+# ① 共享状态：父子图都用它（拆图的约定）
+class State(TypedDict):
+    order_id: str
+    amount: float
+    status: str
+    log: str                        # 普通字符串，节点内手动拼接
+
+# ② 支付子图：内部三步（风控 → 扣款 → 记账）
+def risk_check(state: State) -> dict:
+    ok = state["amount"] <= 10000          # 简化风控：超过 1 万要人工
+    new_status = "风控通过" if ok else "风控拦截"
+    return {"status": new_status, "log": state["log"] + f" → 风控：{new_status}"}
+
+def deduct(state: State) -> dict:
+    if state["status"] == "风控拦截":
+        return {"log": state["log"] + " → 扣款：已跳过（被拦截）"}
+    return {"log": state["log"] + f" → 扣款：-{state['amount']} 元"}
+
+def record(state: State) -> dict:
+    return {"log": state["log"] + f" → 记账：订单 {state['order_id']} 完成"}
+
+payment_sub = StateGraph(State)
+payment_sub.add_node("risk_check", risk_check)
+payment_sub.add_node("deduct", deduct)
+payment_sub.add_node("record", record)
+payment_sub.add_edge(START, "risk_check")
+payment_sub.add_edge("risk_check", "deduct")
+payment_sub.add_edge("deduct", "record")
+payment_sub.add_edge("record", END)
+payment_sub_compiled = payment_sub.compile()      # ★ 编译成"黑盒"
+
+# ③ 父图：把支付子图当普通节点用
+def validate(state: State) -> dict:
+    return {"log": state["log"] + f" → 校验：订单 {state['order_id']} 合法"}
+
+def ship(state: State) -> dict:
+    if state["status"] == "风控拦截":
+        return {"status": "已取消", "log": state["log"] + " → 发货：订单取消"}
+    return {"status": "已发货", "log": state["log"] + " → 发货：已出库"}
+
+parent = StateGraph(State)
+parent.add_node("validate", validate)
+parent.add_node("payment", payment_sub_compiled)   # ★ 子图 = 节点
+parent.add_node("ship", ship)
+parent.add_edge(START, "validate")
+parent.add_edge("validate", "payment")
+parent.add_edge("payment", "ship")
+parent.add_edge("ship", END)
+app = parent.compile()
+
+# ④ 跑两单：正常单 + 超额单（触发子图内风控拦截）
+print("── 订单 A（5000 元，正常）──")
+r = app.invoke({"order_id": "A001", "amount": 5000, "status": "", "log": ""})
+print("  状态：", r["status"])
+print("  日志：", r["log"])
+
+print("\n── 订单 B（50000 元，超额）──")
+r2 = app.invoke({"order_id": "B001", "amount": 50000, "status": "", "log": ""})
+print("  状态：", r2["status"])
+print("  日志：", r2["log"])
+```
+
+**逐段要点**：
+
+- **② 子图内部**：`risk_check` 设置 `status`，`deduct` **读取** `status` 决定是否扣款——子图内部节点间通过共享 State 通信，和普通图一样；
+- **③ 父图**：`add_node("payment", payment_sub_compiled)`——**子图对父图就是黑盒**，父图只看到"payment 这个节点跑完了"；
+- **④ 两单对比**：B 单被风控拦截后，`ship` 读到"风控拦截"改成"已取消"——**父子图通过 State 无缝协作**，父图能感知子图内部的结果（status 字段），但不必知道子图内部怎么算的；
+- **子图边界与 reducer**：`Annotated[list, add]` 这类 reducer 字段在子图边界可能被重复应用（LangGraph 已知行为），跨子图的"日志类"字段建议用普通字符串手动拼接；
+- **子图的价值再体会**：如果物流团队要改发货逻辑，只动 `ship`；支付团队要加"优惠券抵扣"，只动子图内部——互不干扰。这就是大项目能并行开发的原因。
+
+## 20.6 今日自测
+
+<Quiz items={["给支付子图加一个 `coupon` 节点（优惠券抵扣：金额减 50），观察父图一行不用改。","新建第二个子图 `logistics_sub`（出库 → 派送 → 签收），把父图的 `ship` 节点替换成它。","子图里故意读写一个 State 里没声明的字段，看报什么错——理解\"共享 State 是拆图的契约\"。","画一张今天的父子图结构图（父图 3 节点 + 子图 3 节点），写进 `notes/day20.md`。","思考：如果把\"支付子图\"换成\"研究员智能体\"、\"发货节点\"换成\"写作智能体\"，这就是什么架构？（Day 33 揭晓：Supervisor 多智能体）"]} />
+
+## 20.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"子图不执行","cause":"忘了先 `compile()` 子图","fix":"传给 add_node 的必须是编译后的图"},{"symptom":"子图读不到字段","cause":"子图 State 与父图不一致","fix":"父子共用同一 State 定义"},{"symptom":"子图内部报 KeyError","cause":"子图访问了 State 外的字段","fix":"扩展共享 State 的字段声明"},{"symptom":"子图日志\"消失\"","cause":"子图 State 字段名和父图不重合","fix":"检查字段名拼写"},{"symptom":"调试子图困难","cause":"黑盒看不见内部","fix":"单独 invoke 子图先测，再接入父图"}]} />
+
+## 第 4 周完成！复盘
+
+这周你掌握了 LangGraph 的全部核心：
+
+```
+State/Node/Edge（图的基础）→ 条件边/循环/并行/Command（流程控制）
+→ interrupt（人在回路）→ Checkpointer（记忆持久化）→ Subgraph（模块化）
+```
+
+**下周预告**：站在图之上，学习 LangChain 1.x 的 `create_agent`——官方帮你搭好的 ReAct 循环、Middleware 中间件体系、长期记忆 Store。你手写过 ReAct（Day 5）、手写过图（这周），所以下周的一切都是"熟悉的老朋友换上新装"。
+

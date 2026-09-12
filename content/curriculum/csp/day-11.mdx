@@ -1,0 +1,98 @@
+---
+slug: day-11
+kind: day
+day: 11
+week: 2
+weekTitle: 进阶算法
+weekBlurb: 给 T4 备武器：KMP 与字符串哈希、并查集与最小生成树、最短路拓扑排序、树状数组线段树、线性/背包/区间/树形/状压 DP、搜索与剪枝。
+title: 树状数组与线段树（入门）
+lead: 数据结构类 T4 的入场券
+sourcePath: 第2周-Day08-14-真题实战/Day11-树状数组与线段树入门.md
+---
+
+## 今日任务
+
+1. 掌握树状数组两种用法并默写；
+2. 掌握线段树"单点修改 + 区间查询"入门版；
+3. 做 2 道模板题，浏览 1 道线段树类 T4 真题。
+
+## 学什么
+
+### 1. 树状数组：单点修改 + 区间查询
+```cpp
+int c[100005], n;
+int lowbit(int x) { return x & -x; }
+void add(int i, int x) { for (; i <= n; i += lowbit(i)) c[i] += x; }
+int sum(int i) { int s = 0; for (; i > 0; i -= lowbit(i)) s += c[i]; return s; }
+// 区间和 [l,r] = sum(r) - sum(l-1)
+// 区间修改 + 单点查询：对差分数组建树状数组：add(l,x); add(r+1,-x)
+```
+
+### 2. 线段树（入门版：单点修改 + 区间和）
+```cpp
+long long tr[400005];                    // 开 4 倍空间
+void update(int o, int l, int r, int p, long long x) {   // a[p] += x
+    if (l == r) { tr[o] += x; return; }
+    int mid = (l + r) >> 1;
+    if (p <= mid) update(o << 1, l, mid, p, x);
+    else update(o << 1 | 1, mid + 1, r, p, x);
+    tr[o] = tr[o << 1] + tr[o << 1 | 1];
+}
+long long query(int o, int l, int r, int ql, int qr) {
+    if (ql <= l && r <= qr) return tr[o];
+    int mid = (l + r) >> 1;
+    long long res = 0;
+    if (ql <= mid) res += query(o << 1, l, mid, ql, qr);
+    if (qr > mid) res += query(o << 1 | 1, mid + 1, r, ql, qr);
+    return res;
+}
+```
+
+### 3. 区间修改需要懒标记（今天必须会）
+```cpp
+long long tr[400005], lazy[400005];
+void pushdown(int o, int l, int r) {
+    if (!lazy[o]) return;
+    int mid = (l + r) >> 1;
+    tr[o<<1] += lazy[o] * (mid - l + 1);  lazy[o<<1] += lazy[o];
+    tr[o<<1|1] += lazy[o] * (r - mid);    lazy[o<<1|1] += lazy[o];
+    lazy[o] = 0;
+}
+void update(int o, int l, int r, int ql, int qr, long long x) {  // 区间加
+    if (ql <= l && r <= qr) { tr[o] += x * (r - l + 1); lazy[o] += x; return; }
+    pushdown(o, l, r);
+    int mid = (l + r) >> 1;
+    if (ql <= mid) update(o<<1, l, mid, ql, qr, x);
+    if (qr > mid) update(o<<1|1, mid+1, r, ql, qr, x);
+    tr[o] = tr[o<<1] + tr[o<<1|1];
+}
+long long query(int o, int l, int r, int ql, int qr) {
+    if (ql <= l && r <= qr) return tr[o];
+    pushdown(o, l, r);
+    int mid = (l + r) >> 1;
+    long long res = 0;
+    if (ql <= mid) res += query(o<<1, l, mid, ql, qr);
+    if (qr > mid) res += query(o<<1|1, mid+1, r, ql, qr);
+    return res;
+}
+```
+
+### 4. CSP 数据结构类 T4 概览（今天只"认脸"）
+- **202303-4 星际网络II**：区间分配地址 → 线段树/珂朵莉树 + 离散化；
+- **202209-4 吉祥物投票**：线段树维护区间投票；
+- **202112-4 磁盘文件操作**：区间赋值的平衡树/线段树；
+- 策略：这类题近年偏难，**优先拿部分分**（子任务小规模暴力），模板熟练后中档可冲。
+
+## 练什么
+
+| 题号 | 考点 | 建议时限 |
+|---|---|---|
+| [P3374](https://www.luogu.com.cn/problem/P3374) 树状数组 1 | 单点改+区间查 | 30 min |
+| [P3368](https://www.luogu.com.cn/problem/P3368) 树状数组 2 | 区间改+单点查（差分） | 30 min |
+| [P3372](https://www.luogu.com.cn/problem/P3372) 线段树 1 | 区间改+区间查（懒标记） | 60 min |
+| 浏览 202303-4 星际网络II 题解 | 理解"离散化+线段树"思想即可 | 40 min |
+
+## 验收标准
+
+<Quiz items={["闭卷默写树状数组 + 带懒标记线段树","P3374、P3368、P3372 AC","能说出树状数组和线段树的适用场景差异（单点/区间 × 修改/查询的四种组合各用什么）。"]} />
+

@@ -1,0 +1,265 @@
+---
+slug: day-12
+day: 12
+week: 3
+weekTitle: RAG 优化与评估
+weekBlurb: 查询改写、混合检索与重排序、父子文档、RAGAS 指标打分。
+title: 检索优化 —— 混合检索（向量 + BM25）与重排序
+lead: '理解向量检索的"精确词盲区"，用 Milvus 原生混合检索 + RRF 融合让语义与关键词双保险，再学"宽召回 + 精排序"。'
+examples:
+  - examples/day12_hybrid.py
+  - examples/day12_rerank.py
+sourcePath: week-03-rag-optimization/day-12.md
+---
+
+> 前置：`pip install jieba`（Day 0 清单已包含）
+
+---
+
+## 12.1 向量检索的盲区：当"精确词"比"语义"重要
+
+回顾 Day 6 的自测题："银行"和"河岸"语义相似吗？嵌入模型把文字压成向量，**专有名词、型号、编号这类词经常被"平均"掉**。实战场景：
+
+| 用户查询 | 知识库 | 向量检索表现 |
+|---|---|---|
+| "Milvus 2.6 的全文检索怎么配" | "Milvus 2.6 支持 BM25" | "Milvus""2.6"这种词 embedding 区分度低，可能命中 Milvus 2.4 文档 |
+| "错误码 E1002" | "E1002：鉴权失败" | 编号几乎无法语义化，向量检索≈抓瞎 |
+| "手冲壶 Hario V60" | "V60 滤杯适配 01 号滤纸" | 型号词被当噪声 |
+
+**BM25** 是传统全文检索的王者算法：统计**词频**（TF）与**逆文档频率**（IDF），专治精确关键词匹配。**语义靠向量，精确靠 BM25，两者互补**——这就是混合检索（Hybrid Search）的动机。
+
+## 12.2 两种实现路线（今天都学）
+
+| 路线 | 实现 | 优点 | 缺点 |
+|---|---|---|---|
+| **A. Milvus 原生** | Milvus 内置 BM25 分词器 + `hybrid_search` + RRF 融合 | 生产级性能、一次查询搞定 | API 较复杂（今天案例已跑通，照抄即可） |
+| **B. LangChain 通用** | BM25Retriever（内存）+ Milvus 向量检索器 + EnsembleRetriever | 跨向量库通用、代码简单 | 两套索引、内存 BM25 不适合海量数据 |
+
+## 12.3 RRF：两个榜单怎么合成一个？
+
+两路检索各出一个 Top-K 榜单，怎么合并？**RRF（Reciprocal Rank Fusion，倒数排名融合）**是当前公认最简单有效的算法：
+
+```
+score(doc) = Σ 1 / (k + rank_i(doc))     # k 是常数（常用 60）
+```
+
+**核心思想**：只看名次不看分数（向量分 0.9 和 BM25 分 21.3 没法直接相加，但"第 1 名"和"第 3 名"可比）。一个文档在两路都排名靠前 → RRF 分高 → 综合排名第一。
+
+```python
+from pymilvus import RRFRanker
+ranker = RRFRanker(60)     # k=60
+```
+
+## 12.4 路线 A：Milvus 原生混合检索（生产级）
+
+### 第一步：建带 BM25 的 Collection（与普通建表的区别就在 3 行）
+
+```python
+from pymilvus import MilvusClient, DataType, Function, FunctionType
+
+schema = client.create_schema(auto_id=False, enable_dynamic_field=False)
+schema.add_field("pk", DataType.INT64, is_primary=True)
+schema.add_field("text", DataType.VARCHAR, max_length=1000,
+                 enable_analyzer=True,                          # ① 开启分词
+                 analyzer_params={"type": "jieba"})             # ② 中文分词器
+schema.add_field("vector", DataType.FLOAT_VECTOR, dim=8)
+schema.add_field("sparse", DataType.SPARSE_FLOAT_VECTOR)        # ③ BM25 输出字段（稀疏向量）
+schema.add_function(Function(
+    name="bm25_func", function_type=FunctionType.BM25,
+    input_field_names=["text"], output_field_names=["sparse"],
+))
+client.create_collection("hybrid_docs", schema=schema, metric_type="COSINE")
+```
+
+**三行新增的用意**：
+
+- `enable_analyzer=True`：写入时自动对 text 分词；
+- `analyzer_params={"type": "jieba"}`：jieba 中文分词。**Milvus Lite 用 `jieba`；Docker Standalone 2.6 还可选 `chinese`**（内部也是 jieba 词库）；
+- `add_function(BM25)`：声明"每次写入 text 时，自动计算 BM25 稀疏向量存到 sparse 字段"——**你只管写文本，BM25 由数据库代劳**。
+
+### 第二步：混合检索
+
+```python
+from pymilvus import AnnSearchRequest, RRFRanker
+
+req_vector = AnnSearchRequest(
+    data=[query_vector],                       # embedding 后的问题向量
+    anns_field="vector", param={"metric_type": "COSINE"}, limit=5)
+req_text = AnnSearchRequest(
+    data=[question],                           # 原问题文本，BM25 直接吃文本！
+    anns_field="sparse", param={"metric_type": "BM25"}, limit=5)
+
+results = client.hybrid_search(
+    "hybrid_docs",
+    reqs=[req_vector, req_text],               # 两路请求
+    ranker=RRFRanker(60),                      # RRF 融合
+    limit=3,
+    output_fields=["text"],
+)
+```
+
+> 注意 `AnnSearchRequest` 必须从 `pymilvus` 导入（Day 12 已踩过的坑：传 dict 会报 `'dict' object has no attribute 'data'`）。
+
+## 12.5 路线 B：LangChain 通用路线（跨库方案）
+
+```python
+from langchain_community.retrievers import BM25Retriever
+from langchain_classic.retrievers import EnsembleRetriever
+
+# 内存 BM25 检索器（喂 Document 列表即可，不用向量库）
+bm25 = BM25Retriever.from_documents(docs, k=5)
+bm25.k = 5
+
+# Milvus 向量检索器（第 2 周老朋友）
+vector_retriever = vector_store.as_retriever(search_kwargs={"k": 5})
+
+# RRF 融合（weights 默认 [0.5, 0.5]，可调偏重）
+hybrid = EnsembleRetriever(retrievers=[bm25, vector_retriever], weights=[0.4, 0.6])
+docs = hybrid.invoke("问题")
+```
+
+> 选型：**数据量小、想跨库通用 → B；数据量大、要性能 → A**。本教程主推 A（你已部署 Milvus 且它是 Day 8 的生产底座），B 了解即可。
+
+## 12.6 重排序（Rerank）：宽召回 + 精排序
+
+混合检索后还有最后一层优化空间。经典策略：
+
+```
+检索时多拿一些（k=10~20，宽召回）→ 用更强的模型重新精排 → 只把 Top-3 喂给生成
+```
+
+为什么有效？初检用的 embedding 模型"快但糙"，重排序可以用**交叉编码器**（cross-encoder，把"问题+文档"成对输入精算相关分，如 bge-reranker）或 **LLM 打分**，精度远高于向量距离。今天用 LLM 实现（无需额外下载模型）：
+
+```python
+def llm_rerank(question: str, docs: list, top_n: int = 3) -> list:
+    """用 LLM 给每个文档打 0-10 的相关分，重排取前 top_n"""
+    scored = []
+    for d in docs:
+        score_prompt = ChatPromptTemplate.from_messages([
+            ("system", "只输出一个 0-10 的整数，表示资料与问题的相关程度。"),
+            ("human", f"问题：{question}\n资料：{d.page_content[:200]}"),
+        ])
+        score = int((score_prompt | model).invoke({}).content.strip())
+        scored.append((score, d))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [d for _, d in scored[:top_n]]
+```
+
+> 生产级重排：`bge-reranker-v2-m3`（开源、中文强）等交叉编码器模型，或 Cohere/Voyage 的托管 rerank API。原理一样：**先粗后精，把最相关的塞进 LLM 的上下文窗口**（上下文寸土寸金，Day 13 会再强调）。
+
+## 12.7 动手：跑今天的 2 个案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-03-rag-optimization\examples
+python day12_hybrid.py      # 不需要 LLM/embedding，纯 Milvus 可跑
+python day12_rerank.py
+```
+
+## 12.8 案例逐行讲解
+
+### `day12_hybrid.py` —— 语义 + 关键词双保险（无需 LLM）
+
+```python
+"""Day 12 案例 1：Milvus 原生混合检索（向量 + BM25 + RRF）"""
+from pymilvus import MilvusClient, DataType, Function, FunctionType, AnnSearchRequest, RRFRanker
+
+client = MilvusClient("milvus_hybrid.db")
+if client.has_collection("hybrid_docs"):
+    client.drop_collection("hybrid_docs")
+
+# ① 建带 BM25 功能的表（jieba 中文分词）
+schema = client.create_schema(auto_id=False, enable_dynamic_field=False)
+schema.add_field("pk", DataType.INT64, is_primary=True)
+schema.add_field("text", DataType.VARCHAR, max_length=1000,
+                 enable_analyzer=True, analyzer_params={"type": "jieba"})
+schema.add_field("vector", DataType.FLOAT_VECTOR, dim=4)
+schema.add_field("sparse", DataType.SPARSE_FLOAT_VECTOR)
+schema.add_function(Function(name="bm25_func", function_type=FunctionType.BM25,
+                             input_field_names=["text"], output_field_names=["sparse"]))
+client.create_collection("hybrid_docs", schema=schema, metric_type="COSINE")
+
+# ② 数据：注意"咖啡""咖啡豆"词频差异——BM25 会放大稀有词的权重
+docs = [
+    {"pk": 1, "text": "Milvus 2.6 支持全文检索与混合搜索", "vector": [0.8, 0.1, 0.1, 0.0]},
+    {"pk": 2, "text": "Milvus 2.4 发布说明", "vector": [0.6, 0.3, 0.1, 0.0]},
+    {"pk": 3, "text": "手冲咖啡的水温与咖啡豆研磨指南", "vector": [0.1, 0.9, 0.1, 0.0]},
+    {"pk": 4, "text": "咖啡店积分兑换规则", "vector": [0.2, 0.7, 0.1, 0.0]},
+]
+client.insert("hybrid_docs", docs)
+
+question = "Milvus 2.6 全文检索"
+query_vec = [0.75, 0.15, 0.1, 0.0]     # 语义上靠近 1、2 号
+
+# ③ 纯向量检索：2.4 和 2.6 文档语义几乎一样 → 分不出
+r_vec = client.search("hybrid_docs", data=[query_vec], anns_field="vector", limit=3,
+                      search_params={"metric_type": "COSINE"}, output_fields=["text"])
+print("── 纯向量检索 ──")
+for h in r_vec[0]:
+    print(f"  {h['entity']['text']}（{h['distance']:.3f}）")
+
+# ④ 纯 BM25：'2.6' 精确命中 → 立刻区分
+r_text = client.search("hybrid_docs", data=[question], anns_field="sparse", limit=3,
+                       search_params={"params": {"drop_ratio_search": 0.2}}, output_fields=["text"])
+print("\n── 纯 BM25 检索 ──")
+for h in r_text[0]:
+    print(f"  {h['entity']['text']}（{h['distance']:.3f}）")
+
+# ⑤ 混合检索：RRF 融合两路 → 双保险
+req1 = AnnSearchRequest(data=[query_vec], anns_field="vector", param={"metric_type": "COSINE"}, limit=3)
+req2 = AnnSearchRequest(data=[question], anns_field="sparse", param={"metric_type": "BM25"}, limit=3)
+r_hybrid = client.hybrid_search("hybrid_docs", reqs=[req1, req2],
+                                ranker=RRFRanker(60), limit=3, output_fields=["text"])
+print("\n── 混合检索（RRF 融合）──")
+for h in r_hybrid[0]:
+    print(f"  {h['entity']['text']}（RRF {h['distance']:.3f}）")
+
+client.drop_collection("hybrid_docs")
+client.close()
+```
+
+**要点**：观察三组结果——向量检索把 2.4/2.6 混在一起（语义太像）；BM25 精确锁定"2.6"；混合取长补短。**"Milvus 2.6"这类查询就是向量检索的克星、BM25 的主场。**
+
+### `day12_rerank.py` —— 宽召回 + LLM 精排
+
+```python
+"""Day 12 案例 2：宽召回 + LLM 重排序"""
+# ...（模型、embeddings、知识库同 Day 11，检索 k 放大到 6）...
+
+def llm_rerank(question: str, docs, top_n: int = 3):
+    scored = []
+    for d in docs:
+        p = ChatPromptTemplate.from_messages([
+            ("system", "只输出一个 0-10 的整数，表示资料与问题的相关程度，不要其他内容。"),
+            ("human", f"问题：{question}\n资料：{d.page_content[:200]}"),
+        ])
+        try:
+            score = int((p | model).invoke({}).content.strip())
+        except ValueError:
+            score = 0
+        scored.append((score, d))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    print("各文档得分：", [s for s, _ in scored])
+    return [d for _, d in scored[:top_n]]
+
+question = "会员积分怎么兑换饮品？"
+wide = retriever.invoke(question)          # 宽召回 k=6
+top = llm_rerank(question, wide, top_n=3)  # 精排取 3
+print("\n最终进入生成的文档：")
+for d in top:
+    print(f"  · {d.page_content[:40]}...")
+```
+
+**要点**：
+
+- **`int()` 解析的容错**：LLM 偶尔输出"8 分""相关度 9"，`try/except` 兜底——真实工程必备；
+- 打分循环是**串行 LLM 调用**，文档多会慢——生产用交叉编码器（一次前向算出所有分数）或批处理。
+
+## 12.9 今日自测
+
+<Quiz items={["在 `day12_hybrid.py` 里加一条 \"Milvus 2.6 混合检索最佳实践\" 文档，重跑对比三路结果。","把 `RRFRanker(60)` 的 k 改成 10、200，观察排序变化——理解 k 的平滑作用。","用路线 B（BM25Retriever + EnsembleRetriever）实现同样的混合检索，对比代码量。","把 rerank 的 top_n 从 3 改成 1，接上 Day 9 的 RAG 链，看答案质量变化。","`notes/day12.md`：写下三个\"必须用 BM25\"的场景和三个\"必须用向量\"的场景。"]} />
+
+## 12.10 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`unknown tokenizer type: 'chinese'`","cause":"Milvus Lite 不支持 chinese 分词器","fix":"Lite 用 `{\"type\": \"jieba\"}`（Standalone 2.6 才支持 chinese）"},{"symptom":"`'dict' object has no attribute 'data'`","cause":"hybrid_search 的 reqs 传了 dict","fix":"必须用 `AnnSearchRequest` 对象"},{"symptom":"`JiebaAnalyzer requires 'jieba' package`","cause":"没装 jieba","fix":"`pip install jieba`"},{"symptom":"BM25 检索返回空","cause":"分词后无匹配词（停用词/生僻词）","fix":"检查 analyzer 类型；加自定义词典"},{"symptom":"EnsembleRetriever 报错","cause":"旧导入路径","fix":"LangChain 1.x：`langchain_classic.retrievers`"}]} />
+
+<DayComplete day={12} recap={"检索端的武器库齐了：混合检索保召回、重排序保精度。明天优化\"知识怎么存\"——分块策略与元数据过滤，然后 Day 14-15 进入本周高潮：用 RAGAS 科学评估一切。"} />

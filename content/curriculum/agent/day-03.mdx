@@ -1,0 +1,287 @@
+---
+slug: day-03
+day: 3
+week: 1
+weekTitle: LangChain 核心组件
+weekBlurb: LLM 接入、Prompt 模板、结构化输出、LCEL 管道、工具系统。
+title: 'LangChain 组件③ —— 结构化输出（让模型返回"数据"而不是"文字"）'
+lead: '掌握 `with_structured_output`，让模型按你定义的字段返回 Pydantic 对象 / TypedDict，为"模型 → 程序"铺路。'
+examples:
+  - examples/day03_pydantic.py
+  - examples/day03_enum.py
+  - examples/day03_nested.py
+sourcePath: week-01-langchain-core/day-03.md
+---
+
+---
+
+## 3.1 一个让新手顿悟的问题
+
+前两天，模型返回的都是**字符串**。但真实的程序需要的是**数据**：
+
+> 用户说："明天下午三点提醒我开会"
+> 你的程序需要拿到：`{"action": "创建提醒", "time": "2025-12-03T15:00", "title": "开会"}`——一个能直接 `if action == "创建提醒"` 的对象。
+
+如果你靠字符串解析："请以 JSON 格式输出……" 然后 `json.loads()`，会遇到什么？**模型偶尔给你添个解释前缀、偶尔少个逗号、偶尔把字段名改了**。这些 bug 无法预判、时好时坏——字符串是"自由散漫"的，程序要的是"板上钉钉"。
+
+**结构化输出（Structured Output）**就是解决方案：你在代码里定义好字段（名称、类型、是否必填），LangChain 会强制模型**只按这个格式回答，保证你拿到的对象字段齐全、类型正确**。
+
+## 3.2 核心 API：`with_structured_output`
+
+```python
+from langchain_openai import ChatOpenAI
+
+model = ChatOpenAI(...)
+structured_model = model.with_structured_output(MySchema)   # 指定输出结构
+result = structured_model.invoke("...")                     # result 不再是字符串，而是 MySchema 对象！
+```
+
+一行代码，模型就从"说人话的"变成"填表机器"。支持两种结构定义方式：
+
+| 方式 | 特点 | 什么时候用 |
+|---|---|---|
+| **Pydantic 模型** | 强校验、有默认值、能嵌套 | 字段多、类型复杂（推荐主用） |
+| **TypedDict** | 轻量、纯类型注解 | 简单场景、想少写代码 |
+
+> 底层原理（面试考点）：OpenAI 系模型支持 **JSON Mode / Tool Calling 强约束**。`with_structured_output` 会把你的 Pydantic 字段自动转换成 JSON Schema，要求模型严格按 schema 生成，再由 Pydantic 校验。本地 Ollama 模型若效果不稳，可换支持 JSON 模式的模型或加提示词兜底。
+
+## 3.3 Pydantic：定义你的"数据合同"
+
+Pydantic 是 Python 界最流行的数据校验库（LangChain 全家都基于它）。定义一个"天气信息"结构：
+
+```python
+from pydantic import BaseModel, Field
+
+class WeatherInfo(BaseModel):
+    """天气信息"""
+    city: str = Field(description="城市名")
+    temperature: float = Field(description="摄氏温度")
+    condition: str = Field(description="天气状况，如晴/雨/多云")
+    humidity: int = Field(description="湿度百分比 0-100")
+    wind_kmh: float = Field(description="风速，公里/小时")
+
+structured_model = model.with_structured_output(WeatherInfo)
+info = structured_model.invoke("查询北京今天的天气，我猜现在 25 度多云，湿度 40，风挺大")
+print(type(info).__name__)      # WeatherInfo
+print(info.city, info.temperature, info.condition)
+print(info.model_dump())        # {'city': '北京', 'temperature': 25.0, ...} → 可直接存库/转JSON
+```
+
+**三个必须记住的点**：
+
+1. **`Field(description=...)` 就是给模型的"填写说明"**。写清楚"这个字段要填什么"，模型填得准不准 80% 取决于它。**description 写得好坏直接决定抽取质量**。
+2. **类型就是约束**：`temperature: float` 保证拿到的是数字（能直接 `+1` 运算），`humidity: int` 保证是整数。Pydantic 会自动把 `"25"` 转成 `25.0`。
+3. **`model_dump()` 输出字典**：模型对象 → 纯 Python dict → JSON 存数据库、发给前端，一条龙。
+
+## 3.4 可选字段与默认值：给模型"留活口"
+
+```python
+class Todo(BaseModel):
+    """待办事项"""
+    title: str = Field(description="事项标题")
+    due: str | None = Field(default=None, description="截止时间，没提到就填 null")
+    priority: int = Field(default=3, description="优先级 1-5，没提到默认 3")
+```
+
+- `str | None`（Python 3.10+ 写法）+ `default=None`：用户没说截止时间 → 该字段就是 `None`，**不会因为缺字段而报错**。
+- `priority` 有默认值 3：模型没提取到就用默认。**默认值是程序兜底的网**。
+
+## 3.5 枚举 Enum：限定"只有这几个答案"
+
+分类任务（情绪、意图、工单类型）最怕模型自由发挥出"还行""凑合""不错"这种你程序里没定义的值。用 `Enum` 锁死：
+
+```python
+from enum import Enum
+
+class Sentiment(str, Enum):      # 继承 str：序列化后就是普通字符串
+    POSITIVE = "positive"        # 正面
+    NEGATIVE = "negative"        # 负面
+    NEUTRAL = "neutral"          # 中性
+
+class SentimentResult(BaseModel):
+    """情绪分析结果"""
+    sentiment: Sentiment = Field(description="情绪类别")
+    confidence: float = Field(description="置信度 0-1")
+
+result = model.with_structured_output(SentimentResult).invoke("这家的服务真的让我无语")
+print(result.sentiment)          # Sentiment.NEGATIVE（打印出来是 negative）
+print(result.sentiment.value)    # 'negative' 纯字符串，可以存库
+```
+
+> 用枚举的好处：`if result.sentiment == Sentiment.NEGATIVE` 这种比较**绝不会拼写错**（写错 IDE 直接标红）。把"无限可能的字符串"变成"有限的可选值"，程序的 bug 少一大半。
+
+## 3.6 嵌套结构：一篇文章抽出结构化档案
+
+真实业务常常一次抽取多层数据。Pydantic 支持嵌套——列表里套对象：
+
+```python
+class Person(BaseModel):
+    """人物"""
+    name: str = Field(description="姓名")
+    age: int | None = Field(default=None, description="年龄，未知则 null")
+    role: str = Field(description="身份/角色")
+
+class MeetingNotes(BaseModel):
+    """会议纪要结构化结果"""
+    title: str = Field(description="会议主题")
+    date: str = Field(description="日期，格式 YYYY-MM-DD")
+    participants: list[Person] = Field(description="参会人员列表")
+    decisions: list[str] = Field(description="形成的决议，逐条列出")
+```
+
+输入一段会议记录文本，一次拿到全部结构化数据——这就是"文档智能"类产品的核心能力。
+
+## 3.7 动手：跑今天的 3 个案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-01-langchain-core\examples
+python day03_pydantic.py
+python day03_enum.py
+python day03_nested.py
+```
+
+## 3.8 案例逐行讲解
+
+### `day03_pydantic.py` —— 天气信息抽取（含容错演示）
+
+```python
+"""Day 3 案例 1：Pydantic 结构化输出 —— 天气信息抽取"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+class WeatherInfo(BaseModel):
+    """天气信息"""
+    city: str = Field(description="城市名")
+    temperature: float = Field(description="摄氏温度")
+    condition: str = Field(description="天气状况，如晴/雨/多云")
+    humidity: int = Field(description="湿度百分比 0-100")
+    wind_kmh: float = Field(description="风速，公里/小时")
+
+structured_model = model.with_structured_output(WeatherInfo)
+
+# 正常输入
+info = structured_model.invoke("北京现在 25 度，晴，湿度 40%，风速 12 公里每小时")
+print("对象类型：", type(info).__name__)
+print("提取结果：", info.model_dump())
+
+# 信息不全时，模型会自己补全/兜底（这就是"结构化"的意义：保证字段齐全）
+info2 = structured_model.invoke("上海下雨了")
+print("不全输入：", info2.model_dump())
+
+# 拿到的是真数据，可以直接运算
+print(f"如果升温 5 度，北京将是 {info.temperature + 5} 度")
+```
+
+**要点**：
+
+- `info.temperature + 5` 是**数值运算**而非字符串拼接——结构化输出让数据"可直接使用"。
+- 第二次输入只有"上海下雨了"，模型仍返回 5 个齐全字段（温度湿度是它推测的合理值）。这就是 schema 强约束：**结构永远完整，内容尽力而为**。
+
+### `day03_enum.py` —— 客服工单智能分流
+
+```python
+"""Day 3 案例 2：Enum 枚举 —— 客服工单分流"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from enum import Enum
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+class TicketType(str, Enum):
+    REFUND = "退款"          # 退款申请
+    LOGISTICS = "物流"       # 物流查询
+    QUALITY = "质量"         # 质量问题
+    OTHER = "其他"           # 其他问题
+
+class Ticket(BaseModel):
+    """客服工单"""
+    ticket_type: TicketType = Field(description="工单类型")
+    summary: str = Field(description="一句话总结用户问题")
+    urgent: bool = Field(description="是否紧急（用户很生气/要求升级处理）")
+
+classifier = model.with_structured_output(Ticket)
+
+tests = [
+    "我买的衣服收到了但是有个洞，我要退货！",
+    "快递显示签收了但我没收到，怎么回事？",
+    "用了两次就坏了，太垃圾了，给我个说法！！",
+]
+for text in tests:
+    t = classifier.invoke(text)
+    print(f"「{text[:20]}...」 → 类型={t.ticket_type.value} | 紧急={t.urgent} | 摘要={t.summary}")
+    # 真实业务：按 ticket_type 路由到不同部门
+```
+
+**要点**：`t.ticket_type.value` 拿到纯字符串（"退款"），可以直接写 if-else 路由到不同部门。这就是 NLP 分类 + 业务路由的完整闭环，**不需要任何训练数据**——全靠提示词和枚举。
+
+### `day03_nested.py` —— 会议纪要结构化
+
+```python
+"""Day 3 案例 3：嵌套结构 —— 会议纪要一次抽全"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+class Person(BaseModel):
+    """参会人"""
+    name: str = Field(description="姓名")
+    age: int | None = Field(default=None, description="年龄，未知则 null")
+    role: str = Field(description="身份/角色")
+
+class MeetingNotes(BaseModel):
+    """会议纪要结构化结果"""
+    title: str = Field(description="会议主题")
+    date: str = Field(description="日期，格式 YYYY-MM-DD")
+    participants: list[Person] = Field(description="参会人员列表")
+    decisions: list[str] = Field(description="形成的决议，逐条列出")
+
+notes_text = """
+项目周会纪要：2025年12月1日下午，产品组召开"智能客服v2.0上线前评审会"。
+参会人：张伟（产品经理，32岁）、李娜（算法工程师）、王强（测试负责人，28岁）。
+会议决议：1. 本月15日完成灰度发布；2. 由李娜负责优化意图识别准确率；
+3. 王强补充30个回归测试用例。张伟负责跟进法务合规审查。
+"""
+
+notes = model.with_structured_output(MeetingNotes).invoke(notes_text)
+print("会议主题：", notes.title)
+print("日期：", notes.date)
+print("参会人员：")
+for p in notes.participants:
+    print(f"  - {p.name}（{p.role}，{p.age}岁）")
+print("决议：")
+for i, d in enumerate(notes.decisions, 1):
+    print(f"  {i}. {d}")
+```
+
+**要点**：注意细节——李娜的年龄原文没提，模型按 `default=None` 给了 `None`；`decisions` 把长文拆成 3 条列表。**嵌套 + 列表 + 可选字段**同时工作，这就是复杂文档抽取的标准范式。
+
+## 3.9 今日自测
+
+<Quiz items={["定义 `Book` 结构（书名/作者/出版年份/价格/一句话简介），输入一段图书介绍抽取。","给 Day 2 的翻译官加上结构化输出：`TranslationResult{original, translated, language_pair}`。","枚举练习：`Intent`（订机票/订酒店/查天气/闲聊），输入 5 句话测试分类。","故意传一段和结构完全无关的输入（如\"给我讲个笑话\"），观察模型如何处理——思考：生产环境应如何检测这种\"答非所问\"？（第 6 周 LangSmith 评估会给出答案）","`notes/day03.md`：对比\"字符串 + json.loads\"和\"结构化输出\"，写出 3 个后者更好的理由。"]} />
+
+## 3.10 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`pydantic.ValidationError`","cause":"模型输出不符合 schema（罕见但会发生）","fix":"description 写得更具体；temperature 调 0；换更强模型"},{"symptom":"字段总是 null","cause":"description 含糊，模型不知道要填","fix":"在 description 里给示例：\"如'北京'、'上海'\""},{"symptom":"Ollama 本地模型不生效","cause":"小模型遵循 JSON schema 能力弱","fix":"用 qwen2.5:7b 以上；或用云端模型"},{"symptom":"想要 JSON 字符串而不是对象","cause":"用错了 API","fix":"直接 `result.model_dump_json()` 输出 JSON 字符串"},{"symptom":"枚举打印出来像 `Sentiment.NEGATIVE`","cause":"没取 `.value`","fix":"存库/输出用 `.value`，比较用枚举本身"}]} />
+
+<DayComplete day={3} recap={"从今天起，模型在你的程序里不再输出\"话\"，而是输出\"数据对象\"。这是 Agent 的根基——工具参数、流程路由、结果解析全靠它。明天学 LCEL 管道，把这两天学的组件串成流水线。"} />

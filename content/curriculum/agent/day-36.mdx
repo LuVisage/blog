@@ -1,0 +1,151 @@
+---
+slug: day-36
+day: 36
+week: 8
+weekTitle: Chat UI 与毕业项目
+weekBlurb: Agent Chat UI、服务化与部署，综合毕业项目从零到上线。
+title: Agent Chat UI —— 把 Agent 变成带界面的服务（LangGraph Server + Chat App）
+lead: '理解"Agent 后端服务化"与"前端聊天界面"的分工，用 LangGraph Server 把你的 Agent 变成 API 服务，再用官方模板生成聊天界面。'
+sourcePath: week-08-chatui-capstone/day-36.md
+---
+
+> 配套文件：`examples/langgraph.json`、`examples/day36_agent_server.py`
+> 前置：`pip install "langgraph-cli[inmem]"`；Node.js 已装（Day 0）
+
+---
+
+## 36.1 前 7 周的 Agent 缺什么？一个"界面"
+
+你的 Agent 现在跑在终端里：`python xxx.py` → 打印结果。但真实用户不会开终端。产品需要：
+
+```
+浏览器（用户）  ←HTTP/WebSocket→  后端服务（你的 Agent）  ←API→  LLM
+```
+
+**Agent Chat UI** 就是"浏览器里的聊天界面"，业界事实标准是 LangChain 官方的 **agent-chat-ui** 模板（React + AI SDK）。它和你的 Agent 之间需要一个**服务端**——这就是 **LangGraph Server**。
+
+## 36.2 三层架构（今天的作战地图）
+
+```
+┌──────────────┐   HTTP/SSE    ┌──────────────────┐   API    ┌──────┐
+│ Agent Chat UI │ ◄──────────► │  LangGraph Server  │ ◄──────► │ LLM  │
+│ （React 前端） │  流式消息     │ （托管你的 Agent）  │          └──────┘
+└──────────────┘               └──────────────────┘
+   用户聊天打字机效果               线程管理/流式输出/
+                                   记忆持久化/断点恢复
+```
+
+| 层 | 谁 | 干什么 | 你已学过的对应 |
+|---|---|---|---|
+| 前端 | agent-chat-ui（React） | 聊天框、消息流、打字机效果 | 无（今天补上） |
+| 后端 | LangGraph Server | 托管 Agent 图，暴露 REST/SSE API | 你的 create_agent 图 |
+| 存储 | checkpointer/store | 会话记忆 | Day 19/24 |
+
+**LangGraph Server** 的价值：它自动把 Agent 图的 `invoke/stream/get_state` 等能力包装成标准 HTTP API（threads/runs 接口），并处理并发、流式推送、记忆持久化——**你不用写 FastAPI，Agent 直接变成服务**。
+
+## 36.3 第一步：把你的 Agent 声明给 LangGraph Server
+
+### ① 写 Agent 模块（和平时一样，只加一行）
+
+`day36_agent_server.py`：
+
+```python
+"""Day 36 案例：供 LangGraph Server 托管的 Agent"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+@tool
+def get_weather(city: str) -> str:
+    """查询城市天气。当用户询问某地天气时使用。"""
+    return {"北京": "晴 25°C", "上海": "小雨 22°C"}.get(city, f"暂无{city}数据")
+
+# ★ LangGraph Server 只认这个名字：graph
+graph = create_agent(
+    model=model,
+    tools=[get_weather],
+    system_prompt="你是天气助手。",
+)
+```
+
+### ② 写配置文件 `langgraph.json`
+
+```json
+{
+  "dependencies": ["."],
+  "graphs": {
+    "weather_agent": "./day36_agent_server.py:graph"
+  },
+  "env": ".env"
+}
+```
+
+- `graphs`：声明"助手名 → 模块:图变量"（冒号语法）；
+- `env`：让 server 加载你的 `.env`（模型 key 等）。
+
+### ③ 启动本地 Server
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-08-chatui-capstone\examples
+D:\study\AI\agent\.venv-tutorial\Scripts\langgraph.exe dev --port 2024
+```
+
+看到 `Ready!` 后，你的 Agent 已是一个本地服务：
+
+- **API 文档**：http://localhost:2024/docs（自动生成的 Swagger！）
+- **LangGraph Studio**：http://localhost:2024/studio（图形化调试界面，功能类似 LangSmith 本地版）
+- **健康检查**：http://localhost:2024/ok
+
+> `langgraph dev` 是开发模式（in-memory checkpointer，重启清空）。生产部署用 `langgraph build` + Docker 或 LangGraph Platform 云托管——毕业项目 Day 40 会讲到部署选择。
+
+## 36.4 第二步：生成聊天前端
+
+开**新的 PowerShell 窗口**：
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-08-chatui-capstone
+
+# 用官方脚手架生成 React 前端（下载约 1~2 分钟）
+npx create-agent-chat-app@latest agent-chat-ui
+
+# 进入目录、装依赖、启动
+cd agent-chat-ui
+npm install
+npm run dev
+```
+
+按提示配置连接（指向 `http://localhost:2024`，助手 id `weather_agent`）。浏览器打开 http://localhost:3000——**你有了一个真正的聊天界面**：
+
+- 输入"北京天气怎么样？" → 打字机效果流式输出；
+- 界面右侧能看到 Agent 调用的工具（get_weather 及其参数）——**Day 21 你在终端看的 stream 信息，现在图形化展示**；
+- 刷新页面、开新会话 → 后端 thread_id 自动管理（Day 19 的记忆概念在服务端落地）。
+
+## 36.5 这套架构里你已学的知识（前后呼应）
+
+| 界面行为 | 背后的机制 | 出处 |
+|---|---|---|
+| 打字机效果 | 后端 `stream` + SSE 推送 | Day 1/21 |
+| 右侧工具调用面板 | 流式 updates 解析 | Day 21 |
+| 多轮对话记忆 | thread_id + checkpointer | Day 19 |
+| 断点审批 | interrupt + resume 经 API 暴露 | Day 18 |
+| 全链路追踪 | LangSmith 自动记录 server 请求 | Day 26 |
+
+**前端只是"遥控器"，智能全在后端**。这就是为什么前 7 周打的基础如此重要。
+
+## 36.6 今日自测
+
+<Quiz items={["启动 LangGraph Server，用浏览器打开 `/docs`，找到 threads/runs 相关接口——理解\"前后端如何通过 API 对话\"。","打开 LangGraph Studio（`/studio`），跑一次对话，观察它和 LangSmith 的异同。","前端连上后：连续问两个相关问题，验证多轮记忆；刷新页面再问，观察记忆是否还在（dev 模式内存存储会丢）。","在 `notes/day36.md` 画出三层架构图，标注每层用到的你学过的技术。","思考：如果 100 个用户同时聊，这个架构哪里会出问题？（提示：并发、持久化、部署）"]} />
+
+## 36.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`langgraph` 命令找不到","cause":"langgraph-cli 没装","fix":"`pip install \"langgraph-cli[inmem]\"`"},{"symptom":"Server 起不来","cause":"langgraph.json 路径/graphs 语法错","fix":"核对 `./文件.py:变量名` 冒号语法"},{"symptom":"前端连不上后端","cause":"端口/地址不对","fix":"确认 2024 端口与前端配置一致"},{"symptom":"`.env` 没加载","cause":"langgraph.json 的 env 字段缺失","fix":"加 `\"env\": \".env\"` 或绝对路径"},{"symptom":"重启后对话历史丢了","cause":"dev 模式用内存存储","fix":"生产换持久化 checkpointer（Day 19）"}]} />
+
+<DayComplete day={36} recap={"你的 Agent 有脸了。明天定制前端：工具调用可视化、自定义 UI、传配置——让界面真正属于你的产品。"} />

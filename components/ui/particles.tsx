@@ -12,38 +12,30 @@ interface Particle {
   opacity: number
   pulse: number
   pulseSpeed: number
+  /** Index into `COLORS`, fixed at init so the dust doesn't flicker. */
+  color: number
 }
 
-interface ParticlesProps {
-  className?: string
-  /** Number of particles. Default 80. */
-  quantity?: number
-  /** Particle colors. Default neutral grays. */
-  colors?: string[]
-  /** Particle size range [min, max]. Default [1.5, 4]. */
-  sizeRange?: [number, number]
-  /** Speed multiplier. Default 1. */
-  speed?: number
-  /** Whether particles react to mouse. Default true. */
-  interactive?: boolean
-  /** Interaction radius (px). Default 120. */
-  interactiveRadius?: number
-}
+/**
+ * 本站只有一处用到它，参数全部写死在这里：数组若以 prop 传入，每次渲染都会换新身份，
+ * 效果依赖数组随之改变，canvas 会被重新播种。
+ *
+ * 灰度尘埃刻意跟随不了主题，也不走 token：它在纸面和墨面上都要保持「几乎看不见」，
+ * 唯一调用点是根布局的装饰层。
+ */
+const QUANTITY = 20
+const SIZE_MIN = 1
+const SIZE_MAX = 2
+const SPEED = 0.35
+const REPEL_RADIUS = 50
+const COLORS = ['rgba(180,180,195,0.25)', 'rgba(200,200,215,0.15)', 'rgba(160,160,180,0.2)']
 
 /**
  * Particles — a Canvas-based floating particle system.
  * Adapted from React Bits' Particles component.
  * Particles drift naturally and react to mouse proximity.
  */
-export function Particles({
-  className,
-  quantity = 80,
-  colors = ['rgba(180,180,190,0.5)', 'rgba(200,200,210,0.4)', 'rgba(160,160,175,0.45)'],
-  sizeRange = [1.5, 4],
-  speed = 1,
-  interactive = true,
-  interactiveRadius = 120,
-}: ParticlesProps) {
+export function Particles({ className }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Particle[]>([])
   const mouseRef = useRef({ x: -9999, y: -9999 })
@@ -68,24 +60,27 @@ export function Particles({
       canvas.height = height * dpr
       canvas.style.width = `${width}px`
       canvas.style.height = `${height}px`
+      // Backing store is in device pixels; keep drawing in CSS pixels.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
 
     const init = () => {
       resize()
-      particlesRef.current = Array.from({ length: quantity }, () => ({
+      particlesRef.current = Array.from({ length: QUANTITY }, () => ({
         x: Math.random() * width,
         y: Math.random() * height,
         vx: (Math.random() - 0.5) * 0.6,
         vy: (Math.random() - 0.5) * 0.6,
-        size: sizeRange[0] + Math.random() * (sizeRange[1] - sizeRange[0]),
+        size: SIZE_MIN + Math.random() * (SIZE_MAX - SIZE_MIN),
         opacity: 0.3 + Math.random() * 0.5,
         pulse: Math.random() * Math.PI * 2,
         pulseSpeed: 0.01 + Math.random() * 0.02,
+        color: Math.floor(Math.random() * COLORS.length),
       }))
     }
 
     const animate = (timestamp: number) => {
-      const dt = Math.min((timestamp - timeRef.current) / 16.67, 3) * speed
+      const dt = Math.min((timestamp - timeRef.current) / 16.67, 3) * SPEED
       timeRef.current = timestamp
 
       ctx.clearRect(0, 0, width, height)
@@ -102,15 +97,13 @@ export function Particles({
         if (p.y > height + 20) p.y = -20
 
         // Mouse interaction - repel from cursor
-        if (interactive) {
-          const dx = p.x - mouseRef.current.x
-          const dy = p.y - mouseRef.current.y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < interactiveRadius && dist > 0) {
-            const force = (1 - dist / interactiveRadius) * 2 * dt
-            p.x += (dx / dist) * force * 30
-            p.y += (dy / dist) * force * 30
-          }
+        const dx = p.x - mouseRef.current.x
+        const dy = p.y - mouseRef.current.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < REPEL_RADIUS && dist > 0) {
+          const force = (1 - dist / REPEL_RADIUS) * 2 * dt
+          p.x += (dx / dist) * force * 30
+          p.y += (dy / dist) * force * 30
         }
 
         // Pulse opacity
@@ -120,30 +113,11 @@ export function Particles({
         // Draw particle
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-        ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)]
+        ctx.fillStyle = COLORS[p.color]
         ctx.globalAlpha = currentOpacity
         ctx.fill()
       }
 
-      // Draw connections between nearby particles
-      ctx.globalAlpha = 0.06
-      ctx.strokeStyle = '#999999'
-      ctx.lineWidth = 0.5
-      for (let i = 0; i < particlesRef.current.length; i++) {
-        for (let j = i + 1; j < particlesRef.current.length; j++) {
-          const a = particlesRef.current[i]
-          const b = particlesRef.current[j]
-          const dx = a.x - b.x
-          const dy = a.y - b.y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 120) {
-            ctx.beginPath()
-            ctx.moveTo(a.x, a.y)
-            ctx.lineTo(b.x, b.y)
-            ctx.stroke()
-          }
-        }
-      }
       ctx.globalAlpha = 1
 
       animRef.current = requestAnimationFrame(animate)
@@ -159,30 +133,30 @@ export function Particles({
       }
     }
 
-    init()
-    window.addEventListener('resize', () => {
+    const handleResize = () => {
       resize()
-      // Re-init particle positions
+      // Keep existing dust inside the new viewport rather than re-seeding it.
       for (const p of particlesRef.current) {
         p.x = Math.min(p.x, width)
         p.y = Math.min(p.y, height)
       }
-    })
-    if (interactive) {
-      window.addEventListener('mousemove', handleMouse)
-      window.addEventListener('touchmove', handleTouch)
     }
+
+    init()
+    window.addEventListener('resize', handleResize)
+    window.addEventListener('mousemove', handleMouse)
+    window.addEventListener('touchmove', handleTouch)
 
     timeRef.current = performance.now()
     animRef.current = requestAnimationFrame(animate)
 
     return () => {
       cancelAnimationFrame(animRef.current)
-      window.removeEventListener('resize', resize)
+      window.removeEventListener('resize', handleResize)
       window.removeEventListener('mousemove', handleMouse)
       window.removeEventListener('touchmove', handleTouch)
     }
-  }, [quantity, colors, sizeRange, speed, interactive, interactiveRadius])
+  }, [])
 
   return (
     <canvas

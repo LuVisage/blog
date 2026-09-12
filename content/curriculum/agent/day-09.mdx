@@ -1,0 +1,249 @@
+---
+slug: day-09
+day: 9
+week: 2
+weekTitle: RAG 与 Milvus
+weekBlurb: Embedding 与向量检索、文本切分、Milvus 部署、端到端 RAG 管线。
+title: LangChain × Milvus —— 端到端 RAG 管线
+lead: '把 Day 6-8 的积木组装成完整 RAG 应用：文档入库 → 检索 → 增强生成，并用一个"模型不知道的知识"证明 RAG 的价值。'
+examples:
+  - examples/day09_rag_chain.py
+sourcePath: week-02-rag-milvus/day-09.md
+---
+
+---
+
+## 9.1 今天的成品长什么样
+
+```
+输入问题
+   │
+   ▼
+① 检索：问题 → embedding → Milvus 找 Top-4 相关文档块
+   │
+   ▼
+② 组装：系统提示词"根据以下资料回答" + 资料 + 问题
+   │
+   ▼
+③ 生成：LLM 输出有据可查的回答
+```
+
+一个入口，三环联动。用 LangChain 实现，只需要两个新组件：**VectorStore（向量库包装器）** 和 **Retriever（检索器）**。
+
+## 9.2 组件一：Milvus 包装成 VectorStore
+
+LangChain 为几十种向量库提供统一包装。`langchain_milvus.Milvus` 把 Day 7 学的 pymilvus 操作封装成 RAG 友好的接口，**并且帮你自动处理 embedding**（你只管给文本，它负责调 embedding 模型、写入向量）：
+
+```python
+from langchain_milvus import Milvus
+from langchain_openai import OpenAIEmbeddings
+
+embeddings = OpenAIEmbeddings(model=..., base_url=..., api_key=...)   # Day 6 的配置
+
+vector_store = Milvus(
+    embedding_function=embeddings,                    # 谁负责把文字变成向量
+    connection_args={"uri": "./milvus_rag.db"},       # Lite 模式；Standalone 换成 {"uri": "http://localhost:19530"}
+    collection_name="company_docs",                   # 表名
+    auto_id=True,                                     # 主键自动生成（LangChain 管理 Document 的 id）
+)
+```
+
+| 参数 | 说明 |
+|---|---|
+| `embedding_function` | 你的 embedding 模型实例。之后 `add_documents` 会自动调它 |
+| `connection_args` | 连接配置：Lite 用文件路径；Standalone 用 http URI——**两种形态一行切换** |
+| `auto_id=True` | 主键交给 LangChain 用 UUID 管理，避免手动编 id（推荐） |
+
+## 9.3 写入：`add_documents`
+
+```python
+from langchain_core.documents import Document
+
+docs = [
+    Document(page_content="星尘咖啡于2020年在杭州创立...", metadata={"source": "手册第1章"}),
+    Document(page_content="会员积分规则：每消费1元积1分...", metadata={"source": "手册第3章"}),
+]
+ids = vector_store.add_documents(docs)   # 自动：embedding → 写向量 → 返回 id 列表
+```
+
+**Document 对象**：RAG 世界的标准数据单元，就两个属性：
+
+- `page_content`：文本内容（检索命中后要喂给模型的就是它）；
+- `metadata`：元数据字典（来源、章节、作者……检索时可用于过滤，Day 13 详解）。
+
+## 9.4 组件二：包装成 Retriever
+
+```python
+retriever = vector_store.as_retriever(search_kwargs={"k": 4})
+docs = retriever.invoke("积分怎么算？")
+# → 4 个 Document，按相似度降序
+```
+
+`as_retriever` 一行把向量库变成 Day 5 预告过的检索器（输入问题 → 输出文档列表）。`k=4` 表示取最相似的 4 块。**Retriever 也是 Runnable**，所以能直接进 `|` 管道！
+
+## 9.5 组装：RAG 链（LCEL 全家桶上场）
+
+```python
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+
+# 把检索到的文档拼成一段"资料"
+def format_docs(docs):
+    return "\n\n".join(f"【资料{docs.index(d)+1}】{d.page_content}" for d in docs)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "你是星尘咖啡的客服。仅根据以下资料回答问题，资料中没有的就说'资料中未提及'，不要编造。\n\n{context}"),
+    ("human", "{question}"),
+])
+
+rag_chain = (
+    {
+        "context": itemgetter("question") | retriever | format_docs,   # 检索分支
+        "question": itemgetter("question"),                             # 原样透传分支
+    }
+    | prompt      # 两路结果填进模板
+    | model       # 生成
+    | StrOutputParser()   # AIMessage → 纯字符串（Day 4 的 lambda 的官方版）
+)
+
+answer = rag_chain.invoke({"question": "会员积分怎么算？"})
+```
+
+**这个管道图是 RAG 的标准范式，请默画三遍**：
+
+```
+{"question": "积分怎么算？"}
+   │
+   ├─ itemgetter("question") ──► retriever ──► format_docs ──┐
+   │                                      （4 个文档拼成资料）│
+   └─ itemgetter("question") ────────────────────────────────┤
+                                                            ▼
+                              {"context": "【资料1】...", "question": "..."}
+                                                            ▼
+                                                  prompt（填空）
+                                                            ▼
+                                                  model（生成）
+                                                            ▼
+                                              StrOutputParser（字符串）
+```
+
+**两个关键设计**：
+
+1. **并行两分支**：检索和透传同时进行，最后字典合并——Day 4 的 RunnableParallel 实战；
+2. **`StrOutputParser`**：官方提供的"AIMessage → 字符串"转换器，等价于你写的 `lambda m: m.content`，更规范。
+
+## 9.6 动手：跑今天的案例（见证 RAG 的威力）
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-02-rag-milvus\examples
+python day09_rag_chain.py
+```
+
+这个案例虚构了一家"星尘咖啡公司"（模型训练数据里绝对没有），你会看到：
+
+- 直接问模型"星尘咖啡的积分规则"→ 模型**胡说八道**（幻觉！）；
+- 走 RAG 链问同样的问题 → 答案**一字一句有出处**。
+
+**这就是 RAG 存在的意义**，也是你第一个真正有用的 AI 应用。
+
+## 9.7 案例逐行讲解：`day09_rag_chain.py`
+
+```python
+"""Day 9 案例：端到端 RAG —— 星尘咖啡客服知识库"""
+import os
+from pathlib import Path
+from operator import itemgetter
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_core.documents import Document
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_milvus import Milvus
+
+# ── 大脑和向量模型 ──────────────────────────────
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+embeddings = OpenAIEmbeddings(model=os.environ["EMBEDDING_MODEL"],
+                              base_url=os.environ["EMBEDDING_BASE_URL"],
+                              api_key=os.environ["EMBEDDING_API_KEY"])
+
+# ── ① 知识库（虚构公司，模型绝对没见过）─────────────
+company_docs = [
+    Document(page_content="星尘咖啡（Stardust Coffee）2020 年创立于杭州，主打精品手冲咖啡。全国现有 32 家门店。",
+             metadata={"source": "公司简介"}),
+    Document(page_content="会员积分规则：每消费 1 元积 1 分，500 分可兑换任意中杯饮品一杯。生日当月双倍积分。",
+             metadata={"source": "会员手册"}),
+    Document(page_content="营业时间：工作日 8:00-22:00，周末 9:00-23:00。节假日营业时间以门店公告为准。",
+             metadata={"source": "门店信息"}),
+    Document(page_content="退换货政策：咖啡豆等商品未拆封 7 天内可无理由退换；饮品制作完成后不支持退换。",
+             metadata={"source": "售后政策"}),
+]
+
+# ── ② 建向量库并入库（Lite 本地文件）────────────────
+vector_store = Milvus(
+    embedding_function=embeddings,
+    connection_args={"uri": "./milvus_rag.db"},
+    collection_name="stardust_docs",
+    auto_id=True,
+)
+if vector_store.col:                          # 已存在则先删（保证脚本可重复跑）
+    vector_store.drop_collection()
+    vector_store = Milvus(embedding_function=embeddings,
+                          connection_args={"uri": "./milvus_rag.db"},
+                          collection_name="stardust_docs", auto_id=True)
+vector_store.add_documents(company_docs)
+print(f"✅ 已入库 {len(company_docs)} 份文档")
+
+# ── ③ 检索器 ────────────────────────────────────
+retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+
+# ── ④ RAG 链 ────────────────────────────────────
+def format_docs(docs):
+    return "\n\n".join(f"【资料{docs.index(d)+1}】{d.page_content}" for d in docs)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "你是星尘咖啡的客服。仅根据以下资料回答，资料中没有的就说'资料中未提及'，不要编造。\n\n{context}"),
+    ("human", "{question}"),
+])
+
+rag_chain = (
+    {"context": itemgetter("question") | retriever | format_docs,
+     "question": itemgetter("question")}
+    | prompt | model | StrOutputParser()
+)
+
+# ── ⑤ 对比实验：幻觉 vs RAG ──────────────────────
+print("\n── 实验 A：直接问模型（没有 RAG）──")
+print(model.invoke("星尘咖啡的会员积分规则是什么？").content)
+
+print("\n── 实验 B：走 RAG 链 ──")
+print(rag_chain.invoke({"question": "星尘咖啡的会员积分规则是什么？"}))
+
+print("\n── 实验 C：RAG 的'诚实'（资料里没有的信息）──")
+print(rag_chain.invoke({"question": "星尘咖啡的股票代码是多少？"}))
+# 期望：'资料中未提及'——因为提示词禁止它编造
+
+# ── ⑥ 偷看检索中间结果（调试 RAG 的必备动作）──────
+print("\n── 检索中间结果（问题：积分）──")
+for d in retriever.invoke("积分怎么算"):
+    print(f"  · {d.page_content[:40]}...  [{d.metadata['source']}]")
+```
+
+**逐段要点**：
+
+- **② 幂等处理**：`vector_store.col` 能拿到底层 collection，存在就删了重建。真实项目别这么干（用 `add_documents` 增量写），演示脚本图省事；
+- **⑤ 三个实验**：A 看幻觉长啥样（模型会编一套像模像样的积分规则）；B 看 RAG 的正确答案；C 看"诚实"——好的 RAG 提示词必须允许模型说"不知道"，否则它会拿无关资料硬编；
+- **⑥ 调试动作**：任何 RAG 调优，第一步永远是"看检索到了什么"。回答不好，先分清是**检索错**（资料本身不相关）还是**生成错**（资料对但答案烂）——第 3 周的系统评估就是把这个动作科学化。
+
+## 9.8 今日自测
+
+<Quiz items={["给知识库加 2 份文档（如\"星尘咖啡的新品\"），重新入库，问新品相关问题。","把 `k` 从 3 改成 1，问一个需要多条资料才能回答的问题，观察答案质量下降——理解 **k 是\"给模型看几块资料\"的旋钮**。","把提示词里\"资料中没有的就说'资料中未提及'\"删掉，重跑实验 C，观察它开始编造。","把 `connection_args` 换成 Standalone 的地址（Day 8 已部署），跑同一份代码——体验一行切换。","`notes/day09.md`：默画 9.5 的管道图，并标注每个组件是 Runnable 的哪个环节。"]} />
+
+## 9.9 常见坑速查
+
+<GotchaTable rows={[{"symptom":"入库报\"维度不匹配\"","cause":"换过 embedding 模型（维度变了）但库还是旧的","fix":"删 collection 重建（向量维度不可变）"},{"symptom":"回答还是胡说","cause":"检索到的资料不相关（k 太小/embedding 弱）","fix":"先看检索中间结果再对症下药"},{"symptom":"`vector_store.col` 是 None","cause":"连接失败（uri 写错/容器没起）","fix":"检查 connection_args，Day 8 健康检查"},{"symptom":"每次运行都重复入库","cause":"没有幂等处理","fix":"生产环境用 `add_documents` 增量 + 去重策略"},{"symptom":"答案里冒出英文","cause":"system 提示词没要求中文","fix":"加\"请用中文回答\""}]} />
+
+<DayComplete day={9} recap={"你有了第一个完整的 RAG 应用：知识入库、语义检索、有据回答。**明天项目日**：做一个能读本地文件的交互式知识库机器人，把本周所学熔于一炉。"} />

@@ -1,151 +1,40 @@
+import Link from 'next/link'
 import type { MDXComponents } from 'mdx/types'
-import type { ReactNode, ImgHTMLAttributes } from 'react'
+import type { ImgHTMLAttributes } from 'react'
+import { BASE_PATH } from '@/lib/constants'
 
+/**
+ * 正文排版的唯一出处是 globals.css 第 6 节「Prose — the reading surface」。
+ * 这里只保留 CSS 做不到的两件事：内部链接换成 next/link 才能带上部署 basePath，
+ * 以及正文里的 <img> 需要补同一个前缀。任何 style/className 都会以行内样式的身份
+ * 压过 .prose 规则，等于把同一套排版写两遍，所以不要再往这里加样式。
+ */
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
-    h1: ({ children, ...props }) => (
-      <h1
-        className="text-3xl font-bold mt-10 mb-4"
-        style={{ color: 'var(--color-ink)' }}
-        {...props}
-      >
-        {children}
-      </h1>
-    ),
-    h2: ({ children, ...props }) => (
-      <h2
-        className="text-2xl font-semibold mt-8 mb-3 pb-2 border-b"
-        style={{ color: 'var(--color-ink)', borderColor: 'var(--color-hairline)' }}
-        {...props}
-      >
-        {children}
-      </h2>
-    ),
-    h3: ({ children, ...props }) => (
-      <h3
-        className="text-xl font-semibold mt-6 mb-2"
-        style={{ color: 'var(--color-ink)' }}
-        {...props}
-      >
-        {children}
-      </h3>
-    ),
-    h4: ({ children, ...props }) => (
-      <h4
-        className="text-lg font-medium mt-4 mb-2"
-        style={{ color: 'var(--color-ink)' }}
-        {...props}
-      >
-        {children}
-      </h4>
-    ),
-    p: ({ children, ...props }) => (
-      <p className="my-4 leading-relaxed" style={{ color: 'var(--color-body)' }} {...props}>
-        {children}
-      </p>
-    ),
-    a: ({ href, children, ...props }) => (
-      <a
-        href={href}
-        className="underline underline-offset-2 transition-colors"
-        style={{ color: 'var(--color-primary)' }}
-        target={href?.startsWith('http') ? '_blank' : undefined}
-        rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
-        {...props}
-      >
-        {children}
-      </a>
-    ),
-    ul: ({ children, ...props }) => (
-      <ul className="my-4 pl-6 space-y-1 list-disc" style={{ color: 'var(--color-body)' }} {...props}>
-        {children}
-      </ul>
-    ),
-    ol: ({ children, ...props }) => (
-      <ol className="my-4 pl-6 space-y-1 list-decimal" style={{ color: 'var(--color-body)' }} {...props}>
-        {children}
-      </ol>
-    ),
-    li: ({ children, ...props }) => (
-      <li className="leading-relaxed" {...props}>
-        {children}
-      </li>
-    ),
-    blockquote: ({ children, ...props }) => (
-      <blockquote
-        className="my-4 pl-4 border-l-4 rounded-r-lg py-2 italic"
-        style={{
-          color: 'var(--color-body)',
-          borderColor: 'var(--color-primary)',
-          background: 'var(--color-primary-soft)',
-        }}
-        {...props}
-      >
-        {children}
-      </blockquote>
-    ),
-    img: ({ alt, src, ...props }) => {
-      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
-      const imgSrc = src?.startsWith('/') && !src.startsWith(basePath) ? `${basePath}${src}` : src
+    a: ({ href, children, ...props }) => {
+      if (href?.startsWith('/')) {
+        return (
+          <Link href={href} {...props}>
+            {children}
+          </Link>
+        )
+      }
+      const external = !!href && /^https?:\/\//i.test(href)
       return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={imgSrc}
-          alt={alt || ''}
-          className="my-6 rounded-xl shadow-lg max-w-full h-auto"
-          loading="lazy"
-          {...props as ImgHTMLAttributes<HTMLImageElement>}
-        />
+        <a
+          href={href}
+          target={external ? '_blank' : undefined}
+          rel={external ? 'noopener noreferrer' : undefined}
+          {...props}
+        >
+          {children}
+        </a>
       )
     },
-    hr: (props) => (
-      <hr
-        className="my-8"
-        style={{ borderColor: 'var(--color-hairline)' }}
-        {...props}
-      />
-    ),
-    table: ({ children, ...props }) => (
-      <div className="my-6 overflow-x-auto rounded-xl border" style={{ borderColor: 'var(--color-hairline)' }}>
-        <table className="min-w-full text-sm" {...props}>
-          {children}
-        </table>
-      </div>
-    ),
-    th: ({ children, ...props }) => (
-      <th
-        className="px-4 py-3 text-left font-semibold"
-        style={{
-          color: 'var(--color-body)',
-          background: 'var(--color-primary-soft)',
-        }}
-        {...props}
-      >
-        {children}
-      </th>
-    ),
-    td: ({ children, ...props }) => (
-      <td
-        className="px-4 py-3 border-t"
-        style={{
-          color: 'var(--color-body)',
-          borderColor: 'var(--color-hairline-soft)',
-        }}
-        {...props}
-      >
-        {children}
-      </td>
-    ),
-    small: ({ children, ...props }) => (
-      <small className="text-sm leading-relaxed" style={{ color: 'var(--color-muted)' }} {...props}>
-        {children}
-      </small>
-    ),
-    strong: ({ children, ...props }) => (
-      <strong className="font-semibold" style={{ color: 'var(--color-ink)' }} {...props}>
-        {children}
-      </strong>
-    ),
+    img: ({ alt, src, ...props }) => {
+      const imgSrc = src?.startsWith('/') && !src.startsWith(BASE_PATH) ? `${BASE_PATH}${src}` : src
+      return <img src={imgSrc} alt={alt || ''} loading="lazy" {...(props as ImgHTMLAttributes<HTMLImageElement>)} />
+    },
     ...components,
   }
 }

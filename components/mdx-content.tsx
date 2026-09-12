@@ -1,4 +1,5 @@
 import { MDXRemote } from 'next-mdx-remote-client/rsc'
+import type { MDXComponents } from 'mdx/types'
 import rehypePrettyCode from 'rehype-pretty-code'
 import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
@@ -6,10 +7,12 @@ import { useMDXComponents } from './mdx-components'
 
 interface MDXContentProps {
   source: string
+  /** Extra tags merged over the shared article components. */
+  components?: MDXComponents
 }
 
-export function MDXContent({ source }: MDXContentProps) {
-  const components = useMDXComponents({})
+export function MDXContent({ source, components: extra }: MDXContentProps) {
+  const components = useMDXComponents(extra ?? {})
 
   return (
     <MDXRemote

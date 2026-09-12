@@ -1,90 +1,99 @@
 import type { Metadata } from 'next'
 import { SITE, FRIENDS } from '@/lib/constants'
+import { PageMasthead } from '@/components/page-masthead'
+import { LedgerRow, Ledger } from '@/components/ledger-row'
 import { AnimatedContent } from '@/components/ui/animated-content'
-import { WobbleCard } from '@/components/ui/wobble-card'
 import { EmptyState } from '@/components/ui/empty-state'
-import { IconLink, IconHeart, IconExternalLink, IconUsers } from '@tabler/icons-react'
+import { IconLink, IconUsers } from '@tabler/icons-react'
 
 export const metadata: Metadata = {
   title: '友链',
   description: `友情链接 - ${SITE.title}`,
 }
 
+function Host({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="py-4">
+      <div className="eyebrow mb-1.5">{label}</div>
+      <div className="font-mono text-sm" style={{ color: 'var(--ink)' }}>{value}</div>
+    </div>
+  )
+}
+
 export default function FriendsPage() {
   return (
     <div>
-      <AnimatedContent direction="up">
-        <div className="mb-8 lg:mb-10">
-          <h1 className="text-3xl lg:text-4xl font-bold mb-2">
-            <span className="gradient-text">友链</span>
-          </h1>
-          <p className="body-sm flex items-center gap-1.5">
-            <IconUsers size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
-            同道中人的博客
-          </p>
-        </div>
-      </AnimatedContent>
+      <PageMasthead
+        eyebrow="友链 — Friends"
+        title="友链"
+        lead="同道中人的博客。写 AI、写工程、写生活，都值得一读。"
+        counter={`${FRIENDS.length} 位朋友`}
+      />
 
       {FRIENDS.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {FRIENDS.map((friend, i) => (
-            <AnimatedContent key={friend.url} direction="up" delay={i * 0.06}>
-              <WobbleCard intensity={3} gloss={true}>
-              <a
-                href={friend.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group rounded-2xl glass-liquid p-5 sm:p-6 flex items-start gap-4 block"
-              >
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl glass-liquid flex items-center justify-center overflow-hidden">
-                  {friend.avatar ? (
-                    <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <IconLink size={20} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} />
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold" style={{ color: 'var(--color-ink)' }}>{friend.name}</h3>
-                  <p className="body-sm mt-1 line-clamp-2">
-                    {friend.description}
-                  </p>
-                </div>
-
-                <IconExternalLink size={16} strokeWidth={1.5} className="flex-shrink-0 mt-1 group-hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-muted)' }} />
-              </a>
-              </WobbleCard>
-            </AnimatedContent>
-          ))}
-        </div>
+        <AnimatedContent direction="up">
+          <div className="mb-14">
+            <div className="eyebrow mb-5">站点</div>
+            <Ledger>
+              {FRIENDS.map((friend, i) => (
+                <LedgerRow
+                  key={friend.url}
+                  ordinal={i + 1}
+                  href={friend.url}
+                  external
+                  title={friend.name}
+                  desc={friend.description}
+                  lead={
+                    friend.avatar ? (
+                      <span
+                        className="block w-9 h-9 overflow-hidden"
+                        style={{ border: '1px solid var(--line-strong)', borderRadius: 4 }}
+                      >
+                        <img src={friend.avatar} alt="" className="w-full h-full object-cover" />
+                      </span>
+                    ) : undefined
+                  }
+                />
+              ))}
+            </Ledger>
+          </div>
+        </AnimatedContent>
       ) : (
         <EmptyState
-          icon={<IconLink size={40} strokeWidth={1.5} style={{ color: 'var(--color-muted-soft)' }} />}
-          title="还没有友链~"
-          description="在 lib/constants.ts 中配置 FRIENDS"
+          icon={<IconUsers size={30} strokeWidth={1.25} />}
+          title="还没有友链"
+          description="在 lib/constants.ts 中配置 FRIENDS，第一位朋友随时可以加上"
         />
       )}
 
-      {/* Exchange info */}
-      <AnimatedContent direction="up" delay={0.3}>
-        <div className="mt-8 rounded-2xl glass-liquid p-6 text-center" style={{ cursor: 'default' }}>
-          <h3 className="heading-3 mb-3 flex items-center justify-center gap-2">
-            <IconHeart size={18} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
-            交换友链
-          </h3>
-          <p className="body-sm mb-4">
-            如果你也是 AI/技术方向的博客，欢迎交换友链！
-          </p>
-          <div className="inline-flex flex-col sm:flex-row items-center gap-2 caption">
-            <code className="px-2.5 py-1 rounded-lg glass-liquid font-medium" style={{ color: 'var(--color-ink)' }}>
-              {SITE.title}
-            </code>
-            <span className="hidden sm:inline" style={{ color: 'var(--color-muted-soft)' }}>—</span>
-            <code className="px-2.5 py-1 rounded-lg glass-liquid font-medium" style={{ color: 'var(--color-ink)' }}>
-              {SITE.url}
-            </code>
+      <AnimatedContent direction="up" delay={0.1}>
+        <section>
+          <div className="eyebrow mb-2">交换</div>
+          <h2 className="section-title mb-6">交换友链</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-10 lg:gap-14 items-start">
+            <p className="body-md max-w-xl">
+              如果你也在写 AI、Agent 或工程实践方向的博客，欢迎交换友链。
+              把站点的名称、简介和 RSS 发给我，我会连同你的信息一起登记在下面这份资料里。
+            </p>
+            <div style={{ borderTop: '1px solid var(--line-strong)' }}>
+              <Host label="名称" value={SITE.title} />
+              <div className="rule" />
+              <Host label="地址" value={SITE.url} />
+              <div className="rule" />
+              <Host label="RSS" value={`${SITE.url}/rss.xml`} />
+            </div>
           </div>
-        </div>
+          <div className="flex items-center gap-2 mt-8">
+            <IconLink size={15} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />
+            <a
+              href={`mailto:${SITE.author.email}`}
+              className="body-sm underline underline-offset-2 transition-colors hover:text-[var(--accent-text)]"
+              style={{ color: 'var(--accent-text)' }}
+            >
+              发邮件给我
+            </a>
+          </div>
+        </section>
       </AnimatedContent>
     </div>
   )

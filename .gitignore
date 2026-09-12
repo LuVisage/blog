@@ -12,6 +12,8 @@ node_modules/
 # env
 .env
 .env*.local
+proxy/.dev.vars
+.wrangler/
 
 # IDE
 .vscode/
@@ -29,3 +31,9 @@ tsconfig.tsbuildinfo
 
 # playwright MCP temp
 .playwright-mcp/
+
+# agent screenshot scratch
+.qoder-shots/
+
+# agent scratch: kept-aside files, local probes, junctions into out/
+.qoder-scratch/

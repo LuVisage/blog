@@ -44,8 +44,8 @@ export function LikeButton({ slug }: LikeButtonProps) {
         animating ? 'scale-110' : ''
       }`}
       style={{
-        color: liked ? 'var(--color-danger)' : 'var(--color-muted)',
-        borderColor: liked ? 'var(--color-danger)' : 'var(--color-hairline)',
+        color: liked ? 'var(--danger)' : 'var(--muted)',
+        borderColor: liked ? 'var(--danger)' : 'var(--line)',
       }}
     >
       {liked ? (

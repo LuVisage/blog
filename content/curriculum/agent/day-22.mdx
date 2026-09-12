@@ -1,0 +1,146 @@
+---
+slug: day-22
+day: 22
+week: 5
+weekTitle: Agent 开发
+weekBlurb: create_agent、Runtime 生命周期、Middleware、长期记忆 Store。
+title: Agent Runtime —— 生命周期、会话与受控执行
+lead: '把 Agent 当成一个"运行时"来管理：多会话并发、状态观测、强制中断点。今天之后，Agent 不再是一个脚本，而是一个可管理的服务。'
+examples:
+  - examples/day22_runtime.py
+sourcePath: week-05-agent-dev/day-22.md
+---
+
+---
+
+## 22.1 什么是 Agent Runtime？
+
+"Runtime（运行时）"指 Agent **运行期间**的可管理性——类比操作系统管理进程：
+
+| 操作系统概念 | Agent Runtime 对应 |
+|---|---|
+| 进程 = 一次运行 | 一次 invoke = 一次 Agent 执行 |
+| 进程有 PID 可查状态 | thread_id + `get_state` 可查执行状态 |
+| 多进程并发 | 多 thread 并发执行，互不干扰 |
+| 调试器断点 | `interrupt_before` / `interrupt_after` |
+| 崩溃重启恢复 | checkpointer 从断点恢复 |
+
+昨天你把 Agent 当"函数"用（invoke 一把梭）；今天把它当"服务"管。**核心认知：`create_agent` 返回的其实就是一个编译好的 LangGraph 图**——第 4 周学的所有 Runtime 能力（checkpointer、thread_id、get_state、interrupt）**原封不动全部适用**。
+
+## 22.2 能力一：多会话并发（同一 Agent 服务所有人）
+
+```python
+agent = create_agent(..., checkpointer=SqliteSaver...)   # 带上存档器
+
+# 100 个用户 = 100 个 thread_id，同一 agent 实例
+agent.invoke({"messages": [...]}, config={"configurable": {"thread_id": "user-1"}})
+agent.invoke({"messages": [...]}, config={"configurable": {"thread_id": "user-2"}})
+```
+
+- 每个 thread 的消息历史独立累积（Day 19 学的）；
+- **同一 thread 连续 invoke 就是多轮对话**——第二轮的 input 只需带新消息，历史自动带上；
+- 生产服务（FastAPI 等）里：每个 HTTP 会话分配一个 thread_id，一个 agent 实例服务全部用户。
+
+## 22.3 能力二：状态观测（不执行也能看）
+
+```python
+snapshot = agent.get_state(config)           # 看某会话当前状态
+print(snapshot.values["messages"])           # 完整的消息历史（含工具调用记录）
+print(snapshot.next)                         # 下一步要执行的节点（() = 已空闲）
+```
+
+**实战价值**：客服系统里用户问"我的单子处理到哪了？"——不用重跑，`get_state` 直接读存档回答。监控面板、审计日志全靠它。
+
+## 22.4 能力三：受控执行（断点）
+
+`create_agent` 的两个参数给 Agent 装上"刹车"：
+
+```python
+agent = create_agent(
+    ...,
+    interrupt_before=["tools"],    # ★ 每次执行工具【前】暂停，等人批准
+    interrupt_after=["tools"],     # 每次工具执行【后】暂停，让人检查结果
+)
+```
+
+- `interrupt_before=["tools"]`：模型刚决定调工具就被拦下——**"工具调用审批"**，高危工具（支付/删除）的标准防护；
+- `interrupt_after=["tools"]`：工具跑完暂停——人先看结果再让 Agent 继续（配合 Day 18 的 `Command(resume=...)` 恢复）；
+- 断点 + checkpointer + thread_id 三件套，就是**生产级 Human-in-the-loop Agent** 的完整骨架。
+
+## 22.5 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-05-agent-dev\examples
+python day22_runtime.py
+```
+
+## 22.6 案例逐行讲解：`day22_runtime.py`
+
+```python
+"""Day 22 案例：Agent Runtime —— 会话管理 + 状态观测 + 工具审批"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.types import Command
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+@tool
+def get_weather(city: str) -> str:
+    """查询城市天气。当用户询问某地天气时使用。"""
+    return {"北京": "晴 25°C", "上海": "小雨 22°C"}.get(city, f"暂无{city}数据")
+
+agent = create_agent(
+    model=model,
+    tools=[get_weather],
+    system_prompt="你是天气助手。",
+    checkpointer=InMemorySaver(),          # ★ Runtime 前提：存档器
+    interrupt_before=["tools"],            # ★ 每次调工具前暂停（审批）
+)
+
+# ── 能力 1+2：多会话 + 状态观测 ──────────────────
+cfg = {"configurable": {"thread_id": "user-1"}}
+
+print("── 第一次 invoke（预期停在'工具审批'断点）──")
+result = agent.invoke({"messages": [{"role": "user", "content": "北京天气？"}]}, config=cfg)
+
+snap = agent.get_state(cfg)
+print("已暂停，下一步待执行：", snap.next)            # ('tools',) —— 卡在工具前！
+print("Agent 想调用的工具：",
+      snap.values["messages"][-1].tool_calls[0]["name"])  # get_weather
+
+# ── 能力 3：人工批准后恢复 ──────────────────────
+print("\n── 人工点'批准'，恢复执行 ──")
+result2 = agent.invoke(Command(resume={"allow": True}), config=cfg)
+print("最终回答：", result2["messages"][-1].content)
+
+# ── 多会话演示：另一个用户完全独立 ────────────────
+cfg2 = {"configurable": {"thread_id": "user-2"}}
+r = agent.invoke({"messages": [{"role": "user", "content": "上海天气？"}]}, config=cfg2)
+print("\nuser-2 的状态：", agent.get_state(cfg2).values["messages"][-1].content)
+print("user-1 的历史未被污染，消息数：",
+      len(agent.get_state(cfg).values["messages"]))
+```
+
+**逐段要点**：
+
+- **断点行为**：`interrupt_before=["tools"]` 让第一次 invoke 停在 tools 前——`get_state` 显示 `next=('tools',)`，且能看到 Agent **已经想好了**要调 `get_weather`（AIMessage 里的 tool_calls）。**审批 = 看它想干什么，再决定放不放行**；
+- **恢复**：`Command(resume={"allow": True})` 放行，Agent 继续执行工具并作答。`resume` 传的字典是"给中断点的回复"，工具审批场景通常只要非 None 即放行；
+- **多会话**：user-2 全新开始，user-1 的 4 条历史（问/答/工具）原封不动——**这就是一个 agent 实例服务 N 个用户的正确姿势**。
+
+## 22.7 今日自测
+
+<Quiz items={["把 `interrupt_before` 改成 `interrupt_after=[\"tools\"]`，观察断点位置差异（next 变成什么）。","在恢复前用 `get_state_history` 看该会话的完整快照序列。","写一个循环：3 个 thread_id 轮流各问一个天气问题，观察并发下的状态隔离。","把 InMemorySaver 换成 SqliteSaver（Day 19 学的），中断后重启程序再恢复——验证\"审批流程可跨进程\"。","`notes/day22.md`：画出\"多会话 + 断点 + 存档\"三者的关系图。"]} />
+
+## 22.8 常见坑速查
+
+<GotchaTable rows={[{"symptom":"恢复时报错","cause":"没配 checkpointer 或 thread_id 不一致","fix":"三件套缺一不可"},{"symptom":"`interrupt_before` 不生效","cause":"写错节点名（create_agent 的节点是 \"tools\"/\"model\"）","fix":"用 `interrupt_before=[\"tools\"]`"},{"symptom":"断点后 get_state 看不到 tool_calls","cause":"看错快照（应看最后一条 AIMessage）","fix":"`snap.values[\"messages\"][-1]`"},{"symptom":"多用户历史串了","cause":"复用了同一个 thread_id","fix":"每个会话分配唯一 id"},{"symptom":"恢复后工具没执行","cause":"resume 传错值 / 没调 Command","fix":"用 `Command(resume=...)` 恢复"}]} />
+
+<DayComplete day={22} recap={"Agent 已经是\"可管理服务\"了：多会话、可观测、可审批。明天学 Middleware——不修改 Agent 代码就能加\"重试、摘要、限制\"等横切能力。"} />

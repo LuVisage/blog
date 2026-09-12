@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { IconUser } from '@tabler/icons-react'
-
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || ''
+import { basePathUrl } from '@/lib/constants'
 
 /**
  * Avatar image with icon fallback on load failure.
@@ -17,12 +16,12 @@ export function AvatarImage({ src, alt }: { src: string; alt: string }) {
       <IconUser
         size="60%"
         strokeWidth={1.5}
-        style={{ color: 'var(--color-muted-soft)' }}
+        style={{ color: 'var(--faint)' }}
       />
     )
   }
 
-  const fullSrc = src.startsWith('/') ? `${BASE_PATH}${src}` : src
+  const fullSrc = src.startsWith('/') ? basePathUrl(src) : src
 
   return (
     <img

@@ -2,10 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import type { PostMeta } from '@/lib/posts'
-import { IconCalendar } from '@tabler/icons-react'
 import {
   startOfMonth, endOfMonth, eachDayOfInterval,
-  format, isSameDay, subMonths, parseISO, getDay,
+  format, subMonths, parseISO, getDay,
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 
@@ -31,7 +30,7 @@ export function PostsCalendar({ posts }: Props) {
 
   const months = useMemo(() => {
     const today = new Date()
-    const result: { month: Date; days: Date[]; label: string }[] = []
+    const result: { days: (Date | null)[]; label: string }[] = []
 
     for (let i = MONTH_COUNT - 1; i >= 0; i--) {
       const monthDate = subMonths(today, i)
@@ -42,8 +41,7 @@ export function PostsCalendar({ posts }: Props) {
       const padded = [...Array(startDay).fill(null), ...days] as (Date | null)[]
 
       result.push({
-        month: monthDate,
-        days: padded as Date[],
+        days: padded,
         label: format(monthDate, 'M月', { locale: zhCN }),
       })
     }
@@ -56,41 +54,19 @@ export function PostsCalendar({ posts }: Props) {
   if (posts.length === 0) return null
 
   const getCellStyle = (hasPost: boolean, isMulti: boolean): React.CSSProperties => {
-    if (!hasPost) return {
-      background: 'var(--color-hairline-soft)',
-      boxShadow: '0 0 0 0.5px var(--color-hairline)',
-    }
-    if (isMulti) return {
-      background: 'var(--color-primary)',
-      boxShadow: '0 0 0 0.5px var(--color-border-strong)',
-    }
-    return {
-      background: 'var(--color-primary)',
-      opacity: 0.6,
-    }
+    if (!hasPost) return { background: 'var(--heat-0)' }
+    return { background: isMulti ? 'var(--heat-2)' : 'var(--heat-1)' }
   }
 
   return (
-    <div className="rounded-2xl glass-liquid p-5 sm:p-6" style={{ cursor: 'default' }}>
-      <div className="flex items-center gap-2 mb-5">
-        <IconCalendar size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
-        <span className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
-          文章日历
-        </span>
-        <span className="text-xs ml-auto px-2 py-0.5 rounded-full glass-liquid" style={{ color: 'var(--color-muted)' }}>
-          {posts.length} 篇
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-5 sm:gap-6">
-        {months.map(({ month, days, label }) => (
+    <div style={{ cursor: 'default' }}>
+      <div className="flex flex-wrap gap-x-8 gap-y-5">
+        {months.map(({ days, label }) => (
           <div key={label} className="flex flex-col gap-1">
-            <span className="text-[11px] leading-none mb-1 font-medium" style={{ color: 'var(--color-muted-soft)' }}>
-              {label}
-            </span>
+            <span className="eyebrow leading-none mb-2">{label}</span>
             <div
               className="grid gap-[3px]"
-              style={{ gridTemplateColumns: `repeat(${Math.ceil(days.length / 7)}, ${DAY_SIZE}px)` }}
+              style={{ gridTemplateColumns: `repeat(7, ${DAY_SIZE}px)` }}
             >
               {days.map((day, i) => {
                 if (!day) return <div key={`pad-${i}`} style={{ width: DAY_SIZE, height: DAY_SIZE }} />
@@ -133,14 +109,14 @@ export function PostsCalendar({ posts }: Props) {
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 glass-liquid rounded-xl px-3 py-2 text-xs pointer-events-none animate-scale-in"
+          className="fixed z-50 overlay rounded-[10px] px-3.5 py-2.5 text-xs pointer-events-none animate-scale-in"
           style={{ left: tooltip.x + 16, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
         >
-          <p className="font-semibold mb-1" style={{ color: 'var(--color-ink)' }}>
+          <p className="font-semibold mb-1" style={{ color: 'var(--ink)' }}>
             {format(tooltip.date, 'yyyy 年 M 月 d 日', { locale: zhCN })}
           </p>
           {tooltip.posts.map((p) => (
-            <p key={p.slug} className="leading-relaxed" style={{ color: 'var(--color-body)' }}>
+            <p key={p.slug} className="leading-relaxed" style={{ color: 'var(--body)' }}>
               {p.title}
             </p>
           ))}
@@ -148,16 +124,20 @@ export function PostsCalendar({ posts }: Props) {
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-5 text-[10px] font-medium" style={{ color: 'var(--color-muted-soft)' }}>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-[2px] inline-block" style={{ background: 'var(--color-hairline-soft)', boxShadow: '0 0 0 0.5px var(--color-hairline)' }} /> 无
+      <div
+        className="flex items-center gap-5 mt-6 pt-4 meta"
+        style={{ borderTop: '1px solid var(--line)' }}
+      >
+        <span className="flex items-center gap-2">
+          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-0)', borderRadius: 3 }} /> 未更新
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-[2px] inline-block opacity-60" style={{ background: 'var(--color-primary)' }} /> 1 篇
+        <span className="flex items-center gap-2">
+          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-1)', borderRadius: 3 }} /> 1 篇
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-[2px] inline-block" style={{ background: 'var(--color-primary)' }} /> 多篇
+        <span className="flex items-center gap-2">
+          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-2)', borderRadius: 3 }} /> 多篇
         </span>
+        <span className="ml-auto">{posts.length} 篇</span>
       </div>
     </div>
   )

@@ -1,0 +1,159 @@
+---
+slug: day-19
+day: 19
+week: 4
+weekTitle: LangGraph 图编程
+weekBlurb: State / Node / Edge、条件边与循环、人在回路、持久化与子图。
+title: Checkpointer 持久化与记忆管理 —— 断点续跑与时间旅行
+lead: 掌握 checkpointer 三件套（存盘、多会话隔离、时间旅行），让 Agent 重启不丢记忆、能回看历史。
+examples:
+  - examples/day19_memory.py
+sourcePath: week-04-langgraph/day-19.md
+---
+
+> 前置：`pip install langgraph-checkpoint-sqlite`
+
+---
+
+## 19.1 昨天的 InMemorySaver 有什么问题？
+
+Day 18 你已经用过 `InMemorySaver`——它把状态存在**内存**里。后果：
+
+1. **程序一关，记忆全没**（重启后用户继续聊，Agent 失忆）；
+2. **多进程/多服务器不共享**（用户 A 的请求落到服务器 1，下次落到服务器 2，拿不到存档）。
+
+生产环境要的是**持久化 checkpointer**：把每一步的状态快照写进磁盘数据库。LangGraph 提供三种：
+
+| Checkpointer | 存储 | 适用 |
+|---|---|---|
+| `InMemorySaver` | 内存 | 学习、测试 |
+| `SqliteSaver` | SQLite 文件 | 单机生产（今天学） |
+| `PostgresSaver` | PostgreSQL | 多实例生产（了解） |
+
+```python
+from langgraph.checkpoint.sqlite import SqliteSaver
+
+with SqliteSaver.from_conn_string("agent_memory.db") as saver:   # 打开/创建数据库文件
+    app = graph.compile(checkpointer=saver)
+    # ... invoke ...
+# with 结束后连接关闭；数据已落盘
+```
+
+> 注意：`SqliteSaver.from_conn_string` 返回的是**上下文管理器**（`with` 用法）。InMemorySaver 直接 `InMemorySaver()` 就行。
+
+## 19.2 thread_id：一图服务万千用户
+
+一个编译好的图 = 一台"通用机器"。**thread_id 区分"谁在用这台机器"**：
+
+```python
+app.invoke(input, config={"configurable": {"thread_id": "user-001"}})
+app.invoke(input, config={"configurable": {"thread_id": "user-002"}})
+```
+
+- 每个 thread_id 一条独立存档线：user-001 的历史、状态、中断点，和 user-002 完全隔离；
+- **多轮对话的本质**：同一 thread_id 反复 invoke，状态（含消息历史）自动累加——这就是"记忆"；
+- 生产系统里 thread_id 通常是**会话 ID**（数据库里的 session id），前端每次请求都带上。
+
+## 19.3 时间旅行：查看和回到任何一步
+
+checkpointer 存的是**每一步的快照**，所以你能：
+
+### ① 看当前状态（不执行）
+
+```python
+snapshot = app.get_state(config)          # 当前存档
+print(snapshot.values)                    # 状态字段值
+print(snapshot.next)                      # 下一步要执行的节点（空=已结束）
+```
+
+### ② 回放历史（像 git log）
+
+```python
+for s in app.get_state_history(config):   # 从新到旧列出所有快照
+    print(s.values)
+```
+
+### ③ 时间旅行：回到过去重来
+
+```python
+app.update_state(config, values={"draft": "手动改过的草稿"})   # 改当前状态
+# 或回到某个历史快照重放（fork），生产用得少，了解即可
+```
+
+> **时间旅行的实战价值**：① 调试——用户反馈"第 3 步错了"，回看第 3 步快照定位；② 纠错——发现第 2 步数据错了，`update_state` 修好后从断点继续，不必从头跑；③ 审计——合规场景回放全流程。
+
+## 19.4 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-04-langgraph\examples
+python day19_memory.py
+```
+
+## 19.5 案例逐行讲解：`day19_memory.py`
+
+```python
+"""Day 19 案例：持久化 + 多会话 + 时间旅行（纯 Python 可跑）"""
+from typing import TypedDict, Annotated
+from operator import add
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.sqlite import SqliteSaver
+
+class State(TypedDict):
+    count: int
+    log: Annotated[list[str], add]
+
+def increment(state: State) -> dict:
+    return {"count": state["count"] + 1, "log": [f"count={state['count']+1}"]}
+
+graph = StateGraph(State)
+graph.add_node("increment", increment)
+graph.add_edge(START, "increment")
+graph.add_edge("increment", END)
+
+# ① 持久化 checkpointer：数据落在 agent_memory.db 文件
+with SqliteSaver.from_conn_string("agent_memory.db") as saver:
+    app = graph.compile(checkpointer=saver)
+
+    # ② 两个"用户"各玩各的
+    cfg_a = {"configurable": {"thread_id": "user-A"}}
+    cfg_b = {"configurable": {"thread_id": "user-B"}}
+
+    app.invoke({"count": 0, "log": []}, cfg_a)
+    app.invoke({"count": 0, "log": []}, cfg_b)
+    # B 的第二次操作：人为改状态（模拟"人工纠错"：发现 B 的积分算错了，手动改成 10）
+    app.update_state(cfg_b, values={"count": 10})
+
+    snap_a = app.get_state(cfg_a)
+    snap_b = app.get_state(cfg_b)
+    print(f"user-A 的 count = {snap_a.values['count']}")   # 1
+    print(f"user-B 的 count = {snap_b.values['count']}")   # 10（update_state 人为修改）
+
+    # ③ 时间旅行：查看 B 的全部历史快照（部分快照字段不全，用 get 兜底）
+    print("\nuser-B 的历史快照（新→旧）：")
+    for i, s in enumerate(app.get_state_history(cfg_b)):
+        print(f"  快照{i}: count={s.values.get('count', '?')}, log={s.values.get('log', [])}")
+
+    # ④ 改历史：把 B 的 count 直接改成 100（像 git 一样"篡改"当前状态）
+    app.update_state(cfg_b, values={"count": 100})
+    snap_b2 = app.get_state(cfg_b)
+    print(f"\nupdate_state 后 user-B 的 count = {snap_b2.values['count']}")   # 100
+```
+
+**逐段要点**：
+
+- **② 多会话**：A 与 B 各自独立，`thread_id` 就是"记忆分区键"。B 的第二次操作是 `update_state` **人为改状态**（模拟人工纠错）；
+- **③ get_state_history**：看到 B 的每次执行快照，**像 git log 一样回放**。注意部分内部快照字段不全，打印时用 `.get('count', '?')` 兜底；
+- **④ 两种"续跑"要分清**（Day 18 已实战）：
+  - 图**停在 interrupt**（next 有值）时，`app.invoke(None)` 或 `Command(resume=...)` 能从断点继续；
+  - 图**已执行完**（next 为空）时，`invoke(None)` 不会重跑任何节点——"继续"只能靠 `update_state` 改状态，或换 thread_id 重来；
+- 关掉程序再打开，`SqliteSaver` 里的数据还在（`.db` 文件）——**这就是"记忆持久化"**。
+
+## 19.6 今日自测
+
+<Quiz items={["跑完案例后，用命令行 `sqlite3` 或 Python 打开 `agent_memory.db`，看看表结构（checkpoints 表）。","新建 thread_id 跑一次，验证 `get_state_history` 从新到旧的顺序。","结合 Day 18：把审批流的 InMemorySaver 换成 SqliteSaver，中断后**关掉程序重开**，还能恢复吗？（体验持久化的意义）","在 `notes/day19.md` 画一张图：thread_id、checkpoint、快照三者关系。","思考：生产环境如果每天 10 万次对话，SQLite 撑得住吗？什么时候换 Postgres？"]} />
+
+## 19.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`No module named 'langgraph.checkpoint.sqlite'`","cause":"包拆分，未安装","fix":"`pip install langgraph-checkpoint-sqlite`"},{"symptom":"`SqliteSaver` 报连接错误","cause":"没在 `with` 块里用","fix":"`from_conn_string` 必须用 `with`"},{"symptom":"续跑时状态被重置","cause":"invoke 又传了完整输入（输入会合并进状态）","fix":"纯续跑传 `None`"},{"symptom":"多用户数据串了","cause":"thread_id 用错（写死同一个）","fix":"每个会话一个唯一 thread_id"},{"symptom":"数据库文件越来越大","cause":"快照无限累积","fix":"生产需定期清理旧 checkpoint"}]} />
+
+<DayComplete day={19} recap={"记忆管理的地基打好了：持久化、会话隔离、时间旅行。明天学子图 Subgraph——把图拆成可复用模块，为 Multi-agent 铺路。"} />

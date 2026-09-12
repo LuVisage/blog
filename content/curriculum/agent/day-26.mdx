@@ -1,0 +1,165 @@
+---
+slug: day-26
+day: 26
+week: 6
+weekTitle: LangSmith 可观测
+weekBlurb: 全链路追踪、调试与标注、Datasets 离线评估、在线监控告警。
+title: LangSmith 入门 —— 全链路追踪 Tracing
+lead: 注册 LangSmith，开启全链路追踪，学会读 Run 树——把 Agent 的每一步变成可视化、可检索、可计费的数据。
+examples:
+  - examples/day26_tracing.py
+sourcePath: week-06-langsmith/day-26.md
+---
+
+> 前置：注册 https://smith.langchain.com 并拿到 API Key（免费额度够学完本教程）
+
+---
+
+## 26.1 你现在的痛点：Agent 是"黑盒"
+
+第 5 周的 Agent 跑起来很爽，但三个问题越来越痛：
+
+1. **看不见**：Agent 内部调了几次模型、每次 prompt 长什么样、工具为什么选错——全在控制台外的黑盒里；
+2. **查不了**：线上用户说"昨天下午的回答不对"，你拿什么查？日志？哪条日志？
+3. **算不清**：这个 Agent 每问一句花多少钱？哪个环节最烧钱？没人知道。
+
+**LangSmith** 是 LangChain 官方的 LLM 应用可观测平台（observability）：你代码里**一行不改**（只加环境变量），它自动记录每一次 LLM 调用、每个工具执行、每张图的节点流转——上传到云端变成**可搜索、可分组、可算账的追踪树**。
+
+## 26.2 三步开启追踪（核心就一行）
+
+### 第一步：注册拿 Key
+
+打开 https://smith.langchain.com → 注册 → 左下角 Settings → Create API Key → 复制（形如 `lsv2_pt_...`）。
+
+### 第二步：配置 `.env`
+
+在教程根目录 `.env` 里填：
+
+```
+LANGSMITH_API_KEY=lsv2_pt_你的key
+LANGSMITH_TRACING=true
+LANGSMITH_PROJECT=agent-tutorial
+```
+
+- `LANGSMITH_TRACING=true`：**总开关**，开启后所有 LangChain 组件自动上报；
+- `LANGSMITH_PROJECT`：项目名（追踪数据的分组，如"第5周旅行Agent"）。
+
+### 第三步：照常跑代码
+
+**代码一行不用改**。跑任意一个前几周的案例，然后打开 smith.langchain.com 就能看到追踪记录。这就是 LangSmith 的设计哲学：**零侵入观测**。
+
+## 26.3 Run 树：Agent 执行的"X 光片"
+
+打开 LangSmith 项目页，点进任意一条 trace，你会看到一棵**树**：
+
+```
+🟢 Agent invoke (trip-1)                        ← 根：一次完整执行
+ ├─ 🟢 model (LLM 调用 #1)                      ← 节点：第一次模型思考
+ │   ├─ 输入：system prompt + 用户消息
+ │   └─ 输出：AIMessage(tool_calls=[get_weather])
+ ├─ 🟢 tools (get_weather)                      ← 节点：工具执行
+ │   ├─ 输入：{"city": "北京"}
+ │   └─ 输出："晴，8~18°C"
+ ├─ 🟢 model (LLM 调用 #2)                      ← 第二次模型思考
+ └─ 🟢 model (LLM 调用 #3) → 最终回答
+```
+
+**每个节点都能点开**看：完整输入、完整输出、耗时、token 消耗、花费金额。**这棵树就是 Day 21 你用 stream_mode="updates" 在控制台看到的那些 chunk 的云端完整版。**
+
+**Run 树的阅读顺序**（今天必须练熟）：
+
+1. 看**树形结构**：执行了几轮模型调用？工具调用了几次？循环正常吗？
+2. 点开**model 节点**：模型当时看到了什么 prompt？它的 tool_calls 决策合理吗？
+3. 点开**tools 节点**：工具收到的参数对不对？返回了什么？
+4. 看**耗时与费用**：哪一步是瓶颈？
+
+> 调试 Agent 的黄金流程：**问题复现 → 打开对应 trace → 顺树找第一个"不对劲"的节点**。90% 的 Agent bug 在 Run 树里 5 分钟就能定位。
+
+## 26.4 trace 的元信息：过滤与分组的基础
+
+每条 trace 自动携带：
+
+| 元信息 | 说明 | 用途 |
+|---|---|---|
+| Project | 项目名（你设的） | 按项目分组 |
+| 时间戳 | 执行时间 | 查"昨天下午"的请求 |
+| latency / tokens / cost | 耗时、token、费用 | 性能与成本分析 |
+| metadata（可自定义） | 你附加的标签 | 按用户/版本/场景筛选 |
+| feedback | 人工标注（Day 27） | 质量标记 |
+
+代码里给 trace 加自定义标签：
+
+```python
+agent.invoke(
+    input,
+    config={"configurable": {"thread_id": "trip-1"},
+            "metadata": {"user_id": "u-123", "version": "v1.2"}},
+)
+```
+
+生产系统必须打 `user_id` 标签——线上排查"某用户的问题"全靠它。
+
+## 26.5 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-06-langsmith\examples
+python day26_tracing.py
+# 跑完打开 https://smith.langchain.com 看你的第一条 trace
+```
+
+## 26.6 案例逐行讲解：`day26_tracing.py`
+
+```python
+"""Day 26 案例：LangSmith 全链路追踪（代码零侵入，追踪全自动）"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+# 注意：LANGSMITH_* 环境变量由 load_dotenv 读入，LangChain 自动生效
+# 若 .env 没配 LANGSMITH_API_KEY，本案例也能跑（只是不上报），会有提示
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+@tool
+def get_weather(city: str) -> str:
+    """查询城市天气。当用户询问某地天气时使用。"""
+    return {"北京": "晴 25°C", "上海": "小雨 22°C"}.get(city, f"暂无{city}数据")
+
+agent = create_agent(
+    model=model,
+    tools=[get_weather],
+    system_prompt="你是天气助手。",
+)
+
+# 带自定义 metadata 的执行：方便在 LangSmith 里按 user_id 过滤
+result = agent.invoke(
+    {"messages": [{"role": "user", "content": "北京天气怎么样？顺便算下 25*3 等于多少"}]},
+    config={"metadata": {"user_id": "demo-user", "scene": "day26"}},
+)
+print("回答：", result["messages"][-1].content)
+print("\n✅ 打开 https://smith.langchain.com 查看刚才的 trace：")
+print("   1. 点开项目 agent-tutorial")
+print("   2. 找到 metadata.user_id = demo-user 的那条")
+print("   3. 观察 Run 树：model → tools → model")
+```
+
+**要点**：
+
+- **代码里没有任何 langsmith 相关 import**——环境变量自动激活追踪。这就是"零侵入"；
+- 案例故意问了"天气 + 算术"——Agent 可能调 get_weather 然后心算 25*3（没计算器工具）——在 Run 树里你能看到它的完整决策过程；
+- **今天的作业在浏览器里**：找到 trace → 展开树 → 点开 model 节点看 prompt 全文 → 点开 tools 节点看参数。
+
+## 26.7 今日自测
+
+<Quiz items={["跑案例后，在 LangSmith 找到你的 trace，截图 Run 树。","点开第一次 model 调用：找到它发给 LLM 的 system prompt 和 tool 列表（理解\"模型看到了什么\"）。","看这条 trace 的总 token 和总费用（LangSmith 会自动估算金额）。","改 metadata 里的 `scene` 值再跑一次，用 LangSmith 的 filter 按 scene 过滤。","跑一遍 Day 25 的旅行 Agent（已配 tracing 的话），对比两次 trace 的树形复杂度。","`notes/day26.md`：画出你看到的 Run 树结构，标注每个节点的类型。"]} />
+
+## 26.8 常见坑速查
+
+<GotchaTable rows={[{"symptom":"跑了代码但 LangSmith 没数据","cause":"`LANGSMITH_TRACING` 没设 true / key 错","fix":"核对 .env 三行配置"},{"symptom":"数据进了错误的 Project","cause":"`LANGSMITH_PROJECT` 没设或设错","fix":"设置项目名；已有数据可用\"Move to project\"迁移"},{"symptom":"只想追踪部分代码","cause":"全局开关注定全量","fix":"代码里 `os.environ[\"LANGSMITH_TRACING\"]=\"false\"` 局部关"},{"symptom":"trace 太多找不到","cause":"没打 metadata 标签","fix":"给 config 加 metadata（user_id 等）"},{"symptom":"隐私担忧","cause":"数据上传云端","fix":"企业版可自托管 LangSmith"}]} />
+
+<DayComplete day={26} recap={"你的 Agent 透明了。明天学 LangSmith 的调试三件套：过滤检索、Playground、人工标注 feedback。"} />

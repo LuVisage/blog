@@ -1,0 +1,18 @@
+# Bring-your-own-key forwarder for /learn/agent. Free plan: no KV, no D1, nothing stored.
+name = "agent-learn-proxy"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+usage_model = "free"
+
+# Everything the handler reads. Values must be strings.
+[vars]
+# The only browser origins allowed to call this Worker. Add your own preview host if you need one.
+ALLOWED_ORIGINS = "https://luvisage.github.io,http://localhost:3000"
+# Providers the Worker will forward to. Must stay in step with ALLOWED_BASES in lib/llm/settings.ts.
+UPSTREAM_ALLOWLIST = "https://api.openai.com/v1,https://api.deepseek.com/v1,https://dashscope.aliyuncs.com/compatible-mode/v1,https://open.bigmodel.cn/api/paas/v4,https://api.moonshot.cn/v1,https://api.siliconflow.cn/v1"
+# Cost guards, because every call spends the visitor's own balance.
+MAX_TOKENS = "1024"
+MAX_BODY_BYTES = "65536"
+EMBED_BATCH = "32"
+REQUESTS_PER_MINUTE = "10"
+REQUESTS_PER_DAY = "200"

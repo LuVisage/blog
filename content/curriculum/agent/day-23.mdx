@@ -1,0 +1,213 @@
+---
+slug: day-23
+day: 23
+week: 5
+weekTitle: Agent 开发
+weekBlurb: create_agent、Runtime 生命周期、Middleware、长期记忆 Store。
+title: 'Middleware —— 不碰 Agent 代码的"横切能力"'
+lead: 理解 Middleware 的设计哲学（横切关注点），掌握钩子装饰器（before/after/wrap），会用 4 个最重要的内置中间件。
+examples:
+  - examples/day23_middleware.py
+sourcePath: week-05-agent-dev/day-23.md
+---
+
+---
+
+## 23.1 问题：这些需求放哪里？
+
+做真实 Agent，你会遇到一堆"横切需求"——和业务无关、但处处都要：
+
+1. 每次调模型前**打印日志**；
+2. 模型调用失败**自动重试**；
+3. 对话太长**自动摘要**历史（省 token）；
+4. 限制**最多调 20 次工具**（防失控）；
+5. 检测用户输入里的**隐私信息**（手机号/身份证）打码。
+
+如果全塞进工具函数和提示词里，代码会变成一锅粥。**Middleware（中间件）** 给出统一答案：**在 Agent 执行的关键节点前后挂"钩子"**，不改业务代码就能插入能力。
+
+```
+用户输入 → [before_agent] → LLM 思考 [before_model / after_model] → 工具执行 [wrap_tool_call]
+        → [after_agent] → 输出
+```
+
+**类比**：Web 框架（FastAPI/Express）的中间件——鉴权、日志、限流都是挂在请求管道上的钩子。Agent Middleware 是同一思想在 Agent 世界的移植。
+
+## 23.2 三类钩子（今天的主角）
+
+LangChain 1.x 用装饰器定义钩子，**装饰器顺序 = 执行顺序**：
+
+| 钩子 | 触发时机 | 能做什么 |
+|---|---|---|
+| `@before_model` | **每次**调 LLM 前 | 改提示词、记录日志、拦截请求 |
+| `@after_model` | 每次 LLM 返回后 | 改输出、记录账单、检测异常 |
+| `@wrap_model_call` | 包裹整个模型调用 | 重试、缓存、限速（最强大） |
+
+```python
+from langchain.agents.middleware import before_model, after_model
+
+@before_model
+def my_logger(state, runtime):              # 固定签名：(state, runtime)
+    print(f"[日志] 即将调用模型，当前消息数：{len(state['messages'])}")
+    return None                             # 返回 None = 不改状态
+
+@after_model
+def my_bill(state, runtime):
+    msg = state["messages"][-1]
+    print(f"[账单] 本次消耗 {msg.usage_metadata['total_tokens']} tokens")
+    return None
+
+agent = create_agent(model=..., tools=..., middleware=[my_logger, my_bill])
+```
+
+**签名解剖**（两个参数）：
+
+- `state`：Agent 的完整状态（`state["messages"]` 是消息历史）；
+- `runtime`：运行时对象（上下文、工具、模型信息）。
+
+返回 `None` 表示"只观察不改动"；返回字典则**更新状态**（相当于临时插入字段修改）。
+
+## 23.3 内置中间件四天王（直接拿来用）
+
+LangChain 1.x 官方内置了十几个中间件，最常用的四个：
+
+### ① ToolRetryMiddleware：工具失败自动重试
+
+```python
+from langchain.agents.middleware import ToolRetryMiddleware
+
+ToolRetryMiddleware(max_retries=2)   # 工具报错最多再试 2 次
+```
+
+### ② ModelRetryMiddleware：模型调用失败重试
+
+```python
+from langchain.agents.middleware import ModelRetryMiddleware
+
+ModelRetryMiddleware(max_retries=2)   # 网络抖动/限流时自动重试
+```
+
+### ③ ToolCallLimitMiddleware：限制工具调用次数（防失控烧钱）
+
+```python
+from langchain.agents.middleware import ToolCallLimitMiddleware
+
+ToolCallLimitMiddleware(run_limit=10,          # 单次执行最多 10 次工具调用
+                       exit_behavior="continue")   # 超限后：continue=提醒模型收敛；error=直接终止
+# 也可按 thread 限制：thread_limit=100（一个会话累计最多 100 次）
+```
+
+### ④ SummarizationMiddleware：历史太长自动摘要（省 token）
+
+```python
+from langchain.agents.middleware import SummarizationMiddleware
+
+SummarizationMiddleware(
+    model=model,                              # 用哪个模型写摘要
+    trigger=("tokens", 4000),                 # 历史超过 4000 token 时触发
+    keep=("messages", 20),                    # 保留最近 20 条消息，更早的压成摘要
+)
+```
+
+> **①和②是生产必备**：LLM API 的限流、网络抖动天天发生，没有重试的 Agent 线上必挂。③④是成本控制：Agent 循环烧钱的两大元凶就是"无限调工具"和"历史滚雪球"。
+
+## 23.4 wrap_model_call：自己实现重试（理解中间件的内核）
+
+`wrap_model_call` 能拿到整个模型调用过程，**在它外面包任何逻辑**——比如自己写重试：
+
+```python
+from langchain.agents.middleware import wrap_model_call
+
+@wrap_model_call
+def with_retry(request, handler):
+    """request: 模型请求；handler: 原始调用函数"""
+    for attempt in range(3):
+        try:
+            return handler(request)          # 执行真正的模型调用
+        except Exception as e:
+            print(f"第 {attempt+1} 次失败：{e}")
+    raise RuntimeError("重试 3 次仍失败")
+```
+
+看懂这个就理解了中间件的本质：**`handler` 是"原本要做的事"，中间件决定"怎么包装着做"**。内置的 ModelRetryMiddleware 内部逻辑与此同构。
+
+## 23.5 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-05-agent-dev\examples
+python day23_middleware.py
+```
+
+## 23.6 案例逐行讲解：`day23_middleware.py`
+
+```python
+"""Day 23 案例：Middleware —— 日志钩子 + 工具重试 + 调用限制"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain.agents.middleware import (before_model, after_model,
+                                         ToolRetryMiddleware, ToolCallLimitMiddleware)
+from langchain_core.tools import tool
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+# ── 一个"前两次必失败"的工具（演示重试中间件）────────
+FAIL_COUNT = 0
+@tool
+def flaky_tool(x: str) -> str:
+    """一个不稳定的工具。用户输入任何内容时可用。"""
+    global FAIL_COUNT
+    FAIL_COUNT += 1
+    if FAIL_COUNT <= 2:
+        raise RuntimeError(f"第 {FAIL_COUNT} 次调用失败（模拟网络抖动）")
+    return f"处理成功：{x}"
+
+# ── 自定义钩子：日志 + 账单 ─────────────────────
+@before_model
+def log_before(state, runtime):
+    print(f"  📋 [before_model] 调用模型，历史消息数={len(state['messages'])}")
+    return None
+
+@after_model
+def log_after(state, runtime):
+    msg = state["messages"][-1]
+    tokens = msg.usage_metadata.get("total_tokens", "?") if msg.usage_metadata else "?"
+    print(f"  🧾 [after_model] 本次消耗 {tokens} tokens")
+    return None
+
+agent = create_agent(
+    model=model,
+    tools=[flaky_tool],
+    system_prompt="你是测试助手。",
+    middleware=[
+        log_before, log_after,                       # 自定义钩子
+        ToolRetryMiddleware(max_retries=3),          # 工具重试
+        ToolCallLimitMiddleware(run_limit=10),       # 单次执行上限
+    ],
+)
+
+print("══ 场景：触发 flaky_tool（前两次会失败）══")
+result = agent.invoke({"messages": [{"role": "user", "content": "帮我处理一下 hello"}]})
+print("\n最终回答：", result["messages"][-1].content)
+```
+
+**逐段要点**：
+
+- **重试中间件的威力**：`flaky_tool` 前两次抛异常，`ToolRetryMiddleware(max_retries=3)` 自动重试，第三次成功——**没有它，Agent 会拿着错误信息继续编，甚至直接崩溃**。对比：把 middleware 里的 ToolRetryMiddleware 注释掉再跑，看差别；
+- **钩子顺序**：middleware 列表里 `log_before` 在 `log_after` 前，但两个钩子触发时机不同（模型调用前/后），所以输出天然有序；
+- **`after_model` 里的账单**：`usage_metadata` 就是 Day 1 学的 token 账单——中间件是"全局记账"的最佳位置；
+- **想象**：把 `log_before` 换成"上报 LangSmith"、把重试换成"切换备用模型"——你已经有生产级 Agent 的雏形了。
+
+## 23.7 今日自测
+
+<Quiz items={["用 `@wrap_model_call` 写一个\"限速中间件\"：两次调用间隔小于 1 秒就 sleep 补足（防 API 限流）。","给 Agent 加 `SummarizationMiddleware`，故意造 20 轮长对话，观察历史被摘要压缩的时机。","写一个 `@before_model` 中间件：当用户消息含\"密码\"两字时，替换成\"[已隐藏]\"。","把 `ToolCallLimitMiddleware(tool_call_limit=2)` 配一个需要 3 次工具的问题，观察\"限制\"如何改变 Agent 行为。","`notes/day23.md`：画出 Agent 执行管道，标出 before_model/after_model/wrap_tool_call 的挂载点。"]} />
+
+## 23.8 常见坑速查
+
+<GotchaTable rows={[{"symptom":"中间件不生效","cause":"忘了放进 `middleware=[...]`","fix":"创建 agent 时传入列表"},{"symptom":"钩子报参数错误","cause":"签名不对","fix":"必须是 `(state, runtime)`"},{"symptom":"返回了不该返回的东西","cause":"钩子返回了非 None 非 dict","fix":"观察型钩子返回 None；修改型返回字段 dict"},{"symptom":"重试后仍失败","cause":"重试次数不够 / 工具逻辑真错了","fix":"看工具报错定位；加最大次数"},{"symptom":"摘要中间件不触发","cause":"没传 model 参数","fix":"SummarizationMiddleware 必须指定摘要模型"}]} />
+
+<DayComplete day={23} recap={"中间件体系到手：钩子装饰器 + 四天王 + 自定义 wrap。明天解决 Agent 的\"记性\"——长期记忆 Store：跨会话、跨天、跨用户的记忆。"} />

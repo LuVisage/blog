@@ -1,18 +1,14 @@
 import Link from 'next/link'
-import { IconTag } from '@tabler/icons-react'
 
 export function TagBadge({ tag, count }: { tag: string; count?: number }) {
   return (
     <Link
       href={`/tags/${tag}`}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium glass-liquid transition-all hover:-translate-y-0.5 hover:bg-[var(--color-primary-soft)]"
-      style={{ color: 'var(--color-body)' }}
+      className="chip px-2.5 py-1 text-xs transition-colors hover:border-[var(--accent-line)] hover:text-[var(--accent-text)]"
+      style={{ color: 'var(--body)' }}
     >
-      <IconTag size={11} style={{ color: 'var(--color-primary)' }} strokeWidth={2.5} />
-      {tag}
-      {count !== undefined && (
-        <span className="text-[10px] font-mono" style={{ color: 'var(--color-muted)' }}>{count}</span>
-      )}
+      #{tag}
+      {count !== undefined && <span className="meta">{count}</span>}
     </Link>
   )
 }

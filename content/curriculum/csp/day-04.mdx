@@ -1,0 +1,115 @@
+---
+slug: day-04
+kind: day
+day: 4
+week: 1
+weekTitle: 恢复与稳分
+weekBlurb: 找回手感，把 T1/T2/T3 的 300 分焊死：STL 总复习、T1 限时、前缀和差分双指针、二分排序贪心、map 哈希数学，再加两天大模拟。
+title: T2 技巧②——二分 / 排序 / 贪心
+lead: 二分答案 + 贪心模型闭眼写
+sourcePath: 第1周-Day01-07-基础打牢/Day04-T2技巧-二分排序贪心.md
+---
+
+## 今日任务
+
+1. 默写整数二分与二分答案框架；
+2. 复习多关键字排序 + 贪心四模型；
+3. 做 3 道 T2 真题 + 2 道洛谷强化。
+
+## 学什么
+
+### 1. 二分：T2 最爱考的"技巧"之一
+```cpp
+// STL 版（够用 80% 场景）
+sort(a + 1, a + n + 1);
+int p = lower_bound(a+1, a+n+1, x) - a;   // 第一个 >= x 的下标
+int q = upper_bound(a+1, a+n+1, x) - a;   // 第一个 > x 的下标
+
+// 手写版（边界问题全靠它，背！）
+// 找第一个 >= x 的下标（不存在返回 n+1）
+int l = 1, r = n + 1;
+while (l < r) {
+    int mid = (l + r) >> 1;
+    if (a[mid] >= x) r = mid;
+    else l = mid + 1;
+}
+```
+
+**二分答案三问（看到"最大值最小 / 最小值最大"立即反应）：**
+1. 答案是否**单调**（越大越易/越难满足）？
+2. check(mid) 怎么写（O(n) 内判断"mid 可行吗"）？
+3. 可行时往哪边收敛？
+
+真题例：**202303-2 垦田计划**（二分最少耗时）、**202012-2 期末预测之最佳阈值**（排序 + 前缀计数，二分找阈值）。
+
+### 2. 多关键字排序：cmp 三连 if
+```cpp
+struct Stu { int id, ch, ma, en, sum; };
+bool cmp(const Stu &x, const Stu &y) {
+    if (x.sum != y.sum) return x.sum > y.sum;      // 总分降序
+    if (x.ch != y.ch) return x.ch > y.ch;          // 语文降序
+    return x.id < y.id;                            // 学号升序
+}
+sort(a + 1, a + n + 1, cmp);
+```
+真题例：202009-1 称检测点查询（按距离排序取前三）。
+
+### 3. 贪心四模型（策略要能脱口而出）
+| 模型 | 策略 | 洛谷 |
+|---|---|---|
+| 排队接水 | 耗时短的先 | [P1223](https://www.luogu.com.cn/problem/P1223) |
+| 区间调度（最多不重叠） | 按结束时间早的选 | [P1803](https://www.luogu.com.cn/problem/P1803) |
+| 部分背包 | 按性价比降序拿 | [P2240](https://www.luogu.com.cn/problem/P2240) |
+| 合并果子 | 每次合并最小的两个（小根堆） | [P1090](https://www.luogu.com.cn/problem/P1090) |
+
+```cpp
+// 合并果子核心
+priority_queue<int, vector<int>, greater<int>> pq;
+long long ans = 0;
+while (pq.size() > 1) {
+    int a = pq.top(); pq.pop();
+    int b = pq.top(); pq.pop();
+    ans += a + b;
+    pq.push(a + b);
+}
+```
+
+## 练什么
+
+**真题（每题限时 35 分钟）：**
+
+| 题号 | 考点 |
+|---|---|
+| 202303-2 垦田计划 | 二分答案 |
+| 202012-2 期末预测之最佳阈值 | 排序 + 前缀和 + 二分 |
+| 202009-1 称检测点查询 | 结构体排序 |
+
+**洛谷强化（任选 2 道）：**
+- [P2249](https://www.luogu.com.cn/problem/P2249) 查找（手写二分）
+- [P1873](https://www.luogu.com.cn/problem/P1873) 砍树（二分答案）
+- [P1803](https://www.luogu.com.cn/problem/P1803) 线段覆盖（区间调度）
+- [P1090](https://www.luogu.com.cn/problem/P1090) 合并果子（堆贪心）
+
+## 今日模板
+
+完整版本见[代码模板速查手册](/learn/csp/templates)（第 4、8 节）。
+
+```cpp
+// 二分答案（最大化可行答案）
+bool check(long long mid) { /* ... */ }
+long long l = 0, r = 1e18, ans = 0;
+while (l <= r) {
+    long long mid = (l + r) >> 1;
+    if (check(mid)) { ans = mid; l = mid + 1; }   // 可行 → 尝试更大
+    else r = mid - 1;
+}
+// 最小化问题对称：可行 → r = mid - 1 尝试更小，ans 记录
+
+// 小根堆
+priority_queue<int, vector<int>, greater<int>> pq;
+```
+
+## 验收标准
+
+<Quiz items={["3 道真题 AC（每题 ≤ 35 分钟）","闭卷默写二分答案框架 + 小根堆声明","口答：贪心四模型的策略各是什么。"]} />
+

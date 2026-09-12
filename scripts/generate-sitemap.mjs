@@ -6,12 +6,12 @@ import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from 
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import matter from 'gray-matter'
+import { siteUrl } from '../lib/constants.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const postsDir = join(__dirname, '..', 'content', 'posts')
+const curriculumDir = join(__dirname, '..', 'content', 'curriculum')
 const publicDir = join(__dirname, '..', 'public')
-
-const siteUrl = 'https://LuVisage.github.io/blog'
 
 // Static pages (without trailing dynamic segments)
 const staticPages = [
@@ -54,6 +54,29 @@ function getPosts() {
     .sort((a, b) => b.date.getTime() - a.date.getTime())
 }
 
+/** One entry per course directory, so a new tutorial needs no change here. */
+function getCourses() {
+  if (!existsSync(curriculumDir)) return []
+
+  return readdirSync(curriculumDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const pages = readdirSync(join(curriculumDir, entry.name))
+        .filter((f) => f.endsWith('.mdx'))
+        .map((filename) => {
+          const { data } = matter(readFileSync(join(curriculumDir, entry.name, filename), 'utf-8'))
+          return {
+            slug: data.slug || filename.replace(/\.mdx$/, ''),
+            day: Number(data.day ?? 0),
+            reference: data.kind === 'reference',
+          }
+        })
+        .sort((a, b) => Number(a.reference) - Number(b.reference) || a.day - b.day)
+      return { id: entry.name, pages }
+    })
+    .filter((course) => course.pages.length)
+}
+
 function escapeXml(str) {
   return str
     .replace(/&/g, '&amp;')
@@ -89,21 +112,31 @@ function main() {
 
   // Static pages
   staticPages.forEach(({ path, priority, changefreq }) => {
-    urls.push(generateUrlEntry(`${siteUrl}${path}`, new Date(), priority, changefreq))
+    urls.push(generateUrlEntry(siteUrl(path), new Date(), priority, changefreq))
   })
 
   // Post pages (highest priority for recent content)
   posts.forEach((post, i) => {
     const priority = i < 5 ? '0.85' : i < 15 ? '0.75' : '0.6'
     urls.push(
-      generateUrlEntry(
-        `${siteUrl}/posts/${post.slug}/`,
-        post.updated || post.date,
-        priority,
-        'monthly'
-      )
+      generateUrlEntry(siteUrl(`posts/${post.slug}`), post.updated || post.date, priority, 'monthly')
     )
   })
+
+  // Curriculum: the /learn shelf, one page per course, then every lesson.
+  const courses = getCourses()
+  if (courses.length) {
+    urls.push(generateUrlEntry(siteUrl('learn'), new Date(), '0.8', 'weekly'))
+    courses.forEach(({ id, pages }) => {
+      console.log(`Found ${pages.length} lessons for /learn/${id}`)
+      urls.push(generateUrlEntry(siteUrl(`learn/${id}`), new Date(), '0.8', 'weekly'))
+      pages.forEach(({ slug }) => {
+        urls.push(
+          generateUrlEntry(siteUrl(`learn/${id}/${slug}`), new Date(), '0.6', 'monthly')
+        )
+      })
+    })
+  }
 
   // Collect unique tag, category, and series pages
   const tags = new Set()
@@ -118,24 +151,19 @@ function main() {
 
   tags.forEach((tag) => {
     urls.push(
-      generateUrlEntry(`${siteUrl}/tags/${encodeURIComponent(tag)}/`, new Date(), '0.4', 'monthly')
+      generateUrlEntry(siteUrl(`tags/${encodeURIComponent(tag)}`), new Date(), '0.4', 'monthly')
     )
   })
 
   categories.forEach((cat) => {
     urls.push(
-      generateUrlEntry(
-        `${siteUrl}/categories/${encodeURIComponent(cat)}/`,
-        new Date(),
-        '0.4',
-        'monthly'
-      )
+      generateUrlEntry(siteUrl(`categories/${encodeURIComponent(cat)}`), new Date(), '0.4', 'monthly')
     )
   })
 
   seriesSet.forEach((s) => {
     urls.push(
-      generateUrlEntry(`${siteUrl}/series/${encodeURIComponent(s)}/`, new Date(), '0.5', 'monthly')
+      generateUrlEntry(siteUrl(`series/${encodeURIComponent(s)}`), new Date(), '0.5', 'monthly')
     )
   })
 
@@ -146,7 +174,7 @@ ${urls.join('\n')}
 `
 
   writeFileSync(join(publicDir, 'sitemap.xml'), sitemap)
-  console.log(`✓ Generated sitemap.xml with ${urls.length} URLs`)
+  console.log(`已生成 sitemap.xml，共 ${urls.length} 条 URL`)
 }
 
 main()

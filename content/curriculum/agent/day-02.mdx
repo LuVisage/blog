@@ -1,0 +1,286 @@
+---
+slug: day-02
+day: 2
+week: 1
+weekTitle: LangChain 核心组件
+weekBlurb: LLM 接入、Prompt 模板、结构化输出、LCEL 管道、工具系统。
+title: LangChain 组件② —— Prompt 工程（提示词模板）
+lead: 学会用模板动态组装提示词，掌握变量注入、多轮历史拼接、Few-shot 三个核心技能。
+examples:
+  - examples/day02_template.py
+  - examples/day02_fewshot.py
+  - examples/day02_chat_history.py
+sourcePath: week-01-langchain-core/day-02.md
+---
+
+---
+
+## 2.1 为什么需要"模板"？
+
+昨天你写死提示词："把'今天天气真好'翻译成英文"。但真实应用里，用户输入每时每刻都在变。你不能每次都手写提示词，你需要一个**填空题**：
+
+```
+你是{角色}，请把下面的{源语言}翻译成{目标语言}：
+{用户输入}
+```
+
+把 `{角色}`、`{源语言}`、`{用户输入}` 这些**空**留给运行时填——这就是 Prompt Template（提示词模板）。LangChain 里的填空工具叫 `ChatPromptTemplate`。
+
+**模板的好处**（记住这 3 条，面试/工作都考）：
+
+1. **代码和数据分离**：提示词文案集中在模板里，好维护、好调优；
+2. **复用**：同一个模板，换个填空内容就是新提示词；
+3. **可追踪**：LangSmith 能记录"哪个版本的模板产生了哪次调用"（第 6 周）。
+
+## 2.2 第一个模板：从字符串到消息
+
+```python
+from langchain_core.prompts import ChatPromptTemplate
+
+template = ChatPromptTemplate.from_messages([
+    ("system", "你是一个{role}。请始终用中文回答。"),
+    ("human", "{user_input}"),
+])
+
+# 填空 → 生成真正的消息列表
+messages = template.invoke({
+    "role": "中英翻译官",
+    "user_input": "把'学习使我快乐'翻译成英文",
+})
+print(messages.to_messages())
+# [SystemMessage("你是一个中英翻译官..."), HumanMessage("把'学习使我快乐'翻译成英文")]
+```
+
+**三个新东西，逐个拆**：
+
+| 代码 | 含义 |
+|---|---|
+| `from_messages([...])` | 用消息列表定义模板。每条是一个 `(角色, 内容)` 元组 |
+| `("system", "...")` / `("human", "...")` | 角色的简写形式；完整写法是 `("system", SystemMessagePromptTemplate.from_template("..."))` |
+| `{role}` `{user_input}` | **占位符**。花括号里的名字 = 填空处。`invoke(字典)` 时按名字填 |
+
+> **`template.invoke()` 的输出不是模型回答**，而是一组**填好的消息**（`to_messages()` 可看）。模板自己不会调模型——它只是"填空题本"。把填好的消息再交给 `model.invoke()` 才是完整链路。这个"模板 → 模型"的两步，明天会被 `|` 管道简化成一行。
+
+## 2.3 填空的三种姿势（重点！）
+
+同一个模板，有三种填法，**场景不同选法不同**：
+
+### ① invoke 时传完整字典（最常用）
+
+```python
+prompt.invoke({"role": "翻译官", "user_input": "你好"})
+```
+
+### ② partial：提前填一部分，剩下的后填
+
+有些值**全程序固定**（如角色、语气），只有少数值每次变（用户输入）。用 `partial` 把固定的先"焊死"，模板就变成"只需要填 user_input"：
+
+```python
+translator_prompt = prompt.partial(role="中英翻译官")
+# 以后每次只需填一个变量：
+translator_prompt.invoke({"user_input": "早上好"})
+```
+
+> 类比：`partial` 就是"提前预填了答案的填空题"。它让下游代码更简洁，也让"角色设定"集中管理。
+
+### ③ partial 传函数：值在运行时才计算（高级但常用）
+
+```python
+from datetime import datetime
+
+def get_today() -> str:
+    return datetime.now().strftime("%Y年%m月%d日")
+
+news_prompt = ChatPromptTemplate.from_messages([
+    ("system", "今天是{today}。你是一位新闻主播。"),
+    ("human", "{topic}"),
+]).partial(today=get_today)      # 每次 invoke 时自动调用 get_today()
+
+print(news_prompt.invoke({"topic": "AI"}).to_messages()[0].content)
+# 今天是2025年12月xx日。你是一位新闻主播。
+```
+
+## 2.4 MessagesPlaceholder：给"历史消息"留位置
+
+昨天学到：多轮对话 = 把历史列表塞进 input。但历史是**一整列消息**，不是单个字符串，怎么填？用 `MessagesPlaceholder`——它是"放一摞消息"的空位：
+
+```python
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "你是一个耐心的中文客服。"),
+    MessagesPlaceholder("history"),        # ← 这里会插进一摞历史消息
+    ("human", "{question}"),
+])
+
+# 填空时，history 传【消息列表】而不是字符串
+messages = prompt.invoke({
+    "history": [
+        HumanMessage(content="我的快递到哪了？"),
+        AIMessage(content="请提供您的快递单号。"),
+    ],
+    "question": "单号是 SF123456",
+}).to_messages()
+```
+
+**为什么重要？** 这是全行业处理对话历史的标准姿势。后面做聊天机器人（Day 10、第 8 周）、Agent（Day 21）时，你写的每一条历史都是这么塞进去的。**今天必须亲手敲一遍**。
+
+> 注意：`{question}` 是**单个变量**，`MessagesPlaceholder("history")` 是**消息列表槽位**，两者不可混用。变量能填字符串，槽位只能填消息列表。
+
+## 2.5 Few-shot：给模型"打个样"
+
+模型很聪明，但有时不清楚你要的**格式和风格**。最高效的办法不是写一万字规则，而是**给 2~3 个例子**。这叫 Few-shot（少样本学习）：
+
+```python
+examples = [
+    {"input": "太棒了", "output": "情绪：正面。强度：高。"},
+    {"input": "一般般吧", "output": "情绪：中性。强度：低。"},
+    {"input": "气死我了", "output": "情绪：负面。强度：高。"},
+]
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "你是情绪分析器。对用户输入输出：情绪(正面/中性/负面)与强度(高/中/低)。"),
+    # 把每个例子展开成 human 问 + ai 答 两行
+    *[m for ex in examples for m in (("human", ex["input"]), ("ai", ex["output"]))],
+    ("human", "{input}"),
+])
+```
+
+`*[...]` 是 Python 的列表解包：把例子循环展开成 `("human","太棒了"),("ai","情绪：正面..."),("human","一般般吧")...` 再塞进消息列表。**例子越多、越典型，模型学得越像**——但例子也占 token，3~5 个通常最划算。
+
+## 2.6 动手：跑今天的 3 个案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-01-langchain-core\examples
+python day02_template.py
+python day02_fewshot.py
+python day02_chat_history.py
+```
+
+## 2.7 案例逐行讲解
+
+### `day02_template.py` —— 一个"万能"翻译官
+
+```python
+"""Day 2 案例 1：Prompt 模板 + partial 预填 + 管道预览"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+# 1. 定义模板：三个空位 {role} {source_lang} {target_lang} {text}
+template = ChatPromptTemplate.from_messages([
+    ("system", "你是{role}，只输出译文，不要任何解释和标点以外的内容。"),
+    ("human", "把下面这段{source_lang}翻译成{target_lang}：\n{text}"),
+])
+
+# 2. 用 partial 焊死固定配置 → 得到一个"中英翻译官"
+cn2en = template.partial(role="中英翻译官", source_lang="中文", target_lang="英文")
+
+# 3. 每次只需传 text
+def translate(text: str) -> str:
+    messages = cn2en.invoke({"text": text})        # 填空
+    return model.invoke(messages).content           # 交给模型
+
+print(translate("学而时习之，不亦说乎？"))
+print(translate("今天中午吃什么好呢"))
+
+# 4. 同样的模板，partial 成"英中翻译官"，零重复代码
+en2cn = template.partial(role="英中翻译官", source_lang="英文", target_lang="中文")
+print(en2cn.invoke({"text": "Life is what happens when you're busy making other plans."}).to_messages())
+```
+
+**要点**：一个模板两用（中→英 / 英→中），靠 `partial` 切换配置——这就是"复用"的力量。第 3 行 `translate()` 里"先填空、再调模型"的两步流程，明天用 `|` 写成一行。
+
+### `day02_fewshot.py` —— 客服回复风格克隆
+
+```python
+"""Day 2 案例 2：Few-shot 让模型学会固定风格"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+# 你想要的"客服风格"样板（emoji + 简洁 + 结尾加行动建议）
+examples = [
+    {"q": "怎么退货？", "a": "您好呀😊 在订单页点【申请售后】就行，运费我们承担！"},
+    {"q": "多久能到货？", "a": "亲，一般 3 天内发货哦🚚 江浙沪次日达！"},
+]
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "你是电商客服'小美'。回复要求：热情、每句必带一个emoji、结尾给行动建议。模仿下面的例子："),
+    *[m for ex in examples for m in (("human", ex["q"]), ("ai", ex["a"]))],
+    ("human", "{question}"),
+])
+
+question = "我的快递丢件了怎么办"
+print("问题：", question)
+print("小美：", model.invoke(prompt.invoke({"question": question})).content)
+```
+
+**要点**：试试把 `examples` 清空再跑——对比模型"有样学样"和"没样自由发挥"的差别，你会直观理解 Few-shot 的价值。
+
+### `day02_chat_history.py` —— 带记忆的聊天循环
+
+```python
+"""Day 2 案例 3：MessagesPlaceholder + 多轮聊天（今天的重中之重）"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "你是记事本助手。用户会陆续告诉你一些事，你要记住并在被问到时复述。"),
+    MessagesPlaceholder("history"),          # ← 历史消息槽位
+    ("human", "{question}"),
+])
+
+history = []                                 # 我们自己维护的历史列表
+while True:
+    question = input("\n你：").strip()
+    if question in ("exit", "退出"):
+        break
+    messages = prompt.invoke({"history": history, "question": question})
+    reply = model.invoke(messages)
+    print("助手：", reply.content)
+    # 关键！把这一轮的问与答都追加进历史
+    history += [messages.to_messages()[-1], reply]
+
+print("\n对话结束。完整历史：")
+for m in history:
+    print(f"  [{m.type:5s}] {m.content[:50]}")
+```
+
+**要点**：
+
+- 交互式命令行聊天！连续输入"我叫小明"→"我今年25岁"→"我刚才说我叫什么？"，看它是否记得。
+- `history += [问, 答]`：每轮结束把这一轮塞进历史。**顺序不能乱**：先用户问题，再模型回答。
+- 这个 20 行的循环就是所有聊天机器人的雏形。第 8 周前端聊天界面、Day 24 记忆管理，全是在它上面长出来的。
+
+## 2.8 今日自测
+
+<Quiz items={["把 `day02_template.py` 扩展成\"中↔法\"翻译，试试 partial 出 4 个翻译官。","给模板加一个 `{style}` 占位符（如\"文言文/网络流行语\"），体验一个模板的更多复用。","用 Few-shot 让模型学会\"把任意句子改写成小红书风格（带 #话题）\"。","在 `day02_chat_history.py` 里加一个\"忘记\"命令：输入 `忘记` 时清空 history。","`notes/day02.md` 记录：`partial` 和直接传字典，你更想用哪个？为什么？"]} />
+
+## 2.9 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`KeyError: 'role'`","cause":"invoke 时没给模板里的某个占位符传值","fix":"对照模板检查所有 `{xxx}` 是否都有对应 key"},{"symptom":"输出里还有 `{xxx}` 没被替换","cause":"变量名拼写不一致（`{role}` vs `\"rol\"`）","fix":"严格核对名字"},{"symptom":"`MessagesPlaceholder` 报错","cause":"传了字符串而非消息列表","fix":"placeholder 槽位必须传 `BaseMessage` 列表"},{"symptom":"Few-shot 没生效","cause":"例子太少 / 与目标风格差异大","fix":"加例子、改例子措辞，或调 system 说明"},{"symptom":"历史太长报 token 超限","cause":"多轮对话滚雪球","fix":"先手动只保留最近 6 轮（Day 24 学自动化方案）"}]} />
+
+<DayComplete day={2} recap={"模板 + 历史 + Few-shot，你已经能写出\"有记忆、有风格\"的对话程序了。明天学结构化输出——让模型返回的不是字符串，而是你的程序能直接用的数据对象。"} />

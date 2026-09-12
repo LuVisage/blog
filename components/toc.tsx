@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { IconList } from '@tabler/icons-react'
+import { IconChevronDown } from '@tabler/icons-react'
 
 interface TocItem {
   id: string
@@ -16,20 +16,14 @@ export function TableOfContents() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const article = document.querySelector('article')
-      if (!article) return
+      const body = document.querySelector('.prose') ?? document.querySelector('article')
+      if (!body) return
 
-      const elements = article.querySelectorAll('h2, h3')
       const items: TocItem[] = []
-      elements.forEach((el) => {
-        const id = el.id || el.textContent?.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '') || ''
-        if (el.textContent) {
-          items.push({
-            id,
-            text: el.textContent,
-            level: el.tagName === 'H2' ? 2 : 3,
-          })
-        }
+      body.querySelectorAll('h2, h3').forEach((el) => {
+        const text = el.textContent?.trim()
+        if (!el.id || !text) return
+        items.push({ id: el.id, text, level: el.tagName === 'H2' ? 2 : 3 })
       })
       setHeadings(items)
     }, 100)
@@ -76,22 +70,18 @@ export function TableOfContents() {
     <>
       {/* Desktop: sidebar TOC */}
       <nav className="hidden xl:flex xl:flex-col">
-        <h4 className="text-xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: 'var(--color-body)' }}>
-          <IconList size={14} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
-          目录
-        </h4>
-        <ul className="space-y-0.5 flex-1 overflow-y-auto">
+        <h4 className="eyebrow mb-4">目录</h4>
+        <ul className="flex-1 overflow-y-auto">
           {headings.map(({ id, text, level }) => (
             <li key={id}>
               <a
                 href={`#${id}`}
                 onClick={(e) => handleClick(e, id)}
-                className="block text-sm py-1.5 transition-all duration-200 border-l-2 line-clamp-1 pl-3"
+                className="block text-sm py-1.5 line-clamp-1 border-l transition-colors duration-200"
                 style={{
-                  color: activeId === id ? 'var(--color-ink)' : 'var(--color-body)',
-                  fontWeight: activeId === id ? 500 : 400,
-                  borderColor: activeId === id ? 'var(--color-primary)' : 'transparent',
-                  paddingLeft: level === 3 ? '1.5rem' : '0.75rem',
+                  color: activeId === id ? 'var(--ink)' : 'var(--muted)',
+                  borderColor: activeId === id ? 'var(--accent)' : 'var(--line)',
+                  paddingLeft: level === 3 ? 22 : 12,
                 }}
               >
                 {text}
@@ -105,30 +95,21 @@ export function TableOfContents() {
       <div className="xl:hidden">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl glass-liquid text-sm transition-colors w-full"
-          style={{ color: 'var(--color-ink)' }}
+          className="surface surface-hover flex items-center gap-2 w-full px-4 py-3"
+          style={{ borderRadius: 10 }}
         >
-          <IconList size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
-          文章目录
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          <span className="eyebrow" style={{ color: 'var(--ink)' }}>文章目录</span>
+          <IconChevronDown
+            size={14}
+            strokeWidth={1.5}
             className={`ml-auto transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+            style={{ color: 'var(--muted)' }}
+          />
         </button>
 
         {isOpen && (
-          <div className="mt-2 rounded-2xl glass-liquid p-4 animate-scale-in">
-            <ul className="space-y-0.5">
+          <div className="mt-2 surface p-3 animate-scale-in" style={{ borderRadius: 10 }}>
+            <ul>
               {headings.map(({ id, text, level }) => (
                 <li key={id}>
                   <a
@@ -137,12 +118,11 @@ export function TableOfContents() {
                       handleClick(e, id)
                       setIsOpen(false)
                     }}
-                    className="block text-sm py-1.5 transition-colors"
+                    className="block text-sm py-1.5 border-l transition-colors"
                     style={{
-                      color: activeId === id ? 'var(--color-ink)' : 'var(--color-body)',
-                      fontWeight: activeId === id ? 500 : 400,
-                      paddingLeft: level === 3 ? '1.5rem' : '0.25rem',
-                      borderLeft: activeId === id ? '2px solid var(--color-primary)' : '2px solid transparent',
+                      color: activeId === id ? 'var(--ink)' : 'var(--muted)',
+                      borderColor: activeId === id ? 'var(--accent)' : 'var(--line)',
+                      paddingLeft: level === 3 ? 22 : 12,
                     }}
                   >
                     {text}

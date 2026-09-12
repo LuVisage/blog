@@ -1,9 +1,7 @@
 import type { NextConfig } from 'next'
 import { existsSync } from 'fs'
 import { join } from 'path'
-
-const isGitHubActions = process.env.GITHUB_ACTIONS === 'true'
-const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1] || ''
+import { DEPLOY_BASE_PATH } from './lib/constants.ts'
 
 // If CNAME file exists in public/, we're using a custom domain → no basePath needed
 const hasCustomDomain = existsSync(join(process.cwd(), 'public', 'CNAME'))
@@ -11,7 +9,7 @@ const hasCustomDomain = existsSync(join(process.cwd(), 'public', 'CNAME'))
 // Priority: .env file → GitHub Actions computed → empty
 const basePath =
   process.env.NEXT_PUBLIC_BASE_PATH ||
-  (isGitHubActions && !hasCustomDomain ? `/${repoName}` : '')
+  (process.env.GITHUB_ACTIONS === 'true' && !hasCustomDomain ? DEPLOY_BASE_PATH : '')
 
 const nextConfig: NextConfig = {
   output: 'export',

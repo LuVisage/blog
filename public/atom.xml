@@ -3,14 +3,38 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>Baron_Zhang</title>
   <subtitle>AI 探索者 &amp; Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。</subtitle>
-  <link href="https://LuVisage.github.io/blog" rel="alternate"/>
+  <link href="https://LuVisage.github.io/blog/" rel="alternate"/>
   <link href="https://LuVisage.github.io/blog/atom.xml" rel="self"/>
   <id>https://LuVisage.github.io/blog/</id>
-  <updated>2026-07-21T00:00:00.000Z</updated>
+  <updated>2026-09-12T00:00:00.000Z</updated>
   <author>
     <name>Baron_Zhang</name>
     <email>1977928878@qq.com</email>
   </author>
+  <entry>
+    <title>RAG 检索优化实战：从「一本正经地胡说」到每句都有出处</title>
+    <link href="https://LuVisage.github.io/blog/posts/rag-retrieval-optimization/"/>
+    <id>https://LuVisage.github.io/blog/posts/rag-retrieval-optimization/</id>
+    <published>2026-09-12T00:00:00.000Z</published>
+    <updated>2026-09-12T00:00:00.000Z</updated>
+    <summary>把 RAG 从「能跑」调到「能答对」的完整过程：Chunking 怎么切、查询侧三招、BM25 混合检索与 RRF 融合、Rerank 宽召回精排序、父子文档与元数据过滤，最后用 RAGAS 四个指标给整套系统打分。</summary>
+    <author>
+      <name>Baron_Zhang</name>
+      <email>1977928878@qq.com</email>
+    </author>
+  </entry>
+  <entry>
+    <title>40 天从零到生产级 Agent：我这一路建立的三个心智模型</title>
+    <link href="https://LuVisage.github.io/blog/posts/agent-roadmap-40-days/"/>
+    <id>https://LuVisage.github.io/blog/posts/agent-roadmap-40-days/</id>
+    <published>2026-09-11T00:00:00.000Z</published>
+    <updated>2026-09-11T00:00:00.000Z</updated>
+    <summary>八周学习笔记的总复盘：LLM 应用其实是把模型接进流程、一切皆 Runnable、图就是状态加节点加边。从 Day 0 盲用 create_agent，到 Day 22 发现它内部就是一张自己画过的图。附真实的得与失。</summary>
+    <author>
+      <name>Baron_Zhang</name>
+      <email>1977928878@qq.com</email>
+    </author>
+  </entry>
   <entry>
     <title>介绍 lora-trainer：一键搞定大模型 LoRA 微调</title>
     <link href="https://LuVisage.github.io/blog/posts/lora-trainer-intro/"/>

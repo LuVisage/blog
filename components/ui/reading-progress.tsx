@@ -29,7 +29,7 @@ export function ReadingProgress() {
     <div className="fixed top-0 left-0 right-0 z-[60] h-0.5">
       <div
         className="h-full transition-[width] duration-150 ease-out"
-        style={{ width: `${progress}%`, backgroundColor: 'var(--color-primary)' }}
+        style={{ width: `${progress}%`, backgroundColor: 'var(--accent)' }}
       />
     </div>
   )

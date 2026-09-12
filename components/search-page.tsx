@@ -1,17 +1,34 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { IconSearch, IconFileText, IconCommand } from '@tabler/icons-react'
+import { IconSearch, IconCommand, IconX } from '@tabler/icons-react'
+import { PageMasthead } from '@/components/page-masthead'
+import { basePathUrl } from '@/lib/constants'
+
+/** 本页只碰到 pagefind 的这几个字段，其余交给它自己负责。 */
+type Pagefind = {
+  search(term: string): Promise<{
+    results?: { data(): Promise<{ url: string; meta?: { title?: string } }> }[]
+  } | null>
+}
 
 declare global {
   interface Window {
-    __pagefind?: any
+    __pagefind?: Pagefind
   }
 }
 
 interface SearchResult {
   title: string
   url: string
+  kind: '文章' | '教程'
+}
+
+/** Trailing slashes everywhere, so match the slug segments rather than the prefix. */
+function resultKind(url: string): SearchResult['kind'] | null {
+  if (/\/posts\/[^/]+\/$/.test(url)) return '文章'
+  if (/\/learn\/[^/]+\/[^/]+\/$/.test(url)) return '教程'
+  return null
 }
 
 export function SearchPage() {
@@ -19,20 +36,19 @@ export function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
-  const pagefindRef = useRef<any>(null)
+  const pagefindRef = useRef<Pagefind | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
 
   useEffect(() => {
     const link = document.createElement('link')
     link.rel = 'stylesheet'
-    link.href = `${basePath}/pagefind/pagefind-ui.css`
+    link.href = basePathUrl('/pagefind/pagefind-ui.css')
     document.head.appendChild(link)
 
     const script = document.createElement('script')
     script.type = 'module'
     script.textContent = `
-      import * as pf from '${window.location.origin}${basePath}/pagefind/pagefind.js';
+      import * as pf from '${window.location.origin}${basePathUrl('/pagefind/pagefind.js')};
       window.__pagefind = pf;
     `
     document.head.appendChild(script)
@@ -47,7 +63,7 @@ export function SearchPage() {
     return () => {
       clearInterval(interval)
     }
-  }, [basePath])
+  }, [])
 
   const doSearch = useCallback(async (term: string) => {
     if (!term.trim() || !pagefindRef.current) {
@@ -72,13 +88,15 @@ export function SearchPage() {
 
       for (const r of search.results) {
         const data = await r.data()
-        const url = data.url
-        if (!url.includes('/posts/') || url.endsWith('/posts/')) continue
+        const url: string = data.url
+        const kind = resultKind(url)
+        if (!kind) continue
         if (!seen.has(url)) {
           seen.add(url)
           unique.push({
-            title: data.meta?.title || data.url,
-            url: data.url,
+            title: data.meta?.title || url,
+            url,
+            kind,
           })
         }
       }
@@ -110,93 +128,101 @@ export function SearchPage() {
   }, [query, doSearch])
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl lg:text-4xl font-bold mb-2">
-          <span className="gradient-text">搜索</span>
-        </h1>
-        <p className="body-sm flex items-center gap-2">
-          <IconSearch size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
-          也可以使用
-          <kbd className="px-2 py-0.5 rounded-lg glass-liquid text-xs font-mono font-medium" style={{ color: 'var(--color-muted)' }}>
-            <IconCommand size={11} strokeWidth={2} className="inline -mt-0.5" />K
-          </kbd>
-          快捷键打开
-        </p>
-      </div>
+    <div data-pagefind-ignore>
+      <PageMasthead
+        eyebrow="搜索 — Search"
+        title="搜索"
+        lead="输入关键词，在全部文章和教程里找相关内容。"
+        counter="⌘K 随时可用"
+      />
 
-      {/* Search input */}
-      <div className="rounded-3xl glass-liquid p-4 sm:p-6 mb-4" style={{ cursor: 'default' }}>
-        <div className="relative">
-          <IconSearch size={18} strokeWidth={1.5} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-muted)' }} />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索文章..."
-            autoFocus
-            className="w-full pl-12 pr-12 py-3.5 rounded-2xl glass-liquid text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
-            style={{ color: 'var(--color-ink)' }}
-          />
-          {loading && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2">
-              <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--color-hairline)', borderTopColor: 'var(--color-primary)' }} />
-            </div>
-          )}
-          {!loading && query && (
-            <button
-              onClick={() => setQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs px-2 py-0.5 rounded-md glass-liquid"
-              style={{ color: 'var(--color-muted)' }}
-            >
-              清除
-            </button>
-          )}
-        </div>
+      {/* Query field — a ruled line, not a pill */}
+      <div className="relative flex items-center gap-4 pb-4" style={{ borderBottom: '2px solid var(--ink)' }}>
+        <IconSearch size={20} strokeWidth={1.75} style={{ color: 'var(--muted)' }} className="flex-shrink-0" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="搜索文章与教程…"
+          autoFocus
+          aria-label="搜索文章与教程"
+          className="flex-1 min-w-0 bg-transparent border-0 outline-none font-serif"
+          style={{
+            fontSize: 'clamp(20px, 4vw, 28px)',
+            lineHeight: 1.3,
+            color: 'var(--ink)',
+            letterSpacing: '-0.015em',
+          }}
+        />
+        {loading ? (
+          <span className="meta flex-shrink-0">检索中</span>
+        ) : query ? (
+          <button
+            onClick={() => setQuery('')}
+            className="btn-ghost h-8 px-2 text-xs flex-shrink-0"
+            aria-label="清空搜索"
+          >
+            <IconX size={13} strokeWidth={2} />
+            清除
+          </button>
+        ) : (
+          <kbd
+            className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-mono flex-shrink-0"
+            style={{ border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 6 }}
+          >
+            <IconCommand size={11} strokeWidth={2} />K
+          </kbd>
+        )}
       </div>
 
       {/* Results */}
       {loading && results.length === 0 && (
-        <div className="space-y-2 mt-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse flex items-center gap-3 px-4 py-3">
-              <div className="h-4 rounded flex-1" style={{ background: 'var(--color-hairline-soft)' }} />
+        <div className="pt-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="py-5 rule">
+              <span className="skeleton-line" style={{ width: `${68 - i * 12}%`, height: 16 }} />
             </div>
           ))}
+          <div className="rule" />
         </div>
       )}
 
       {!loading && searched && results.length === 0 && (
-        <div className="text-center py-16">
-          <IconSearch size={40} strokeWidth={1} style={{ color: 'var(--color-muted-soft)' }} className="mx-auto mb-4 opacity-60" />
-          <p className="body-md">
-            未找到关于 <span className="font-semibold px-1.5 py-0.5 rounded-md" style={{ color: 'var(--color-ink)', background: 'var(--color-primary-soft)' }}>{query}</span> 的相关内容
-          </p>
-          <p className="caption mt-2">试试其他关键词</p>
+        <div className="pt-14 pb-6 text-center rule">
+          <p className="body-lg">没有匹配「<span style={{ color: 'var(--ink)' }}>{query}</span>」的内容。</p>
+          <p className="body-sm mt-2">换个关键词试试，或者从分类里找。</p>
         </div>
       )}
 
       {!loading && results.length > 0 && (
-        <>
-          <p className="caption mb-3 mt-6">
-            找到 {results.length} 篇相关文章
-          </p>
-          <ul className="space-y-1">
-            {results.map((result) => (
-              <li key={result.url}>
-                <a
-                  href={result.url}
-                  className="flex items-center gap-3 px-4 py-3 -mx-1 rounded-xl hover:bg-[var(--color-primary-soft)] transition-all duration-200 group"
+        <div className="pt-9">
+          <div className="flex items-baseline justify-between gap-4 mb-2">
+            <div className="eyebrow">结果</div>
+            <span className="meta">{results.length} 条</span>
+          </div>
+          <div>
+            {results.map((result, i) => (
+              <a
+                key={result.url}
+                href={result.url}
+                data-spotlight="row"
+                className="group grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-4 sm:gap-6 py-5 rule"
+              >
+                <span className="meta tabular-nums transition-colors group-hover:text-[var(--accent-text)]">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span
+                  className="font-serif font-bold truncate transition-colors group-hover:text-[var(--accent-text)]"
+                  style={{ fontSize: 18, lineHeight: 1.4, color: 'var(--ink)', letterSpacing: '-0.01em' }}
                 >
-                  <IconFileText size={16} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} />
-                  <span className="text-sm font-medium truncate group-hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-body)' }}>
-                    {result.title}
-                  </span>
-                </a>
-              </li>
+                  {result.title}
+                </span>
+                <span className="caption flex-shrink-0">{result.kind}</span>
+              </a>
             ))}
-          </ul>
-        </>
+          </div>
+          <div className="rule" />
+        </div>
       )}
     </div>
   )

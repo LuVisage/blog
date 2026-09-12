@@ -1,0 +1,85 @@
+---
+slug: day-08
+kind: day
+day: 8
+week: 2
+weekTitle: 进阶算法
+weekBlurb: 给 T4 备武器：KMP 与字符串哈希、并查集与最小生成树、最短路拓扑排序、树状数组线段树、线性/背包/区间/树形/状压 DP、搜索与剪枝。
+title: 字符串进阶——KMP 与字符串哈希
+lead: 补上字符串两大武器
+sourcePath: 第2周-Day08-14-真题实战/Day08-字符串进阶-KMP与哈希.md
+---
+
+## 今日任务
+
+1. 掌握 KMP（next 数组 + 匹配）并默写；
+2. 掌握字符串哈希（双哈希）并默写；
+3. 做 2 道模板题 + 1 道真题。
+
+## 学什么
+
+### 1. KMP：线性时间字符串匹配
+核心思想：失配时利用已匹配信息跳过——`nxt[j]` = "模式串前 j 个字符的最长相等前后缀长度"。
+```cpp
+// 下标从 1 开始（使用前 p = " " + p; s = " " + s;）
+int nxt[1000005];
+void getNext(string p) {
+    int m = (int)p.size() - 1;
+    for (int i = 2, j = 0; i <= m; i++) {
+        while (j && p[i] != p[j + 1]) j = nxt[j];
+        if (p[i] == p[j + 1]) j++;
+        nxt[i] = j;
+    }
+}
+for (int i = 1, j = 0; i <= n; i++) {   // 匹配
+    while (j && s[i] != p[j + 1]) j = nxt[j];
+    if (s[i] == p[j + 1]) j++;
+    if (j == m) { /* 匹配成功，起点 i-m+1 */ j = nxt[j]; }
+}
+```
+**KMP 的另一大用途：求字符串的循环节。** 长度 n 的串，若 `n % (n - nxt[n]) == 0`，则最小循环节长度为 `n - nxt[n]`。
+
+### 2. 字符串哈希：O(1) 判断子串相等
+```cpp
+const unsigned long long B = 131, M1 = 1000000007, M2 = 998244353;
+// 预处理：h1[i] = (h1[i-1]*B + s[i]) % M1；pw1[i] = pw1[i-1]*B % M1（h2/pw2 同理用 M2）
+// 子串 [l,r] 哈希值：
+// get(l,r) = { (h1[r] - h1[l-1]*pw1[r-l+1] % M1 + M1) % M1,
+//              (h2[r] - h2[l-1]*pw2[r-l+1] % M2 + M2) % M2 }
+```
+**双哈希防冲突**：两个不同模数同时相等才认为相等（完整结构体版见速查手册第 16 节）。
+**经典配合**：哈希 + 二分求最长公共前缀（LCP）；哈希 + map 计数。
+
+**什么题用哈希不用 KMP？** 要"多次判断任意两个子串是否相等"→ 哈希；要"找模式串在文本中的所有出现"→ KMP。
+
+## 练什么
+
+| 题号 | 考点 | 建议时限 |
+|---|---|---|
+| [P3375](https://www.luogu.com.cn/problem/P3375) KMP 字符串匹配 | KMP 模板 | 40 min |
+| [P3370](https://www.luogu.com.cn/problem/P3370) 字符串哈希 | 哈希模板 | 30 min |
+| [P4824](https://www.luogu.com.cn/problem/P4824) Censoring | KMP 应用（匹配即删） | 45 min |
+| CSP 201409-3 字符串匹配 | 真题（暴力可过，再写一版 KMP/大小写处理） | 30 min |
+
+选做：[P2957](https://www.luogu.com.cn/problem/P2957) 奶牛的文字游戏（哈希）、[P4391](https://www.luogu.com.cn/problem/P4391) 无线传输（KMP 循环节）。
+
+## 今日模板
+
+完整版本见[代码模板速查手册](/learn/csp/templates)（第 15、16 节）。
+
+```cpp
+int nxt[1000005];
+void getNext(string p) {          // p 已 " " 补位，下标从 1
+    int m = (int)p.size() - 1;
+    for (int i = 2, j = 0; i <= m; i++) {
+        while (j && p[i] != p[j+1]) j = nxt[j];
+        if (p[i] == p[j+1]) j++;
+        nxt[i] = j;
+    }
+}
+```
+
+## 验收标准
+
+<Quiz items={["闭卷默写 KMP 全流程（getNext + 匹配）","闭卷默写哈希预处理与子串求值公式","P3375、P3370 AC；真题 AC。"]} />
+

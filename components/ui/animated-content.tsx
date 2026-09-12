@@ -5,6 +5,8 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { cn } from '@/lib/utils'
 
+gsap.registerPlugin(ScrollTrigger)
+
 interface AnimatedContentProps {
   children: ReactNode
   className?: string

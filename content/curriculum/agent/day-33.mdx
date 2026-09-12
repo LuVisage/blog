@@ -1,0 +1,214 @@
+---
+slug: day-33
+day: 33
+week: 7
+weekTitle: MCP 与多智能体
+weekBlurb: MCP 协议与适配器、Supervisor 主管路由、Swarm 交接模式。
+title: Multi-agent 模式一 —— Supervisor 主管路由
+lead: '理解"为什么需要多个 Agent"，实现第一个多智能体架构：Supervisor（主管路由）模式。'
+examples:
+  - examples/day33_supervisor.py
+sourcePath: week-07-mcp-multiagent/day-33.md
+---
+
+---
+
+## 33.1 为什么一个 Agent 不够？
+
+第 5 周的单个 Agent 很能干，但三个问题随规模增长而爆发：
+
+| 问题 | 说明 |
+|---|---|
+| **上下文爆炸** | 一个 Agent 既做研究又写代码又客服——提示词、工具说明全塞一个上下文，又贵又乱 |
+| **职责混杂** | "研究员"和"写手"需要完全不同的提示词和工具，硬揉在一起互相干扰 |
+| **工具太多** | 20 个工具全给一个 Agent，模型选择困难，准确率下降 |
+
+**Multi-agent（多智能体）**的解法：**让专业的人干专业的事**——每个 Agent 专精一件事（研究/写作/编码/客服），再由一个"主管"协调分工。就像公司：CEO 不自己写代码，把活分给工程师。
+
+## 33.2 Supervisor 模式：最经典的多智能体架构
+
+```
+用户任务
+   │
+   ▼
+┌─────────────┐   "需要研究"   ┌──────────────┐
+│  Supervisor  │ ────────────▶ │  Researcher   │
+│  （主管）     │               │ （研究员 Agent）│
+└─────────────┘               └──────────────┘
+   │     ▲   "研究完成"              │
+   │     └──────────────────────────┘
+   │  "开始写作"
+   ▼
+┌─────────────┐
+│   Writer    │
+│ （写手 Agent）│
+└─────────────┘
+   │  "写作完成"
+   ▼
+  END（主管说 FINISH）
+```
+
+**执行流程**：
+
+1. 主管收到任务，**决策**："该研究员上场" → 路由到 Researcher；
+2. Researcher 干完，**回到主管**（带着成果）；
+3. 主管再看情况："该写手了" → 路由到 Writer；
+4. Writer 干完回到主管 → 主管判断任务完成 → FINISH。
+
+**关键设计**：**专家之间不直接对话，一切经过主管**。主管是全流程唯一的决策者——控制清晰、易于审计。这正是 LangGraph 官方 Supervisor 模板的架构。
+
+## 33.3 实现要点：专家是子图，主管是路由节点
+
+你已具备全部零件（第 4 周子图 + 第 5 周 create_agent + Day 17 的 Command 路由）：
+
+```python
+# ① 专家 = create_agent 子图（Day 20 学的子图复用！）
+researcher = create_agent(model, tools=[search_tool], system_prompt="你是研究员...")
+writer = create_agent(model, tools=[], system_prompt="你是写手...")
+
+# ② 主管 = 一个用结构化输出做决策的节点
+class Decision(BaseModel):
+    next: Literal["researcher", "writer", "FINISH"]
+
+def supervisor(state) -> Command:
+    decision = model.with_structured_output(Decision).invoke(state["messages"])
+    return Command(goto=decision.next, update={"next": decision.next})
+
+# ③ 组装：专家节点 → 都连回主管；主管 → FINISH 即 END
+graph = StateGraph(State)
+graph.add_node("supervisor", supervisor)
+graph.add_node("researcher", researcher)     # ★ create_agent 就是子图
+graph.add_node("writer", writer)
+graph.add_edge(START, "supervisor")
+graph.add_edge("researcher", "supervisor")   # 专家干完回到主管
+graph.add_edge("writer", "supervisor")
+graph.add_conditional_edges("supervisor", lambda s: s["next"], {"FINISH": END})
+```
+
+> **三个已学知识的会师**：Day 20 的"子图即节点"、Day 17 的"Command 动态路由"、Day 3 的"结构化输出决策"。多智能体不是新魔法，是你武器库的组合技。
+
+## 33.4 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-07-mcp-multiagent\examples
+python day33_supervisor.py
+```
+
+## 33.5 案例逐行讲解：`day33_supervisor.py`
+
+```python
+"""Day 33 案例：Supervisor 多智能体 —— 研究员 + 写手 + 主管"""
+import os
+from pathlib import Path
+from typing import Annotated, Literal
+from operator import add
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from typing import TypedDict
+from pydantic import BaseModel, Field
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import Command
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+# ── ① 研究员 Agent（带搜索工具）───────────────────
+@tool
+def web_search(query: str) -> str:
+    """搜索互联网资料。研究事实性问题时使用。"""
+    data = {
+        "西湖": "西湖位于杭州，有苏堤、白堤、断桥等景点，免费开放。",
+        "龙井茶": "龙井茶产于杭州西湖区，明前茶最佳，冲泡水温 85 度。",
+    }
+    return data.get(query, f"关于'{query}'：杭州是旅游城市，气候宜人。")
+
+researcher = create_agent(
+    model=model,
+    tools=[web_search],
+    system_prompt="你是研究员。根据任务搜索资料，输出简洁的事实要点，不要展开写作。",
+)
+
+# ── ② 写手 Agent（无工具，专注文字）───────────────
+writer = create_agent(
+    model=model,
+    tools=[],
+    system_prompt="你是写手。根据研究员提供的事实，写一篇结构清晰、文笔流畅的短文。",
+)
+
+# ── ③ 主管：结构化决策路由 ──────────────────────
+class Decision(BaseModel):
+    """主管的路由决策"""
+    next: Literal["researcher", "writer", "FINISH"] = Field(
+        description="下一步调用谁：需要研究事实选 researcher；资料齐了要成文选 writer；任务完成选 FINISH")
+
+def supervisor(state) -> Command:
+    # ★ 规则兜底 1（工程实践）：第一轮且研究员还没参与 → 强制先研究。
+    #   弱模型不一定会遵守提示词里的流程，关键路径用确定性规则保底。
+    if state.get("next", "") == "" and not any(getattr(m, "type", "") == "tool" for m in state["messages"]):
+        return Command(goto="researcher", update={"next": "researcher"})
+
+    # ★ 规则兜底 2：上一次已路由给 writer（写手已产出）→ 收尾（防止弱模型主管反复重写）
+    if state.get("next", "") == "writer":
+        return Command(goto=END, update={"next": "FINISH"})
+
+    decision = model.with_structured_output(Decision).invoke(
+        state["messages"] + [{"role": "system",
+                              "content": "判断当前进度并决定下一步。规则：任务开始阶段必须路由到 researcher 搜集资料；"
+                                         "资料齐全后才能 writer 成文；文章写完后 FINISH。资料不足→researcher；可以写作→writer；已完成→FINISH。"}]
+    )
+    goto = END if decision.next == "FINISH" else decision.next   # FINISH → 图的 END
+    return Command(goto=goto, update={"next": decision.next})
+
+# ── ④ 组装图 ──────────────────────────────────
+class State(TypedDict):
+    messages: Annotated[list, add]
+    next: str
+
+graph = StateGraph(State)
+graph.add_node("supervisor", supervisor)
+graph.add_node("researcher", researcher)
+graph.add_node("writer", writer)
+graph.add_edge(START, "supervisor")
+graph.add_edge("researcher", "supervisor")      # ★ 专家干完回主管
+graph.add_edge("writer", "supervisor")
+# 注意：supervisor 返回 Command(goto=...)，自带路由——
+# 不能再给它加出边/条件边（Day 17 的坑）
+app = graph.compile()
+
+# ── ⑤ 运行：观察主管如何调度 ────────────────────
+print("══ 任务：写一篇关于西湖的旅游介绍 ══\n")
+for chunk in app.stream(
+    {"messages": [{"role": "user", "content": "写一篇 200 字左右的西湖旅游介绍"}]},
+    subgraphs=True,        # ★ 展开子图，看到专家内部动作
+):
+    for node, update in chunk[1].items():
+        if node == "supervisor":
+            print(f"\n🎯 主管决策：路由到 {update.get('next', '?')}")
+        else:
+            msgs = update.get("messages", [])
+            last = msgs[-1] if msgs else None
+            if last and last.type == "ai" and last.content:
+                print(f"🤖 [{node}] {last.content[:60]}...")
+```
+
+**逐段要点**：
+
+- **① ② 专家的 system_prompt 是"岗位说明书"**：研究员"只输出要点不要展开"，写手"根据事实成文"——**职责边界写清楚，协作才不打架**；
+- **③ 主管的决策循环**：每次专家回来，主管带着全部历史重新判断"下一步"——资料不足→researcher，可以写→writer，够了→FINISH。**主管是纯决策者，不干具体活**。注意两个工程细节：**FINISH 要映射成图的 END**（`goto = END if ...`）；**两条规则兜底**保证弱模型下流程也能收敛（关键路径用确定性规则保底，是生产多智能体的常见实践）；
+- **④ 边的方向**：专家节点都连回 supervisor——**这就是"一切经过主管"在代码里的表达**。supervisor 用 Command 返回路由，不能再加出边（Day 17 的坑）；
+- **⑤ `subgraphs=True`**：让 stream 展开子图内部（能看到 researcher 内部调了几次工具）——调试多智能体的必备参数；
+- **执行路径**：START → supervisor（规则兜底→researcher）→ researcher 搜资料 → supervisor（LLM 决策→writer）→ writer 成文 → supervisor（规则兜底→FINISH）→ END。
+
+## 33.6 今日自测
+
+<Quiz items={["换个任务：\"写一篇龙井茶的品鉴指南\"，观察主管的调度序列。","加第三个专家 `translator`（翻译 Agent），主管的 Decision 枚举加一项，观察路由扩展。","把 supervisor 的决策提示词改成\"总让 writer 先写\"的错误策略，观察协作如何失败——理解**主管质量决定系统质量**。","在 LangSmith 里看这次多智能体执行的 trace：三个 Agent 是三层子图树。","`notes/day33.md`：画出 Supervisor 模式的完整时序图（含主管每次决策）。"]} />
+
+## 33.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"专家子图报状态不匹配","cause":"State 字段与 agent 默认 messages 不对齐","fix":"共享 State 必须含 `messages`"},{"symptom":"主管死循环","cause":"决策总不是 FINISH","fix":"决策提示词给明确完成标准；加最大轮数"},{"symptom":"看不到专家内部","cause":"stream 没开 subgraphs","fix":"`subgraphs=True`"},{"symptom":"专家互相\"抢活\"","cause":"system_prompt 职责边界模糊","fix":"写清\"你只负责……不要……\""},{"symptom":"上下文越来越长","cause":"历史全量传递","fix":"生产加 SummarizationMiddleware（Day 23）"}]} />
+
+<DayComplete day={33} recap={"第一个多智能体系统跑起来了：主管调度、专家执行。明天学第二种模式：Swarm 交接——Agent 之间直接\"打电话\"转接。"} />

@@ -1,0 +1,109 @@
+---
+slug: day-10
+kind: day
+day: 10
+week: 2
+weekTitle: 进阶算法
+weekBlurb: 给 T4 备武器：KMP 与字符串哈希、并查集与最小生成树、最短路拓扑排序、树状数组线段树、线性/背包/区间/树形/状压 DP、搜索与剪枝。
+title: 最短路与拓扑排序
+lead: 最短路类 T4 拿下正解
+sourcePath: 第2周-Day08-14-真题实战/Day10-最短路与拓扑排序.md
+---
+
+## 今日任务
+
+1. 默写 Dijkstra 堆优化模板；
+2. 掌握 Floyd 与拓扑排序（Kahn）；
+3. 做 2 道洛谷 + 2 道真题 T4。
+
+## 学什么
+
+### 1. Dijkstra（单源最短路，边权非负）
+```cpp
+vector<pair<int,long long>> g[100005];     // g[u] = {(v, w)}
+long long dist[100005]; bool vis[100005];
+
+void dijkstra(int s, int n) {
+    for (int i = 1; i <= n; i++) dist[i] = 1e18, vis[i] = false;
+    priority_queue<pair<long long,int>, vector<pair<long long,int>>,
+                   greater<pair<long long,int>>> pq;
+    dist[s] = 0; pq.push({0, s});
+    while (!pq.empty()) {
+        int u = pq.top().second; long long d = pq.top().first; pq.pop();
+        if (vis[u]) continue;          // 同一个点可能入队多次，取最小的那次
+        vis[u] = true;
+        for (auto &e : g[u]) {
+            int v = e.first; long long w = e.second;
+            if (dist[v] > d + w) {
+                dist[v] = d + w;
+                pq.push({dist[v], v});
+            }
+        }
+    }
+}
+```
+
+### 2. Floyd（全源最短路，n ≤ 500 才用）
+```cpp
+// 初始化 dist[i][i]=0，dist[i][j]=边权/1e18
+for (int k = 1; k <= n; k++)
+    for (int i = 1; i <= n; i++)
+        for (int j = 1; j <= n; j++)
+            dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j]);
+```
+
+### 3. 拓扑排序（Kahn）：处理 DAG 上的依赖/顺序问题
+```cpp
+vector<int> g[100005];
+int indeg[100005];
+queue<int> q;
+for (int i = 1; i <= n; i++) if (indeg[i] == 0) q.push(i);
+while (!q.empty()) {
+    int u = q.front(); q.pop();
+    topo.push_back(u);
+    for (int v : g[u]) if (--indeg[v] == 0) q.push(v);
+}
+// topo.size() < n → 有环
+```
+**CSP 应用：** 202212-2 训练计划（依赖关系按拓扑顺序递推）；DAG 上 DP 常按拓扑序转移。
+
+### 4. CSP T4 最短路真题套路
+- **201609-4 交通规划**：在 Dijkstra 基础上，求"到每个点的最短路中，最后一条边的最小长度和"——松弛时记录每个点"最短的最后一条边"；
+- **201403-4 无线网络**：状态加一维（用了几个增设路由器）的 BFS/最短路；
+- **201709-4 通信网络**：正反图各 DFS 一次，统计能双向到达的点（传递闭包）。
+
+## 练什么
+
+**洛谷（每题 ≤ 30 分钟）：**
+
+| 题号 | 考点 |
+|---|---|
+| [P4779](https://www.luogu.com.cn/problem/P4779) 单源最短路径（标准版） | Dijkstra 堆优化 |
+| [P1339](https://www.luogu.com.cn/problem/P1339) 热浪 | 最短路应用 |
+| [P1113](https://www.luogu.com.cn/problem/P1113) 杂务 | 拓扑排序 + DAG 最长路 |
+
+**真题（每题限时 60 分钟）：**
+
+| 题号 | 考点 |
+|---|---|
+| 201609-4 交通规划 | Dijkstra 变式 |
+| 201403-4 无线网络 | 加状态维的 BFS |
+
+## 今日模板
+
+完整版本见[代码模板速查手册](/learn/csp/templates)（第 10、20 节）。
+
+```cpp
+// Dijkstra 见上；拓扑排序：
+queue<int> q;
+for (int i = 1; i <= n; i++) if (indeg[i] == 0) q.push(i);
+while (!q.empty()) {
+    int u = q.front(); q.pop();
+    for (int v : g[u]) if (--indeg[v] == 0) q.push(v);
+}
+```
+
+## 验收标准
+
+<Quiz items={["闭卷默写 Dijkstra 与拓扑排序","P4779、P1113 AC；两道真题至少 1 道 AC、另 1 道 60+ 分","能说出\"最短路题加一维状态\"的套路。"]} />
+

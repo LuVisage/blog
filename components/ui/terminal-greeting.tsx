@@ -1,15 +1,36 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+
+const PROMPT = 'AI 探索者 & Agent 开发者'
+
+/** Hero signature line — types itself out, then holds a blinking caret. */
 export function TerminalGreeting() {
+  const [typed, setTyped] = useState('')
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setTyped(PROMPT)
+      return
+    }
+    let i = 0
+    const id = setInterval(() => {
+      i += 1
+      setTyped(PROMPT.slice(0, i))
+      if (i >= PROMPT.length) clearInterval(id)
+    }, 45)
+    return () => clearInterval(id)
+  }, [])
+
   return (
-    <div
-      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl font-mono text-xs sm:text-sm max-w-full glass-liquid"
-      style={{ color: 'var(--color-ink)' }}
-    >
-      <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>$</span>
-      <span className="truncate" style={{ color: 'var(--color-ink)' }}>echo &quot;AI 探索者 &amp; Agent 开发者&quot;</span>
+    <p className="font-mono text-sm" style={{ color: 'var(--muted)' }}>
+      <span style={{ color: 'var(--accent-text)' }}>$</span>{' '}
+      <span style={{ color: 'var(--body)' }}>echo &quot;{typed}&quot;</span>
       <span
-        className="inline-block w-1.5 sm:w-2 h-3.5 sm:h-4 ml-0.5 rounded-sm animate-pulse flex-shrink-0"
-        style={{ background: 'var(--color-primary)' }}
+        className="inline-block w-2 h-[1.05em] align-text-bottom ml-0.5 animate-caret"
+        style={{ background: 'var(--accent)' }}
+        aria-hidden="true"
       />
-    </div>
+    </p>
   )
 }

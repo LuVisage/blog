@@ -1,74 +1,85 @@
 'use client'
 
 import Link from 'next/link'
-import { SITE, SOCIAL_LINKS } from '@/lib/constants'
+import { SITE, ABOUT, SOCIAL_LINKS, basePathUrl } from '@/lib/constants'
 import { CurrentYear } from '@/components/ui/current-year'
-import { IconSparkles, IconHeartFilled, IconBrandGithub, IconMail, IconRss } from '@tabler/icons-react'
+import { IconBrandGithub, IconMail, IconRss } from '@tabler/icons-react'
+
+const social = [
+  SOCIAL_LINKS.github && {
+    href: SOCIAL_LINKS.github,
+    label: 'GitHub',
+    external: true,
+    icon: <IconBrandGithub size={15} strokeWidth={1.75} />,
+  },
+  SOCIAL_LINKS.email && {
+    href: `mailto:${SOCIAL_LINKS.email}`,
+    label: '邮件',
+    external: false,
+    icon: <IconMail size={15} strokeWidth={1.75} />,
+  },
+  {
+    href: basePathUrl('/rss.xml'),
+    label: 'RSS',
+    external: false,
+    icon: <IconRss size={15} strokeWidth={1.75} />,
+  },
+].filter(Boolean) as {
+  href: string
+  label: string
+  external: boolean
+  icon: React.ReactNode
+}[]
 
 export function Footer() {
   return (
-    <footer className="relative z-10 mt-auto">
-      <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
-        {/* Brand + Social */}
-        <div className="flex flex-col items-center text-center gap-4 mb-8">
-          <span
-            className="inline-flex items-center gap-1.5 text-lg font-bold"
-            style={{ fontFamily: "'ZCOOL KuaiLe', cursive" }}
-          >
-            <IconSparkles size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
-            <span className="gradient-text">{SITE.title}</span>
-          </span>
+    <footer className="relative z-10 mt-auto" style={{ borderTop: '1px solid var(--line-strong)' }}>
+      <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+          <div>
+            <span
+              className="font-serif font-bold block"
+              style={{ fontSize: 20, color: 'var(--ink)', letterSpacing: '-0.015em' }}
+            >
+              {SITE.title}
+            </span>
+            <span className="eyebrow mt-2.5 block">{ABOUT.title}</span>
+          </div>
 
           <div className="flex items-center gap-2">
-            {SOCIAL_LINKS.github && (
+            {social.map((item) => (
               <a
-                href={SOCIAL_LINKS.github}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-11 h-11 rounded-lg glass-liquid flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
-                style={{ color: 'var(--color-muted)' }}
-                aria-label="GitHub"
+                key={item.label}
+                href={item.href}
+                {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                className="chip w-9 h-9 justify-center cursor-pointer hover:text-[var(--accent-text)] transition-colors"
+                style={{ color: 'var(--muted)', borderRadius: 8 }}
+                aria-label={item.label}
               >
-                <IconBrandGithub size={16} strokeWidth={1.5} />
+                {item.icon}
               </a>
-            )}
-            {SOCIAL_LINKS.email && (
-              <a
-                href={`mailto:${SOCIAL_LINKS.email}`}
-                className="w-11 h-11 rounded-lg glass-liquid flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
-                style={{ color: 'var(--color-muted)' }}
-                aria-label="Email"
-              >
-                <IconMail size={16} strokeWidth={1.5} />
-              </a>
-            )}
-            <a
-              href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`}
-              className="w-11 h-11 rounded-lg glass-liquid flex items-center justify-center cursor-pointer transition-all hover:bg-[var(--color-primary-soft)]"
-              style={{ color: 'var(--color-muted)' }}
-              aria-label="RSS"
-            >
-              <IconRss size={16} strokeWidth={1.5} />
-            </a>
+            ))}
           </div>
         </div>
 
-        {/* Divider + Copyright */}
         <div
-          className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs"
-          style={{ borderTop: '1px solid var(--color-hairline)', color: 'var(--color-muted-soft)' }}
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-9 pt-5"
+          style={{ borderTop: '1px solid var(--line)' }}
         >
-          <p>
-            &copy; <CurrentYear /> {SITE.author.name} &mdash; Built with{' '}
-            <IconHeartFilled size={11} className="inline align-middle" style={{ color: 'var(--color-danger)' }} />{' '}
-            and Next.js
+          <p className="meta">
+            &copy; <CurrentYear /> {SITE.author.name} · 基于 Next.js 构建
           </p>
-          <div className="flex items-center gap-3">
-            <Link href="/privacy" className="no-underline cursor-pointer hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-muted-soft)' }}>
+          <div className="flex items-center gap-5">
+            <Link
+              href="/privacy"
+              className="meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
+            >
               隐私
             </Link>
-            <span>·</span>
-            <a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/rss.xml`} className="no-underline cursor-pointer hover:text-[var(--color-primary)] transition-colors" style={{ color: 'var(--color-muted-soft)' }}>
+            <a
+              href={basePathUrl('/rss.xml')}
+              className="meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
+            >
               RSS
             </a>
           </div>

@@ -1,6 +1,5 @@
 import { getRelatedPosts } from '@/lib/posts'
 import { PostCard } from './post-card'
-import { IconLink } from '@tabler/icons-react'
 
 interface RelatedPostsProps {
   currentSlug: string

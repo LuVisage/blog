@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SITE } from '@/lib/constants'
 import { getAllTags, getPostsByTag } from '@/lib/posts'
 import { PostList } from '@/components/post-card'
-import { TagCloud } from '@/components/tag-badge'
-import { IconTag } from '@tabler/icons-react'
+import { PageMasthead } from '@/components/page-masthead'
+import { IconArrowLeft } from '@tabler/icons-react'
 
 type PageParams = Promise<{ tag: string }>
 
@@ -33,19 +34,32 @@ export default async function TagPage({ params }: { params: PageParams }) {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl lg:text-4xl font-bold mb-2">
-          <span className="gradient-text">#{tag}</span>
-        </h1>
-        <p className="body-sm flex items-center gap-1.5">
-          <IconTag size={16} strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
-          共 {posts.length} 篇文章
-        </p>
-      </div>
+      <PageMasthead
+        eyebrow="标签 — Tag"
+        title={`#${tag}`}
+        lead={`${SITE.title} 上关于「${tag}」的全部文章。`}
+        counter={`${posts.length} 篇`}
+      />
 
-      {/* All tags quick nav */}
-      <div className="mb-8">
-        <TagCloud tags={allTags} />
+      <div className="flex flex-wrap items-center gap-2 mb-12 pb-5" style={{ borderBottom: '1px solid var(--line)' }}>
+        <Link href="/tags" className="btn-ghost text-sm h-9">
+          <IconArrowLeft size={14} strokeWidth={2} />
+          全部标签
+        </Link>
+        {allTags.length > 1 && (
+          <div className="flex flex-wrap gap-1.5 sm:ml-2">
+            {allTags.filter((t) => t.tag !== tag).slice(0, 8).map(({ tag: other }) => (
+              <Link
+                key={other}
+                href={`/tags/${other}`}
+                className="chip px-2.5 py-1 text-xs transition-colors hover:border-[var(--accent-line)]"
+                style={{ color: 'var(--muted)' }}
+              >
+                {other}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       <PostList posts={posts} />

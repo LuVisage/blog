@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
 import matter from 'gray-matter'
+import { isNotFound } from './is-not-found'
 
 export interface PostMeta {
   slug: string
@@ -34,7 +35,7 @@ export interface ArchiveYear {
 const postsDirectory = join(process.cwd(), 'content', 'posts')
 
 /** Parse reading time from word count (Chinese: ~400 chars/min, English: ~225 words/min) */
-function estimateReadingTime(text: string): number {
+export function estimateReadingTime(text: string): number {
   const cleaned = text.replace(/```[\s\S]*?```/g, '').replace(/[#*\->`|~]/g, '')
   const chineseChars = (cleaned.match(/[一-鿿]/g) || []).length
   const englishWords = cleaned
@@ -45,66 +46,70 @@ function estimateReadingTime(text: string): number {
   return Math.max(1, minutes)
 }
 
-/** Get all posts sorted by date (newest first), excluding drafts */
-export function getAllPosts(): PostMeta[] {
-  try {
-    const filenames = readdirSync(postsDirectory).filter((f) => f.endsWith('.mdx'))
+/** gray-matter 交回来的原始 frontmatter。字段全可缺，所以下面每个都有兜底。 */
+interface PostFrontmatter {
+  title?: string
+  date?: string | Date
+  updated?: string | Date
+  description?: string
+  tags?: string[]
+  category?: string
+  series?: string
+  seriesOrder?: number
+  popular?: boolean
+  draft?: boolean
+}
 
-    const posts = filenames.map((filename) => {
-      const filePath = join(postsDirectory, filename)
-      const raw = readFileSync(filePath, 'utf-8')
-      const { data, content } = matter(raw)
-      const slug = filename.replace(/\.mdx$/, '')
-
-      return {
-        slug,
-        title: data.title || slug,
-        date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
-        updated: data.updated ? new Date(data.updated).toISOString() : undefined,
-        description: data.description || '',
-        tags: Array.isArray(data.tags) ? data.tags : [],
-        category: data.category || undefined,
-        series: data.series || undefined,
-        seriesOrder: data.seriesOrder ?? undefined,
-        popular: data.popular === true,
-        draft: data.draft === true,
-        readingTime: estimateReadingTime(content),
-      } satisfies PostMeta
-    })
-
-    return posts
-      .filter((p) => !p.draft)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  } catch {
-    return []
+/** frontmatter → PostMeta。列表和详情两个读取入口共用这一份字段映射。 */
+function toPost(slug: string, data: PostFrontmatter, content: string): PostMeta {
+  return {
+    slug,
+    title: data.title || slug,
+    date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
+    updated: data.updated ? new Date(data.updated).toISOString() : undefined,
+    description: data.description || '',
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    category: data.category || undefined,
+    series: data.series || undefined,
+    seriesOrder: data.seriesOrder ?? undefined,
+    popular: data.popular === true,
+    draft: data.draft === true,
+    readingTime: estimateReadingTime(content),
   }
 }
 
-/** Get a single post by slug */
-export function getPostBySlug(slug: string): Post | null {
+/** Get all posts sorted by date (newest first), excluding drafts */
+export function getAllPosts(): PostMeta[] {
+  let filenames: string[]
   try {
-    const filePath = join(postsDirectory, `${slug}.mdx`)
-    const raw = readFileSync(filePath, 'utf-8')
-    const { data, content } = matter(raw)
+    filenames = readdirSync(postsDirectory).filter((f) => f.endsWith('.mdx'))
+  } catch (err) {
+    // 目录不存在才是真·没有文章；解析或读取抛错必须让构建停下来，
+    // 否则会发出一个首页空空如也、却显示「构建成功」的站点。
+    if (!isNotFound(err)) throw err
+    return []
+  }
 
-    return {
-      slug,
-      title: data.title || slug,
-      date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
-      updated: data.updated ? new Date(data.updated).toISOString() : undefined,
-      description: data.description || '',
-      tags: Array.isArray(data.tags) ? data.tags : [],
-      category: data.category || undefined,
-      series: data.series || undefined,
-      seriesOrder: data.seriesOrder ?? undefined,
-      popular: data.popular === true,
-      draft: data.draft === true,
-      readingTime: estimateReadingTime(content),
-      content,
-    }
-  } catch {
+  return filenames
+    .map((filename) => {
+      const { data, content } = matter(readFileSync(join(postsDirectory, filename), 'utf-8'))
+      return toPost(filename.replace(/\.mdx$/, ''), data, content)
+    })
+    .filter((p) => !p.draft)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+}
+
+/** Get a single post by slug. 只有「文件不存在」才返回 null。 */
+export function getPostBySlug(slug: string): Post | null {
+  let raw: string
+  try {
+    raw = readFileSync(join(postsDirectory, `${slug}.mdx`), 'utf-8')
+  } catch (err) {
+    if (!isNotFound(err)) throw err
     return null
   }
+  const { data, content } = matter(raw)
+  return { ...toPost(slug, data, content), content }
 }
 
 // ─── Tags ───────────────────────────────────────────────

@@ -35,9 +35,9 @@ updated: 2026-08-02
 
 ### Emoji Removal
 - Removed all emojis from UI components per DESIGN.md rules
-- Replaced 🌸 avatar fallback with tabler IconUser
-- Replaced 🔥 flame icons with tabler IconFlame
-- Replaced ⭐ star icons with tabler IconStarFilled
+- 头像占位图改用 tabler IconUser
+- 火焰图标改用 tabler IconFlame
+- 星标图标改用 tabler IconStarFilled
 - Replaced emoji focus areas in about page with tabler icons (IconRobot, IconBrain, IconTools, IconPencil)
 
 ## 1. Philosophy
@@ -97,13 +97,16 @@ Two tiers:
 
 ### Do
 - Use CSS custom properties for all colors
-- Use tabler SVG icons, never emojis
-- Use glass surfaces for all cards and containers
+- Use tabler SVG icons, never emojis — enforced by `npm run check:emoji`
+- Use solid surfaces with 1px hairlines for all cards and containers
 - Maintain perfect dark mode parity
 - Round everything (8–32px)
 
 ### Don't
-- No emojis anywhere in the UI
-- No hardcoded colors — always use CSS variables
+- No emojis anywhere — the ban covers code, comments and prose, not just the UI
+- No hardcoded colors — always use CSS variables. Two exceptions, both measured
+  against artwork rather than against the theme, so they must stay literal:
+  `music-player` 的唱片纹路与高光（叠在封面图上），`ui/particles` 的尘埃（刻意淡到两种主题下都几乎不可见）。
+- No blur / backdrop-filter — this skin is flat by rule, including overlays
 - No more than 3 shadow layers
 - No competing accent colors

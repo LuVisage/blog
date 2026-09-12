@@ -1,0 +1,274 @@
+---
+slug: day-00
+day: 0
+week: 0
+weekTitle: 环境搭建
+weekBlurb: Python 虚拟环境、API Key、WSL Docker，跑通第一个 Hello Agent。
+title: 环境搭建 —— 从空电脑到跑通第一个 Agent
+lead: 装好全部依赖，配置好模型 API，跑通你的第一个 Agent 程序，看到它调用工具并输出结果。
+sourcePath: day-00-environment/day-00.md
+---
+
+> 预计用时：2~3 小时。
+
+---
+
+## 0.1 整体架构长什么样？（先建立全局认知）
+
+在学习任何代码之前，先搞清楚你即将搭起来的东西长什么样：
+
+```
+┌─────────────────────────── 你的 Agent 应用 ───────────────────────────┐
+│                                                                        │
+│  ┌────────────┐   ┌─────────────┐   ┌──────────────┐                  │
+│  │  LangGraph  │   │  LangChain  │   │   Milvus     │   ← 向量数据库    │
+│  │  流程编排    │──▶│  组件(RAG等) │──▶│  (知识库)    │   (第2周装)       │
+│  └────────────┘   └─────────────┘   └──────────────┘                  │
+│         │                 │                                            │
+│         ▼                 ▼                                            │
+│  ┌─────────────────────────────────────────┐                          │
+│  │         LLM 大模型（DeepSeek/GLM 等）     │  ← 需要 API Key           │
+│  │         Embedding 模型（Ollama 本地）     │  ← 免费，本地运行          │
+│  └─────────────────────────────────────────┘                          │
+│         │                 │                                            │
+│         ▼                 ▼                                            │
+│  ┌─────────────────────────────────────────┐                          │
+│  │      LangSmith 云端监控平台（可选）        │  ← 第 6 周重点            │
+│  └─────────────────────────────────────────┘                          │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+关键词解释（先混个脸熟，后面每天都会深入）：
+
+- **LangChain**：组件库。给你"聊天模型、提示词模板、向量检索器、工具"这些乐高积木。
+- **LangGraph**：编排引擎。把积木按流程图拼起来，支持循环、分支、暂停。
+- **Milvus**：向量数据库。存"知识"的地方，RAG 的核心底座。
+- **LangSmith**：监控平台。记录你的 Agent 每一步干了什么、花了多少钱、哪里出错。
+- **Embedding**：把文字变成"数字向量"的模型，让机器能算两段文字"有多像"。
+
+---
+
+## 0.2 步骤一：创建 Python 虚拟环境
+
+> **什么是虚拟环境？** 每个项目一个独立的 Python 库安装空间，互不污染。你的 A 项目用 LangChain 1.0，B 项目用旧版 0.3，两者井水不犯河水。
+
+打开 **PowerShell**（Win + X → 终端），逐条执行：
+
+```powershell
+# 1. 进入你的学习目录
+cd D:\study\AI\agent
+
+# 2. 用 Python 创建虚拟环境，名字叫 .venv-tutorial
+python -m venv .venv-tutorial
+
+# 3. 激活虚拟环境（激活后命令行前面会出现 (.venv-tutorial)）
+.\.venv-tutorial\Scripts\Activate.ps1
+```
+
+> **坑 1：PowerShell 禁止运行脚本。** 如果第 3 步报错"因为在此系统上禁止运行脚本"，先执行：
+> ```powershell
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
+> 输入 Y 确认，然后重新激活。
+>
+> **坑 2：每次新开终端都要重新激活。** 虚拟环境只在当前窗口生效，关掉终端就失效。判断方法：命令行开头有 `(.venv-tutorial)` 就是已激活。
+
+## 0.3 步骤二：安装依赖全家桶
+
+激活后执行（**约 3~5 分钟**，耐心等待）：
+
+```powershell
+# 升级 pip
+python -m pip install -U pip
+
+# 一次性安装本教程用到的所有库
+python -m pip install langchain langchain-openai langchain-community langchain-text-splitters langgraph langchain-milvus "pymilvus[milvus_lite]" langchain-mcp-adapters langsmith ragas python-dotenv jieba
+```
+
+> **坑 3：安装报 `Could not find a version that satisfies the requirement`。**
+> 本机 pip 配置了清华镜像，偶尔会同步失败。指定官方源重试：
+> ```powershell
+> python -m pip install -i https://pypi.org/simple &lt;包名>
+> ```
+
+装完后验证版本：
+
+```powershell
+python -m pip list | findstr /i "langchain langgraph milvus langsmith ragas"
+```
+
+你应该能看到类似（版本号以你安装到的为准，教程代码兼容最新版）：
+
+```
+langchain             1.x.x        ← LangChain 主包（1.0 大版本！）
+langchain-community   0.4.x
+langchain-core        1.x.x        ← 核心抽象（Runnable、消息等）
+langchain-mcp-adapters 0.1.x       ← MCP 协议适配器（第 7 周）
+langchain-milvus      0.2.x        ← Milvus 集成
+langchain-openai      1.x.x        ← OpenAI 及兼容模型（DeepSeek 也用它）
+langchain-text-splitters 1.x.x     ← 文本切分（第 2 周）
+langgraph             1.x.x        ← 图编排引擎（1.0 大版本！）
+langsmith             0.4.x        ← 监控 SDK
+milvus-lite           2.4.x        ← 免安装本地向量库（第 2 周）
+pymilvus              2.6.x        ← Milvus Python 客户端
+ragas                 0.3.x        ← RAG 评估（第 3 周）
+```
+
+> 看一眼版本号就够了，不用记。重要的是：**主包都是 1.x / 2.6 时代的最新版**，网上大量 2023~2024 的老教程里 `AgentExecutor`、`create_react_agent` 的旧用法已经过时，本教程全部使用新 API。
+
+## 0.4 步骤三：准备模型 API Key
+
+### 方案 A（推荐）：DeepSeek 作为对话模型
+
+1. 打开 https://platform.deepseek.com → 注册 → 左侧"API keys"→ 创建 key，复制保存（形如 `sk-xxxx`）。
+2. DeepSeek 按量付费，充 10 元够你学完整个教程（deepseek-chat 很便宜）。
+
+### 方案 B：其他 OpenAI 兼容模型（任选其一，配置方式相同）
+
+| 厂商 | base_url | 模型名示例 |
+|---|---|---|
+| 智谱 | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-plus` |
+| 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
+| 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
+| 硅基流动 | `https://api.siliconflow.cn/v1` | `Qwen/Qwen2.5-72B-Instruct` |
+
+### 方案 C（免费）：Ollama 本地模型
+
+不需要 key、不上传数据，但需要 8GB+ 内存的机器。第 2 周 embedding 我们也用它：
+
+1. 官网 https://ollama.com 下载 Windows 版安装。
+2. 安装后 PowerShell 执行：
+   ```powershell
+   ollama pull qwen2.5:7b          # 对话模型（中文好，7B 版本地可跑）
+   ollama pull nomic-embed-text    # embedding 向量模型（RAG 用）
+   ```
+3. Ollama 的 base_url 是 `http://localhost:11434/v1`，API key 随便填（如 `ollama`）。
+
+### 写入配置文件
+
+在 `D:\study\AI\agent\agent-tutorial\` 目录下，把教程附带的 `.env.example` 复制一份改名为 `.env`，填入你的真实信息：
+
+```
+# ── 对话模型（三选一填好）──────────────────────────────
+# 例：DeepSeek
+LLM_API_KEY=sk-你的deepseek密钥
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+
+# ── Embedding 模型（默认 Ollama 本地免费方案）─────────
+EMBEDDING_BASE_URL=http://localhost:11434/v1
+EMBEDDING_API_KEY=ollama
+EMBEDDING_MODEL=nomic-embed-text
+
+# ── LangSmith 监控（第 6 周用，现在可以先空着）────────
+LANGSMITH_API_KEY=
+LANGSMITH_TRACING=false
+```
+
+> **坑 4：`.env` 文件绝不能提交到 Git / 发给别人。** 里面有你的付费 key。本教程目录的 `.gitignore` 已包含 `.env`。
+
+## 0.5 步骤四：验证 Docker（Milvus 生产部署用，现在只需确认）
+
+本机 Docker 装在 WSL 里。验证它可用：
+
+```powershell
+wsl -e docker --version
+wsl -e docker ps
+```
+
+- 输出 `Docker version 27.x` 且 `docker ps` 不报错 → 通过，第 8 天会用它部署 Milvus Standalone。
+- 报错 → 打开 Windows 的 Docker Desktop，等它启动完成（鲸鱼图标变绿）再试。
+
+## 0.6 步骤五：跑通 Hello Agent
+
+**这是你人生中第一个 Agent 程序。** 它不只是聊天——它有一个"计算器"工具，当你问数学题时，模型会**自己决定**调用工具、拿到结果、再组织答案。这就是 Agent 的本质：**模型 + 工具 + 决策循环**。
+
+新建文件 `day-00-environment/hello_agent.py`：
+
+```python
+"""
+Day 0 案例：Hello Agent —— 第一个带工具调用的智能体
+运行：python hello_agent.py
+"""
+import os
+from dotenv import load_dotenv
+
+# 1. 读取 .env 文件里的配置（key、模型名等）
+load_dotenv()
+
+# 2. 导入 LangChain 1.x 的统一 Agent 入口 create_agent
+#    （旧教程里的 create_react_agent / AgentExecutor 已被它取代）
+from langchain.agents import create_agent
+from langchain_openai import ChatOpenAI
+
+# 3. 创建"大脑"：对话模型。ChatOpenAI 不止能连 OpenAI，
+#    任何 OpenAI 兼容协议的服务（DeepSeek/智谱/通义/Ollama）都通过它接入。
+llm = ChatOpenAI(
+    model=os.environ["LLM_MODEL"],          # 例如 deepseek-chat
+    api_key=os.environ["LLM_API_KEY"],      # 你的密钥（DeepSeek 兼容协议）
+    base_url=os.environ["LLM_BASE_URL"],    # 例如 https://api.deepseek.com
+    temperature=0,                           # 0=每次回答尽量稳定，便于调试
+)
+
+# 4. 定义工具：就是一个普通 Python 函数 + @tool 装饰器。
+#    docstring（函数说明）会被自动发给模型，模型靠它决定"什么时候该用我"。
+from langchain_core.tools import tool
+
+@tool
+def multiply(a: float, b: float) -> float:
+    """计算两个数的乘积 a * b。当用户需要乘法计算时使用。"""
+    return a * b
+
+# 5. 创建 Agent：把大脑和工具绑在一起。
+#    system_prompt 定义它的"人设"。
+agent = create_agent(
+    model=llm,
+    tools=[multiply],
+    system_prompt="你是一个友好的中文数学助手。优先使用工具计算，不要心算。",
+)
+
+# 6. 运行！agent 内部会自动执行 ReAct 循环：
+#    思考 → 决定调工具 → 观察结果 → 再思考 → 输出最终答案
+result = agent.invoke(
+    {"messages": [{"role": "user", "content": "12345 乘以 67890 等于多少？"}]}
+)
+
+# 7. 打印最终答案（messages 列表的最后一条）
+print("Agent 回答：", result["messages"][-1].content)
+```
+
+运行：
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\day-00-environment
+python hello_agent.py
+```
+
+**预期输出**（能跑通就说明环境 OK）：
+
+```
+Agent 回答： 12345 × 67890 = 838,102,050
+```
+
+> **如果它直接心算回答、没有调用工具也没关系**——DeepSeek 心算能力强。Day 21 会教你在 LangSmith 里看到它内部每一步的决策。现在只要程序跑通、答案正确就算过关。
+
+### 逐行解剖（建立第一印象，细节后几周展开）
+
+| 代码 | 作用 |
+|---|---|
+| `load_dotenv()` | 把 `.env` 里的 `LLM_API_KEY` 等读成环境变量 |
+| `ChatOpenAI(model=..., base_url=...)` | 创建模型客户端。`base_url` 换成谁就连谁，这是"OpenAI 兼容协议"的好处 |
+| `@tool` + docstring | 把普通函数升级成"模型可用工具"；**docstring 就是工具的说明书**，写得好不好直接影响 Agent 水平 |
+| `create_agent(model, tools, system_prompt)` | LangChain 1.0 的统一入口，内部自动搭好 ReAct 循环（LangGraph 图） |
+| `agent.invoke({"messages": [...]})` | 输入必须是 `messages` 键的消息列表；返回也是 messages 列表 |
+| `result["messages"][-1].content` | 最后一条消息 = 模型最终回答；`.content` 取纯文本 |
+
+## 0.7 今日自测
+
+<Quiz items={["能说出 Agent 和普通\"聊天\"的本质区别吗？（提示：工具 + 决策循环）","把工具换成 `add`（加法），问它 \"1+2+3 等于几\"，看它会不会自动调用。","把 `temperature` 改成 1.0 再跑 3 次，观察答案风格变化。","故意把 `.env` 里的 key 改错，观察报错长什么样——**学会读报错**是程序员第一课。","在 `notes/` 目录创建 `day00.md`，记录今天遇到的坑。"]} />
+
+## 0.8 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`ModuleNotFoundError: dotenv`","cause":"虚拟环境没激活或没装依赖","fix":"重新激活 `.venv-tutorial`，重装依赖"},{"symptom":"`openai.AuthenticationError: 401`","cause":"key 错误/没填","fix":"检查 `.env`，key 前后不能有空格和引号"},{"symptom":"`Connection error` / 超时","cause":"base_url 写错 / 没网络","fix":"对照 0.4 表格核对 base_url"},{"symptom":"输出乱码","cause":"Windows 终端编码问题","fix":"终端执行 `chcp 65001`"},{"symptom":"报错说找不到 `.env`","cause":"运行目录不对","fix":"`.env` 在 `agent-tutorial/` 下；或改用绝对路径"}]} />
+
+<DayComplete day={0} recap={"明天开始系统学习 LangChain 核心组件。如果今天的 Hello Agent 跑通了，你已经领先 90% 的观望者了。"} />

@@ -1,0 +1,106 @@
+---
+slug: day-12
+kind: day
+day: 12
+week: 2
+weekTitle: 进阶算法
+weekBlurb: 给 T4 备武器：KMP 与字符串哈希、并查集与最小生成树、最短路拓扑排序、树状数组线段树、线性/背包/区间/树形/状压 DP、搜索与剪枝。
+title: 动态规划①——线性 DP / 背包 / LIS / LCS
+lead: DP 类 T4 的正解能力（上）
+sourcePath: 第2周-Day08-14-真题实战/Day12-动态规划1-线性与背包.md
+---
+
+## 今日任务
+
+1. 重建 DP 三步思维（状态 → 转移 → 初始化/答案）；
+2. 默写 01/完全背包、LIS（O(n log n)）、LCS；
+3. 做 3 道洛谷 + 2 道真题。
+
+## 学什么
+
+**DP 三步（卡住时就回来看）：**
+1. **定义状态**：`dp[i]`（或 `dp[i][j]`）表示什么？一句话说清；
+2. **转移方程**：当前状态由哪些已知状态推出？
+3. **初始化与答案**：边界值是什么？答案在哪个位置取？
+
+### 1. 线性 DP 经典
+```cpp
+// 最大子段和：dp[i] = max(a[i], dp[i-1] + a[i]); ans = max(dp[i])
+// 数字三角形（自底向上免边界判断）：
+for (int i = n - 1; i >= 1; i--)
+    for (int j = 1; j <= i; j++)
+        dp[i][j] += max(dp[i+1][j], dp[i+1][j+1]);   // 答案 dp[1][1]
+```
+
+### 2. 背包
+```cpp
+// 01 背包（每件最多一次）：容量倒序
+int dp[1005] = {0};
+for (int i = 1; i <= n; i++)
+    for (int j = W; j >= w[i]; j--)
+        dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+
+// 完全背包（每件无限次）：容量正序
+for (int i = 1; i <= n; i++)
+    for (int j = w[i]; j <= W; j++)
+        dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+
+// 多重背包（每件 c[i] 次）：二进制拆分后跑 01 背包
+```
+
+### 3. LIS（O(n log n)）与 LCS
+```cpp
+// LIS：v 数组是"贪心维护的最小结尾序列"
+vector<int> v;
+for (int i = 1; i <= n; i++) {
+    auto it = lower_bound(v.begin(), v.end(), a[i]);  // 严格上升；非降用 upper_bound
+    if (it == v.end()) v.push_back(a[i]);
+    else *it = a[i];
+}
+
+// LCS：dp[i][j] = a 前 i 个与 b 前 j 个的最长公共子序列
+for (int i = 1; i <= n; i++)
+    for (int j = 1; j <= m; j++) {
+        if (a[i] == b[j]) dp[i][j] = dp[i-1][j-1] + 1;
+        else dp[i][j] = max(dp[i-1][j], dp[i][j-1]);
+    }
+```
+
+### 4. 真题套路
+- **202209-2 何以包邮**：01 背包变体——总价确定，求"和 ≥ x 的最小子集" → 等价于从总价中选若干书"不买"，求 ≤ (sum - x) 的最大值；
+- **201312-4 有趣的数**：数位 DP 思想——按位构造，状态机转移（0→1→2→3 的合法顺序），可 DP 或打表找规律。
+
+## 练什么
+
+**洛谷（每题 ≤ 40 分钟）：**
+
+| 题号 | 考点 |
+|---|---|
+| [P1115](https://www.luogu.com.cn/problem/P1115) 最大子段和 | 线性 DP |
+| [P1002](https://www.luogu.com.cn/problem/P1002) 过河卒 | 二维 DP + 障碍 |
+| [P1616](https://www.luogu.com.cn/problem/P1616) 疯狂的采药 | 完全背包 |
+| [P1020](https://www.luogu.com.cn/problem/P1020) 导弹拦截 | LIS（第一问）+ 贪心（第二问） |
+| [P1439](https://www.luogu.com.cn/problem/P1439) 最长公共子序列 | 排列 LCS 转 LIS（O(n log n)） |
+
+**真题（每题限时 60 分钟）：**
+
+| 题号 | 考点 |
+|---|---|
+| 202209-2 何以包邮 | 01 背包变体 |
+| 201312-4 有趣的数 | 数位 DP 思路 |
+
+## 今日模板
+
+完整版本见[代码模板速查手册](/learn/csp/templates)（第 11、21 节）。
+
+```cpp
+// 01 背包
+for (int i = 1; i <= n; i++)
+    for (int j = W; j >= w[i]; j--)
+        dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+```
+
+## 验收标准
+
+<Quiz items={["闭卷默写 01/完全背包、LIS nlogn、LCS","202209-2 独立 AC","201312-4 至少做出 40+ 分（正解/部分分均可）","能解释\"背包倒序 vs 正序\"的区别。"]} />
+

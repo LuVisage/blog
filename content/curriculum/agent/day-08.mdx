@@ -1,0 +1,161 @@
+---
+slug: day-08
+day: 8
+week: 2
+weekTitle: RAG 与 Milvus
+weekBlurb: Embedding 与向量检索、文本切分、Milvus 部署、端到端 RAG 管线。
+title: Milvus 进阶 —— Docker 部署 Standalone + Attu 可视化
+lead: '在 WSL 的 Docker 里跑起**生产级 Milvus Standalone**，学会健康检查、用 Attu 图形界面管理数据，并用 Python 连接它。'
+sourcePath: week-02-rag-milvus/day-08.md
+---
+
+> 配套文件：教程根目录 `docker/milvus-standalone.yaml`；案例 `examples/day08_standalone.py`
+
+---
+
+## 8.1 Standalone 的架构：为什么是 4 个容器
+
+昨天 Milvus Lite 是"一个包打天下"（存储、索引、查询全塞进程里）。生产环境要**可维护、可扩展**，所以 Milvus Standalone 拆成 4 个服务（这也是 Milvus 大名鼎鼎的"存算分离"架构的雏形）：
+
+| 容器 | 作用 | 类比 |
+|---|---|---|
+| **etcd** | 存元数据：有哪些 Collection、字段结构、索引配置 | "目录册" |
+| **MinIO** | 对象存储：存实际的向量数据文件和日志 | "仓库" |
+| **milvus-standalone** | 核心引擎：接收请求、建索引、执行检索 | "工人" |
+| **attu** | Web 可视化界面（官方 GUI） | "监控室" |
+
+```
+你的 Python 程序 ──► :19530 ──► milvus-standalone ──┬─► etcd（查目录）
+                                                   └─► MinIO（取数据）
+浏览器 ──► :3000 ──► Attu ──► 同上
+```
+
+## 8.2 步骤一：启动（WSL 里执行）
+
+教程已备好 Compose 文件。打开 PowerShell：
+
+```powershell
+# 1. 进入 WSL
+wsl
+
+# 2. 进入教程的 docker 目录（Windows 的 D 盘挂载在 /mnt/d）
+cd /mnt/d/study/AI/agent/agent-tutorial/docker
+
+# 3. 启动（-d 后台运行；首次会拉取镜像，约 2~5 分钟）
+docker compose -f milvus-standalone.yaml up -d
+
+# 4. 查看状态（等到 milvus-standalone 变成 healthy）
+docker compose -f milvus-standalone.yaml ps
+```
+
+预期输出：4 个容器都是 `Up`，`milvus-standalone` 显示 `(healthy)`。
+
+> **坑 1：`docker compose` 报"command not found"。** 老版 Docker 用 `docker-compose`（带横杠）。或升级 Docker。
+>
+> **坑 2：端口被占用。** 19530 被占用说明已有 Milvus 在跑，`docker compose ... down` 先停掉旧的。
+>
+> **坑 3：Windows 防火墙弹窗。** 首次访问会弹"是否允许"，允许即可（或高级用户手动放行 19530）。
+
+## 8.3 步骤二：验证健康
+
+```powershell
+# 在 Windows PowerShell 里（注意这里不是 wsl 了）：
+curl http://localhost:9091/healthz
+# 输出 {"status":"ok"} 或 OK 即健康
+```
+
+> WSL2 会把容器端口自动转发到 Windows 的 localhost，所以 Windows 里直接访问 `localhost:19530` 就能连上 WSL 里的容器。**这是 WSL2 的便利，也是所有本地开发的标准姿势。**
+
+## 8.4 步骤三：打开 Attu 图形界面
+
+浏览器访问 **http://localhost:3000**，点 "Connect"，Milvus Address 填 `localhost:19530`（Attu 在容器内，用 `standalone:19530`；你在浏览器访问它，用 localhost 即可）：
+
+- 左侧 **Collections**：看到你的表、行数、字段结构；
+- 点进表 → **Data Preview**：直接看每一行数据（含向量）；
+- **Search** 页：选表、输入向量或选一行数据，点 Search 就能图形化检索。
+
+> Attu 的价值：排查"数据到底进没进库"时不用写代码，点两下就能看到。**养成先 Attu 后代码的排查习惯**，能省一半时间。
+
+## 8.5 步骤四：Python 连接（昨天的代码只改一行！）
+
+```python
+# Day 7：Lite
+client = MilvusClient("milvus_demo.db")
+# Day 8：Standalone（就这一行的区别）
+client = MilvusClient(uri="http://localhost:19530")
+```
+
+其余 API 全部相同。**这就是 Milvus 三种形态共用一套 API 的好处**：本地开发用 Lite，上线切 Standalone，一行切换。
+
+## 8.6 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-02-rag-milvus\examples
+python day08_standalone.py
+```
+
+跑完去 Attu 里找到 `hello_standalone` 这个 Collection，点开看数据——**你刚刚写入的数据就在那里**。
+
+## 8.7 案例逐行讲解：`day08_standalone.py`
+
+```python
+"""Day 8 案例：连接 Docker 部署的 Milvus Standalone（与 Day 7 仅连接方式不同）"""
+from pymilvus import MilvusClient
+
+# 连接远程服务：uri 指向 Docker 里的 Milvus（WSL2 自动转发到 localhost）
+client = MilvusClient(uri="http://localhost:19530")
+
+# 与 Day 7 完全相同的 API！
+if client.has_collection("hello_standalone"):
+    client.drop_collection("hello_standalone")
+client.create_collection("hello_standalone", dimension=8, metric_type="COSINE")
+
+client.insert("hello_standalone", [
+    {"id": 1, "vector": [0.8, 0.1, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0], "text": "向量数据库"},
+    {"id": 2, "vector": [0.7, 0.2, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0], "text": "Milvus"},
+    {"id": 3, "vector": [0.1, 0.9, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0], "text": "美食"},
+])
+
+result = client.search(
+    "hello_standalone",
+    data=[[0.75, 0.15, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0]],
+    limit=2,
+    output_fields=["text"],
+)
+print("Standalone 检索结果：")
+for hit in result[0]:
+    print(f"  {hit['entity']['text']}（{hit['distance']:.3f}）")
+
+# 数据留在服务器上——现在打开 Attu (http://localhost:3000) 就能看到它！
+client.close()
+print("\n✅ 完成。打开 http://localhost:3000 查看 hello_standalone 集合")
+```
+
+**要点**：
+
+- 数据写入的是**服务器**（Docker 容器 + MinIO 存储），不是本地文件——删了脚本数据还在；
+- 多个程序可以同时连接同一个 Standalone——**这就是"数据库服务器"和"嵌入式库"的本质区别**：多人协作、服务解耦。
+
+## 8.8 运维速查（背下来，开发天天用）
+
+```powershell
+# 在 WSL 的 docker 目录下：
+
+docker compose -f milvus-standalone.yaml ps          # 看状态
+docker compose -f milvus-standalone.yaml logs -f standalone   # 跟踪引擎日志（排错必看）
+docker compose -f milvus-standalone.yaml down        # 停止（数据保留在 ./volumes）
+docker compose -f milvus-standalone.yaml down -v     # 停止并【清空数据】（慎用！）
+docker compose -f milvus-standalone.yaml up -d       # 再次启动
+```
+
+> **数据在哪里？** Compose 文件里挂载了 `./volumes` 目录：MinIO 存向量数据、etcd 存元数据。`down`（不带 `-v`）不删数据，重启即恢复；`down -v` 全清空。**这就是"持久化"**——容器删了，数据卷还在。
+
+## 8.9 今日自测
+
+<Quiz items={["用 Attu 完成：创建 Collection → 插入 3 行 → Search 检索（全程不用代码）。","写一个脚本：用 Python 写入数据，然后**关掉 Python**，用 Attu 查看数据仍在——体会\"服务器\"与\"嵌入式\"的区别。","`docker compose ... down` 再 `up -d`，确认数据还在（持久化验证）。","同时开两个终端跑两个 Python 脚本连接同一 Standalone（并发访问体验）。","`notes/day08.md`：记录你的 Docker 启动命令和踩过的坑（端口、防火墙、健康检查等待）。"]} />
+
+## 8.10 常见坑速查
+
+<GotchaTable rows={[{"symptom":"连接超时 / Connection refused","cause":"容器没起来或没 healthy","fix":"`docker compose ps` 看状态，等 healthy（首次要 1-2 分钟）"},{"symptom":"`create_collection` 报错","cause":"etcd/MinIO 挂了","fix":"`docker compose restart` 全部重启"},{"symptom":"端口 19530 占用","cause":"另一个 Milvus 实例","fix":"改 Compose 的宿主机端口映射"},{"symptom":"Windows 里连不上 localhost","cause":"防火墙拦截 / WSL 网络问题","fix":"放行防火墙；`wsl --shutdown` 后重启 WSL"},{"symptom":"Attu 连不上","cause":"地址填错（容器内用 standalone:19530，浏览器用 localhost:19530）","fix":"按 8.4 填写"}]} />
+
+<DayComplete day={8} recap={"你同时掌握了嵌入式（Lite）和服务器（Standalone）两种形态。明天用 LangChain 把 Milvus 接进 RAG 流水线——知识库问答，来了。"} />

@@ -1,0 +1,175 @@
+---
+slug: day-39
+day: 39
+week: 8
+weekTitle: Chat UI 与毕业项目
+weekBlurb: Agent Chat UI、服务化与部署，综合毕业项目从零到上线。
+title: 毕业项目② —— 后端实现（智能客服 Agent 完整版）
+lead: '**按 Day 38 的施工图**，实现客服 Agent 后端：RAG 知识库 + 工具 + 双轨记忆 + 中间件 + LangSmith 追踪，并跑通本地测试。'
+sourcePath: week-08-chatui-capstone/day-39.md
+---
+
+> 参考实现：`examples/capstone_agent.py` + `examples/capstone.json` + `examples/capstone_eval.py`（写完再对照）
+
+---
+
+## 39.1 实施清单（对照架构图逐项落地）
+
+| 项 | 实现要点 | 出处 |
+|---|---|---|
+| 知识库 | 5 份星尘咖啡文档（代码内嵌）→ 切分 → Milvus Lite | Day 9/10 |
+| 检索 | `as_retriever(k=4)` + 相关性过滤（LLMChainFilter） | Day 9/11 |
+| 订单工具 | `@tool` 假数据（订单号 → 状态） | Day 5 |
+| 偏好记忆 | `remember_preference`/`recall_preferences` + InjectedStore | Day 24 |
+| 中间件 | ToolRetryMiddleware + ToolCallLimitMiddleware | Day 23 |
+| 短期记忆 | SqliteSaver（thread_id 多会话） | Day 19 |
+| 追踪 | metadata 三件套（user_id/session_id/version） | Day 26 |
+| 服务化 | `graph` 变量 + langgraph.json | Day 36 |
+
+## 39.2 关键设计：知识检索做成"工具"而不是"链"
+
+Day 10 你的知识库机器人是"检索→生成"的固定链。今天的客服 Agent 用另一种经典形态：**把检索器包成工具**，让 Agent 自己决定"要不要查资料"：
+
+```python
+@tool
+def search_knowledge_base(question: str) -> str:
+    """在星尘咖啡知识库中检索。回答会员制度/产品/门店政策前必须先调用。"""
+    docs = retriever.invoke(question)
+    return "\n\n".join(f"[{d.metadata.get('source')}] {d.page_content}" for d in docs)
+```
+
+**两种形态对比**（面试考点）：
+
+| | 固定 RAG 链（Day 10） | Agent + 检索工具（今天） |
+|---|---|---|
+| 检索时机 | 每个问题都检索 | **模型判断**：闲聊不检索（省钱），专业问题才查 |
+| 灵活性 | 固定流程 | 可检索多轮、可与其他工具组合 |
+| 成本 | 每次都查 | 按需查 |
+| 适用 | 纯问答机器人 | 多功能客服（问答+订单+记忆） |
+
+客服需要"问订单就不查库、问政策才查库"，所以用工具形态。**系统提示词里要写清楚何时检索**，否则模型会偷懒或滥用。
+
+## 39.3 动手：实施步骤
+
+### 第一步：写 Agent 主文件
+
+`capstone_agent.py` 骨架（完整参考见 examples/）：
+
+```python
+"""毕业项目：星尘咖啡智能客服 Agent"""
+import os
+from pathlib import Path
+from typing import Any, Annotated
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain.agents import create_agent
+from langchain.agents.middleware import ToolRetryMiddleware, ToolCallLimitMiddleware
+from langchain_core.documents import Document
+from langchain_core.tools import tool
+from langchain_milvus import Milvus
+from langchain_classic.retrievers import ContextualCompressionRetriever
+from langchain_classic.retrievers.document_compressors import LLMChainFilter
+from langchain_core.prompts import ChatPromptTemplate
+from langgraph.store.memory import InMemoryStore
+from langgraph.prebuilt import InjectedStore
+
+VERSION = "capstone-v1"
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+embeddings = OpenAIEmbeddings(model=os.environ["EMBEDDING_MODEL"],
+                              base_url=os.environ["EMBEDDING_BASE_URL"],
+                              api_key=os.environ["EMBEDDING_API_KEY"],
+                              check_embedding_ctx_length=False)
+
+# ── ① 知识库入库 ─────────────────────────────
+DOCS = [Document(page_content="会员积分规则：每消费 1 元积 1 分，500 分可兑换中杯，800 分兑换大杯。", metadata={"source": "会员手册"}), ...]
+vs = Milvus(embedding_function=embeddings, connection_args={"uri": "./capstone_kb.db"},
+            collection_name="stardust_kb", auto_id=True)
+if vs.col:
+    vs.drop_collection()
+    vs = Milvus(...)   # 重建
+vs.add_documents(DOCS)
+
+# ── ② 检索器（宽召回 + 相关性过滤）────────────
+base = vs.as_retriever(search_kwargs={"k": 4})
+_filter = LLMChainFilter.from_llm(llm=model, prompt=...)
+retriever = ContextualCompressionRetriever(base_compressor=_filter, base_retriever=base)
+
+# ── ③ 检索工具 ───────────────────────────────
+@tool
+def search_knowledge_base(question: str) -> str:
+    """在星尘咖啡知识库中检索。回答会员制度/产品/门店政策前必须先调用。"""
+    ...
+
+# ── ④ 业务工具：订单 + 记忆 ──────────────────
+@tool
+def check_order(order_id: str) -> str: ...
+
+@tool
+def remember_preference(content: str, store: Annotated[Any, InjectedStore()]) -> str: ...
+
+@tool
+def recall_preferences(store: Annotated[Any, InjectedStore()]) -> str: ...
+
+# ── ⑤ 组装 Agent ────────────────────────────
+store = InMemoryStore()
+graph = create_agent(
+    model=model,
+    tools=[search_knowledge_base, check_order, remember_preference, recall_preferences],
+    system_prompt=(
+        "你是星尘咖啡客服。规则：\n"
+        "1. 会员制度/产品/门店政策问题：必须先调 search_knowledge_base，只按检索结果回答并注明来源；\n"
+        "2. 订单问题：调 check_order；\n"
+        "3. 用户说'记住'：调 remember_preference；回答用户前先 recall_preferences 看偏好；\n"
+        "4. 知识库和工具都没有的信息：明确说'抱歉，这个我还不清楚'，绝不编造。"
+    ),
+    middleware=[ToolRetryMiddleware(max_retries=2),
+                ToolCallLimitMiddleware(run_limit=12)],
+    store=store,
+)
+```
+
+### 第二步：本地测试（不经前端）
+
+```python
+# capstone_test.py（临时测试脚本）
+r = graph.invoke({"messages": [{"role": "user", "content": "积分怎么兑换？"}]})
+print(r["messages"][-1].content)
+```
+
+跑通 4 类问题：知识问答、订单、记忆、诚实边界。
+
+### 第三步：评估（LangSmith）
+
+复用 Day 28/30 的评估代码，把 Day 38 设计的 10 条评估集跑一遍，记录 baseline 分数。
+
+### 第四步：服务化
+
+`capstone.json` + `langgraph dev` 启动，浏览器 `/docs` 验证 API。
+
+## 39.4 验收标准
+
+1. 4 类问题全部有正确响应（知识/订单/记忆/边界）；
+2. 检索工具在"问政策"时被调用、"闲聊"时不调用（观察 LangSmith trace）；
+3. 记忆跨会话生效（新 thread 问偏好）；
+4. 评估集跑通，baseline 分数记录在案；
+5. `langgraph dev` 服务正常，`/docs` 可访问。
+
+## 39.5 加餐挑战
+
+1. 把 InMemoryStore 换成 SqliteStore（langgraph-checkpoint-sqlite 自带），重启程序验证记忆持久化。
+2. 接入真实订单 API（哪怕是一个本地 Flask 假接口），体验"工具接真实世界"。
+3. 用 Day 12 的混合检索升级知识库检索，跑评估对比分数。
+4. 给"退款"类问题加 Human-in-the-loop 审批（Day 18）。
+
+## 39.6 今日自测
+
+<Quiz items={["你的实现里，检索为什么做成工具？（写 3 条理由）","系统提示词的四条规则，每条对应什么风险？","中间件选了哪两个？为什么是它们？","`notes/day39.md`：记录你踩的坑和 baseline 评估分数。"]} />
+
+## 39.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"闲聊也调检索工具","cause":"工具描述/提示词没写清时机","fix":"写\"回答政策前必须先调用\"；闲聊类提示"},{"symptom":"检索结果没进回答","cause":"模型忽略工具结果","fix":"提示词强调\"只按检索结果回答\""},{"symptom":"记忆跨会话失效","cause":"用了 checkpointer 而非 store","fix":"长期记忆必须走 Store（Day 24）"},{"symptom":"评估分数低","cause":"baseline 本来就低很正常","fix":"记录基线，Day 40 再优化"},{"symptom":"langgraph dev 找不到 graph","cause":"变量名/文件名不符","fix":"严格用 `graph` 变量名"}]} />
+
+<DayComplete day={39} recap={"后端完工且测试通过。明天最后一天：前端接入、部署上线、毕业总结——以及你的下一步学习路线。"} />

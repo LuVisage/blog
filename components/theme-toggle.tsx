@@ -31,12 +31,12 @@ export function ThemeToggle() {
     })
   }, [theme, setTheme])
 
-  if (!mounted) return <button className="w-11 h-11 rounded-xl glass-liquid flex items-center justify-center cursor-pointer" aria-label="切换主题" />
+  if (!mounted) return <button className="w-10 h-10 sm:w-11 sm:h-11 surface flex items-center justify-center" style={{ borderRadius: 10 }} aria-label="切换主题" />
 
   const isDark = theme === 'dark'
   return (
-    <button ref={btnRef} onClick={toggleTheme} className="w-11 h-11 rounded-xl glass-liquid flex items-center justify-center transition-all duration-200 cursor-pointer hover:border-[var(--color-border-strong)]" aria-label={isDark ? '切换到亮色模式' : '切换到暗色模式'}>
-      {isDark ? <IconSun size={17} strokeWidth={2} style={{ color: '#f59e0b' }} /> : <IconMoon size={17} strokeWidth={2} style={{ color: 'var(--color-muted)' }} />}
+    <button ref={btnRef} onClick={toggleTheme} className="w-10 h-10 sm:w-11 sm:h-11 surface surface-hover flex items-center justify-center cursor-pointer" style={{ borderRadius: 10 }} aria-label={isDark ? '切换到亮色模式' : '切换到暗色模式'}>
+      {isDark ? <IconSun size={16} strokeWidth={1.75} style={{ color: 'var(--accent-text)' }} /> : <IconMoon size={16} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />}
     </button>
   )
 }

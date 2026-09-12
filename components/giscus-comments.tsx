@@ -2,6 +2,7 @@
 
 import { useTheme } from 'next-themes'
 import { useEffect, useRef, useState } from 'react'
+import { IconAlertTriangle, IconMessage } from '@tabler/icons-react'
 import { GISCUS_CONFIG } from '@/lib/constants'
 
 function getGiscusTheme(theme?: string) {
@@ -108,13 +109,13 @@ export function GiscusComments() {
   if (!mounted) {
     return (
       <>
-        <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--color-ink)' }}>
+        <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--ink)' }}>
           评论
         </h2>
         <div className="space-y-4 animate-pulse">
-          <div className="h-24 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
-          <div className="h-16 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
-          <div className="h-16 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
+          <div className="h-24 rounded-xl" style={{ background: 'var(--surface-2)' }} />
+          <div className="h-16 rounded-xl" style={{ background: 'var(--surface-2)' }} />
+          <div className="h-16 rounded-xl" style={{ background: 'var(--surface-2)' }} />
         </div>
       </>
     )
@@ -122,45 +123,47 @@ export function GiscusComments() {
 
   return (
     <div ref={containerRef}>
-      <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--color-ink)' }}>
+      <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--ink)' }}>
         评论
       </h2>
 
       {/* Loading skeleton */}
       {status === 'loading' && (
         <div className="space-y-4 animate-pulse">
-          <div className="h-24 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
-          <div className="h-16 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
-          <div className="h-16 rounded-xl" style={{ background: 'var(--color-hairline-soft)' }} />
+          <div className="h-24 rounded-xl" style={{ background: 'var(--surface-2)' }} />
+          <div className="h-16 rounded-xl" style={{ background: 'var(--surface-2)' }} />
+          <div className="h-16 rounded-xl" style={{ background: 'var(--surface-2)' }} />
         </div>
       )}
 
       {/* Idle hint — user hasn't scrolled near comments yet */}
       {status === 'idle' && (
-        <div className="text-center py-10 rounded-xl" style={{ border: '1px dashed var(--color-hairline)' }}>
-          <span className="text-sm" style={{ color: 'var(--color-muted)' }}>
-            💬 滚动到此处加载评论区
+        <div className="text-center py-10 rounded-xl" style={{ border: '1px dashed var(--line)' }}>
+          <span className="inline-flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
+            <IconMessage size={15} strokeWidth={1.7} />
+            滚动到此处加载评论区
           </span>
         </div>
       )}
 
       {/* Error fallback with diagnostic steps */}
       {status === 'error' && (
-        <div className="text-center py-8 px-6 rounded-xl" style={{ border: '1px dashed rgba(245,158,11,0.4)', background: 'rgba(245,158,11,0.05)' }}>
-          <p className="font-medium mb-3" style={{ color: 'var(--color-accent-gold)' }}>
-            ⚠️ 评论区加载失败
+        <div className="text-center py-8 px-6 rounded-xl" style={{ border: '1px dashed var(--gold)', background: 'var(--surface)' }}>
+          <p className="inline-flex items-center justify-center gap-2 font-medium mb-3" style={{ color: 'var(--gold)' }}>
+            <IconAlertTriangle size={16} strokeWidth={1.7} />
+            评论区加载失败
           </p>
-          <ul className="text-left text-sm space-y-1.5 max-w-md mx-auto" style={{ color: 'var(--color-body)' }}>
+          <ul className="text-left text-sm space-y-1.5 max-w-md mx-auto" style={{ color: 'var(--body)' }}>
             <li className="flex items-start gap-2">
-              <span style={{ color: 'var(--color-accent-gold)' }} className="mt-0.5">1.</span>
-              <span>仓库已启用 <b>Discussions</b>（Settings → Features → ✅ Discussions）</span>
+              <span style={{ color: 'var(--gold)' }} className="mt-0.5">1.</span>
+              <span>仓库已启用 <b>Discussions</b>（Settings → Features → 勾选 Discussions）</span>
             </li>
             <li className="flex items-start gap-2">
-              <span style={{ color: 'var(--color-accent-gold)' }} className="mt-0.5">2.</span>
-              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--color-body)' }}>giscus App</a> 并授权 <code className="text-xs px-1 rounded" style={{ background: 'var(--color-hairline-soft)' }}>LuVisage/blog</code></span>
+              <span style={{ color: 'var(--gold)' }} className="mt-0.5">2.</span>
+              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--body)' }}>giscus App</a> 并授权 <code className="text-xs px-1 rounded" style={{ background: 'var(--surface-2)' }}>LuVisage/blog</code></span>
             </li>
             <li className="flex items-start gap-2">
-              <span style={{ color: 'var(--color-accent-gold)' }} className="mt-0.5">3.</span>
+              <span style={{ color: 'var(--gold)' }} className="mt-0.5">3.</span>
               <span>仓库为 <b>Public</b>（私有仓库不支持 Giscus）</span>
             </li>
           </ul>
@@ -170,8 +173,8 @@ export function GiscusComments() {
               const container = document.getElementById('giscus-container')
               if (container) container.innerHTML = ''
             }}
-            className="mt-4 text-xs underline transition-colors hover:text-[var(--color-primary)]"
-            style={{ color: 'var(--color-body)' }}
+            className="mt-4 text-xs underline transition-colors hover:text-[var(--accent-text)]"
+            style={{ color: 'var(--body)' }}
           >
             点击重试
           </button>

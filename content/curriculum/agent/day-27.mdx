@@ -1,0 +1,154 @@
+---
+slug: day-27
+day: 27
+week: 6
+weekTitle: LangSmith 可观测
+weekBlurb: 全链路追踪、调试与标注、Datasets 离线评估、在线监控告警。
+title: LangSmith 调试技巧 —— 过滤、对比、Playground、人工标注
+lead: 掌握排查线上问题的四个动作：过滤检索、并排对比、Playground 试错、人工标注 feedback。
+examples:
+  - examples/day27_debug.py
+sourcePath: week-06-langsmith/day-27.md
+---
+
+---
+
+## 27.1 场景还原：线上出问题了
+
+用户反馈："Agent 下午 3 点回答得牛头不对马嘴。"你打开 LangSmith，几千条 trace……从哪下手？今天的四个动作就是答案。
+
+## 27.2 动作一：过滤检索（Filter）—— 大海捞针的磁铁
+
+LangSmith 的 trace 列表支持强大的过滤表达式，点击 Filter 按钮或直接输入：
+
+| 想找什么 | 过滤表达式（filter 语法） |
+|---|---|
+| 某用户的请求 | `eq(metadata.user_id, "u-123")` |
+| 出错的执行 | `eq(error, true)` |
+| 慢的请求（>5 秒） | `gt(latency, 5)` |
+| 烧钱的请求 | `gt(total_tokens, 5000)` |
+| 某个线程 | `eq(metadata.thread_id, "trip-1")` |
+| 时间范围 | UI 日历直接选 |
+
+**组合示例**：查"昨天 u-123 用户的出错请求"：
+
+```
+and(eq(metadata.user_id, "u-123"), eq(error, true), gt(latency, 3))
+```
+
+> **这就是 Day 26 为什么强调打 metadata**：没有 user_id 标签，"某用户的问题"根本无法检索。**metadata 是检索的索引，先打标签再谈排查。**
+
+## 27.3 动作二：并排对比（Compare）—— 好与坏的差异一眼看穿
+
+勾选两条 trace（一次好的、一次坏的）→ 点 Compare：
+
+- 并排显示两次执行的 prompt、模型、参数、输出；
+- 逐节点对齐 diff：**哪个节点开始分叉，问题就出在哪**。
+
+**实战用法**：改 prompt/换模型/调参数后，新旧各跑一遍同一输入，Compare 看差异——这是"A/B 测试"的免费版。
+
+## 27.4 动作三：Playground —— 不写代码试 prompt
+
+点开任意 model 节点 → Open in Playground：
+
+- 直接改 system prompt、参数（temperature 等）；
+- 立即重跑看效果（花你的 API 额度）；
+- **满意后一键复制新 prompt 回代码**。
+
+**实战用法**：排查"模型为什么不调工具"类问题——在 Playground 里改提示词措辞，实时试到模型听话为止，再把最终措辞粘回代码。比"改代码→跑→看结果"的循环快 10 倍。
+
+## 27.5 动作四：人工标注 Feedback —— 给 trace 打分
+
+每条 trace 上都能标注：
+
+- /或 1-5 星；
+- 评论（"答案正确但语气太生硬"）；
+- 自定义分数（如 `correctness` 0-1）。
+
+**两个价值**：
+
+1. **短期**：团队协作——测试同学标"坏 case"，你按标签过滤集中修复；
+2. **长期**：标注数据积累成**评估集**（Day 28 的主角）——机器学习的"喂数据"循环。
+
+代码里也能写反馈（线上产品必备）：
+
+```python
+from langsmith import Client
+client = Client()
+client.create_feedback(
+    run_id="某个trace的id",
+    key="user_score",
+    score=1.0,
+    comment="用户点了👍",
+)
+```
+
+## 27.6 动手：跑案例，然后在 UI 里"破案"
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-06-langsmith\examples
+python day27_debug.py
+```
+
+案例会故意制造**三种问题现场**（3 条 trace）：① 正常回答；② 工具报错；③ 答非所问（metadata 里标了 `bug_type`）。你的任务：
+
+1. 用 filter 分别筛出 `bug_type` 为 "tool_error" 和 "bad_answer" 的 trace；
+2. 点开②的 Run 树，找到报错的 tools 节点，读错误信息；
+3. 点开③的 model 节点，读它的 prompt 和回答，分析"为什么答非所问"；
+4. 给②③各标一条 feedback（+ 评论），给①标；
+5. 用 Compare 对比①和③的 model 节点输入输出差异。
+
+## 27.7 案例逐行讲解：`day27_debug.py`
+
+```python
+"""Day 27 案例：制造三个'问题现场'，在 LangSmith UI 里练习排查"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+@tool
+def get_weather(city: str) -> str:
+    """查询城市天气。当用户询问某地天气时使用。"""
+    if city == "广州":                     # 故意埋雷：查广州就报错
+        raise RuntimeError("天气服务超时，请稍后重试")
+    return {"北京": "晴 25°C", "上海": "小雨 22°C"}.get(city, f"暂无{city}数据")
+
+agent = create_agent(model=model, tools=[get_weather],
+                     system_prompt="你是天气助手，回答要简洁。")
+
+cases = [
+    ("正常请求", "北京天气怎么样？", "normal"),
+    ("工具报错", "广州天气怎么样？", "tool_error"),
+    ("答非所问", "上海天气怎么样？顺便推荐一部电影", "bad_answer"),
+]
+for label, question, bug in cases:
+    result = agent.invoke(
+        {"messages": [{"role": "user", "content": question}]},
+        config={"metadata": {"bug_type": bug, "case": label}},
+    )
+    print(f"[{label}] 回答：{result['messages'][-1].content[:50]}")
+```
+
+**要点**：
+
+- 三条 trace 的 metadata 打了 `bug_type` 标签——**这就是你能在 UI 里过滤它们的钥匙**（先打标签再排查，再强调一遍）；
+- ②"工具报错"：Agent 会拿到错误信息并试图兜底回答——在 Run 树里看它如何"自我抢救"（还是抢救失败）；
+- ③"答非所问"：模型可能真的开始推荐电影——**这就是没约束的 Agent 会跑偏的真实案例**，想想怎么治（提示词约束？工具白名单？Day 23 的中间件？）。
+
+## 27.8 今日自测
+
+<Quiz items={["完成 27.6 的四个破案任务。","用 filter 找出所有 `error=true` 的 trace（整个项目历史）。","在 Playground 里把③的 system prompt 改成\"你只能回答天气问题，其他问题一律拒绝\"，重跑验证。","用 `client.create_feedback` 在代码里给一条 trace 打分（run_id 可以从 `agent.invoke` 的返回值或 trace 列表里拿）。","`notes/day27.md`：记录你常用的 3 条 filter 表达式。"]} />
+
+## 27.9 常见坑速查
+
+<GotchaTable rows={[{"symptom":"过滤不出结果","cause":"表达式语法错 / 字段名错","fix":"用 UI 的 filter builder 生成，再学语法"},{"symptom":"metadata 里没有 user_id","cause":"之前没打标签","fix":"从现在起所有生产调用都带 metadata"},{"symptom":"Playground 改完没生效","cause":"只改了 UI 没改代码","fix":"复制 prompt 回代码重新部署"},{"symptom":"feedback 写不进去","cause":"run_id 错误","fix":"从 trace URL 或返回值里取正确的 id"},{"symptom":"Compare 按钮灰的","cause":"只勾了 1 条","fix":"勾选 2 条以上才能对比"}]} />
+
+<DayComplete day={27} recap={"排查四件套到手。明天把\"人工判断\"升级成\"自动评估\"——Datasets + Evaluators，让系统自己给自己打分。"} />

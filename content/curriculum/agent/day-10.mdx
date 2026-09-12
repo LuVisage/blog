@@ -1,0 +1,234 @@
+---
+slug: day-10
+day: 10
+week: 2
+weekTitle: RAG 与 Milvus
+weekBlurb: Embedding 与向量检索、文本切分、Milvus 部署、端到端 RAG 管线。
+title: 项目日 —— 本地知识库问答机器人（第 2 周毕业作品）
+lead: '**从空白文件开始**，独立完成一个能读本地 Markdown/TXT 文件、支持追问、显示引用来源的知识库机器人。允许翻看 Day 6-9 的笔记，但代码要自己写。'
+sourcePath: week-02-rag-milvus/day-10.md
+---
+
+> 参考实现：`examples/day10_kb_chatbot.py`（写完再对照！）
+> 样例文档：`examples/kb_docs/`（2 份测试用知识文档）
+
+---
+
+## 10.1 项目需求
+
+做一个命令行知识库机器人：
+
+```
+📚 已加载知识库：2 个文件，共 9 个文本块
+💬 输入问题（exit 退出）：什么是 RAG？
+🤖 RAG 是检索增强生成……
+
+📎 参考来源：
+   · [Python学习笔记.md] RAG（Retrieval-Augmented Generation...
+```
+
+**功能清单**：
+
+1. 启动时自动加载 `kb_docs/` 目录下所有 `.md`/`.txt` 文件；
+2. 文档切分成块（chunk 400 字、overlap 80），向量化写入 Milvus（Lite 即可）；
+3. 交互式问答：检索 Top-4 → 生成回答；
+4. **回答带来源引用**：列出每条依据来自哪个文件的哪一段；
+5. 知识库外的内容诚实说"资料中未提及"。
+
+## 10.2 新知识：加载本地文件
+
+前三天知识都是代码里写死的字符串。真实知识库来自文件系统。LangChain 的 **Document Loader** 家族负责"文件 → Document 列表"：
+
+```python
+from langchain_community.document_loaders import DirectoryLoader, TextLoader
+
+# 加载 kb_docs 目录下所有 .md 和 .txt 文件
+loader = DirectoryLoader(
+    "kb_docs",
+    glob=["**/*.md", "**/*.txt"],        # 只挑这两种文件
+    loader_cls=TextLoader,               # 用什么解析器（txt/md 用 TextLoader）
+    show_progress=False,
+)
+docs = loader.load()                     # → list[Document]
+for d in docs:
+    print(d.metadata["source"])          # 文件路径会自动存进 metadata！
+```
+
+**要点**：
+
+- `glob` 决定加载哪些文件（`**` 表示含子目录）；
+- `loader_cls` 决定解析器：`.txt`/`.md` 用 `TextLoader`，`.pdf` 用 `PyPDFLoader`（第 8 周装 `pypdf`），`.csv` 用 `CSVLoader`……LangChain 内置 100+ 种加载器；
+- **`metadata["source"]` 自动填充文件路径**——今天"引用来源"功能就靠它，免费获得。
+
+## 10.3 提示词设计（今天的核心考点）
+
+知识库机器人最关键的是**引用与诚实**。看这个模板：
+
+```python
+prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "你是知识库助手。规则：\n"
+     "1. 仅根据【资料】回答问题；\n"
+     "2. 资料中没有的内容，回答'资料中未提及'；\n"
+     "3. 回答末尾另起一行列出引用，格式：📎 来源：[文件名] 片段开头…；\n"
+     "4. 用中文。\n\n"
+     "【资料】\n{context}"),
+    ("human", "{question}"),
+])
+```
+
+**为什么这样设计**（每条都是 RAG 实战经验）：
+
+- 规则 1+2：防幻觉（Day 9 实验 C 已见威力）；
+- 规则 3：**强制引用**。模型答完必须交代依据，用户能溯源验证——企业知识库产品的标配；
+- 格式用 `来源：[文件名] ...` 明确结构，模型更容易遵守。
+
+而 `format_docs` 必须**把来源信息喂给模型**，否则它无从引用：
+
+```python
+def format_docs(docs):
+    parts = []
+    for i, d in enumerate(docs, 1):
+        source = Path(d.metadata.get("source", "未知")).name    # 取文件名
+        parts.append(f"【资料{i}｜来源:{source}】{d.page_content}")
+    return "\n\n".join(parts)
+```
+
+## 10.4 架构图（动手前先画一遍）
+
+```
+启动
+ ├─ DirectoryLoader 加载 kb_docs/*.md|txt ──► list[Document]
+ ├─ RecursiveCharacterTextSplitter 切分 ──► chunks
+ ├─ Milvus(Lite) add_documents ──► 向量入库
+ └─ 进入交互循环
+      ├─ 输入问题
+      ├─ retriever 检索 Top-4
+      ├─ format_docs 拼资料（带来源）
+      ├─ prompt 填空 → model 生成
+      └─ 打印回答（含引用）
+```
+
+## 10.5 动手：项目验收标准
+
+1. **先自己写**（30~60 分钟）：建 `day10_kb_chatbot.py`，可参考 Day 9 的案例结构；
+2. **测试用例**（全部通过才算完工）：
+   - "什么是 RAG？" → 回答准确 + 引用来自 `Python学习笔记.md`；
+   - "手冲咖啡的水温多少？" → 引用来自 `咖啡知识.md`；
+   - "比特币今天多少钱？" → 回答"资料中未提及"（诚实测试！）；
+   - 连续问两个相关问题 → 都能命中正确资料；
+3. **自查**：脚本能重复运行（幂等）；回答稳定（temperature=0）；引用格式统一。
+
+## 10.6 参考实现逐段讲解：`day10_kb_chatbot.py`
+
+```python
+"""Day 10 项目：本地知识库问答机器人（第 2 周毕业作品）"""
+import os
+from pathlib import Path
+from operator import itemgetter
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_community.document_loaders import DirectoryLoader, TextLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_milvus import Milvus
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+BASE = Path(__file__).resolve().parent          # examples/ 目录
+KB_DIR = BASE / "kb_docs"                       # 知识库目录
+
+# ── ① 加载文档 ─────────────────────────────────
+loader = DirectoryLoader(str(KB_DIR), glob=["**/*.md", "**/*.txt"], loader_cls=TextLoader)
+raw_docs = loader.load()
+print(f"📄 加载 {len(raw_docs)} 个文件")
+
+# ── ② 切分 ─────────────────────────────────────
+splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=80)
+chunks = splitter.split_documents(raw_docs)     # 注意：split_documents 保留 metadata！
+print(f"✂️  切分为 {len(chunks)} 个文本块")
+
+# ── ③ 向量化入库 ───────────────────────────────
+embeddings = OpenAIEmbeddings(model=os.environ["EMBEDDING_MODEL"],
+                              base_url=os.environ["EMBEDDING_BASE_URL"],
+                              api_key=os.environ["EMBEDDING_API_KEY"])
+vector_store = Milvus(embedding_function=embeddings,
+                      connection_args={"uri": "./milvus_kb.db"},
+                      collection_name="kb_bot", auto_id=True)
+if vector_store.col:
+    vector_store.drop_collection()
+    vector_store = Milvus(embedding_function=embeddings,
+                          connection_args={"uri": "./milvus_kb.db"},
+                          collection_name="kb_bot", auto_id=True)
+vector_store.add_documents(chunks)
+print(f"✅ 已入库 {len(chunks)} 块\n")
+
+# ── ④ 检索器 + 生成链 ──────────────────────────
+retriever = vector_store.as_retriever(search_kwargs={"k": 4})
+
+def format_docs(docs):
+    parts = []
+    for i, d in enumerate(docs, 1):
+        source = Path(d.metadata.get("source", "未知")).name
+        parts.append(f"【资料{i}｜来源:{source}】{d.page_content}")
+    return "\n\n".join(parts)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "你是知识库助手。规则：\n"
+     "1. 仅根据【资料】回答问题；\n"
+     "2. 资料中没有的内容，回答'资料中未提及'；\n"
+     "3. 回答末尾另起一行列出引用，格式：📎 来源：[文件名] 片段开头…；\n"
+     "4. 用中文。\n\n【资料】\n{context}"),
+    ("human", "{question}"),
+])
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+rag_chain = (
+    {"context": itemgetter("question") | retriever | format_docs,
+     "question": itemgetter("question")}
+    | prompt | model | StrOutputParser()
+)
+
+# ── ⑤ 交互循环 ─────────────────────────────────
+print("💬 知识库助手已就绪（exit 退出）")
+while True:
+    q = input("\n🙋 你：").strip()
+    if q.lower() in ("exit", "quit", "退出"):
+        break
+    print("🤖 助手：", rag_chain.invoke({"question": q}))
+```
+
+**三个最容易被忽略的细节**：
+
+1. **`split_documents` 而不是 `split_text`**：前者保留每块的 `metadata`（包括 source 文件路径），后者会丢掉——引用功能就靠这个 metadata 活着；
+2. **`format_docs` 里的 `Path(...).name`**：source 存的是完整路径，用文件名显示更清爽；
+3. **交互循环里没有历史**：这是"单轮问答"版本。把它升级成多轮（Day 2 的 MessagesPlaceholder）是今天的加餐练习。
+
+## 10.7 加餐挑战（学有余力）
+
+1. **多轮对话版**：把历史接进去（提示：Day 2 案例 3 + 今天的检索），让机器人能"记得"上下文追问；
+2. **PDF 支持**：`pip install pypdf`，用 `PyPDFLoader` 加载一份 PDF 试试；
+3. **启动提速**：文件没变就跳过切分入库（对比文件修改时间 mtime）；
+4. **参数面板**：把 `k`、`chunk_size` 做成命令行参数，方便调优。
+
+## 10.8 今日自测
+
+<Quiz items={["用 4 条测试用例（10.5 节）验收你的实现。","改一份 kb_docs 里的文档（加一段新知识），重启机器人，验证新知识生效——体验\"知识更新\"。","故意问一个需要多块资料拼答案的问题，看引用是否列出多条来源。","`notes/day10.md`：总结本周，写下你\"最难理解的 1 个概念\"和\"最有成就感的 1 个瞬间\"。"]} />
+
+## 第 2 周完成！复盘
+
+这周你打通了 RAG 全链路：
+
+```
+文档 → 加载(DirectoryLoader) → 切分(TextSplitter) → 向量化(Embedding)
+     → 入库(Milvus) → 检索(Retriever) → 拼装(Prompt) → 生成(LLM) → 引用溯源
+```
+
+**你现在能做的事**：把任何一批文本文件变成"有据可查的问答机器人"。这是无数企业 AI 产品的核心形态。
+
+**下周预告**：这个机器人"能用"但还"不够好"——用户问法刁钻就检索不到、答案质量没有度量。第 3 周解决：查询优化、混合检索、重排序，以及用 RAGAS 科学评估你的系统。
+

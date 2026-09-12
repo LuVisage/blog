@@ -1,0 +1,210 @@
+---
+slug: day-05
+day: 5
+week: 1
+weekTitle: LangChain 核心组件
+weekBlurb: LLM 接入、Prompt 模板、结构化输出、LCEL 管道、工具系统。
+title: LangChain 组件⑤ —— 工具系统（Tools）与 Agent 的底层真相
+lead: '掌握 `@tool` 定义工具、`bind_tools` 让模型"请求"工具，并**手写一遍 ReAct 循环**——明天起你见到的所有 Agent，内核就是它。'
+examples:
+  - examples/day05_tools.py
+  - examples/day05_bind_tools.py
+sourcePath: week-01-langchain-core/day-05.md
+---
+
+---
+
+## 5.1 工具：模型的手和脚
+
+模型只会说话，不会做事。给它一个"计算器工具"，它就能算数；给它一个"查天气工具"，它就能报天气。**工具（Tool）就是一个"模型可以调用的函数"**，由三部分组成：
+
+| 组成 | 例子 | 作用 |
+|---|---|---|
+| **名字** | `multiply` | 模型点名要调谁 |
+| **说明书**（description/docstring） | "计算两个数的乘积，当用户需要乘法时使用" | 模型判断"现在该不该用它、怎么填参数" |
+| **参数 schema** | `a: float, b: float` | 模型必须按这个格式填参数 |
+
+> **说明书比代码更重要**。工具写得烂但说明书清晰，Agent 用得好；工具写得完美但说明书含糊，模型根本不知道何时调用。写工具 = 写说明书。
+
+## 5.2 `@tool`：一行装饰器，函数变工具
+
+```python
+from langchain_core.tools import tool
+
+@tool
+def get_weather(city: str) -> str:
+    """查询指定城市的实时天气。当用户询问某地天气时使用。
+
+    Args:
+        city: 城市名，如"北京"、"上海"
+    """
+    # 真实项目里这里会调天气 API；今天先用假数据
+    fake_data = {"北京": "晴，25度", "上海": "小雨，22度", "广州": "多云，30度"}
+    return fake_data.get(city, f"没有{city}的天气数据")
+```
+
+装饰器 `@tool` 做了三件事：
+
+1. 函数名 → 工具名（`get_weather`）；
+2. docstring → 工具的说明书（**包括 Args 部分**，模型靠它填参数）；
+3. 类型注解 → 参数 schema（`city: str` 告诉模型要填一个字符串）。
+
+**手动调用工具**（就像普通函数，加 `.invoke`）：
+
+```python
+print(get_weather.invoke({"city": "北京"}))   # 晴，25度
+```
+
+## 5.3 工具参数也可以很复杂
+
+参数不止字符串——数字、列表、枚举、嵌套对象都行，Pydantic 语法（Day 3 学的）全复用：
+
+```python
+from pydantic import BaseModel, Field
+
+class SearchInput(BaseModel):
+    """搜索参数"""
+    query: str = Field(description="搜索关键词")
+    limit: int = Field(default=5, description="返回条数，默认 5")
+    engines: list[str] = Field(default=["web"], description="搜索引擎列表")
+
+@tool(args_schema=SearchInput)
+def web_search(query: str, limit: int = 5, engines: list[str] = ["web"]) -> str:
+    """在互联网上搜索信息。用户需要最新资讯、事实核查时使用。"""
+    return f"（模拟）在 {engines} 中搜索 '{query}'，返回 {limit} 条结果"
+```
+
+- 用 `args_schema` 显式声明参数结构（带 description 的 Field），模型填参更准。
+- 复杂工具（参数 > 3 个）**强烈建议**用 `args_schema`。
+
+## 5.4 工具报错：让模型"读懂"失败
+
+工具执行失败（API 挂了、参数非法）时，**不要让异常裸奔**——把错误包装成字符串返回，模型看到后能自己调整：
+
+```python
+from langchain_core.tools import ToolException
+
+@tool
+def divide(a: float, b: float) -> float:
+    """计算 a 除以 b。"""
+    if b == 0:
+        raise ToolException("除数不能为 0！")     # 抛给框架的专用异常
+    return a / b
+
+# 配置：异常不抛出，而是转成字符串"喂回"模型
+divide = divide.with_config({"handle_tool_errors": True})
+```
+
+## 5.5 `bind_tools`：模型如何"请求"工具（Agent 的内核！）
+
+模型自己不会执行工具。正确流程是：模型在回答里**附上一张"工具调用单"（tool_calls）**，由你的程序去执行。看：
+
+```python
+llm_with_tools = model.bind_tools([get_weather, web_search, divide])
+
+reply = llm_with_tools.invoke("北京今天天气怎么样？")
+print(reply.content)          # 空字符串或思考内容
+print(reply.tool_calls)       # [{'name': 'get_weather', 'args': {'city': '北京'}, 'id': 'call_xxx'}]
+```
+
+`bind_tools` 把工具清单塞给模型，模型"想用工具"时：
+
+- `reply.content` 是空的（或短思考）；
+- `reply.tool_calls` 是它填好的调用单：**工具名 + 参数 + 调用 ID**；
+- 模型**没有执行**任何东西——它只是说"请帮我调 `get_weather(city='北京')`"。
+
+**这就是全部秘密**。所谓 Agent，就是下面这个循环：
+
+```
+① 用户提问 → ② 模型说"我要调工具X(参数Y)" → ③ 程序执行工具 →
+④ 把结果回填给模型 → ⑤ 模型再决定：继续调工具？还是直接回答用户？→ 回到②或结束
+```
+
+这个循环叫 **ReAct（Reasoning + Acting，推理 + 行动）**。今天你要**手写一遍**它。
+
+## 5.6 案例二：手写 ReAct 循环（今天最重要的一课）
+
+```python
+"""Day 5 案例 2：手写 ReAct 循环 —— Agent 的底层真相"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+# ── 定义两个工具 ──────────────────────────────
+@tool
+def multiply(a: float, b: float) -> float:
+    """计算两个数的乘积。当用户需要乘法计算时使用。"""
+    return a * b
+
+@tool
+def add(a: float, b: float) -> float:
+    """计算两个数的和。当用户需要加法计算时使用。"""
+    return a + b
+
+tools = {t.name: t for t in [multiply, add]}          # 名字 → 工具对象
+llm_with_tools = model.bind_tools([multiply, add])    # 模型 + 工具清单
+
+# ── 手写循环 ──────────────────────────────────
+def run_agent(question: str, max_steps: int = 5) -> str:
+    messages = [HumanMessage(content=question)]
+    for step in range(max_steps):
+        reply = llm_with_tools.invoke(messages)        # ② 问模型
+        if not reply.tool_calls:                       # 模型没要求调工具 → 它就是最终答案
+            return reply.content
+        messages.append(reply)                         # 模型的"调用单"入历史
+        for call in reply.tool_calls:                  # ③ 逐个执行工具
+            tool = tools[call["name"]]
+            result = tool.invoke(call["args"])
+            print(f"  [第{step+1}步] 调用 {call['name']}{call['args']} → {result}")
+            messages.append(ToolMessage(               # ④ 结果回填（ToolMessage！）
+                content=str(result), tool_call_id=call["id"]
+            ))
+    return "达到最大步数仍未结束"
+
+print(run_agent("小明买了 3 斤苹果，每斤 5 元；又买了 2 斤梨，每斤 8 元。他一共花了多少钱？"))
+```
+
+**逐行走读（请配合输出一起看）**：
+
+1. `messages` 从用户问题开始；
+2. `llm_with_tools.invoke(messages)`：模型看到"算总价"需要两步乘法+加法，于是输出 `tool_calls=[multiply(3,5), multiply(2,8)]`（一次可请求多个工具！）；
+3. 程序遍历 `tool_calls`，`tools[call["name"]].invoke(call["args"])` 执行，打印日志；
+4. **关键**：每个结果包装成 `ToolMessage(content=结果, tool_call_id=调用ID)` 追加进历史。`tool_call_id` 必须和请求里的 `id` 对上，模型才知道"这是哪次调用的结果"；
+5. 循环回到第 2 步：模型拿到 15 和 16，又请求 `add(15,16)` → 程序执行 → 回填 31；
+6. 模型再被问时，输出 `tool_calls=[]` → 循环退出，返回最终答案 "小明一共花了 31 元"。
+
+> **恭喜，你刚刚亲手实现了一个 Agent。** Day 0 的 `create_agent`、Day 21 要学的正式版，内核 100% 就是这个循环，只是加了流式、错误重试、中间件、记忆等工程化外壳。**今天这段代码是理解后续一切 Agent 内容的钥匙，建议敲三遍。**
+
+## 5.7 预告：Retriever（检索器）—— 下周的主角
+
+最后认识一个特殊的"类工具"接口：`Retriever`。它的契约是：
+
+```python
+retriever.invoke("问题") → [Document, Document, ...]   # 返回相关文档列表
+```
+
+输入问题，输出一批相关文档。Day 6 的 RAG、Day 9 的 Milvus，核心都是"把向量库包成 Retriever"。提前剧透一行的用法（下周展开）：
+
+```python
+from langchain_milvus import Milvus
+vector_store = Milvus(...)              # 向量库（Day 7-9 学）
+retriever = vector_store.as_retriever(search_kwargs={"k": 4})   # 包装成检索器
+docs = retriever.invoke("什么是 RAG？")  # 拿到最相关的 4 个文档
+```
+
+## 5.8 今日自测
+
+<Quiz items={["给手写 Agent 增加一个 `subtract` 工具，问\"31 减 16 等于多少\"。","把手写 Agent 的 `max_steps` 改成 1，问那个两步应用题，观察\"达到最大步数\"输出——理解**步数上限**是 Agent 的重要保护参数。","写一个\"密码生成器\"工具（随机字符串），给它的 docstring 写两种版本（清晰版/含糊版），对比模型调用准确率。","在工具里故意 `raise ToolException`，用 `handle_tool_errors=True` 观察模型如何\"自我纠正\"。","`notes/day05.md`：用你自己的话画一遍 ReAct 循环流程图，标出 ToolMessage 回填的位置。"]} />
+
+## 5.9 常见坑速查
+
+<GotchaTable rows={[{"symptom":"模型不调用工具，自己瞎答","cause":"docstring 没写清\"何时使用\"","fix":"说明书写明触发场景：\"当用户询问天气时使用\""},{"symptom":"`KeyError: 'tool_calls'`","cause":"用的模型/接口不支持工具调用","fix":"DeepSeek/GLM 均支持；检查是否用 `bind_tools` 后的实例"},{"symptom":"模型填的参数类型错","cause":"类型注解缺失","fix":"每个参数加类型注解，复杂参数用 `args_schema`"},{"symptom":"循环死掉/不停调同一个工具","cause":"没设 max_steps；工具说明书误导","fix":"设步数上限；检查 docstring"},{"symptom":"`ToolMessage` 报错缺 id","cause":"回填时没带 `tool_call_id`","fix":"严格用 `call[\"id\"]` 回填"}]} />
+

@@ -22,11 +22,11 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// ─── 解析参数 ───────────────────────────────────
+// 解析参数
 const args = process.argv.slice(2)
 if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
   console.log(`
-📝 新文章生成器
+新文章生成器
 
 用法：node scripts/new-post.mjs "文章标题" [选项]
 
@@ -45,7 +45,7 @@ if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
 
 const title = args.find((a) => !a.startsWith('--') && !a.startsWith('-'))
 if (!title) {
-  console.error('❌ 请提供文章标题')
+  console.error('请提供文章标题')
   process.exit(1)
 }
 
@@ -114,7 +114,7 @@ const body = `
 
 正文内容在这里。
 
-> 💡 提示：支持 Markdown 语法、代码块、数学公式等
+> 提示：支持 Markdown 语法、代码块、数学公式等
 
 ### 代码示例
 
@@ -139,14 +139,14 @@ const filename = `${slug}.mdx`
 const filepath = join(postsDir, filename)
 
 if (existsSync(filepath)) {
-  console.error(`❌ 文件已存在：content/posts/${filename}`)
+  console.error(`文件已存在：content/posts/${filename}`)
   console.error('   请使用不同的标题或删除已有文件')
   process.exit(1)
 }
 
 writeFileSync(filepath, content, 'utf-8')
 
-console.log(`✅ 文章已创建：content/posts/${filename}`)
+console.log(`文章已创建：content/posts/${filename}`)
 console.log(`   标题：${title}`)
 console.log(`   日期：${today}`)
 if (tags) console.log(`   标签：${tagsRaw}`)

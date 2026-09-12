@@ -41,8 +41,8 @@ export function CodeBlockEnhancer({ children }: { children: React.ReactNode }) {
         const label = document.createElement('span')
         label.className =
           'absolute top-2 left-3 z-10 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider pointer-events-none'
-        label.style.backgroundColor = 'var(--color-primary-soft)'
-        label.style.color = 'var(--color-muted-soft)'
+        label.style.backgroundColor = 'var(--accent-soft)'
+        label.style.color = 'var(--faint)'
         label.textContent = lang
         figure.appendChild(label)
       }
@@ -51,15 +51,15 @@ export function CodeBlockEnhancer({ children }: { children: React.ReactNode }) {
       const btn = document.createElement('button')
       btn.className =
         'absolute top-2 right-2 z-10 p-1.5 rounded-md opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-150'
-      btn.style.backgroundColor = 'var(--color-primary-soft)'
-      btn.style.color = 'var(--color-muted-soft)'
+      btn.style.backgroundColor = 'var(--accent-soft)'
+      btn.style.color = 'var(--faint)'
       btn.addEventListener('mouseenter', () => {
-        btn.style.backgroundColor = 'var(--color-border-strong)'
-        btn.style.color = 'var(--color-ink)'
+        btn.style.backgroundColor = 'var(--line-strong)'
+        btn.style.color = 'var(--ink)'
       })
       btn.addEventListener('mouseleave', () => {
-        btn.style.backgroundColor = 'var(--color-primary-soft)'
-        btn.style.color = 'var(--color-muted-soft)'
+        btn.style.backgroundColor = 'var(--accent-soft)'
+        btn.style.color = 'var(--faint)'
       })
       btn.setAttribute('aria-label', '复制代码')
       btn.title = '复制代码'
@@ -89,11 +89,11 @@ export function CodeBlockEnhancer({ children }: { children: React.ReactNode }) {
         // Show checkmark briefly
         btn.innerHTML =
           '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
-        btn.style.color = 'var(--color-success)'
+        btn.style.color = 'var(--success)'
         setTimeout(() => {
           btn.innerHTML =
             '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
-          btn.style.color = 'var(--color-muted-soft)'
+          btn.style.color = 'var(--faint)'
         }, 2000)
       })
 

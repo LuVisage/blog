@@ -24,20 +24,18 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate RSS feeds
-        run: node scripts/generate-rss.mjs
+      - name: Type check, lint and test
+        run: npm run check
 
+      # prebuild 生成 rss/sitemap，postbuild 跑 pagefind，产物只有这一条路径。
       - name: Build with Next.js
         run: npm run build
-
-      - name: Index with Pagefind
-        run: npx pagefind --site out
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5

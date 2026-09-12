@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return this.props.fallback ?? (
         <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-          <span className="text-sm" style={{ color: 'var(--color-muted)' }}>
+          <span className="text-sm" style={{ color: 'var(--muted)' }}>
             组件加载失败
           </span>
           <button

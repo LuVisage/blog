@@ -1,0 +1,88 @@
+---
+slug: day-09
+kind: day
+day: 9
+week: 2
+weekTitle: 进阶算法
+weekBlurb: 给 T4 备武器：KMP 与字符串哈希、并查集与最小生成树、最短路拓扑排序、树状数组线段树、线性/背包/区间/树形/状压 DP、搜索与剪枝。
+title: 并查集与最小生成树
+lead: MST 类 T4 拿下正解
+sourcePath: 第2周-Day08-14-真题实战/Day09-并查集与最小生成树.md
+---
+
+## 今日任务
+
+1. 默写并查集（路径压缩）；
+2. 掌握 Kruskal 最小生成树；
+3. 做 2 道洛谷 + 2 道真题 T4。
+
+## 学什么
+
+### 1. 并查集：维护"分组的连通性"
+```cpp
+int fa[100005];
+int find(int x) { return fa[x] == x ? x : fa[x] = find(fa[x]); }  // 路径压缩
+void merge(int x, int y) { fa[find(x)] = find(y); }
+// 初始化：for (int i = 1; i <= n; i++) fa[i] = i;
+// 同组判断：find(x) == find(y)
+```
+**三大用途：** ① 动态连边判连通；② 判环（连边前已同组 → 成环）；③ 统计组数。
+
+### 2. Kruskal：最小生成树 = 排序 + 并查集
+```cpp
+struct Edge { int u, v; long long w; } e[200005];
+bool cmp(Edge a, Edge b) { return a.w < b.w; }
+sort(e + 1, e + m + 1, cmp);
+long long ans = 0; int cnt = 0;
+for (int i = 1; i <= m; i++) {
+    if (find(e[i].u) != find(e[i].v)) {   // 不同组才连（否则成环）
+        merge(e[i].u, e[i].v);
+        ans += e[i].w; cnt++;
+        if (cnt == n - 1) break;
+    }
+}
+// cnt < n-1 → 图不连通；最大生成树：cmp 改成 >
+```
+
+### 3. CSP T4 中的 MST 真题套路
+历年多次直接/变相考 MST，识别关键词："连通所有节点、代价最小"：
+- **201412-4 最优灌溉**：裸最小生成树；
+- **201703-4 地铁修建**：问"最小化路径最大边" → 等价于 MST 中最大边（Kruskal 第 n-1 条边的权）；
+- **201812-4 数据中心**：求 MST 的最大边权（root 无关，答案 = Kruskal 最后一条边）；
+- **201503-4 网络延时**：不是 MST，是**树的直径**（两遍 DFS/BFS，见 [Day 13](/learn/csp/day-13)）。
+
+**关键变式：最小化最大边 / 瓶颈问题 → 排序后逐条加边，首次全连通时的边权即答案。**
+
+## 练什么
+
+**洛谷（每题 ≤ 30 分钟）：**
+
+| 题号 | 考点 |
+|---|---|
+| [P3367](https://www.luogu.com.cn/problem/P3367) 并查集模板 | 并查集 |
+| [P1111](https://www.luogu.com.cn/problem/P1111) 修复公路 | 按时间排序 + 并查集（瓶颈问题入门） |
+| [P3366](https://www.luogu.com.cn/problem/P3366) 最小生成树 | Kruskal 模板 |
+| [P2121](https://www.luogu.com.cn/problem/P2121) 拆地毯 | 最大生成树 |
+
+**真题（每题限时 60 分钟，T4 标准时间）：**
+
+| 题号 | 考点 |
+|---|---|
+| 201412-4 最优灌溉 | 裸 MST |
+| 201812-4 数据中心 | MST 最大边 |
+
+## 今日模板
+
+完整版本见[代码模板速查手册](/learn/csp/templates)（第 9、10 节）。
+
+```cpp
+int fa[100005];
+int find(int x) { return fa[x] == x ? x : fa[x] = find(fa[x]); }
+void merge(int x, int y) { fa[find(x)] = find(y); }
+// Kruskal：排序后 for 每条边 if(find(u)!=find(v)) merge, ans+=w, cnt++
+```
+
+## 验收标准
+
+<Quiz items={["闭卷 2 分钟默写并查集 + Kruskal","两道真题 T4 AC（这是你 T4 的第一个 100 分模板类题目！）","能口答\"最小化最大边\"类题的通用解法。"]} />
+

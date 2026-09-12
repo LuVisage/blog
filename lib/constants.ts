@@ -1,9 +1,24 @@
 /** Site-wide constants */
 
+/** 换域名只改这里。仓库改名或换成用户站点页时改 DEPLOY_BASE_PATH。 */
+const SITE_ORIGIN = 'https://LuVisage.github.io'
+
+/**
+ * 站点发布在哪个子路径。next.config 在 CI 上拿它当 basePath，
+ * 所以这一行同时决定「站点服务在哪」和「feed 里写哪个地址」。
+ */
+export const DEPLOY_BASE_PATH = '/blog'
+
+/**
+ * 本次构建实际带的前缀，由 next.config 的 env 注入：本地 dev 没有 .env.production，
+ * 这里就是空串，生产构建是 '/blog'。手写 href 的资源都要拼上它。
+ */
+export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+
 export const SITE = {
   title: 'Baron_Zhang',
   description: 'AI 探索者 & Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。',
-  url: 'https://LuVisage.github.io/blog',
+  url: `${SITE_ORIGIN}${DEPLOY_BASE_PATH}`,
   repo: 'https://github.com/LuVisage/blog',
   author: {
     name: 'Baron_Zhang',
@@ -14,12 +29,34 @@ export const SITE = {
   postsPerPage: 10,
 } as const
 
+/**
+ * 站内绝对地址。next.config 开了 trailingSlash: true，页面实际服务在带尾斜杠的 URL 上，
+ * canonical 少了尾斜杠就是给同一个页面造第二个身份。但 public/ 里的静态文件不吃这条规则，
+ * /rss.xml/ 会 404，所以带扩展名的路径原样返回。
+ */
+export function siteUrl(path = ''): string {
+  const normalized = path.replace(/^\/+|\/+$/g, '')
+  if (!normalized) return `${SITE.url}/`
+  const lastSegment = normalized.split('/').pop() ?? ''
+  const isFile = /\.[a-z0-9]+$/i.test(lastSegment)
+  return `${SITE.url}/${normalized}${isFile ? '' : '/'}`
+}
+
+/**
+ * 同源资源地址。Next 只会给它自己产出的资源加 basePath，
+ * rss.xml、avatar.jpg、pagefind 字典这类手写 href 得自己加前缀。
+ */
+export function basePathUrl(path = '/'): string {
+  return `${BASE_PATH}${path}`
+}
+
 export const NAV_LINKS = [
   { href: '/', label: '首页' },
   { href: '/posts', label: '文章' },
   { href: '/archive', label: '归档' },
   { href: '/categories', label: '分类' },
   { href: '/tags', label: '标签' },
+  { href: '/learn', label: '教程' },
   { href: '/about', label: '关于' },
 ] as const
 

@@ -1,0 +1,267 @@
+---
+slug: day-04
+day: 4
+week: 1
+weekTitle: LangChain 核心组件
+weekBlurb: LLM 接入、Prompt 模板、结构化输出、LCEL 管道、工具系统。
+title: LangChain 组件④ —— LCEL 管道（Runnable 协议）
+lead: '掌握 LangChain 的灵魂 `|` 管道，理解"一切皆 Runnable"，学会用 Lambda/Parallel/Passthrough 搭流水线。'
+examples:
+  - examples/day04_chain.py
+  - examples/day04_parallel.py
+  - examples/day04_custom.py
+sourcePath: week-01-langchain-core/day-04.md
+---
+
+---
+
+## 4.1 回顾：这三天的"两步操作"
+
+Day 2 你写过这样的代码：
+
+```python
+messages = prompt.invoke({"text": "你好"})   # 第 1 步：填空
+answer   = model.invoke(messages)            # 第 2 步：问模型
+```
+
+两步、两个中间变量。真实应用有 5 步、10 步——检索 → 拼提示词 → 问模型 → 解析 → 存储，全这么写会变成"中间变量地狱"。LangChain 的答案是 **LCEL（LangChain Expression Language，链式表达语言）**：
+
+```python
+chain = prompt | model          # 用 | 把两步串成一条链
+answer = chain.invoke({"text": "你好"})   # 一次调用，自动按顺序流转
+```
+
+**`|` 就是流水线**：左边组件的输出，自动成为右边组件的输入。像工厂流水线：原料 → 填空机 → 模型 → 成品。**这是本教程最重要的一个符号**，LangGraph、Agent 底层全是它。
+
+## 4.2 秘密武器：所有组件都是 Runnable
+
+为什么 `|` 能连接一切？因为 LangChain 里**所有组件都实现了同一个接口协议：Runnable**。Runnable 承诺 4 件事：
+
+| 方法 | 作用 | 类比 |
+|---|---|---|
+| `invoke(输入)` | 同步执行一次 | 打电话等结果 |
+| `ainvoke(输入)` | 异步执行 | 发消息不等（配合 await） |
+| `stream(输入)` | 流式输出 | 直播逐字 |
+| `batch(输入列表)` | 批量执行 | 群发 |
+
+任何组件——提示词模板、模型、检索器、工具、你自己写的函数——只要遵守"有输入、有输出"，就是 Runnable，就能用 `|` 连接。**这就是 LangChain 的万能胶。**
+
+> 这解释了为什么 LangChain 生态如此庞大却井然有序：几百个集成组件（向量库、模型、工具）都在说同一种"语言"，所以能自由拼接。
+
+## 4.3 管道成员逐个认识
+
+### ① `RunnableLambda`：把普通函数变成组件
+
+你的函数也能进管道！`RunnableLambda` 给普通 Python 函数穿上"Runnable 制服"：
+
+```python
+from langchain_core.runnables import RunnableLambda
+
+def add_question_mark(text: str) -> str:
+    return text + "？"
+
+add_mark = RunnableLambda(add_question_mark)
+chain = add_mark | model            # 函数和模型平起平坐，都能进管道！
+chain.invoke("你好")
+```
+
+> **坑：管道的"输入输出要对得上"**。`|` 右边的组件必须能接受左边的输出类型。函数返回字符串，模型吃字符串，完美。反过来"模型输出消息 → 函数想吃字符串"就会错，需要转换（见 4.4）。
+
+### ② `RunnablePassthrough`：把输入原样传下去（但很有用！）
+
+有时候你需要"什么都不做，只是把数据递过去"。比如：
+
+```python
+from langchain_core.runnables import RunnablePassthrough
+
+# 场景：从输入里取 user_input 填空，同时把原始输入传给下一步
+chain = (
+    {"text": lambda x: x["user_input"], "original": RunnablePassthrough()}
+    | prompt
+    | model
+)
+```
+
+`RunnablePassthrough()` 的两个高频用法：
+
+- **透传整个输入**：`RunnablePassthrough()` 原样返回收到的数据；
+- **透传指定字段**：`RunnablePassthrough.assign(new_field=计算函数)` 在原始数据上**附加**一个新字段而不动其他字段（Day 9 RAG 里天天用）。
+
+### ③ `RunnableParallel`：并行分支，一次喂多个组件
+
+```python
+from langchain_core.runnables import RunnableParallel
+
+# 输入同时喂给 A 和 B，两路并行，结果合并成 {a: 结果A, b: 结果B}
+parallel = RunnableParallel(a=component_a, b=component_b)
+```
+
+`{"a": A, "b": B}` 这个字典字面量在管道里**自动被识别为并行结构**（不用显式写 RunnableParallel）。这是性能优化的核心：**能并行的绝不串行**。Day 12 的混合检索就是用它并行跑"向量检索 + 关键词检索"。
+
+### ④ `itemgetter`：从输入字典里挑字段
+
+```python
+from operator import itemgetter
+
+chain = itemgetter("question") | model      # 从 {"question": "..."} 中取出 question
+chain.invoke({"question": "你好"})
+```
+
+输入是字典、下一步只想要某个 key 时，`itemgetter` 是最干净的写法。
+
+## 4.4 案例一：翻译流水线（完整解剖）
+
+```python
+"""Day 4 案例 1：LCEL 管道 —— 翻译流水线"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "你是翻译官，只输出译文。"),
+    ("human", "{text}"),
+])
+
+# ① 预处理函数：给待翻译文本去掉首尾空格（RunnableLambda 包装后进管道）
+def clean_text(text: str) -> str:
+    return text.strip()
+
+# ② 组装流水线：清洗 → 填空 → 模型 → 取内容 → 转大写
+chain = (
+    RunnableLambda(clean_text)          # 第 1 关：清洗
+    | prompt                            # 第 2 关：填空
+    | model                             # 第 3 关：问模型（返回 AIMessage）
+    | RunnableLambda(lambda msg: msg.content)   # 第 4 关：AIMessage → 字符串
+    | RunnableLambda(str.upper)         # 第 5 关：转大写
+)
+
+print(chain.invoke({"text": "  hello world  "}))
+# HELLO WORLD（注意：空格被清洗了，回答是大写字符串）
+
+# 同一条链支持全部四种调用！
+print(chain.batch([{"text": " good "}, {"text": " bad "}]))   # 批量
+for chunk in chain.stream({"text": " streaming "}):           # 流式
+    print(chunk, end="", flush=True)
+```
+
+**逐关拆解（这张流水线图请背下来）**：
+
+```
+{"text": "  hello world  "}
+   │ ① RunnableLambda(clean_text)   去掉空格 → "hello world"
+   ▼
+ prompt ② 填空 → 消息列表
+   ▼
+ model ③ 调 LLM → AIMessage("HELLO WORLD 的译文...")
+   ▼
+ lambda msg: msg.content ④ → 纯字符串
+   ▼
+ str.upper ⑤ → 大写字符串
+```
+
+**三个重点**：
+
+1. **类型在关卡之间流动**：字典 → 字符串 → 消息列表 → 消息 → 字符串。每次 `|` 都要想"左边输出什么类型、右边要什么类型"。
+2. **第 4 关不可省略**：模型输出是 `AIMessage`，下游想要字符串就必须转换。`lambda msg: msg.content` 是 LCEL 里最常见的转换器。
+3. **一条链四种玩法**：invoke / batch / stream / ainvoke 全自动支持——因为链本身也是 Runnable。
+
+## 4.5 案例二：并行多角度分析
+
+```python
+"""Day 4 案例 2：RunnableParallel —— 一句话同时做 3 个分析"""
+# 三个专家提示词
+emotion_prompt = ChatPromptTemplate.from_messages([("human", "分析情绪（正面/负面/中性）：{text}")])
+keywords_prompt = ChatPromptTemplate.from_messages([("human", "提取关键词（用顿号分隔）：{text}")])
+summary_prompt = ChatPromptTemplate.from_messages([("human", "一句话总结：{text}")])
+
+chain = {
+    # 字典 = 并行：三路同时跑，各自拿到原始输入里的 text
+    "情绪": emotion_prompt | model | RunnableLambda(lambda m: m.content),
+    "关键词": keywords_prompt | model | RunnableLambda(lambda m: m.content),
+    "总结": summary_prompt | model | RunnableLambda(lambda m: m.content),
+}
+
+text = "今天老板夸了我的方案，但下班路上地铁坏了，淋雨走了两公里。"
+result = chain.invoke({"text": text})
+for name, value in result.items():
+    print(f"{name}：{value}")
+```
+
+**要点**：
+
+- 输入 `{"text": ...}` 会**自动广播**给三个分支，互不等待（并行请求，总耗时 ≈ 最慢的那一路，而非三路之和）。
+- 输出自动合并成 `{"情绪": ..., "关键词": ..., "总结": ...}` 字典。
+- **注意**：每个分支里 `| RunnableLambda(lambda m: m.content)` 是把 AIMessage 转成字符串的收尾关——三个分支都要，一个不能少。
+
+## 4.6 案例三：自定义 Runnable 类（进阶，面试加分）
+
+除了 Lambda，你还可以写一个完整的类来实现 Runnable——适合"有状态"的组件：
+
+```python
+"""Day 4 案例 3：自定义 Runnable 类 —— 字数统计组件"""
+from langchain_core.runnables import Runnable
+from typing import Any
+
+class WordCounter(Runnable):
+    """把输入字符串变成'原文 + 字数统计'的组件"""
+
+    def invoke(self, input: str, config=None) -> dict:
+        text = input if isinstance(input, str) else str(input)
+        return {
+            "原文": text,
+            "字符数": len(text),
+            "词数": len(text.split()),
+        }
+
+chain = model | WordCounter()          # 模型输出(AIMessage) → WordCounter
+print(chain.invoke("用一句话介绍你自己"))
+# {'原文': '我是...', '字符数': 123, '词数': 25}
+```
+
+**要点**：`WordCounter` 自己实现 `invoke`，就获得了 Runnable 身份——`|`、`batch`、`stream` 全部自动可用。LangChain 所有内置组件（模型、提示词、检索器）内部都是这么实现的。**你现在站在了框架作者的位置看问题。**
+
+## 4.7 调试管道：给流水线装"监控探头"
+
+管道长了，中间哪一关出问题很难查。两个调试利器：
+
+### ① `with_config(run_name="名字")`：给每一关起名
+
+```python
+chain = (
+    RunnableLambda(clean_text).with_config(run_name="清洗")
+    | prompt.with_config(run_name="填空")
+    | model.with_config(run_name="大模型")
+)
+```
+
+第 6 周 LangSmith 会按这些名字展示每一步耗时和输入输出——**现在就养成起名的习惯**。
+
+### ② 打印中间结果：临时插入"探针"
+
+```python
+def debug_print(x):
+    print("中间结果：", x)
+    return x
+
+chain = prompt | RunnableLambda(debug_print) | model
+```
+
+在任意 `|` 之间插入一个"打印完就原样放行"的 Lambda，管道就变得透明。
+
+## 4.8 今日自测
+
+<Quiz items={["把 Day 2 的翻译官改造成一条 `|` 链：清洗 → 翻译模板 → 模型 → 取 content。","搭一条\"菜名生成链\"：输入食材列表 → 并行（中餐建议 + 西餐建议 + 热量估算）→ 汇总输出。","写一个 `JsonSaver` 自定义 Runnable：把输入存成 JSON 文件并原样返回输入（管道中间存盘）。","在昨天的会议纪要案例里，把\"提取 → 存 JSON 文件\"用管道串起来。","`notes/day04.md`：画出你今天搭的最复杂流水线的数据流向图（文字箭头即可）。"]} />
+
+## 4.9 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`TypeError: unsupported operand`","cause":"`","fix":"` 左边不是 Runnable（普通函数没包装）"},{"symptom":"管道报错\"输入类型不对\"","cause":"上一关输出和下一关输入不匹配","fix":"中间加转换 Lambda（如取 `.content`）"},{"symptom":"并行分支拿到的是整个字典","cause":"没写 `itemgetter`，分支函数收到了全部输入","fix":"分支前用 `itemgetter(\"key\")` 或让分支接受字典"},{"symptom":"batch 很慢","cause":"串行组件太多","fix":"能并行的用字典并行结构"},{"symptom":"想看到中间结果","cause":"管道是黑盒","fix":"用 4.7 的探针 / LangSmith（第 6 周）"}]} />
+
+<DayComplete day={4} recap={"`|` 管道你已经玩转了。这是 LangChain 的\"语法糖之王\"，明天学最后一块积木——工具（Tools），第 5 周 Agent 就是\"工具 + 管道 + 循环\"的总装。"} />

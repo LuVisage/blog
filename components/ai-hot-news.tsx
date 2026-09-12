@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { IconFlame, IconStarFilled } from '@tabler/icons-react'
+import { IconStarFilled } from '@tabler/icons-react'
 
 // ── Types ──────────────────────────────────────────────
 
@@ -121,19 +121,16 @@ export function AIHotNews() {
   // ── Loading skeleton ─────────────────────────────
   if (loading) {
     return (
-      <div className="rounded-2xl glass-liquid p-6 sm:p-7" style={{ cursor: 'default' }}>
-        <div className="flex items-center gap-2 mb-5">
-          <div className="h-5 w-24 rounded animate-pulse" style={{ background: 'var(--color-hairline-soft)' }} />
-        </div>
+      <div style={{ cursor: 'default' }}>
+        <div className="eyebrow mb-4">加载中</div>
         <div className="space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex gap-3 animate-pulse">
-              <div className="h-5 w-7 rounded flex-shrink-0" style={{ background: 'var(--color-hairline-soft)' }} />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 w-36 rounded" style={{ background: 'var(--color-hairline-soft)' }} />
-                <div className="h-3 w-full max-w-xs rounded" style={{ background: 'var(--color-hairline-soft)' }} />
-              </div>
-              <div className="h-4 w-10 rounded flex-shrink-0" style={{ background: 'var(--color-hairline-soft)' }} />
+            <div key={i} className="flex items-baseline gap-3">
+              <span className="skeleton-line" style={{ width: 22, height: 12, flexShrink: 0 }} />
+              <span className="flex-1 space-y-2">
+                <span className="skeleton-line block" style={{ width: '62%', height: 13 }} />
+                <span className="skeleton-line block" style={{ width: '88%', height: 10 }} />
+              </span>
             </div>
           ))}
         </div>
@@ -146,73 +143,57 @@ export function AIHotNews() {
 
   // ── Ready ──────────────────────────────────────
   return (
-    <div className="rounded-2xl glass-liquid p-6 sm:p-7" style={{ cursor: 'default' }}>
+    <div style={{ cursor: 'default' }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base lg:text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--color-ink)' }}>
-          <IconFlame size={20} strokeWidth={1.5} style={{ color: 'var(--color-accent-gold)' }} />
-          AI 热榜
-          <span className="text-[10px] font-normal px-2 py-0.5 rounded-full glass-liquid" style={{ color: 'var(--color-muted)' }}>
-            近 7 日
-          </span>
-        </h2>
-        {lastFetch && (
-          <span className="text-[10px]" style={{ color: 'var(--color-muted-soft)' }}>
-            {cacheDate} 更新
-          </span>
-        )}
+      <div
+        className="flex items-end justify-between gap-3 pb-3 mb-1"
+        style={{ borderBottom: '1px solid var(--line-strong)' }}
+      >
+        <h2 className="section-title">AI 热榜</h2>
+        <span className="eyebrow mb-1">{lastFetch ? `${cacheDate} 更新` : '近 7 日'}</span>
       </div>
 
       {/* Repo list */}
-      <div className="space-y-1">
+      <div>
         {repos.map((repo, i) => (
           <a
             key={repo.id}
             href={repo.html_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-3 px-3 py-3 -mx-3 rounded-xl transition-all duration-200 group hover:bg-[var(--color-primary-soft)]"
+            data-spotlight="row"
+            className="group grid grid-cols-[26px_minmax(0,1fr)_auto] items-baseline gap-3 py-3.5 rule"
           >
             {/* Rank */}
             <span
-              className="flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold"
-              style={{
-                color: i < 3 ? '#fff' : 'var(--color-muted)',
-                background: i === 0
-                  ? 'linear-gradient(135deg, #f59e0b, #f97316)'
-                  : i === 1
-                    ? 'linear-gradient(135deg, #94a3b8, #64748b)'
-                    : i === 2
-                      ? 'linear-gradient(135deg, #d97706, #b45309)'
-                      : 'var(--color-hairline-soft)',
-              }}
+              className="meta tabular-nums transition-colors group-hover:text-[var(--accent-text)]"
+              style={i < 3 ? { color: 'var(--gold)' } : undefined}
             >
-              {i + 1}
+              {String(i + 1).padStart(2, '0')}
             </span>
 
             {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <p className="text-sm font-medium transition-colors truncate group-hover:text-[var(--color-primary)]" style={{ color: 'var(--color-ink)' }}>
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-2">
+                <p className="text-sm font-medium truncate transition-colors group-hover:text-[var(--accent-text)]" style={{ color: 'var(--ink)' }}>
                   {repo.full_name}
                 </p>
                 {repo.language && (
-                  <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ color: 'var(--color-muted)', background: 'var(--color-hairline-soft)' }}>
+                  <span className="chip px-1.5 py-0.5 text-[10px] flex-shrink-0" style={{ color: 'var(--muted)' }}>
                     {repo.language}
                   </span>
                 )}
               </div>
               {repo.description && (
-                <p className="text-xs mt-1 line-clamp-2 leading-relaxed" style={{ color: 'var(--color-body)' }}>
-                  {repo.description}
-                </p>
+                <p className="body-sm line-clamp-2 mt-1">{repo.description}</p>
               )}
               {repo.topics.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
+                <div className="flex flex-wrap gap-1 mt-2">
                   {repo.topics.slice(0, 3).map((t) => (
                     <span
                       key={t}
-                      className="text-[10px] px-1.5 py-0.5 rounded-full glass-liquid font-medium" style={{ color: 'var(--color-body)' }}
+                      className="text-[10px] px-1.5 py-0.5 font-mono"
+                      style={{ color: 'var(--faint)', border: '1px solid var(--line-faint)', borderRadius: 4 }}
                     >
                       {t}
                     </span>
@@ -222,8 +203,8 @@ export function AIHotNews() {
             </div>
 
             {/* Stars */}
-            <span className="flex-shrink-0 flex items-center gap-1 text-xs mt-0.5 font-mono" style={{ color: 'var(--color-muted)' }}>
-              <IconStarFilled size={11} style={{ color: 'var(--color-accent-gold)' }} />
+            <span className="meta flex-shrink-0 inline-flex items-center gap-1">
+              <IconStarFilled size={10} style={{ color: 'var(--gold)' }} />
               {formatStars(repo.stargazers_count)}
             </span>
           </a>
@@ -231,13 +212,13 @@ export function AIHotNews() {
       </div>
 
       {/* Footer */}
-      <div className="mt-4 pt-4 text-center" style={{ borderTop: '1px solid var(--color-hairline)' }}>
+      <div className="mt-1 pt-4 text-center" style={{ borderTop: '1px solid var(--line)' }}>
         <a
           href="https://github.com/topics/artificial-intelligence"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs font-medium transition-colors hover:text-[var(--color-primary)]"
-          style={{ color: 'var(--color-muted)' }}
+          className="inline-flex min-h-6 items-center text-xs font-medium transition-colors hover:text-[var(--accent-text)]"
+          style={{ color: 'var(--muted)' }}
         >
           在 GitHub 上查看更多 AI 项目 →
         </a>
