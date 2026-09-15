@@ -12,7 +12,7 @@
       <title>Coding Agent 横向测评：从 Claude Code 到 DeepSeek Harness 的十二款工具</title>
       <link>https://LuVisage.github.io/blog/posts/vibe-coding-agent-comparison/</link>
       <guid isPermaLink="true">https://LuVisage.github.io/blog/posts/vibe-coding-agent-comparison/</guid>
-      <description>同一组任务跑遍 Claude Code、Codex CLI、OpenCode、DeepSeek Harness、Windsurf、Trae、Qoder、CodeBuddy、ZCode、WorkBuddy、百度搭子与豆包，外加 DeepSeek / GLM 引擎与 OpenRouter 基础设施：五维横评、按人群选型表、2026 年 9 月价格快照，以及「工具与引擎解耦」的组合策略。</description>
+      <description>同一组任务跑遍 Claude Code、Codex CLI、OpenCode、DeepSeek Harness、Windsurf、Trae、Qoder、CodeBuddy、ZCode、WorkBuddy、百度搭子与豆包：每款写足上手体验、四项任务的具体表现与踩坑，附五维总表、分任务结果、2026 年 9 月价格快照与「工具-引擎解耦」的组合策略。</description>
       <pubDate>Wed, 16 Sep 2026 00:00:00 GMT</pubDate>
       <atom:updated>2026-09-16T00:00:00.000Z</atom:updated>
     </item>
@@ -20,7 +20,7 @@
       <title>Vibe Coding 实战入门：让 AI 打字，把验收留给自己</title>
       <link>https://LuVisage.github.io/blog/posts/vibe-coding-workflow/</link>
       <guid isPermaLink="true">https://LuVisage.github.io/blog/posts/vibe-coding-workflow/</guid>
-      <description>Vibe Coding 不是「不写代码」，是把注意力从打字挪到规格、验收与架构。这篇讲清开工前的三件准备、一套可复用的工作流、四种提示词模式，以及我踩过的坑：哪些环节可以放心交给 agent，哪些一步都不能让。</description>
+      <description>一篇可以跟着做的 Vibe Coding 教程：安装与首次运行 agent、逐段讲透规则文件怎么写、五步工作流配真实提示词全文、调试与重构两个专题模板、上下文管理的会话生命周期，以及八条踩坑实录。每一步都给出验收命令。</description>
       <pubDate>Wed, 16 Sep 2026 00:00:00 GMT</pubDate>
       
     </item>
