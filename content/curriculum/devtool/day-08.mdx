@@ -4,182 +4,193 @@ kind: day
 day: 8
 week: 2
 weekTitle: 包管理与运行时
-weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
-title: Node 包管理教程（npm / pnpm / yarn / bun）
-sourcePath: 02-包管理与运行时/02-Node包管理.md
+weekBlurb: Python 走 venv + pip（ml 课同款路线），Node 走 nvm + pnpm，Java / Rust / Go 的构建工具按语言需要选读。
+title: Node 版本管理教程（nvm / fnm / volta / mise / asdf）
+lead: Node 版本管理教程（nvm / fnm / volta / mise / asdf）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 02-包管理与运行时/01-Node版本管理.md
 ---
 
-## 一、四者对比
+## 一、为什么需要版本管理
 
-| 工具 | 安装方式 | 磁盘占用 | 速度 | 特点 |
+- 旧项目依赖 Node 16，新项目要 Node 22，全局只能装一个版本会互相冲突；
+- CI 与本机需要严格一致；
+- 快速试用新版本而不影响现有项目。
+
+## 二、工具对比
+
+| 工具 | 语言 | 速度 | 特点 | 推荐场景 |
 | --- | --- | --- | --- | --- |
-| npm | 随 Node 自带 | 高（每项目独立拷贝） | 一般 | 官方标配，最稳定 |
-| pnpm | 独立安装 | 极低（全局硬链接） | 快 | 严格依赖隔离，monorepo 首选 |
-| yarn（v1 / Berry） | 独立安装 | 中 | 快 | 老牌，Berry 支持 PnP 零 node_modules |
-| bun | 独立安装 | 低 | 最快 | 集运行时/包管理/测试于一体 |
+| nvm-windows | Go | 快 | Windows 平台最流行的 Node 版本管理 | Windows 用户 |
+| nvm（nvm-sh） | Shell | 一般 | macOS/Linux 经典工具，启动慢 | macOS/Linux 传统项目 |
+| fnm | Rust | 极快 | 跨平台、支持自动切换（`.nvmrc`） | 追求速度的跨平台用户 |
+| volta | Rust | 极快 | 可锁定每个项目的 node/npm/yarn 版本，无需手动切换 | 团队统一版本 |
+| mise | Rust | 极快 | 支持 Node/Python/Java/Go/Rust 等多语言 | 想用一个工具管所有语言 |
+| asdf | Shell | 一般 | 插件化多语言，生态老牌 | 多语言但已用 asdf 的团队 |
 
-## 二、npm
+## 三、nvm-windows 使用（Windows 推荐）
 
-```powershell
-npm -v
-npm init -y                       # 生成 package.json
-npm install                       # 安装 package.json 中所有依赖
-npm install express               # 生产依赖
-npm install -D typescript         # 开发依赖
-npm install -g pnpm               # 全局安装
-npm uninstall express
-npm update
-npm run dev                       # 运行 package.json scripts
-```
+### 安装
 
-常用补充：
+1. 到 https://github.com/coreybutler/nvm-windows/releases 下载 `nvm-setup.exe`；或
 
 ```powershell
-npm ci                # CI 专用：严格按 lock 文件安装，比 install 快且可复现
-npm ls --depth=0      # 查看顶层依赖
-npm outdated          # 检查可升级依赖
-npm audit             # 安全漏洞检查
-npm audit fix
-npm cache clean --force
-npm config set registry https://registry.npmmirror.com   # 国内镜像
+winget install CoreyButler.NVMforWindows
+# 或 choco install nvm
 ```
 
-`package.json` 版本号语义（semver）：
+2. 安装前**先卸载已有的全局 Node**，避免冲突。
 
-```
-^1.2.3  允许 1.x.x 升级（不改变主版本）
-~1.2.3  允许 1.2.x 升级
-1.2.3   锁定精确版本
-*       任意版本（不推荐）
-```
-
-## 三、pnpm（推荐）
+### 常用命令
 
 ```powershell
-# 安装
-winget install pnpm.pnpm
-# 或 corepack enable && corepack prepare pnpm@latest --activate
-# 或 npm install -g pnpm
+nvm version              # 查看 nvm 版本
+nvm list available       # 列出可安装的 Node 版本
+nvm install 20.11.0      # 安装指定版本
+nvm install lts          # 安装最新 LTS
+nvm list                 # 查看已安装版本
+nvm use 20.11.0          # 切换版本（管理员权限）
+nvm uninstall 18.19.0
+nvm node_mirror https://npmmirror.com/mirrors/node/   # 国内加速
+nvm npm_mirror https://npmmirror.com/mirrors/npm/
 ```
 
-```powershell
-pnpm install            # 安装（内容寻址存储 + 硬链接，秒级）
-pnpm add axios
-pnpm add -D vitest
-pnpm remove axios
-pnpm run build
-pnpm -r build           # 递归在所有 workspace 包中执行
-pnpm --filter web dev   # 只对 web 包执行
+### `.nvmrc` 约定
+
+项目根目录创建 `.nvmrc`：
+
+```
+20.11.0
 ```
 
-常用配套：
+进入目录后执行 `nvm use`（自动读取）。Windows 版需要手动 `nvm use $(Get-Content .nvmrc)` 或使用脚本包装。
 
-```powershell
-pnpm dlx create-vite    # 不安装直接执行（类似 npx）
-pnpm approve-builds     # pnpm v10 后需显式允许依赖的 postinstall 脚本
-pnpm store prune        # 清理未使用缓存
-```
-
-`pnpm-workspace.yaml`（monorepo）：
-
-```yaml
-packages:
-  - "apps/*"
-  - "packages/*"
-```
-
-优势：
-- 全局只存一份包内容（`~/.pnpm-store`），项目里是硬链接，**节省大量磁盘**；
-- 默认禁止访问未声明的依赖（幽灵依赖问题），更严谨。
-
-## 四、yarn
-
-```powershell
-corepack enable
-corepack prepare yarn@4 --activate    # 现代推荐方式
-# 或 npm install -g yarn
-```
-
-```powershell
-yarn                    # 安装依赖
-yarn add react
-yarn add -D eslint
-yarn remove react
-yarn up react           # 升级
-yarn dlx create-next-app
-```
-
-`.yarnrc.yml`（Berry 常用配置）：
-
-```yaml
-nodeLinker: node-modules     # 默认 PnP，改成 node-modules 兼容性更好
-enableGlobalCache: true
-npmRegistryServer: "https://registry.npmmirror.com"
-```
-
-## 五、bun
+## 四、fnm 使用（跨平台推荐）
 
 ```powershell
 # Windows
-powershell -c "irm bun.sh/install.ps1 | iex"
-# macOS/Linux
-curl -fsSL https://bun.sh/install | bash
+winget install Schniz.fnm
+# macOS
+brew install fnm
 ```
+
+PowerShell 中启用自动切换（写入 `$PROFILE`）：
 
 ```powershell
-bun install             # 安装依赖（极快）
-bun add zod
-bun add -d @types/node
-bun remove zod
-bun run dev
-bun test                # 内置测试框架
-bunx create-vite        # 类似 npx
+fnm env --use-on-cd | Out-String | Invoke-Expression
 ```
 
-> bun 同时是运行时：`bun run index.ts` 可直接执行 TypeScript。
+常用命令：
 
-## 六、锁定与一致性（团队/CI 必读）
+```powershell
+fnm list                 # 已安装版本
+fnm list-remote          # 远程所有版本（加 --lts 只看 LTS）
+fnm install --lts
+fnm use 20
+fnm default 20           # 设置默认版本
+fnm current
+```
 
-| 工具 | 锁文件 | CI 严格安装命令 |
-| --- | --- | --- |
-| npm | package-lock.json | `npm ci` |
-| pnpm | pnpm-lock.yaml | `pnpm install --frozen-lockfile` |
-| yarn | yarn.lock | `yarn install --immutable` |
-| bun | bun.lock | `bun install --frozen-lockfile` |
+进入带 `.node-version` 或 `.nvmrc` 的目录会**自动切换**版本，这是 fnm 最大优势。
 
-**锁文件必须提交进 Git**，且团队统一包管理器（用 `packageManager` 字段约束）：
+## 五、volta 使用（团队锁定版本）
+
+```powershell
+# Windows
+winget install Volta.Volta
+# macOS
+brew install volta
+```
+
+核心思想：版本信息写进 `package.json`，任何人安装后自动使用正确版本。
+
+```powershell
+volta install node@20.11.0
+volta install pnpm@9
+volta pin node@20.11.0        # 写入 package.json 的 volta 字段
+volta list
+```
+
+`package.json` 会新增：
 
 ```json
 {
-  "packageManager": "pnpm@9.1.0"
+  "volta": { "node": "20.11.0", "pnpm": "9.1.0" }
 }
 ```
 
-配合 corepack 后，其他成员误用 npm 会被拦截。
+之后在该项目下无论谁执行 `node` / `pnpm`，volta 都会自动使用锁定版本。
 
-## 七、常见问题
+## 六、mise 使用（多语言统一管理）
+
+```powershell
+# Windows
+winget install jdx.mise
+# macOS
+brew install mise
+```
+
+```powershell
+mise use -g node@20           # 全局
+mise use node@20 python@3.12  # 项目级，写入 .mise.toml
+mise install
+mise ls
+mise current node
+```
+
+`.mise.toml`：
+
+```toml
+[tools]
+node = "20"
+python = "3.12"
+```
+
+一个工具管理 Node/Python/Java/Go/Rust，适合多语言开发者。
+
+## 七、asdf 使用（插件化多语言）
+
+```powershell
+# macOS / Linux
+git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+```
+
+```powershell
+asdf plugin add nodejs
+asdf install nodejs 20.11.0
+asdf global nodejs 20.11.0        # 全局
+asdf local nodejs 20.11.0         # 写入 .tool-versions
+asdf list nodejs
+```
+
+`.tool-versions`：
+
+```
+nodejs 20.11.0
+python 3.12.3
+```
+
+## 八、如何选择
+
+- **Windows 单语言（Node）**：nvm-windows 或 fnm
+- **macOS/Linux 追求速度与自动切换**：fnm
+- **团队规模大、要求版本绝对一致**：volta
+- **多语言（Node + Python + Java...）**：mise（新）或 asdf（老牌）
+
+## 九、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 安装卡住 / 下载慢 | 切换 npmmirror 镜像；检查代理 |
-| `ERESOLVE unable to resolve dependency tree` | 依赖冲突，先试 `npm install --legacy-peer-deps`，长期方案是修版本约束 |
-| node_modules 删不掉（Windows） | 关闭占用进程；`npx rimraf node_modules` |
-| pnpm 装完依赖后某些包构不出二进制 | `pnpm approve-builds` 放行对应包 |
-| 公司私有包 404 | 配置 `.npmrc`（`@corp:registry=https://npm.company.com`） |
-| 意外升级依赖导致线上问题 | CI 用 frozen lockfile；升级走 PR + review |
+| `nvm use` 提示权限不足 | 以管理员运行终端；或改用 fnm |
+| 切换后 `node -v` 仍是旧版本 | 检查 PATH 顺序，卸载系统全局 Node；重启终端 |
+| fnm 自动切换不生效 | 确认 `fnm env --use-on-cd` 已写入 PowerShell `$PROFILE` 并重启终端 |
+| CI 中首次安装很慢 | 使用缓存（GitHub Actions 用 `actions/setup-node` 自带缓存） |
+| 国内下载慢 | 配置镜像（nvm node_mirror / volta 用代理 / mise 见官方 mirror 配置） |
 
-## 八、最佳实践
+## 十、参考
 
-1. **一个项目只用一种包管理器**，用 `packageManager` 字段固定。
-2. **不要在 CI 里跑 `npm update`**，锁文件是唯一事实来源。
-3. monorepo 用 **pnpm workspace**（或 yarn/npm workspaces），避免多仓库同步问题。
-4. 依赖定期升级：`npm outdated` → 小步升级 → 跑测试。
-5. 提交前检查是否有 `node_modules` 误入 Git（`.gitignore`）。
-
-## 九、参考
-
-- npm 文档：https://docs.npmjs.com/
-- pnpm：https://pnpm.io/zh/
-- yarn：https://yarnpkg.com/
-- bun：https://bun.sh/docs
+- nvm-windows：https://github.com/coreybutler/nvm-windows
+- fnm：https://github.com/Schniz/fnm
+- volta：https://volta.sh/
+- mise：https://mise.jdx.dev/
+- asdf：https://asdf-vm.com/
 

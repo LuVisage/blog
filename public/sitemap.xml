@@ -1729,6 +1729,12 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
+    <loc>https://LuVisage.github.io/blog/learn/ml/glossary/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.6</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
     <loc>https://LuVisage.github.io/blog/tags/RAG/</loc>
     <lastmod>2026-09-15</lastmod>
     <priority>0.4</priority>

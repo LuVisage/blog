@@ -2,249 +2,216 @@
 slug: day-40
 kind: day
 day: 40
-week: 6
-weekTitle: 调试与网络
-weekBlurb: DevTools 与调试器断点、curl / httpie、抓包、API 客户端与内网穿透——排查问题的完整工具箱。
-title: VS Code 调试器使用教程
-sourcePath: 06-调试与网络/02-VSCode-Debugger.md
+week: 7
+weekTitle: 测试
+weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test——backend 课 W1D4 是 pytest 的工程实战，这里是语法全集。
+title: Cypress 使用教程
+lead: Cypress 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 05-测试/04-Cypress.md
 ---
 
-## 一、为什么用调试器
+## 一、Cypress 是什么
 
-`console.log` 只能看「结果」，调试器可以：
-- 在任意位置**暂停**程序；
-- 查看**完整作用域变量**；
-- **单步执行**，追踪逻辑分支；
-- 修改运行时变量值再继续。
+前端 E2E 测试框架，最大卖点是**开发者体验**：
 
-## 二、核心配置：launch.json
+- **时间旅行**：测试运行后可以看到每一步的快照；
+- 自动等待，无需手写 wait；
+- 浏览器内运行，可直接访问 `window`、DOM、网络请求；
+- 交互式 Test Runner，实时看到每个命令的执行过程。
 
-位置：`.vscode/launch.json`（按 `F5` 时自动创建）。
-
-```jsonc
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Debug Node (当前文件)",
-      "type": "node",
-      "request": "launch",
-      "program": "${file}",
-      "console": "integratedTerminal",
-      "skipFiles": ["<node_internals>/**"]
-    }
-  ]
-}
-```
-
-### 变量占位符
-
-| 变量 | 含义 |
-| --- | --- |
-| `${file}` | 当前打开文件 |
-| `${workspaceFolder}` | 项目根目录 |
-| `${fileBasename}` | 文件名（含扩展名） |
-| `${command:pickNodeProcess}` | 交互式选择进程 |
-
-## 三、调试 Node.js
-
-### 普通脚本
-
-```jsonc
-{
-  "name": "Debug Script",
-  "type": "node",
-  "request": "launch",
-  "program": "${workspaceFolder}/src/index.ts",
-  "outFiles": ["${workspaceFolder}/dist/**/*.js"],
-  "sourceMaps": true,
-  "env": { "NODE_ENV": "development" },
-  "args": ["--port", "3000"]
-}
-```
-
-TypeScript 项目需 `ts-node` 或 sourcemap：
-
-```jsonc
-{
-  "type": "node",
-  "request": "launch",
-  "runtimeArgs": ["-r", "ts-node/register"],
-  "args": ["${workspaceFolder}/src/index.ts"]
-}
-```
-
-或使用 `tsx`：
-
-```jsonc
-{ "runtimeExecutable": "npx", "runtimeArgs": ["tsx", "src/index.ts"] }
-```
-
-### 附加到已运行进程
-
-```jsonc
-{
-  "name": "Attach to Node",
-  "type": "node",
-  "request": "attach",
-  "port": 9229,
-  "restart": true
-}
-```
-
-启动时加 `--inspect=9229`：
+## 二、安装与初始化
 
 ```powershell
-node --inspect=9229 dist/server.js
+pnpm add -D cypress
+npx cypress open      # 首次运行会生成 cypress/ 目录并打开界面
+npx cypress run       # 无头模式运行
 ```
 
-### 调试 jest / vitest
+目录结构：
 
-```jsonc
-{
-  "name": "Debug Vitest",
-  "type": "node",
-  "request": "launch",
-  "runtimeExecutable": "npx",
-  "runtimeArgs": ["vitest", "run", "${file}"],
-  "console": "integratedTerminal",
-  "autoAttachChildProcesses": true
+```
+cypress/
+├── e2e/              # 测试用例 *.cy.ts
+├── fixtures/         # 测试数据（JSON）
+├── support/
+│   ├── commands.ts   # 自定义命令
+│   └── e2e.ts        # 全局配置
+└── downloads/
+cypress.config.ts
+```
+
+## 三、配置
+
+`cypress.config.ts`：
+
+```ts
+import { defineConfig } from 'cypress';
+
+export default defineConfig({
+  e2e: {
+    baseUrl: 'http://localhost:5173',
+    viewportWidth: 1280,
+    viewportHeight: 720,
+    video: false,
+    screenshotOnRunFailure: true,
+    retries: { runMode: 2, openMode: 0 },
+    defaultCommandTimeout: 8000,
+    specPattern: 'cypress/e2e/**/*.cy.{ts,tsx}',
+    setupNodeEvents(on, config) {
+      // 插件挂载点
+      return config;
+    },
+  },
+});
+```
+
+## 四、编写测试
+
+```ts
+describe('待办事项', () => {
+  beforeEach(() => {
+    cy.visit('/todos');
+  });
+
+  it('可以添加一条待办', () => {
+    cy.get('[data-testid="new-todo"]').type('买牛奶{enter}');
+    cy.get('[data-testid="todo-list"] li').should('have.length', 1);
+    cy.contains('li', '买牛奶').should('be.visible');
+  });
+
+  it('可以勾选完成', () => {
+    cy.get('[data-testid="new-todo"]').type('写周报{enter}');
+    cy.contains('li', '写周报').find('input[type=checkbox]').check();
+    cy.contains('li', '写周报').should('have.class', 'completed');
+  });
+});
+```
+
+### 常用命令
+
+```ts
+cy.visit('/login');
+cy.get('#username').type('admin');
+cy.get('button[type=submit]').click();
+cy.get('.error').should('contain.text', '密码错误');
+cy.get('input').clear().type('new');
+cy.get('select').select('shanghai');
+cy.get('input[type=file]').selectFile('fixtures/a.png');
+cy.url().should('include', '/dashboard');
+cy.title().should('eq', '控制台');
+cy.reload();
+cy.go('back');
+```
+
+断言链：
+
+```ts
+cy.get('.card')
+  .should('have.length', 3)
+  .first()
+  .should('have.text', '标题')
+  .and('be.visible');
+```
+
+### 网络请求
+
+```ts
+// 等待请求
+cy.intercept('POST', '/api/login').as('login');
+cy.get('form').submit();
+cy.wait('@login').its('response.statusCode').should('eq', 200);
+
+// Mock 响应
+cy.intercept('GET', '/api/users', { fixture: 'users.json' }).as('users');
+cy.visit('/users');
+cy.wait('@users');
+```
+
+### 自定义命令
+
+`cypress/support/commands.ts`：
+
+```ts
+Cypress.Commands.add('login', (username: string, password: string) => {
+  cy.session([username, password], () => {
+    cy.visit('/login');
+    cy.get('#username').type(username);
+    cy.get('#password').type(password);
+    cy.get('form').submit();
+    cy.url().should('include', '/dashboard');
+  });
+});
+```
+
+类型声明 `cypress/support/index.d.ts`：
+
+```ts
+declare global {
+  namespace Cypress {
+    interface Chainable {
+      login(username: string, password: string): Chainable<void>;
+    }
+  }
 }
+export {};
 ```
 
-### 调试内置 npm script
+`cy.session` 可缓存登录态，大幅加速测试套件。
 
-VS Code 会自动探测 `package.json` 的 scripts，在左侧 **Run and Debug** 面板可直接选 `npm: dev`（需 `"type": "node-terminal"` 配置才可断点）。
+## 五、常用命令
 
-## 四、调试浏览器（Chrome）
-
-```jsonc
-{
-  "name": "Debug Chrome",
-  "type": "chrome",
-  "request": "launch",
-  "url": "http://localhost:5173",
-  "webRoot": "${workspaceFolder}/src",
-  "sourceMaps": true
-}
+```powershell
+npx cypress open                        # 交互模式
+npx cypress run                         # 无头运行全部
+npx cypress run --spec "cypress/e2e/login.cy.ts"
+npx cypress run --browser chrome
+npx cypress run --headed
+npx cypress run --record --key <key>    # Cypress Cloud（并行/录制）
 ```
 
-需安装 VS Code 扩展 **Debugger for Chrome**（现已内置 JS Debugger）。这样可以在 VS Code 里打断点调试前端代码，无需切浏览器 DevTools。
+## 六、CI 集成
 
-## 五、调试 Python
-
-装扩展 **Python** + 用 `debugpy`：
-
-```jsonc
-{
-  "name": "Python: 当前文件",
-  "type": "debugpy",
-  "request": "launch",
-  "program": "${file}",
-  "console": "integratedTerminal",
-  "justMyCode": false,
-  "env": { "PYTHONPATH": "${workspaceFolder}" }
-}
+```yaml
+- uses: cypress-io/github-action@v6
+  with:
+    start: pnpm dev
+    wait-on: 'http://localhost:5173'
+    browser: chrome
 ```
 
-调试 FastAPI / Flask：
+## 七、Cypress vs Playwright
 
-```jsonc
-{
-  "name": "FastAPI",
-  "type": "debugpy",
-  "request": "launch",
-  "module": "uvicorn",
-  "args": ["app.main:app", "--reload", "--port", "8000"],
-  "jinja": true
-}
-```
+| 维度 | Cypress | Playwright |
+| --- | --- | --- |
+| 调试体验 | 时间旅行，最佳 | Trace / UI 模式，很好 |
+| 架构 | 浏览器内执行 | CDP 外部控制 |
+| 多标签页 | 有限（需 workaround） | 原生支持 |
+| 浏览器覆盖 | Chromium 系 + Firefox/WebKit 实验 | 三大内核完整 |
+| 免费并行 | 需 Cypress Cloud | 内置 |
+| 上手门槛 | 低 | 低 |
+| 适合 | 前端团队 / 快速起步 | 复杂场景 / 跨浏览器要求高 |
 
-附加到运行中的进程：
-
-```jsonc
-{ "type": "debugpy", "request": "attach", "connect": { "host": "localhost", "port": 5678 } }
-```
-
-## 六、调试 Go
-
-装扩展 **Go**：
-
-```jsonc
-{
-  "name": "Debug Go",
-  "type": "go",
-  "request": "launch",
-  "mode": "auto",
-  "program": "${workspaceFolder}/cmd/server"
-}
-```
-
-远程调试：
-
-```jsonc
-{
-  "name": "Go Attach",
-  "type": "go",
-  "request": "attach",
-  "mode": "remote",
-  "remotePath": "/app",
-  "port": 40000,
-  "host": "127.0.0.1"
-}
-```
-
-## 七、断点类型与技巧
-
-| 类型 | 用法 |
-| --- | --- |
-| 普通断点 | 行号左侧点击 |
-| 条件断点 | 右键断点 → 输入条件 `user.id === 42` |
-| 命中次数断点 | 右键 → Hit Count `> 10` |
-| 日志点（Logpoint） | 右键 → Log Message `user=${user.name}`（不暂停，替代 console.log） |
-| 函数断点 | Run and Debug → Breakpoints → `+` 输入函数名 |
-| 异常断点 | Breakpoints 面板勾选 Caught/Uncaught Exceptions |
-
-调试面板：
-- **VARIABLES**：当前作用域变量，可右键 `Set Value` 修改；
-- **WATCH**：添加表达式持续观察；
-- **CALL STACK**：调用栈，点击任意帧可查看该层上下文；
-- **LOADED SCRIPTS**：已加载脚本列表。
-
-## 八、快捷键
-
-| 操作 | 快捷键 |
-| --- | --- |
-| 启动/继续 | `F5` |
-| 暂停 | `F6` |
-| 重启 | `Ctrl+Shift+F5` |
-| 停止 | `Shift+F5` |
-| 单步跳过（step over） | `F10` |
-| 单步进入（step into） | `F11` |
-| 单步跳出（step out） | `Shift+F11` |
-| 切换断点 | `F9` |
-
-## 九、常见问题
+## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 断点变灰/不生效 | 源文件与运行文件路径不一致：配 `sourceMaps`、`outFiles`、`webRoot` |
-| TS 断点停在编译后文件 | 确保生成 sourcemap（`"sourceMap": true`） |
-| `Cannot find module` | 加 `"env": { "NODE_OPTIONS": "--enable-source-maps" }` 或检查 cwd |
-| 调试子进程 | 开 `"autoAttachChildProcesses": true` |
-| 调试 serverless / docker | 用 `request: "attach"`，暴露 9229 端口 |
-| 变量显示 `undefined` | 可能被 TS 类型擦除或已优化；检查构建目标 |
+| 元素找不到 | Cypress 自动重试，但确认定位器是否正确；避免用会变化的 class |
+| 跨域访问失败 | 配置 `chromeWebSecurity: false`（仅测试环境）或 `cy.origin()` |
+| 需要访问 `window` 上的变量 | `cy.window().then(win => ...)` |
+| flaky 测试 | 用 `cy.intercept` 稳定网络；避免固定 `cy.wait(1000)` |
+| 上传文件 | `cy.selectFile()`，注意路径相对 fixtures |
+| 测试跑得慢 | 开启 `cy.session`；拆分 spec；只在 CI 用 `--record` 并行 |
 
-## 十、最佳实践
+## 九、最佳实践
 
-1. **团队共享 `launch.json`**（提交到仓库），新人开箱即用。
-2. 用 Logpoint 代替临时 `console.log`，不污染代码。
-3. 条件断点处理循环中的特定迭代，避免手动 F10 几十次。
-4. 复杂 bug：先在断点处观察，再用 Watch 验证假设。
-5. 前端项目同时配 Chrome launch + 网络面板使用。
+1. 用 `data-testid` 定位，别依赖样式类名。
+2. 不要滥用 `cy.wait(ms)`，改用 `cy.intercept` + `cy.wait('@alias')`。
+3. `beforeEach` 中通过 API 快速准备数据，而非走完整 UI 流程。
+4. 关键流程（登录）用 `cy.session` 缓存。
+5. 只测 E2E 该测的东西（跨模块串联），细粒度逻辑放单元测试。
 
-## 十一、参考
+## 十、参考
 
-- 官方文档：https://code.visualstudio.com/docs/debugtest/debugging
-- launch.json 属性：https://code.visualstudio.com/docs/debugtest/debugging-configuration
+- 官方文档：https://docs.cypress.io/
+- 最佳实践：https://docs.cypress.io/guides/references/best-practices
 

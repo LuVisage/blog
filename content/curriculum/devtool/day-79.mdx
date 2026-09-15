@@ -2,341 +2,276 @@
 slug: day-79
 kind: day
 day: 79
-week: 13
-weekTitle: 文档与协作
-weekBlurb: Markdown、API 文档、Storybook、图表与团队协作规范，把知识沉淀下来。
-title: API 文档工具教程（Swagger / OpenAPI / Redoc）
-sourcePath: 13-文档与协作/01-API文档.md
+week: 12
+weekTitle: 日志与监控
+weekBlurb: Sentry、OpenTelemetry、Prometheus、Loki 与链路追踪——backend 课 W2D10 与 agent 课 W6 是课程向实战，这里是工具全集。
+title: 分布式链路追踪教程（Jaeger / Zipkin）
+lead: 分布式链路追踪教程（Jaeger / Zipkin）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 12-日志与监控/07-Jaeger与Zipkin.md
 ---
 
-## 一、三者关系
+## 一、为什么需要链路追踪
 
-| 名称 | 是什么 |
+微服务下一个请求经过多个服务，出问题时：
+
+- 日志分散在各服务，无法串起来；
+- 「慢」到底慢在哪个服务、哪次数据库调用？
+
+**链路追踪**把一次请求的所有环节串成一条 Trace，可视化每个 Span 的耗时。
+
+## 二、核心概念
+
+| 概念 | 说明 |
 | --- | --- |
-| **OpenAPI** | 规范标准（描述 REST API 的 JSON/YAML 格式，OpenAPI 3.x） |
-| **Swagger** | 早期规范名 + 工具集（Swagger UI、Swagger Editor、Codegen） |
-| **Redoc** | 优雅的文档渲染器（基于 OpenAPI 文件生成三栏文档） |
+| Trace | 一次完整请求的调用链（Trace ID 全局唯一） |
+| Span | 链中的一环（一次 RPC / DB 查询 / 函数），有耗时与父子关系 |
+| Parent Span | 上游调用者 |
+| Context Propagation | 跨服务透传 Trace ID（HTTP header `traceparent` / `uber-trace-id`） |
+| Sampling | 采样（全量会爆炸，通常 1-10%） |
 
-一句话：**用 OpenAPI 规范定义接口，用 Swagger UI 或 Redoc 渲染展示。**
+## 三、Jaeger vs Zipkin
 
-## 二、OpenAPI 规范基础
+| 维度 | Jaeger | Zipkin |
+| --- | --- | --- |
+| 出身 | Uber → CNCF 毕业项目 | Twitter，最早的开源追踪系统 |
+| 存储 | ES / Cassandra / Badger | ES / MySQL / Cassandra / 内存 |
+| 功能 | 更丰富（服务依赖图、对比、深链路分析） | 简洁，够用 |
+| 采样 | 自适应采样 | 基础采样 |
+| UI | 现代、功能全 | 简洁 |
+| 生态 | OpenTelemetry 一等公民 | 被 OTel 支持 |
+| 现状 | 活跃（v2 基于 OTel Collector） | 维护模式 |
 
-```yaml
-openapi: 3.0.3
+**建议**：新项目直接用 **OpenTelemetry 采集 + Jaeger 或云厂商后端**；Zipkin 适合轻量快速验证。
 
-info:
-  title: 订单服务 API
-  version: 1.2.0
-  description: 订单创建、查询与取消
+## 四、Jaeger 快速部署
 
-servers:
-  - url: https://api.example.com/v1
-    description: 生产环境
-  - url: http://localhost:8080/v1
-    description: 本地开发
-
-tags:
-  - name: orders
-    description: 订单相关接口
-
-paths:
-  /orders:
-    get:
-      tags: [orders]
-      summary: 查询订单列表
-      parameters:
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: size
-          in: query
-          schema: { type: integer, default: 20, maximum: 100 }
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [pending, paid, shipped, done, cancelled]
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    post:
-      tags: [orders]
-      summary: 创建订单
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateOrder'
-      responses:
-        '201':
-          description: 创建成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Order'
-
-  /orders/{id}:
-    get:
-      tags: [orders]
-      summary: 订单详情
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Order'
-        '404':
-          description: 订单不存在
-
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-  schemas:
-    Order:
-      type: object
-      required: [id, status, amount, createdAt]
-      properties:
-        id: { type: integer, example: 1001 }
-        status:
-          type: string
-          enum: [pending, paid, shipped, done, cancelled]
-        amount: { type: number, format: double, example: 99.5 }
-        items:
-          type: array
-          items:
-            type: object
-            properties:
-              sku: { type: string }
-              qty: { type: integer }
-        createdAt: { type: string, format: date-time }
-
-    OrderList:
-      type: object
-      properties:
-        total: { type: integer }
-        items:
-          type: array
-          items: { $ref: '#/components/schemas/Order' }
-
-    CreateOrder:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            type: object
-            required: [sku, qty]
-            properties:
-              sku: { type: string }
-              qty: { type: integer, minimum: 1 }
-
-    Error:
-      type: object
-      properties:
-        code: { type: integer }
-        message: { type: string }
-
-  responses:
-    Unauthorized:
-      description: 未认证
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-
-security:
-  - bearerAuth: []
+```powershell
+# 一体化（含内存存储 + UI，测试用）
+docker run -d --name jaeger `
+  -p 16686:16686 `      # UI
+  -p 4317:4317 `        # OTLP gRPC
+  -p 4318:4318 `        # OTLP HTTP
+  jaegertracing/all-in-one:latest
 ```
 
-## 三、各语言自动生成
+访问 http://localhost:16686 即 UI。
 
-### Python（FastAPI，最省心）
+生产部署（ES 存储）：
 
-FastAPI 内置 OpenAPI 生成：
-
-```python
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
-
-app = FastAPI(title="订单服务 API", version="1.2.0")
-
-class CreateOrder(BaseModel):
-    sku: str
-    qty: int = Field(ge=1, description="数量，至少 1")
-
-class Order(CreateOrder):
-    id: int
-    status: str
-
-@app.post("/orders", response_model=Order, tags=["orders"], summary="创建订单")
-def create_order(payload: CreateOrder):
-    return Order(id=1, status="pending", **payload.model_dump())
+```powershell
+docker run -d --name jaeger `
+  -e SPAN_STORAGE_TYPE=elasticsearch `
+  -e ES_SERVER_URLS=http://elasticsearch:9200 `
+  -p 16686:16686 -p 4317:4317 `
+  jaegertracing/jaeger:latest
 ```
 
-自动获得：
-- Swagger UI：`http://localhost:8000/docs`
-- ReDoc：`http://localhost:8000/redoc`
-- OpenAPI JSON：`http://localhost:8000/openapi.json`
+## 五、接入示例（基于 OpenTelemetry）
 
-### Node.js（tsoa / NestJS / zod-to-openapi）
-
-NestJS：
+### Node.js
 
 ```ts
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 
-@ApiTags('orders')
-@Controller('orders')
-export class OrdersController {
-  @Post()
-  @ApiOperation({ summary: '创建订单' })
-  @ApiResponse({ status: 201, type: OrderDto })
-  create(@Body() dto: CreateOrderDto) { ... }
+const sdk = new NodeSDK({
+  serviceName: 'order-service',
+  traceExporter: new OTLPTraceExporter({
+    url: 'http://localhost:4318/v1/traces',     // 直接发 Jaeger
+  }),
+  instrumentations: [getNodeAutoInstrumentations()],
+});
+
+sdk.start();
+```
+
+启动：`node --import ./instrumentation.ts src/server.ts`
+
+### Python
+
+```python
+# pip install opentelemetry-distro opentelemetry-exporter-otlp
+# opentelemetry-bootstrap -a install
+# opentelemetry-instrument --service_name order-api python app.py
+
+from opentelemetry import trace
+tracer = trace.get_tracer(__name__)
+
+with tracer.start_as_current_span("process_payment") as span:
+    span.set_attribute("payment.provider", "alipay")
+    do_payment()
+```
+
+### Go
+
+```go
+import (
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+    sdktrace "go.opentelemetry.io/otel/sdk/trace"
+)
+
+func initTracer() func() {
+    exporter, _ := otlptracehttp.New(context.Background(),
+        otlptracehttp.WithEndpoint("localhost:4318"), otlptracehttp.WithInsecure())
+    tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+    otel.SetTracerProvider(tp)
+    return func() { _ = tp.Shutdown(context.Background()) }
 }
 ```
 
-或轻量方案（zod + @asteasolutions/zod-to-openapi）从 zod schema 生成。
+### HTTP 跨服务透传
 
-### Go（swaggo）
+OpenTelemetry 的自动埋点会自动注入与解析 `traceparent` 头，**前提是**：
+- 服务间调用都走被埋点的 HTTP client；
+- 网关/Nginx 不要剥离 `traceparent` 头（检查配置）。
 
-```go
-// @Summary 创建订单
-// @Tags orders
-// @Accept json
-// @Produce json
-// @Param order body CreateOrder true "订单参数"
-// @Success 201 {object} Order
-// @Router /orders [post]
-func CreateOrder(c *gin.Context) { ... }
+手动透传示例：
+
+```ts
+import { propagation, context } from '@opentelemetry/api';
+
+// 发送方
+const headers: Record<string, string> = {};
+propagation.inject(context.active(), headers);
+await fetch('http://user-service/api/profile', { headers });
+
+// 接收方（框架自动处理；手动时）
+const ctx = propagation.extract(context.active(), req.headers);
 ```
 
-```bash
-swag init -g main.go
+## 六、Zipkin 使用
+
+### 部署
+
+```powershell
+docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin
 ```
 
-### Java（SpringDoc）
+访问 http://localhost:9411 查看 UI。
 
-```java
-@Operation(summary = "创建订单")
-@PostMapping("/orders")
-public Order create(@RequestBody @Valid CreateOrder req) { ... }
+### 上报数据
+
+```powershell
+# 方式一：OTel Collector 导出到 Zipkin
+# exporters:
+#   zipkin:
+#     endpoint: http://zipkin:9411/api/v2/spans
+
+# 方式二：应用直接上报（V2 JSON API）
+curl.exe -X POST http://localhost:9411/api/v2/spans `
+  -H "Content-Type: application/json" `
+  -d '[{"traceId":"a1b2c3d4e5f60718","id":"1122334455667788","name":"get /api/users","timestamp":1757800000000000,"duration":45000,"localEndpoint":{"serviceName":"api"}}]'
 ```
 
-依赖 `springdoc-openapi-starter-webmvc-ui` 后访问 `/swagger-ui.html`。
+Python 直接接入：
 
-## 四、Swagger UI 与 Redoc 部署
-
-### Swagger UI（可交互测试）
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>API 文档</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-  <script>
-    SwaggerUIBundle({
-      url: '/openapi.yaml',
-      dom_id: '#swagger-ui',
-      deepLinking: true,
-      tryItOutEnabled: true,
-    });
-  </script>
-</body>
-</html>
+```powershell
+pip install pyzipkin
 ```
 
-特点：**能直接发请求**（Try it out），适合联调。
+```python
+from py_zipkin.zipkin import zipkin_span
 
-### Redoc（漂亮的只读文档）
-
-```html
-<!DOCTYPE html>
-<html>
-<head><title>API 文档</title></head>
-<body>
-  <redoc spec-url="/openapi.yaml"></redoc>
-  <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
-</body>
-</html>
+def do_work():
+    with zipkin_span(
+        service_name='order-api',
+        span_name='submit_order',
+        transport_handler=lambda x: send_to_zipkin(x),  # 上报函数
+        sample_rate=10.0,        # 10% 采样
+    ):
+        process()
 ```
 
-特点：三栏布局、响应式、生成静态 HTML（适合对外文档站）：
+## 七、Jaeger/Zipkin UI 使用
 
-```bash
-npx @redocly/cli build-docs openapi.yaml -o docs/index.html
+### 查询链路
+
+1. 选 Service（如 `order-service`）；
+2. 选 Operation（如 `POST /api/orders`）；
+3. 设置时间范围与 Tags（如 `http.status_code=500`）；
+4. 点 Find Traces。
+
+### 分析
+
+| 视图 | 用途 |
+| --- | --- |
+| Trace Timeline | 瀑布图，直观看每个 Span 耗时占比 |
+| Span Details | 标签、日志、耗时明细 |
+| Service Dependencies（Jaeger） | 服务依赖拓扑图 |
+| Compare（Jaeger） | 对比两条链路差异 |
+| Deep Link | 从日志中的 traceId 直接跳转 |
+
+**典型排查**：
+
+```
+接口 P95 从 200ms 涨到 2s
+  → 查慢 Trace
+  → 看瀑布图：哪个 Span 占了大头
+  → 若是 DB Span → 查那条 SQL（见数据库教程）
+  → 若是下游 HTTP Span → 跳到下游服务的链路继续看
+  → 若是自身计算 Span → 看代码逻辑
 ```
 
-### 在 CI 中校验与发布
+## 八、采样策略
+
+| 策略 | 说明 |
+| --- | --- |
+| 头部采样 | 请求入口决定是否采样（简单，可能丢错误链路） |
+| 尾部采样 | 收集完整链路后按规则决定（保留慢/错误链路，推荐） |
+| 自适应采样 | 按流量动态调整（Jaeger 特性） |
+
+OTel 环境变量：
+
+```powershell
+$env:OTEL_TRACES_SAMPLER="parentbased_traceidratio"
+$env:OTEL_TRACES_SAMPLER_ARG="0.1"     # 10%
+```
+
+尾部采样在 Collector 中配置（`tail_sampling` processor）：
 
 ```yaml
-- run: npx @redocly/cli lint openapi.yaml       # 规范校验
-- run: npx @redocly/cli build-docs openapi.yaml -o dist/api.html
+processors:
+  tail_sampling:
+    decision_wait: 10s
+    policies:
+      - name: errors
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+      - name: slow
+        type: latency
+        latency: { threshold_ms: 1000 }
+      - name: random
+        type: probabilistic
+        probabilistic: { sampling_percentage: 5 }
 ```
 
-## 五、契约驱动开发（推荐流程）
+## 九、与日志/指标联动
 
-```
-1. 设计：先用 OpenAPI 写接口定义（或用 Swagger Editor / Apifox）
-2. Review：前后端一起评审接口契约
-3. Mock：用 OpenAPI 生成 Mock 服务（Prism / Apifox）
-   - npx @stoplight/prism-cli mock openapi.yaml
-4. 并行开发：
-   - 前端对着 Mock 开发
-   - 后端按契约实现并用测试验证
-5. 校验：CI 中 diff 实现与契约（Dredd / schemathesis）
-6. 发布：构建文档站，随版本部署
-```
+1. **日志 → Trace**：日志里带 `traceId`，Grafana/Loki 配 Derived field 跳转 Jaeger；
+2. **指标 → Trace**：Prometheus Exemplars 标注样本对应 traceId；
+3. **Trace → 日志**：Jaeger 中配置日志的跳转链接（按 traceId 搜 Loki）。
 
-好处：把「联调期发现字段不一致」提前到设计阶段解决。
+实现三者互跳后，排查路径变成：**告警（指标）→ 定位服务 → 看链路找瓶颈 → 查日志看细节**。
 
-## 六、常见问题
+## 十、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| `$ref` 跨文件引用失败 | 用 bundler 合并：`redocly bundle openapi.yaml -o bundled.yaml` |
-| Swagger UI 显示旧版定义 | 清缓存 / 确认 spec URL；CI 部署后加版本号查询参数 |
-| 枚举、示例不显示 | 补 `example` / `examples` 字段 |
-| 与实现不一致 | 从代码自动生成（FastAPI/NestJS）而非手写；或加契约测试 |
-| 中文显示乱码 | 确保 yaml/json 是 UTF-8 |
-| 生产暴露文档 | 生产可关闭 Swagger（FastAPI `docs_url=None`），或加鉴权 |
+| 只有单个 Span，链路断开 | `traceparent` 头未透传（网关剥离）；异步任务未传递 context |
+| 服务名不显示 | `serviceName` 未配置或配置不一致 |
+| 找不到某条 Trace | 采样未命中；调高采样率或用尾部采样保留错误 |
+| Span 时间不准 | 各服务器时钟不同步（NTP 对时） |
+| 数据量太大 | 降采样率、Collector 过滤低价值服务 |
+| Jaeger 存储满 | 配 ES ILM 或用 Cassandra；设置 retention |
+| 异步/消息队列链路断 | 需手动把 context 注入消息头并在消费端提取 |
 
-## 七、最佳实践
+## 十一、参考
 
-1. **单一来源**：从代码生成（注解/DTO），避免手写文档漂移；
-2. **文件进仓库**：OpenAPI 文件随代码提交，CI 校验 + 生成文档站；
-3. **写全示例**：`example` 是最有价值的部分，前端靠它理解；
-4. **版本管理**：`info.version` 与发布流程绑定；
-5. 对外文档用 **Redoc**（好看、稳定），内部联调用 **Swagger UI**（可测试）。
-
-## 八、参考
-
-- OpenAPI 规范：https://spec.openapis.org/oas/v3.0.3
-- Swagger：https://swagger.io/tools/swagger-ui/
-- Redoc：https://github.com/Redocly/redoc
-- Redocly CLI：https://redocly.com/docs/cli/
-- Swagger Editor（在线编写）：https://editor.swagger.io/
-- Prism（Mock 服务）：https://github.com/stoplightio/prism
+- Jaeger：https://www.jaegertracing.io/docs/
+- Zipkin：https://zipkin.io/pages/quickstart.html
+- OpenTelemetry 追踪：https://opentelemetry.io/docs/concepts/signals/traces/
+- W3C Trace Context：https://www.w3.org/TR/trace-context/
+- Grafana Tempo（Jaeger 的现代替代）：https://grafana.com/docs/tempo/latest/
 

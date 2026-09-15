@@ -2,192 +2,188 @@
 slug: day-35
 kind: day
 day: 35
-week: 5
-weekTitle: 测试
-weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
-title: MSW（Mock Service Worker）使用教程
-sourcePath: 05-测试/06-MSW.md
+week: 6
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: golangci-lint 使用教程
+lead: golangci-lint 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 04-代码检查与格式化/05-golangci-lint.md
 ---
 
-## 一、MSW 是什么
+## 一、golangci-lint 是什么
 
-MSW 通过 **Service Worker**（浏览器）或 **请求拦截器**（Node）在网络层拦截请求，返回你定义的 Mock 数据。
+Go 生态的**聚合式 Linter 运行器**：把 `govet`、`staticcheck`、`errcheck`、`ineffassign`、`revive` 等几十个 linter 统一到一条命令，支持并行执行与结果去重，速度远快于逐个运行。
 
-与传统 Mock 的区别：
-
-| 方式 | 做法 | 问题 |
-| --- | --- | --- |
-| 传统 Mock | 替换 `fetch`/`axios` 模块 | 与实现耦合，换 HTTP 库就失效；不覆盖真实 URL 语义 |
-| MSW | 拦截网络请求 | 与代码零耦合；开发、测试、Storybook 通用；可复用同一套 handler |
-
-## 二、安装与初始化
+## 二、安装
 
 ```powershell
-pnpm add -D msw
-npx msw init public/ --save     # 生成 public/mockServiceWorker.js
+# Windows
+winget install golangci-lint
+# 或 scoop install golangci-lint
+# macOS
+brew install golangci-lint
+# 通用（推荐，锁定版本）
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59.1
 ```
 
-> `mockServiceWorker.js` 需要提交进版本库。
-
-## 三、定义 Handler
-
-`src/mocks/handlers.ts`：
-
-```ts
-import { http, HttpResponse, delay } from 'msw';
-
-export const handlers = [
-  // GET
-  http.get('/api/users', () =>
-    HttpResponse.json([
-      { id: 1, name: 'Ada' },
-      { id: 2, name: 'Linus' },
-    ]),
-  ),
-
-  // 路径参数
-  http.get('/api/users/:id', ({ params }) =>
-    HttpResponse.json({ id: Number(params.id), name: 'Ada' }),
-  ),
-
-  // POST + 读取请求体
-  http.post('/api/login', async ({ request }) => {
-    const body = (await request.json()) as { username: string; password: string };
-    if (body.password === 'secret') {
-      return HttpResponse.json({ token: 'fake-jwt' });
-    }
-    return HttpResponse.json({ message: '用户名或密码错误' }, { status: 401 });
-  }),
-
-  // 延迟响应（测 loading 状态）
-  http.get('/api/slow', async () => {
-    await delay(500);
-    return HttpResponse.json({ ok: true });
-  }),
-
-  // 只 mock 一次
-  http.get('/api/flaky', () => HttpResponse.json({ ok: true }), { once: true }),
-];
+```powershell
+golangci-lint --version
 ```
 
-## 四、浏览器端使用（开发环境）
+## 三、基本使用
 
-`src/mocks/browser.ts`：
-
-```ts
-import { setupWorker } from 'msw/browser';
-import { handlers } from './handlers';
-
-export const worker = setupWorker(...handlers);
+```powershell
+golangci-lint run                  # 检查当前包及子包
+golangci-lint run ./...            # 全项目
+golangci-lint run --fix            # 自动修复可修复项
+golangci-lint run -v               # 显示更多信息
+golangci-lint run path/to/pkg/...  # 指定包
+golangci-lint linters              # 列出所有可用 linter
+golangci-lint cache clean
 ```
 
-入口按需启动：
+## 四、配置文件 `.golangci.yml`
 
-```ts
-// src/main.tsx
-async function enableMocking() {
-  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
-    const { worker } = await import('./mocks/browser');
-    return worker.start({ onUnhandledRequest: 'bypass' });
-  }
-}
+```yaml
+run:
+  timeout: 5m
+  tests: true
+  skip-dirs:
+    - vendor
+    - third_party
 
-enableMocking().then(() => {
-  createRoot(document.getElementById('root')!).render(<App />);
-});
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - revive
+    - gocritic
+    - bodyclose
+    - contextcheck
+    - sqlclosecheck
+    - errname
+  disable:
+    - depguard
+
+linters-settings:
+  govet:
+    enable-all: true
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+  max-issues-per-linter: 0
+  max-same-issues: 0
 ```
 
-启动后控制台会打印 `[MSW] Mocking enabled`。**后端未就绪时前端可以先行开发。**
+## 五、常用 linter 说明
 
-## 五、测试中使用（Node 端）
-
-`src/test/setup.ts`：
-
-```ts
-import { setupServer } from 'msw/node';
-import { handlers } from '../mocks/handlers';
-
-export const server = setupServer(...handlers);
-
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-afterEach(() => server.resetHandlers());   // 每个测试后恢复默认 handler
-afterAll(() => server.close());
-```
-
-测试中覆盖 handler：
-
-```ts
-import { http, HttpResponse } from 'msw';
-import { server } from '../test/setup';
-import { render, screen } from '@testing-library/react';
-import { UserList } from './UserList';
-
-test('接口报错时展示错误提示', async () => {
-  server.use(
-    http.get('/api/users', () => HttpResponse.json({ message: 'boom' }, { status: 500 })),
-  );
-
-  render(<UserList />);
-  expect(await screen.findByText('加载失败')).toBeInTheDocument();
-});
-```
-
-## 六、在 Storybook 中使用
-
-```ts
-// .storybook/preview.ts
-import { initialize, mswLoader } from 'msw-storybook-addon';
-import { handlers } from '../src/mocks/handlers';
-
-initialize();
-export const loaders = [mswLoader];
-export const parameters = { msw: { handlers } };
-```
-
-单个 story 覆盖：
-
-```ts
-export const Error = {
-  parameters: {
-    msw: {
-      handlers: [http.get('/api/users', () => HttpResponse.json({}, { status: 500 }))],
-    },
-  },
-};
-```
-
-## 七、常用 API 速查
-
-| API | 用途 |
+| Linter | 作用 |
 | --- | --- |
-| `http.get/post/put/patch/delete` | 定义拦截规则 |
-| `HttpResponse.json/ text/ xml` | 构造响应 |
-| `delay(ms)` | 响应延迟 |
-| `{ once: true }` | 只拦截一次 |
-| `server.use(...)` | 测试内临时覆盖 |
-| `server.resetHandlers()` | 恢复默认 |
-| `onUnhandledRequest: 'error' \| 'bypass' \| 'warn'` | 未匹配请求处理策略 |
+| govet | 官方 vet，检查可疑构造（printf 参数、锁拷贝等） |
+| staticcheck | 最全面的静态分析（SA 系列检查） |
+| errcheck | 检查未处理的 error 返回值 |
+| ineffassign | 无效赋值 |
+| unused | 未使用的代码 |
+| revive | golint 替代品，可配置风格规则 |
+| gocritic | 性能与风格建议 |
+| bodyclose | HTTP body 未关闭 |
+| sqlclosecheck | sql.Rows/Stmt 未关闭 |
+| contextcheck | context 传递问题 |
 
-## 八、常见问题
+## 六、与格式化工具配合
+
+```powershell
+gofmt -l .                # 列出未格式化的文件
+goimports -l -w .         # 自动整理 import
+go vet ./...              # 官方基础检查
+golangci-lint run         # 综合检查
+```
+
+编辑器（VS Code + Go 扩展）`settings.json`：
+
+```json
+{
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": ["--fast"],
+  "go.formatTool": "goimports"
+}
+```
+
+> `--fast` 只跑快速 linter，适合保存时触发；完整检查留给 CI。
+
+## 七、CI 集成
+
+**GitHub Actions**：
+
+```yaml
+name: lint
+on: [push, pull_request]
+jobs:
+  golangci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.59.1
+          args: --timeout=5m
+```
+
+**pre-commit**：
+
+```yaml
+repos:
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.59.1
+    hooks:
+      - id: golangci-lint
+        entry: golangci-lint run --new-from-rev=HEAD~1
+```
+
+## 八、性能优化
+
+1. **只检查增量**：`golangci-lint run --new-from-rev=origin/main`（CI 中最实用）；
+2. 开缓存（默认开启，位于 `~/.cache/golangci-lint`）；
+3. `--concurrency` 调整并发；
+4. 关闭不需要的 linter，减少重复分析。
+
+## 九、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| MSW 没生效 | 确认 `worker.start()` 已 await；`public/mockServiceWorker.js` 存在 |
-| 生产包体积变大 | 用动态 `import()` 按需加载 mock 模块 |
-| 报 `request is not handled` | 检查 URL 与 baseURL 是否一致；加 `onUnhandledRequest: 'bypass'` |
-| 测试间相互污染 | `afterEach(() => server.resetHandlers())` |
-| SSE / WebSocket | MSW 提供 `sse` 与 `ws` API（v2） |
-| 与真实接口调试切换 | 用环境变量 `VITE_USE_MOCK` 控制 |
+| 首次运行内存占用高 | 加大内存或分目录跑；Go 1.19+ 支持 `GOMEMLIMIT` |
+| 报 `typecheck` 错误 | 通常是代码有编译错误，先 `go build ./...` 修复 |
+| 和 IDE 提示不一致 | 统一版本：让 IDE 与 CI 使用同一 golangci-lint 版本 |
+| 老项目一次报几千个问题 | 分阶段：先 `--new-from-rev`，再逐步开规则全量清理 |
+| 规则太啰嗦 | `.golangci.yml` 的 `issues.exclude-rules` 精确豁免 |
+| 升级后行为变化 | 版本号写死（go.mod 的 tool 依赖 / CI 指定 version） |
 
-## 九、最佳实践
+## 十、最佳实践
 
-1. **handler 单一来源**：开发、测试、Storybook 共用 `handlers.ts`。
-2. handler 尽量模拟真实响应结构（含错误码、分页），减少联调时的惊喜。
-3. 测试里通过 `server.use()` 覆盖个别场景，而不是复制整套 handler。
-4. 发现接口契约变更时，同步更新 handler 与类型定义。
+1. **版本锁定**，团队/CI/IDE 三方一致。
+2. 新项目默认开启 `errcheck`、`staticcheck`、`govet`，这是收益最高的三个。
+3. 老项目用 `--new-from-rev` 逐步收紧，不要一次性全量强制。
+4. 每条 `//nolint` 注释写明原因：`//nolint:errcheck // 该错误已在调用方处理`。
 
-## 十、参考
+## 十一、参考
 
-- 官方文档：https://mswjs.io/docs/
-- 示例仓库：https://github.com/mswjs/examples
+- 官方文档：https://golangci-lint.run/
+- Linter 清单：https://golangci-lint.run/usage/linters/
 

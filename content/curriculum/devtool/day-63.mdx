@@ -5,248 +5,338 @@ day: 63
 week: 10
 weekTitle: CI/CD
 weekBlurb: 以 GitHub Actions 为主的流水线：构建、测试、发布自动化，把前几周的检查串成一条链。
-title: GitLab CI 使用教程
-sourcePath: 10-CICD/02-GitLab-CI.md
+title: GitHub Actions 使用教程
+lead: GitHub Actions 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 10-CICD/01-GitHub-Actions.md
 ---
+
+> **与课程的关系**：[backend 课 W4 Day5](/learn/backend/week-4-plan) 会用 Actions 给 FastAPI 做自动测试与部署；本篇是全集手册。
 
 ## 一、基本概念
 
 | 概念 | 说明 |
 | --- | --- |
-| Pipeline | 一次完整流水线运行 |
-| Stage | 阶段（串行），如 build → test → deploy |
-| Job | 阶段内的任务（同阶段并行） |
-| Runner | 执行任务的机器（共享/专用/自建） |
-| `.gitlab-ci.yml` | 流水线定义文件（放仓库根目录） |
-| Artifacts | Job 产物（测试报告、构建包） |
-| Cache | 跨 Pipeline 的依赖缓存 |
+| Workflow | 一个自动化流程，`.github/workflows/*.yml` |
+| Event | 触发条件（push、pull_request、schedule、workflow_dispatch...） |
+| Job | 一组步骤，默认并行；可设 `needs` 依赖 |
+| Step | 单个步骤（run 命令 或 uses 动作） |
+| Action | 可复用的步骤单元（官方/社区 marketplace） |
+| Runner | 执行机器（`ubuntu-latest`、`windows-latest`、`macos-latest` 或自建） |
 
-## 二、第一个 Pipeline
+## 二、第一个 Workflow
 
-```yaml
-# .gitlab-ci.yml
-stages:
-  - build
-  - test
-  - deploy
-
-variables:
-  NODE_VERSION: "20"
-
-default:
-  image: node:20-alpine
-  cache:
-    key:
-      files:
-        - pnpm-lock.yaml
-    paths:
-      - .pnpm-store/
-
-build:
-  stage: build
-  before_script:
-    - corepack enable
-    - pnpm config set store-dir .pnpm-store
-  script:
-    - pnpm install --frozen-lockfile
-    - pnpm build
-  artifacts:
-    paths:
-      - dist/
-    expire_in: 1 week
-
-test:
-  stage: test
-  script:
-    - pnpm install --frozen-lockfile
-    - pnpm test -- --run
-    - pnpm lint
-  coverage: '/Lines\s*:\s*(\d+\.\d+)%/'   # 从日志提取覆盖率
-
-deploy:
-  stage: deploy
-  script:
-    - echo "部署 $CI_COMMIT_REF_NAME ..."
-  only:
-    - main
-  environment:
-    name: production
-    url: https://app.example.com
-```
-
-## 三、关键语法
-
-### 触发规则（新语法推荐）
+`.github/workflows/ci.yml`：
 
 ```yaml
-workflow:
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_TAG
+name: CI
 
-deploy:
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: manual            # 手动触发
-    - if: $CI_COMMIT_TAG
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test -- --run
+      - run: pnpm build
 ```
 
-### 预定义变量（常用）
+## 三、触发条件详解
 
-| 变量 | 含义 |
+```yaml
+on:
+  # 分支推送
+  push:
+    branches: [main, 'release/**']
+    paths-ignore: ['docs/**', '*.md']      # 文档改动不触发
+
+  # PR
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+  # 定时（cron 用 UTC 时间）
+  schedule:
+    - cron: '0 2 * * *'      # 每天 UTC 02:00（北京 10:00）
+
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'staging'
+        type: choice
+        options: [staging, production]
+
+  # 其他 workflow 完成后
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+```
+
+## 四、常用技法
+
+### 1. 矩阵构建（一次跑多版本）
+
+```yaml
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: ${{ matrix.node }} }
+      # ...
+```
+
+### 2. Job 依赖与并行
+
+```yaml
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps: [...]
+  test:
+    runs-on: ubuntu-latest
+    steps: [...]
+  build:
+    needs: [lint, test]        # 两个都过才跑
+    runs-on: ubuntu-latest
+    steps: [...]
+```
+
+### 3. 缓存
+
+```yaml
+- uses: actions/cache@v4
+  with:
+    path: |
+      ~/.cache/pip
+      ~/.cargo/registry
+    key: ${{ runner.os }}-deps-${{ hashFiles('**/requirements.txt', '**/Cargo.lock') }}
+    restore-keys: ${{ runner.os }}-deps-
+```
+
+> `setup-node` 的 `cache: pnpm` 已自动处理 node_modules 缓存。
+
+### 4. 上传构建产物
+
+```yaml
+- uses: actions/upload-artifact@v4
+  with:
+    name: dist
+    path: dist/
+    retention-days: 7
+```
+
+### 5. 密钥与变量
+
+```yaml
+env:
+  NODE_ENV: production
+
+steps:
+  - run: echo "Deploying to ${{ vars.ENVIRONMENT }}"
+    env:
+      API_KEY: ${{ secrets.API_KEY }}
+```
+
+- `secrets.*`：仓库/组织 Secrets（Settings → Secrets and variables → Actions）；
+- `vars.*`：普通变量（非敏感）；
+- **不要 echo secrets**（GitHub 会打码，但仍应避免）。
+
+### 6. 条件执行
+
+```yaml
+- run: pnpm deploy
+  if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+- run: pnpm test:e2e
+  if: ${{ !cancelled() }}      # 即使前面失败也跑（收集更多信息）
+
+- run: echo "PR only"
+  if: github.event_name == 'pull_request'
+```
+
+### 7. 部署 Docker 镜像
+
+```yaml
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+```
+
+### 8. 部署到服务器（SSH）
+
+```yaml
+- name: Deploy
+  uses: appleboy/ssh-action@v1
+  with:
+    host: ${{ secrets.HOST }}
+    username: ${{ secrets.USER }}
+    key: ${{ secrets.SSH_KEY }}
+    script: |
+      cd /opt/myapp
+      docker compose pull
+      docker compose up -d
+```
+
+## 五、完整示例：测试 + 部署流水线
+
+```yaml
+name: Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true        # 同分支新推送取消旧任务（省钱）
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test -- --run --coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+
+  e2e:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  deploy:
+    needs: [quality, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production        # 可配置人工审批
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "部署到生产..."
+```
+
+## 六、安全要点
+
+1. **固定 Action 版本**：用 `@v4` 或完整 SHA，不要 `@main`；
+2. `permissions` 最小化：
+
+```yaml
+permissions:
+  contents: read
+```
+
+3. PR 来自 fork 时 secrets 不注入（安全设计），需要审批流程；
+4. 定期用 **Dependabot** 更新 Actions 版本：
+
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+```
+
+## 七、常用 Actions 清单
+
+| Action | 用途 |
 | --- | --- |
-| `CI_COMMIT_BRANCH` | 当前分支 |
-| `CI_COMMIT_TAG` | 标签 |
-| `CI_COMMIT_SHA` | 提交 hash |
-| `CI_PIPELINE_SOURCE` | 触发来源（push/merge_request_event/schedule） |
-| `CI_MERGE_REQUEST_IID` | MR 编号 |
-| `CI_REGISTRY_*` | 内置镜像仓库凭证 |
-| `CI_ENVIRONMENT_NAME` | 环境名 |
+| actions/checkout | 拉代码 |
+| actions/setup-node / setup-python / setup-go | 装运行时 |
+| actions/cache | 缓存 |
+| actions/upload-artifact / download-artifact | 产物传递 |
+| pnpm/action-setup | pnpm |
+| docker/build-push-action | 构建推送镜像 |
+| docker/login-action | 登录镜像仓库 |
+| github/codeql-action | 安全扫描 |
+| softprops/action-gh-release | 发布 Release |
 
-### 缓存 vs 产物
-
-```yaml
-# cache：跨 pipeline 复用，加速安装（不需要下载，直接在执行机上）
-cache:
-  key: ${CI_COMMIT_REF_SLUG}
-  paths: [node_modules/]
-
-# artifacts：job 间传递 + 用户下载
-artifacts:
-  paths: [dist/]
-  reports:
-    junit: reports/junit.xml
-    coverage_report:
-      coverage_format: cobertura
-      path: coverage/cobertura-coverage.xml
-```
-
-### 并行与矩阵
-
-```yaml
-test:
-  parallel: 4                     # 4 个并行 job（$CI_NODE_INDEX 区分）
-  script:
-    - pnpm vitest run --shard=$CI_NODE_INDEX/4
-
-test-matrix:
-  parallel:
-    matrix:
-      - NODE: ["18", "20", "22"]
-        OS: ["linux"]
-  image: node:${NODE}-${OS}
-```
-
-### 模板复用
-
-```yaml
-.node-base:
-  image: node:20
-  before_script:
-    - corepack enable && pnpm install --frozen-lockfile
-
-lint:
-  extends: .node-base
-  script: [pnpm lint]
-
-test:
-  extends: .node-base
-  script: [pnpm test -- --run]
-```
-
-### 手动部署与审批
-
-```yaml
-deploy:prod:
-  stage: deploy
-  script: ./deploy.sh production
-  when: manual
-  allow_failure: false      # 手动任务不被跳过
-  environment:
-    name: production
-    url: https://app.example.com
-```
-
-### 定时任务
-
-GitLab UI → CI/CD → Schedules 添加（cron 语法）。
-
-## 四、Docker 构建与推送
-
-```yaml
-build-image:
-  stage: build
-  image: docker:27
-  services:
-    - docker:27-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
-    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
-```
-
-GitLab 内置容器镜像仓库（Container Registry），凭证由 `CI_REGISTRY_*` 自动提供。
-
-## 五、Secrets 与变量
-
-位置：`Settings → CI/CD → Variables`
-
-- 勾选 **Masked**：日志中打码；
-- 勾选 **Protected**：只在受保护分支/tag 可用；
-- 类型可选 Variable（变量）或 File（文件，如 kubeconfig、证书）。
-
-```yaml
-deploy:
-  script:
-    - echo "$DEPLOY_KEY" > /tmp/key && chmod 600 /tmp/key
-    - ssh -i /tmp/key user@server "cd /app && ./deploy.sh"
-```
-
-## 六、常见问题
+## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| Job 卡在 pending | 没有可用 Runner：检查 Runner 注册与 tag 匹配 |
-| 缓存不生效 | key 策略（`files` 基于 lock 文件）；不同 Runner 不共享本地缓存（用分布式缓存） |
-| `only/except` 与 `rules` 冲突 | 统一改用 `rules` |
-| MR 时 Pipeline 不跑 | 加 `workflow.rules` 包含 `merge_request_event` |
-| 变量在日志里没打码 | 变量需勾选 Masked，且值符合打码规则（长度/字符集） |
-| dind 构建慢 | 用 `docker buildx` + 缓存；或 Kaniko / Buildah 无守护构建 |
-| 想只跑受影响的子项目 | 用 `rules:changes` 或子流水线（`trigger:`） |
-
-## 七、最佳实践
-
-1. **模板化**：用 `extends` / `!reference` / `include` 减少重复；
-2. **include 拆文件**：
-
-```yaml
-include:
-  - local: .gitlab/ci/test.yml
-  - template: Security/SAST.gitlab-ci.yml     # GitLab 官方安全模板
-```
-
-3. **覆盖率可视化**：配 `coverage:` 正则 + Cobertura 报告；
-4. **环境审批**：`environment` + 受保护环境控制生产发布；
-5. **Runner 隔离**：生产部署用专用 Runner，不与普通 CI 共享；
-6. 用 `interruptible: true` + `retry` 优化重跑行为。
-
-## 八、与 GitHub Actions 对照
-
-| 能力 | GitLab CI | GitHub Actions |
-| --- | --- | --- |
-| 配置文件 | `.gitlab-ci.yml` | `.github/workflows/*.yml` |
-| 阶段模型 | stages 一级公民 | 用 `needs` 表达依赖 |
-| 复用 | extends / include / templates | reusable workflows / composite actions |
-| Secret | CI/CD Variables | Secrets |
-| 镜像仓库 | 内置 Container Registry | GHCR |
-| 审批 | Protected Environments | Environments + reviewers |
+| Workflow 不触发 | 检查 `on` 分支名、yml 缩进、文件是否在 `.github/workflows/` |
+| 权限不足（403） | 添加 `permissions`；`GITHUB_TOKEN` 默认只读 |
+| 缓存不命中 | key 设计含 lock 文件 hash；不同 OS 不要共用一个 key |
+| 构建很慢 | 开缓存、并行 job、`concurrency` 取消旧任务 |
+| secrets 拿不到 | fork PR 不注入；检查名称拼写与所在环境 |
+| 部署需要审批 | 使用 GitHub Environments + Required reviewers |
+| Windows runner 很贵 | 只在必要时用，Linux 为主 |
 
 ## 九、参考
 
-- 官方文档：https://docs.gitlab.com/ee/ci/
-- 语法参考：https://docs.gitlab.com/ee/ci/yaml/
-- 预定义变量：https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+- 官方文档：https://docs.github.com/zh/actions
+- Actions Marketplace：https://github.com/marketplace?type=actions
+- 工作流语法：https://docs.github.com/zh/actions/reference/workflow-syntax-for-github-actions
 

@@ -21,8 +21,8 @@ export const metadata: Metadata = {
 const CARDS: { course: CourseId; name: string; tagline: string }[] = [
   {
     course: 'devtool',
-    name: '开发工具链：从 Git 到 CI/CD',
-    tagline: '13 章把写代码绕不开的工具一次讲透：版本控制、包管理、构建、检查、测试、调试、容器与流水线。ML 课开课前建议先过第 1–2 章。',
+    name: '工具箱 · 开发工具链 84 篇',
+    tagline: '按需查阅的工具手册：只有「新机起步」5 篇（Git、Python 环境、VSCode、终端）建议顺序读，其余遇到什么查什么。Docker、pytest、数据库工具等与三门课程互为手册与实战。',
   },
   {
     course: 'ml',
@@ -71,14 +71,15 @@ export default function LearnPage() {
         <h2 className="section-title mb-3">推荐学习路径</h2>
         <p className="body-sm max-w-3xl">
           想走「AI 应用工程师」这条路，按下面的顺序推进，知识点是一条线接一条线的：
-          <strong>工具链</strong>的第 1–2 章解决代码与依赖，是所有课程的前置；
-          <strong>机器学习与深度学习 17 周</strong>补齐模型原理，Week16 的大语言模型正好讲到 Agent 课的门口；
-          <strong>Python 工程化与后端实战</strong>把模型装进服务，其 Week1–2 可与基础课并行；
+          <strong>工具箱</strong>里只有「新机起步」几篇（版本控制、Python 环境、VSCode、终端）是所有课程的前置，其余按需查；
+          <strong>机器学习与深度学习 17 周</strong>补齐模型原理，Week16 的大语言模型正好讲到 Agent 课的门口，每周附可检验的复盘清单；
+          <strong>Python 工程化与后端实战</strong>把模型装进服务，Week1–2 可与基础课并行；
           最后<strong>Agent 课</strong>把前两块拼成生产级项目。
           <strong>CSP 冲刺</strong>是独立的备考线，随时可以插进来。
+          跨课程的统一术语见 <Link href="/learn/ml/glossary">术语表</Link>。
         </p>
         <p className="meta mt-3">
-          devtool Week01–02 → ml Week00–16 → backend Week1–5 → agent 40 天（CSP 随时）
+          工具箱「新机起步」→ ml Week00–16 → backend Week1–5 → agent 40 天（CSP 随时）
         </p>
       </section>
 

@@ -2,166 +2,181 @@
 slug: day-21
 kind: day
 day: 21
-week: 3
-weekTitle: 构建打包
-weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
-title: Turbo（Turborepo）使用教程
-sourcePath: 03-构建打包/08-Turbo.md
+week: 4
+weekTitle: 终端与命令行
+weekBlurb: 终端模拟器、tmux、WSL2 与 shell 配置——ml 课 Week00 的命令行动作，这里是完整版。
+title: WSL2 使用教程
+lead: WSL2 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 08-终端与命令行/03-WSL2.md
 ---
 
-## 一、Turbo 是什么
+## 一、WSL2 是什么
 
-Turborepo 是面向 **JavaScript/TypeScript monorepo** 的高性能构建系统，用 Rust 编写，核心能力：
+WSL2（Windows Subsystem for Linux 2）在 Windows 上运行**真正的 Linux 内核**（轻量虚拟机），特点：
 
-1. **任务编排**：一条命令按依赖顺序跑所有包的任务；
-2. **智能缓存**：内容哈希命中缓存则直接跳过（本地 + 远程）；
-3. **增量执行**：只重跑受影响的包。
+- 完整 Linux 兼容性（Docker、systemd、apt 都能用）；
+- 与 Windows 文件系统互通；
+- 启动秒级、内存动态占用；
+- 是 Windows 上做后端/运维/容器开发的最佳方案。
 
-> 它**不替换** Vite/Webpack，而是在它们之上做「多包任务调度」。底层打包仍由各包自己的工具负责。
+## 二、安装
 
-## 二、快速开始
-
-```powershell
-# 创建新 monorepo
-pnpm dlx create-turbo@latest my-monorepo
-
-# 或在已有 pnpm workspace 中启用
-pnpm add -D turbo -w
-```
-
-## 三、目录结构
-
-```
-my-monorepo/
-├── apps/
-│   ├── web/            # Next.js 应用
-│   └── docs/           # 文档站
-├── packages/
-│   ├── ui/             # 共享组件库
-│   ├── utils/          # 工具函数
-│   └── tsconfig/       # 共享配置
-├── package.json
-├── pnpm-workspace.yaml
-└── turbo.json          # Turbo 配置
-```
-
-## 四、turbo.json 配置
-
-```jsonc
-{
-  "$schema": "https://turbo.build/schema.json",
-  "tasks": {
-    "build": {
-      "dependsOn": ["^build"],       // 先构建依赖的包
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
-    },
-    "test": {
-      "dependsOn": ["build"],
-      "outputs": ["coverage/**"]
-    },
-    "lint": {},
-    "dev": {
-      "cache": false,                // 开发服务不缓存
-      "persistent": true             // 长驻进程
-    }
-  }
-}
-```
-
-- `dependsOn: ["^build"]`：`^` 表示「上游依赖的 build 先完成」；
-- `outputs`：声明产物路径，缓存恢复时按此还原；
-- `inputs`：默认所有源文件参与哈希，可自定义缩小范围。
-
-## 五、常用命令
+### 一键安装（Windows 10 2004+ / Windows 11）
 
 ```powershell
-turbo run build                    # 跑所有包的 build
-turbo run build --filter=web       # 只跑 web 包
-turbo run test --filter=...[HEAD^1]  # 只跑受最近提交影响的包
-turbo run lint --filter=./packages/*
-
-turbo run build --force            # 忽略缓存，强制重跑
-turbo run build --dry              # 打印将执行的任务（不实际执行）
-turbo run build --graph=graph.html # 可视化任务依赖图
-turbo run dev --parallel           # 并行跑 dev
+wsl --install                    # 默认安装 Ubuntu
+# 或指定发行版
+wsl --install -d Ubuntu-22.04
 ```
 
-`package.json` 中封装：
+完成后**重启电脑**，首次启动 Ubuntu 时设置用户名和密码。
 
-```json
-{
-  "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "test": "turbo run test"
-  }
-}
-```
-
-## 六、缓存机制
-
-**哈希输入** = 源文件内容 + 环境变量 + 任务配置 + 依赖包哈希。
-
-命中缓存时输出类似：
-
-```
-web:build: cache hit, replaying logs [f3a2b1]
->>> FULL TURBO
-```
-
-### 远程缓存（团队共享）
+### 常用管理命令
 
 ```powershell
-turbo login
-turbo link
-# 之后 CI 与本地共享缓存
+wsl --list --verbose         # 查看已安装发行版与状态
+wsl --list --online          # 查看可安装的发行版列表
+wsl --set-default-version 2
+wsl --set-default Ubuntu     # 设默认发行版
+wsl --shutdown               # 关闭所有 WSL 实例
+wsl --update                 # 更新 WSL 内核
+wsl --unregister Ubuntu      # 删除发行版（数据全丢）
+wsl -d Ubuntu-22.04          # 进入指定发行版
+wsl --export Ubuntu ubuntu.tar    # 备份
+wsl --import MyUbuntu C:\wsl\my ubuntu.tar  # 恢复
 ```
 
-或自建缓存服务（`turbo.json`）：
+### 从旧版升级
 
-```json
-{
-  "remoteCache": { "signature": true }
-}
+```powershell
+wsl --set-version Ubuntu 2
 ```
 
-环境变量：`TURBO_TOKEN`、`TURBO_TEAM`。
+## 三、安装位置与迁移
 
-## 七、CI 中的典型用法
+WSL 默认装在 C 盘，占空间大后可迁移：
 
-```yaml
-- run: pnpm install --frozen-lockfile
-- run: pnpm turbo run build test lint --filter='...[origin/main]'
+```powershell
+wsl --shutdown
+wsl --export Ubuntu D:\wsl\ubuntu-backup.tar
+wsl --unregister Ubuntu
+wsl --import Ubuntu D:\wsl\Ubuntu D:\wsl\ubuntu-backup.tar
 ```
 
-含义：只构建/测试相对 main 分支发生变化的部分，CI 时间从 20 分钟降到 2 分钟很常见。
+（GitHub 上有 `wsl2-move` 脚本可图形化操作。）
 
-## 八、常见问题
+## 四、Linux 发行版初始化
+
+进入 WSL 后：
+
+```bash
+# 更新系统
+sudo apt update && sudo apt upgrade -y
+
+# 常用工具
+sudo apt install -y build-essential git curl wget unzip ripgrep fd-find fzf jq
+
+# 安装 Node（用 nvm 或 fnm）
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+nvm install --lts
+```
+
+## 五、Windows ↔ WSL 文件互访
+
+| 方向 | 路径 |
+| --- | --- |
+| WSL 访问 Windows 文件 | `/mnt/c/Users/你的用户名/...` |
+| Windows 访问 WSL 文件 | 资源管理器地址栏输入 `\\wsl$\Ubuntu\home\你的用户名` |
+
+**重要性能建议**：
+
+- 项目代码放在 **Linux 文件系统**（`~/projects/...`），不要放在 `/mnt/c/...`；
+- 在 `/mnt/c` 下跑 `npm install` 会慢 5-10 倍（跨文件系统 IO）。
+
+## 六、与 VS Code 集成（强烈推荐）
+
+1. Windows 端安装 **WSL 扩展**（`ms-vscode-remote.remote-wsl`）；
+2. 在 WSL 中进入项目目录执行：
+
+```bash
+cd ~/projects/myapp
+code .                # 自动用 Windows 的 VS Code 打开，并连接 WSL
+```
+
+编辑器 UI 在 Windows，代码、终端、扩展运行在 Linux 中，兼得两者优势。
+
+也可以：
+
+- VS Code 左下角绿色图标 → `Connect to WSL`；
+- 或用 Cursor / JetBrains 网关做类似连接。
+
+## 七、WSL2 网络访问
+
+| 场景 | 做法 |
+| --- | --- |
+| Windows 访问 WSL 服务 | 直接 `http://localhost:端口`（自动转发） |
+| WSL 访问 Windows 服务 | 用 Windows 主机 IP（`cat /etc/resolv.conf` 中的 nameserver，或 `$(hostname).local`） |
+| 局域网设备访问 WSL 服务 | 需要 portproxy 转发（WSL2 是 NAT） |
+
+端口转发示例（管理员 PowerShell）：
+
+```powershell
+netsh interface portproxy add v4tov4 listenport=3000 listenaddress=0.0.0.0 connectport=3000 connectaddress=172.20.0.2
+```
+
+> Windows 11 + WSL 2.0 起支持 **镜像网络模式**（`networkingMode=mirrored`），可免配置直接互通。
+
+### 配置文件 `.wslconfig`（放用户目录）
+
+```ini
+[wsl2]
+memory=8GB
+processors=8
+swap=4GB
+networkingMode=mirrored
+autoProxy=true
+```
+
+改完执行 `wsl --shutdown` 生效。
+
+## 八、systemd 支持
+
+`.wslconfig` 或 WSL 内 `/etc/wsl.conf`：
+
+```ini
+[boot]
+systemd=true
+```
+
+之后 `systemctl` 可用，可像服务器一样管理服务：
+
+```bash
+sudo systemctl enable --now docker
+```
+
+## 九、Docker 与 WSL2
+
+推荐用 **Docker Desktop + WSL2 backend**：
+
+1. Docker Desktop 设置 → General → 勾选 `Use the WSL 2 based engine`；
+2. `Resources → WSL Integration` 勾选你的发行版；
+3. WSL 里即可直接 `docker ps`。
+
+## 十、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 缓存命中错误（该跑没跑） | 检查环境变量是否声明在 `env` 字段；`--force` 验证 |
-| `dev` 任务被缓存卡住 | 加 `"cache": false, "persistent": true` |
-| 缓存目录占磁盘 | 定期清理 `node_modules/.cache/turbo` |
-| CI 无法共享缓存 | 配置 `TURBO_TOKEN` / `TURBO_TEAM`，或自建 |
-| Windows 下路径分隔符问题 | 升级 turbo 至最新版本 |
-| 任务顺序不对 | 检查 `dependsOn` 与包间 `dependencies` 声明是否一致 |
+| `wsl --install` 报错 | 开启虚拟化（BIOS）+ `dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all` |
+| WSL 内存占用过高 | `.wslconfig` 限制 memory；或定期 `wsl --shutdown` |
+| 磁盘占用持续增长 | 清理后执行 `wsl --shutdown` + `Optimize-VHD`（或 `diskpart` compact） |
+| 中文乱码/字体 | Windows Terminal 字体设置 + WSL locale 配置 `zh_CN.UTF-8` |
+| `code .` 不可用 | 先在 Windows 装 VS Code 与 WSL 扩展，再重启 WSL 终端 |
+| 时钟不同步 | `sudo hwclock -s` |
+| 网络代理不生效 | `.wslconfig` 设 `autoProxy=true`，或手动 export http_proxy 指向 Windows IP |
 
-## 九、Turbo vs Nx 选择
+## 十一、参考
 
-| 维度 | Turbo | Nx |
-| --- | --- | --- |
-| 定位 | 任务编排 + 缓存，极简 | 全功能 monorepo 平台 |
-| 配置成本 | 低（一个 turbo.json） | 高（插件、generator） |
-| 代码生成 | 无 | 强（generators） |
-| 依赖图分析 | 基础 | 强（影响分析、graph） |
-| 适合 | 中小团队、已有 pnpm workspace | 大型团队、需要脚手架与治理 |
-
-**结论**：想快速给现有 monorepo 提速 → Turbo；需要完整工程治理 → Nx。
-
-## 十、参考
-
-- 官方文档：https://turbo.build/repo/docs
-- 示例仓库：https://github.com/vercel/turborepo/tree/main/examples
+- 官方文档：https://learn.microsoft.com/zh-cn/windows/wsl/
+- WSL 发行版列表：`wsl --list --online`
+- 疑难解答：https://learn.microsoft.com/zh-cn/windows/wsl/troubleshooting
 

@@ -2,189 +2,186 @@
 slug: day-34
 kind: day
 day: 34
-week: 5
-weekTitle: 测试
-weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
-title: Testing Library 使用教程
-sourcePath: 05-测试/05-Testing-Library.md
+week: 6
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: Python 代码检查与格式化教程（Ruff / Black / isort）
+lead: Python 代码检查与格式化教程（Ruff / Black / isort）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 04-代码检查与格式化/04-Python代码检查.md
 ---
 
-## 一、Testing Library 是什么
+## 一、工具定位
 
-一套**以用户视角测试 UI 组件**的工具库，适用于 React / Vue / Svelte / Angular 等（`@testing-library/react`、`@testing-library/vue`...）。
+| 工具 | 类型 | 说明 |
+| --- | --- | --- |
+| **Ruff** | Lint + Format 一体 | Rust 编写，替代 Flake8/isort/pyupgrade/Black 等一大票工具，速度极快 |
+| Black | Formatter | 经典「不妥协」格式化器，Ruff format 兼容其风格 |
+| isort | import 排序 | Ruff 内置 `I` 规则集，现已基本不需要单独用 |
 
-核心理念（官方口号）：
+**2024 年后的主流选择：一个 Ruff 搞定 lint + format + import 排序。**
 
-> **The more your tests resemble the way your software is used, the more confidence they can give you.**
-> 测试越接近用户真实使用方式，越能给你信心。
+## 二、Ruff 使用
 
-实践含义：
-- 通过**可见文本、角色、标签**找元素，而不是 class / 组件内部 state；
-- 不测实现细节（私有方法、内部变量）；
-- 重构 UI 结构时测试不容易坏。
-
-## 二、安装
+### 安装
 
 ```powershell
-# React + Vitest
-pnpm add -D @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom
-
-# React + Jest（jest-dom 引入方式见下）
-pnpm add -D @testing-library/react @testing-library/jest-dom @testing-library/user-event
+# 推荐用 uv
+uv tool install ruff
+# 或 pip
+pip install ruff
 ```
 
-setup 文件：
+### 配置 `pyproject.toml`
 
-```ts
-// Vitest: src/test/setup.ts
-import '@testing-library/jest-dom/vitest';
-// Jest: 直接 import '@testing-library/jest-dom';
+```toml
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle 错误
+  "W",    # pycodestyle 警告
+  "F",    # pyflakes（未使用变量等）
+  "I",    # isort（import 排序）
+  "B",    # flake8-bugbear（常见 Bug）
+  "UP",   # pyupgrade（语法现代化）
+  "SIM",  # flake8-simplify
+  "S",    # bandit（安全检查）
+]
+ignore = ["E501"]     # 行太长（由 formatter 处理）
+fixable = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]  # 测试里允许 assert
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 ```
 
-## 三、查询（Queries）优先级
+### 常用命令
 
-官方推荐顺序：
-
-1. **`getByRole`** —— 无障碍角色（button、textbox、heading、link...），最推荐；
-2. **`getByLabelText`** —— 表单元素关联 label；
-3. **`getByPlaceholderText`**；
-4. **`getByText`** —— 非表单元素的文本；
-5. **`getByDisplayValue`** —— 表单当前值；
-6. **`getByAltText`** / **`getByTitle`** —— 图片/标题；
-7. **`getByTestId`** —— 兜底手段（上述都不可用时）。
-
-变体：
-
-| 前缀 | 行为 |
-| --- | --- |
-| `getBy...` | 找不到即抛错（同步） |
-| `queryBy...` | 找不到返回 null（用于断言不存在） |
-| `findBy...` | 返回 Promise，等待出现（异步场景） |
-| `getAllBy...` | 返回数组 |
-
-## 四、基本测试写法
-
-```tsx
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { Counter } from './Counter';
-
-test('点击按钮数字加一', async () => {
-  const user = userEvent.setup();
-  render(<Counter />);
-
-  // 断言初始状态
-  expect(screen.getByRole('heading')).toHaveTextContent('0');
-
-  // 用户操作
-  await user.click(screen.getByRole('button', { name: '加一' }));
-
-  // 断言结果
-  expect(screen.getByRole('heading')).toHaveTextContent('1');
-});
-
-test('输入非法邮箱显示错误', async () => {
-  const user = userEvent.setup();
-  render(<SignupForm />);
-
-  await user.type(screen.getByLabelText('邮箱'), 'not-an-email');
-  await user.click(screen.getByRole('button', { name: '提交' }));
-
-  expect(await screen.findByText('邮箱格式不正确')).toBeInTheDocument();
-});
-
-test('加载完成后显示数据', async () => {
-  render(<UserList />);
-  expect(screen.getByText('加载中...')).toBeInTheDocument();
-  expect(await screen.findByText('Ada')).toBeInTheDocument();
-});
+```powershell
+ruff check .                  # 检查
+ruff check . --fix            # 自动修复
+ruff check --watch .          # 监听模式
+ruff format .                 # 格式化（兼容 Black 风格）
+ruff format --check .         # CI 校验
+ruff rule E501                # 查看某规则说明
+ruff linter                   # 列出所有可用规则集
 ```
 
-## 五、user-event vs fireEvent
+编辑器集成（VS Code）：安装 **Ruff 扩展**，设置：
 
-优先用 **user-event**：它模拟真实用户行为（点击会触发 focus、hover 等完整事件链）。
-
-```ts
-// 推荐
-const user = userEvent.setup();
-await user.click(btn);
-await user.type(input, 'hello');
-await user.clear(input);
-await user.selectOptions(select, 'shanghai');
-await user.tab();
-await user.keyboard('{Enter}');
-
-// 不推荐（除非测特定底层事件）
-fireEvent.click(btn);
+```json
+{
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": { "source.fixAll": "explicit" }
+  }
+}
 ```
 
-## 六、jest-dom 常用断言
+## 三、Black（仍被广泛使用）
 
-```ts
-expect(el).toBeInTheDocument();
-expect(el).toBeVisible();
-expect(el).toBeDisabled();
-expect(el).toBeChecked();
-expect(el).toHaveTextContent('文字');
-expect(el).toHaveValue('值');
-expect(el).toHaveClass('active');
-expect(el).toHaveAttribute('href', '/x');
-expect(el).toHaveStyle({ color: 'red' });
-expect(el).toBeEmptyDOMElement();
-expect(el).toHaveFocus();
+```powershell
+pip install black
+black .                    # 格式化当前目录
+black --check .            # CI 模式（不写文件）
+black --diff .             # 只看差异
 ```
 
-## 七、测试自定义 Hook（React）
+`pyproject.toml`：
 
-```ts
-import { renderHook, act } from '@testing-library/react';
-import { useCounter } from './useCounter';
-
-test('useCounter 可自增', () => {
-  const { result } = renderHook(() => useCounter(0));
-
-  act(() => result.current.inc());
-  expect(result.current.count).toBe(1);
-});
+```toml
+[tool.black]
+line-length = 100
+target-version = ['py311']
 ```
 
-## 八、异步与等待
+集成：
 
-```ts
-// 等元素出现
-await screen.findByText('完成');
+- **pre-commit**：
 
-// 等断言通过（重试直到超时）
-await waitFor(() => expect(screen.getByText('已完成')).toBeVisible());
-
-// 等元素消失
-await waitForElementToBeRemoved(() => screen.queryByText('加载中'));
+```yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
 ```
 
-> 不要在测试里 `await new Promise(r => setTimeout(r, 1000))` —— 用 `findBy` / `waitFor`。
+- VS Code：`editor.defaultFormatter` 设为 `ms-python.black-formatter`（若用 Black 而非 Ruff）。
 
-## 九、常见问题
+## 四、isort
+
+```powershell
+pip install isort
+isort .                # 排序所有 import
+isort --check .        # CI 校验
+isort --diff .         # 查看差异
+```
+
+`pyproject.toml`（与 Black 兼容的经典配置）：
+
+```toml
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["myapp"]
+```
+
+> 如果已用 Ruff，`select = ["I"]` 即覆盖 isort 能力，无需单独安装。
+
+## 五、三者关系与迁移路径
+
+```
+传统组合：  Flake8 + isort + Black + pyupgrade + bandit  （5 个工具）
+现代组合：  Ruff（一个工具全覆盖，快 10-100 倍）
+```
+
+迁移步骤：
+
+1. `pyproject.toml` 中配置 Ruff `select` 规则（可参考原有 setup.cfg / .flake8）；
+2. 删除 Flake8/isort/Black 依赖与配置；
+3. 全量 `ruff check --fix . && ruff format .`，作为独立提交；
+4. CI 改为 `ruff check . && ruff format --check .`。
+
+## 六、CI 集成示例
+
+```yaml
+- name: Lint
+  run: |
+    ruff check .
+    ruff format --check .
+```
+
+## 七、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| `Unable to find an element` | 用 `screen.debug()` 打印 DOM 排查；检查是否有多个匹配 |
-| 多个元素匹配报错 | 收窄查询条件（`{ name: /确定$/ }` 或用 `within()` 限定范围） |
-| 异步数据测不到 | 用 `findBy*` 或 `waitFor` |
-| 报 `not wrapped in act(...)` | 交互一律 `await user.xxx()`；状态更新用 `await waitFor` |
-| 想测实现细节 | 换思路：从用户视角描述场景 |
-| 表单 label 关联不上 | 组件里用 `<label htmlFor>` 或 `aria-label` |
+| Ruff 与 Black 格式不一致 | `ruff format` 与最新 Black 基本一致；迁移时全量重格式化并单独提交 |
+| 规则太多报错刷屏 | 先 `select` 最小集合（E/F/I），逐步加；用 `# noqa: E501` 单行豁免 |
+| 虚拟环境里的文件被检查 | `exclude` 中加入 `.venv` |
+| 与编辑器格式化冲突 | 只保留一个 formatter（Ruff 或 Black），禁用另一个 |
+| 类型检查呢？ | 那是 mypy / pyright 的工作，与 lint/format 分开配置 |
+| 导入顺序老是被改 | 统一 `I` 规则 + 保存时自动 fix，避免手动维护 |
 
-## 十、最佳实践
+## 八、最佳实践
 
-1. **只与 DOM 交互，不碰组件内部**（不要 `component.state`）。
-2. 一次测试只走一条用户路径。
-3. 断言用户可见结果（文本、可见性、禁用态），而非内部 props。
-4. `within()` 缩小查询范围，避免全局碰撞。
-5. 组件测试负责分支与交互；视觉回归交给 Playwright 截图。
+1. **新项目直接上 Ruff**，一个工具解决 lint + format + import 排序。
+2. 结合 **pre-commit** 在提交前自动修复。
+3. CI 必须跑 `--check` 模式，防止未格式化代码合入。
+4. 行长度统一（88 或 100），写进 Ruff/Black 配置，不要靠人工。
 
-## 十一、参考
+## 九、参考
 
-- 官方文档：https://testing-library.com/docs/
-- 优先级指南：https://testing-library.com/docs/queries/about/#priority
-- jest-dom：https://github.com/testing-library/jest-dom
+- Ruff：https://docs.astral.sh/ruff/
+- Black：https://black.readthedocs.io/
+- isort：https://pycqa.github.io/isort/
 

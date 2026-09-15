@@ -2,212 +2,163 @@
 slug: day-36
 kind: day
 day: 36
-week: 5
-weekTitle: 测试
-weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
-title: Pytest 使用教程
-sourcePath: 05-测试/07-Pytest.md
+week: 6
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: 提交前质量关卡：Husky / lint-staged / commitlint 工程化组合
+lead: '安装与钩子基础用法见 [../01-版本控制/06-提交钩子.md](/learn/devtool/day-06)。'
+sourcePath: 04-代码检查与格式化/06-提交前质量关卡.md
 ---
 
-## 一、Pytest 是什么
+> 安装与钩子基础用法见 [../01-版本控制/06-提交钩子.md](/learn/devtool/day-06)。
+> 本篇聚焦**在代码质量链路中如何组合使用**。
 
-Python 最流行的测试框架，相比内置 `unittest`：
+## 一、三者的分工
 
-- 用 `assert` 直接断言（无需 `self.assertEqual`）；
-- fixture 机制优雅地管理测试资源；
-- 参数化、插件生态极其丰富；
-- 自动发现测试文件（`test_*.py` / `*_test.py`）。
+```
+git commit
+   │
+   ├─► Husky        负责「触发」：把脚本挂到 Git 钩子上
+   │
+   ├─► lint-staged  负责「范围」：只对本次改动的文件跑命令
+   │
+   └─► commitlint   负责「门禁」：校验提交信息是否符合规范
+```
 
-## 二、安装
+为什么需要 lint-staged：全量 ESLint 可能跑 1 分钟，只检查改动文件通常 1-2 秒，**提交体验是关键**。
+
+## 二、完整落地配置（pnpm 项目）
+
+### 1. 安装
 
 ```powershell
-# 推荐 uv
-uv add --dev pytest pytest-cov
-# 或 pip
-pip install pytest pytest-cov
+pnpm add -D husky lint-staged @commitlint/cli @commitlint/config-conventional
+npx husky init
 ```
 
-## 三、编写测试
+### 2. package.json
 
-`test_calculator.py`：
-
-```python
-import pytest
-from calculator import add, div
-
-def test_add():
-    assert add(1, 2) == 3
-
-def test_div_normal():
-    assert div(10, 2) == 5
-
-def test_div_by_zero():
-    with pytest.raises(ZeroDivisionError):
-        div(1, 0)
-
-@pytest.mark.parametrize("a, b, expected", [
-    (1, 1, 2),
-    (0, 0, 0),
-    (-1, 1, 0),
-])
-def test_add_param(a, b, expected):
-    assert add(a, b) == expected
+```json
+{
+  "scripts": {
+    "prepare": "husky",
+    "lint": "eslint . --max-warnings 0",
+    "format:check": "prettier . --check",
+    "typecheck": "tsc --noEmit"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,vue}": ["eslint --fix --max-warnings 0", "prettier --write"],
+    "*.{css,scss,md,json,yml,yaml}": ["prettier --write"]
+  }
+}
 ```
 
-运行：
+### 3. `.husky/pre-commit`
 
-```powershell
-pytest                          # 运行全部
-pytest -v                       # 详细输出
-pytest test_calculator.py       # 指定文件
-pytest test_calculator.py::test_add   # 指定用例
-pytest -k "add and not slow"    # 按名称过滤
-pytest -x                       # 第一个失败即停止
-pytest --lf                     # 只跑上次失败的
-pytest -n auto                  # 并行（需 pytest-xdist）
-pytest --cov=src --cov-report=html   # 覆盖率
+```sh
+pnpm lint-staged
 ```
 
-## 四、Fixture（核心机制）
+### 4. `.husky/commit-msg`
 
-```python
-import pytest
-from myapp.db import Database
-
-@pytest.fixture
-def db():
-    """每个测试一个干净数据库"""
-    d = Database(":memory:")
-    d.init_schema()
-    yield d          # yield 前是 setup，后是 teardown
-    d.close()
-
-def test_insert(db):
-    db.insert("users", {"name": "Ada"})
-    assert db.count("users") == 1
-
-# 作用域：function（默认）/ class / module / session
-@pytest.fixture(scope="session")
-def api_client():
-    client = APIClient("https://test.local")
-    yield client
-    client.close()
-
-# 带参数 fixture
-@pytest.fixture(params=["sqlite", "postgres"])
-def any_db(request):
-    yield make_db(request.param)
+```sh
+pnpm exec commitlint --edit "$1"
 ```
 
-`conftest.py` 中定义的 fixture 对整个目录生效，无需 import。
+### 5. `commitlint.config.js`
 
-## 五、标记与跳过
-
-```python
-@pytest.mark.slow
-def test_big_job():
-    ...
-
-@pytest.mark.integration
-def test_db_roundtrip():
-    ...
-
-@pytest.mark.skip(reason="尚未实现")
-def test_todo():
-    ...
-
-@pytest.mark.skipif(sys.platform == "win32", reason="不支持 Windows")
-def test_unix_only():
-    ...
-
-@pytest.mark.xfail(reason="已知缺陷 #123")
-def test_known_bug():
-    ...
+```js
+export default {
+  extends: ['@commitlint/config-conventional'],
+  rules: {
+    'type-enum': [2, 'always', [
+      'feat', 'fix', 'docs', 'style', 'refactor', 'perf',
+      'test', 'build', 'ci', 'chore', 'revert',
+    ]],
+    'subject-case': [0],
+    'header-max-length': [2, 'always', 100],
+  },
+};
 ```
 
-`pytest.ini` / `pyproject.toml`：
+提交信息格式：
 
-```toml
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-ra -q --strict-markers"
-markers = [
-  "slow: 耗时测试",
-  "integration: 需要外部依赖",
-]
+```
+<type>(<scope>): <subject>
+
+[optional body]
+[optional footer]
 ```
 
-运行指定标记：
+示例：`feat(auth): 新增手机号登录`、`fix(cart): 修复数量为 0 时价格异常`
 
-```powershell
-pytest -m "not slow"            # CI 快速通道
-pytest -m integration
+## 三、推荐的门禁分层
+
+| 阶段 | 检查内容 | 耗时目标 | 工具 |
+| --- | --- | --- | --- |
+| 保存文件 | 格式化 | 立即 | 编辑器 format on save |
+| pre-commit | 改动文件 lint + format | &lt; 5 秒 | lint-staged |
+| commit-msg | 提交信息规范 | &lt; 1 秒 | commitlint |
+| pre-push | 类型检查 + 单测 | &lt; 60 秒 | tsc --noEmit、vitest run |
+| CI | 全量 lint + 测试 + 构建 | 不限 | GitHub Actions 等 |
+
+原则：**越靠前越快，越靠后越严**。
+
+## 四、pre-push 示例
+
+`.husky/pre-push`：
+
+```sh
+pnpm typecheck && pnpm test -- --run
 ```
 
-## 六、Mock
+只跑受影响的测试（Vitest）：
 
-内置 `unittest.mock`：
-
-```python
-from unittest.mock import patch, MagicMock
-
-def test_send_email(mocker=None):
-    with patch("myapp.mail.smtp_send") as mock_send:
-        send_welcome("a@b.com")
-        mock_send.assert_called_once_with("a@b.com", subject="欢迎")
-
-# 或用 pytest-mock 插件（fixture 风格）
-def test_send_email(mocker):
-    mock_send = mocker.patch("myapp.mail.smtp_send")
-    send_welcome("a@b.com")
-    mock_send.assert_called_once()
+```sh
+pnpm vitest related --run $(git diff --name-only origin/main...HEAD -- '*.ts' '*.tsx')
 ```
 
-## 七、异步测试
+## 五、Python 项目的等价方案
 
-```powershell
-pip install pytest-asyncio
-```
-
-```python
-import pytest
-
-@pytest.mark.asyncio
-async def test_fetch_user():
-    user = await fetch_user(1)
-    assert user["name"] == "Ada"
-```
-
-`pyproject.toml` 中配置 `asyncio_mode = "auto"` 可省去装饰器。
-
-## 八、CI 集成
+同一思路用 `pre-commit` 框架（见 [../01-版本控制/06-提交钩子.md](/learn/devtool/day-06)）：
 
 ```yaml
-- run: pytest --cov=src --cov-report=xml --junitxml=report.xml -m "not slow"
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.27.0
+    hooks:
+      - id: commitizen
 ```
 
-## 九、常见问题
+## 六、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| `ModuleNotFoundError: myapp` | 项目根目录执行；或配置 `pythonpath = ["src"]`（pytest 7+） |
-| fixture 找不到 | 检查 `conftest.py` 位置（应在测试目录或其上层） |
-| 测试间相互污染 | fixture 默认 function 作用域；避免模块级可变全局 |
-| 异步测试报 `coroutine was never awaited` | 装 `pytest-asyncio` 并加 marker |
-| 覆盖率统计了 tests 目录 | `--cov=src` 明确指定源码目录 |
-| 并行测试出错 | 检查共享资源（文件、DB）冲突；给每个 worker 独立资源 |
+| 克隆后钩子不生效 | 钩子在 `.git/hooks`（不进版本库），克隆后需 `pnpm install`（触发 `prepare`）或手动 `npx husky` |
+| lint-staged 改了文件但没重新 add | lint-staged 会自动把修复后的文件重新暂存，无需手动操作 |
+| CI 里跑 husky 失败 | CI 设 `HUSKY=0`，钩子只管本地 |
+| 提交被阻塞影响紧急发布 | `git commit --no-verify` 临时跳过（团队约定只在紧急时用） |
+| Windows 钩子报错 | `.husky/*` 文件保证 LF 换行：`.gitattributes` 加 `*.sh text eol=lf` |
+| commitlint 校验 `$1` 变量为空 \vert 用 `pnpm exec commitlint --edit "$1"`（shell 形式），确保换行符正确 |
+| monorepo 中 lint-staged 找不到配置 | 各包独立配置 lint-staged，或在根目录用 `lint-staged --cwd` 分发 |
 
-## 十、最佳实践
+## 七、最佳实践
 
-1. 目录结构：`src/myapp/` + `tests/test_*.py`，与源码分离但对应。
-2. 一个测试函数只验证一个行为，命名 `test_<行为>_<条件>_<期望>`。
-3. 用 fixture 管理资源与数据构造，避免每个测试重复 setup 代码。
-4. 外部依赖（HTTP、DB、时间）一律 mock 或隔离。
-5. CI 分层：快速单测每次提交跑，`-m integration` 的集成测试按需跑。
+1. **钩子只做快速检查**；类型检查、单测放 pre-push 或 CI。
+2. **规则单一来源**：lint 配置只有一份（ESLint/Biome/Ruff），钩子与 CI 调用同一命令。
+3. **失效兜底**：CI 必须重复跑相同检查，钩子可被 `--no-verify` 绕过，不可作为唯一防线。
+4. **渐进式**：老项目先把 lint-staged 设为 `warn`，清理完存量再升 `error`。
 
-## 十一、参考
+## 八、参考
 
-- 官方文档：https://docs.pytest.org/
-- 中文文档：https://docs.pytest.org/en/stable/ 官方暂无完整中文，可参考 https://www.osgeo.cn/pytest/
-- pytest-cov：https://pytest-cov.readthedocs.io/
+- lint-staged：https://github.com/lint-staged/lint-staged
+- commitlint：https://commitlint.js.org/
+- Conventional Commits：https://www.conventionalcommits.org/zh-hans/
+- commitizen（交互式生成提交信息）：https://commitizen-tools.github.io/commitizen/
 

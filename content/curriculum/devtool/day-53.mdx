@@ -3,221 +3,166 @@ slug: day-53
 kind: day
 day: 53
 week: 8
-weekTitle: 终端与命令行
-weekBlurb: Shell、常用命令行工具与终端复用，把日常操作脚本化。
-title: 搜索与查找工具教程（ripgrep / fd / fzf）
-sourcePath: 08-终端与命令行/05-搜索与查找.md
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: Turbo（Turborepo）使用教程
+lead: Turbo（Turborepo）使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 03-构建打包/08-Turbo.md
 ---
 
-## 一、为什么换掉 grep / find
+## 一、Turbo 是什么
 
-| 老工具 | 问题 | 替代 |
-| --- | --- | --- |
-| grep -r | 慢、默认不忽略 .gitignore、正则语法繁琐 | **ripgrep（rg）** |
-| find | 语法古怪、慢 | **fd** |
-| 手动翻目录 | 效率低 | **fzf** |
+Turborepo 是面向 **JavaScript/TypeScript monorepo** 的高性能构建系统，用 Rust 编写，核心能力：
 
-三者组合 = 命令行搜索的现代标准。
+1. **任务编排**：一条命令按依赖顺序跑所有包的任务；
+2. **智能缓存**：内容哈希命中缓存则直接跳过（本地 + 远程）；
+3. **增量执行**：只重跑受影响的包。
 
-## 二、ripgrep（rg）
+> 它**不替换** Vite/Webpack，而是在它们之上做「多包任务调度」。底层打包仍由各包自己的工具负责。
 
-### 安装
+## 二、快速开始
 
 ```powershell
-winget install BurntSushi.ripgrep.MSVC
-# macOS
-brew install ripgrep
-# Ubuntu
-sudo apt install ripgrep
+# 创建新 monorepo
+pnpm dlx create-turbo@latest my-monorepo
+
+# 或在已有 pnpm workspace 中启用
+pnpm add -D turbo -w
 ```
 
-### 基本用法
+## 三、目录结构
+
+```
+my-monorepo/
+├── apps/
+│   ├── web/            # Next.js 应用
+│   └── docs/           # 文档站
+├── packages/
+│   ├── ui/             # 共享组件库
+│   ├── utils/          # 工具函数
+│   └── tsconfig/       # 共享配置
+├── package.json
+├── pnpm-workspace.yaml
+└── turbo.json          # Turbo 配置
+```
+
+## 四、turbo.json 配置
+
+```jsonc
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],       // 先构建依赖的包
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"]
+    },
+    "lint": {},
+    "dev": {
+      "cache": false,                // 开发服务不缓存
+      "persistent": true             // 长驻进程
+    }
+  }
+}
+```
+
+- `dependsOn: ["^build"]`：`^` 表示「上游依赖的 build 先完成」；
+- `outputs`：声明产物路径，缓存恢复时按此还原；
+- `inputs`：默认所有源文件参与哈希，可自定义缩小范围。
+
+## 五、常用命令
 
 ```powershell
-rg "TODO"                      # 当前目录递归搜索（自动忽略 .gitignore）
-rg "TODO" src/                 # 指定目录
-rg -i "todo"                   # 忽略大小写
-rg -w "user"                   # 整词匹配
-rg -t ts "interface"           # 只搜 TS 文件
-rg -T test "flaky"             # 排除测试文件
-rg -g "*.json" "version"       # 按 glob 过滤
-rg --hidden "secret"           # 包含隐藏文件
-rg -uuu "keyword"              # 不忽略任何东西（含 .gitignore、隐藏、二进制）
+turbo run build                    # 跑所有包的 build
+turbo run build --filter=web       # 只跑 web 包
+turbo run test --filter=...[HEAD^1]  # 只跑受最近提交影响的包
+turbo run lint --filter=./packages/*
+
+turbo run build --force            # 忽略缓存，强制重跑
+turbo run build --dry              # 打印将执行的任务（不实际执行）
+turbo run build --graph=graph.html # 可视化任务依赖图
+turbo run dev --parallel           # 并行跑 dev
 ```
 
-### 输出与控制
+`package.json` 中封装：
+
+```json
+{
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  }
+}
+```
+
+## 六、缓存机制
+
+**哈希输入** = 源文件内容 + 环境变量 + 任务配置 + 依赖包哈希。
+
+命中缓存时输出类似：
+
+```
+web:build: cache hit, replaying logs [f3a2b1]
+>>> FULL TURBO
+```
+
+### 远程缓存（团队共享）
 
 ```powershell
-rg "function" -l               # 只列文件名
-rg "function" -c               # 每个文件匹配数
-rg "old" -r "new" --passthru   # 预览替换效果（不改文件）
-rg "error" -A 3 -B 1           # 显示后 3 行、前 1 行
-rg "error" -C 2                # 前后各 2 行
-rg "TODO" --stats              # 显示统计
+turbo login
+turbo link
+# 之后 CI 与本地共享缓存
 ```
 
-### 替换文件内容
+或自建缓存服务（`turbo.json`）：
 
-```powershell
-rg "foo" -l | ForEach-Object { (Get-Content $_) -replace "foo","bar" | Set-Content $_ }
-# Linux/macOS
-rg "foo" -l | xargs sed -i 's/foo/bar/g'
+```json
+{
+  "remoteCache": { "signature": true }
+}
 ```
 
-### 配置（`RIPGREP_CONFIG_PATH`）
+环境变量：`TURBO_TOKEN`、`TURBO_TEAM`。
 
-`~/.ripgreprc`：
+## 七、CI 中的典型用法
 
-```
---smart-case
---hidden
---glob=!.git/*
---glob=!node_modules/*
---max-columns=150
+```yaml
+- run: pnpm install --frozen-lockfile
+- run: pnpm turbo run build test lint --filter='...[origin/main]'
 ```
 
-### 常用类型表
+含义：只构建/测试相对 main 分支发生变化的部分，CI 时间从 20 分钟降到 2 分钟很常见。
 
-`rg --type-list` 查看；常用 `js, ts, py, rust, go, json, yaml, md, html, css`。
-
-## 三、fd（find 的现代替代）
-
-### 安装
-
-```powershell
-winget install sharkdp.fd
-# macOS
-brew install fd
-# Ubuntu
-sudo apt install fd-find   # 命令名是 fdfind，可 alias fd=fdfind
-```
-
-### 基本用法
-
-```powershell
-fd                          # 列出当前目录所有文件（递归，忽略 gitignore）
-fd config                   # 文件名含 config 的
-fd -e ts                    # 只列 .ts 文件
-fd -e ts -e tsx             # 多扩展名
-fd -t d                     # 只列目录
-fd -t f -x wc -l            # 对每个文件执行命令
-fd -H                       # 包含隐藏文件
-fd -I                       # 不忽略 gitignore
-fd "^test_"                 # 正则匹配文件名
-fd --changed-within 2d      # 最近 2 天修改过的
-fd --changed-before 1h
-fd -x rm                     # 删除所有匹配（危险，先确认）
-fd -0 | xargs -0 wc -l       # 配合 xargs
-fd -e png -x convert {} {.}.webp   # 批量转格式
-```
-
-### 常用选项
-
-| 选项 | 含义 |
-| --- | --- |
-| `-e ext` | 扩展名 |
-| `-t f/d/l` | 类型：文件/目录/符号链接 |
-| `-x cmd` | 对结果并行执行命令（`{}` = 路径，`{.}` = 去扩展名） |
-| `-X cmd` | 一次传入所有结果 |
-| `-d depth` | 最大深度 |
-| `-E pattern` | 排除 |
-| `--exec-batch` | 批量执行 |
-
-### fd vs find 对照
-
-```bash
-# find 写法
-find . -name "*.ts" -not -path "*/node_modules/*" -type f
-# fd 写法
-fd -e ts
-```
-
-## 四、fzf（模糊查找）
-
-### 安装
-
-```powershell
-winget install junegunn.fzf
-# macOS
-brew install fzf
-# 安装 shell 集成（键绑定）
-fzf --install     # 或按官方文档 source 对应脚本
-```
-
-### 基本用法
-
-```powershell
-fzf                                  # 从标准输入模糊筛选
-fd -e ts | fzf                       # 选文件
-git branch | fzf                     # 选分支
-fzf --preview 'bat --color=always {}'   # 带预览选文件
-```
-
-交互操作：
-- 输入即模糊匹配；
-- `Enter` 确认，`Esc` 取消；
-- `Ctrl+J/K` 上下移动；
-- `Tab` 多选（`-m` 模式）。
-
-### 与常用命令组合
-
-```powershell
-# 打开选中的文件
-code (fd -e ts | fzf)
-
-# 切换到选中分支
-git checkout (git branch | fzf | ForEach-Object { $_.Trim() })
-
-# 杀掉选中进程
-Get-Process | Where-Object { $_.Name -like "*node*" } | ForEach-Object { $_.Id.ToString() + " " + $_.Name } | fzf
-
-# 在选中文件中搜索内容（rg + fzf 联动）
-rg -l "TODO" | fzf --preview "rg -n --color=always TODO {}"
-```
-
-### Shell 集成后的快捷键（bash/zsh）
-
-| 快捷键 | 功能 |
-| --- | --- |
-| `Ctrl+T` | 在当前目录模糊选文件并插入路径 |
-| `Alt+C` | 模糊选目录并 cd 进去 |
-| `Ctrl+R` | 模糊搜索历史命令（替代原生） |
-
-> `Ctrl+R` 历史搜索是 fzf **最常用的功能**，装好后立刻可用。
-
-### 主题与默认选项
-
-```powershell
-$env:FZF_DEFAULT_OPTS = "--height 40% --layout=reverse --border --preview 'bat --color=always {}'"
-```
-
-## 五、三者组合实战
-
-| 任务 | 命令 |
-| --- | --- |
-| 在项目中找某段代码 | `rg "handleSubmit" -C 2` |
-| 找一个叫 config 的文件 | `fd config` |
-| 交互式选择文件并打开 | `code (fd -e tsx \| fzf --preview 'bat {}')` |
-| 全局搜索并跳转 | `rg -l "TODO" \| fzf` |
-| 快速切目录 | `Alt+C`（fzf） |
-| 找最近改的文件 | `fd --changed-within 1h` |
-| 批量删除 .log | `fd -e log -x rm` |
-
-## 六、常见问题
+## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| rg 搜不到 node_modules 里的内容 | 默认忽略，用 `-uuu` 或 `--no-ignore` |
-| 中文搜索乱码 | 终端设为 UTF-8 |
-| fd 在 Windows 上别名冲突 | PowerShell 中 `Set-Alias fd fd.exe`；Ubuntu 用 `fdfind` |
-| fzf 快捷键不生效 | 确认 shell 集成脚本已 source（在 `.zshrc`/`config.fish`/`$PROFILE`） |
-| rg 正则与 PCRE 不同 | 需要高级正则加 `-P`（look-behind 等） |
-| 想把 rg 当作 grep 用 | `alias grep='rg'`（注意输出格式变了） |
+| 缓存命中错误（该跑没跑） | 检查环境变量是否声明在 `env` 字段；`--force` 验证 |
+| `dev` 任务被缓存卡住 | 加 `"cache": false, "persistent": true` |
+| 缓存目录占磁盘 | 定期清理 `node_modules/.cache/turbo` |
+| CI 无法共享缓存 | 配置 `TURBO_TOKEN` / `TURBO_TEAM`，或自建 |
+| Windows 下路径分隔符问题 | 升级 turbo 至最新版本 |
+| 任务顺序不对 | 检查 `dependsOn` 与包间 `dependencies` 声明是否一致 |
 
-## 七、参考
+## 九、Turbo vs Nx 选择
 
-- ripgrep：https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md
-- fd：https://github.com/sharkdp/fd
-- fzf：https://github.com/junegunn/fzf
-- 速查表：https://github.com/junegunn/fzf#key-bindings
+| 维度 | Turbo | Nx |
+| --- | --- | --- |
+| 定位 | 任务编排 + 缓存，极简 | 全功能 monorepo 平台 |
+| 配置成本 | 低（一个 turbo.json） | 高（插件、generator） |
+| 代码生成 | 无 | 强（generators） |
+| 依赖图分析 | 基础 | 强（影响分析、graph） |
+| 适合 | 中小团队、已有 pnpm workspace | 大型团队、需要脚手架与治理 |
+
+**结论**：想快速给现有 monorepo 提速 → Turbo；需要完整工程治理 → Nx。
+
+## 十、参考
+
+- 官方文档：https://turbo.build/repo/docs
+- 示例仓库：https://github.com/vercel/turborepo/tree/main/examples
 

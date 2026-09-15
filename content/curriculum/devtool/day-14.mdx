@@ -2,182 +2,158 @@
 slug: day-14
 kind: day
 day: 14
-week: 3
-weekTitle: 构建打包
-weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
-title: Vite 使用教程
-sourcePath: 03-构建打包/01-Vite.md
+week: 2
+weekTitle: 包管理与运行时
+weekBlurb: Python 走 venv + pip（ml 课同款路线），Node 走 nvm + pnpm，Java / Rust / Go 的构建工具按语言需要选读。
+title: Go Modules（go mod）使用教程
+lead: Go Modules（go mod）使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 02-包管理与运行时/07-Go模块.md
 ---
 
-## 一、Vite 是什么
+## 一、Go Modules 是什么
 
-Vite（法语「快」）是新一代前端构建工具，由 Vue 作者尤雨溪主导：
+Go 1.11 引入的官方依赖管理机制，取代 GOPATH 模式：
 
-- **开发阶段**：基于原生 ESM 按需编译，启动**毫秒级**，HMR（热更新）极快；
-- **生产阶段**：用 Rollup 打包（Vite 6 起也支持 Rolldown 实验特性）。
+- `go.mod`：声明模块路径、Go 版本、依赖及版本
+- `go.sum`：记录依赖内容的校验和，防篡改
+- **无需额外工具**（不需要 dep/glide），`go` 命令原生支持
 
-支持 React、Vue、Svelte、Solid、原生 JS 等。
-
-## 二、创建项目
-
-```powershell
-pnpm create vite my-app
-cd my-app
-pnpm install
-pnpm dev
-```
-
-常用模板：
+## 二、环境准备
 
 ```powershell
-pnpm create vite my-react --template react-ts
-pnpm create vite my-vue --template vue-ts
-pnpm create vite my-lib --template vanilla-ts
+# Windows
+winget install GoLang.Go
+# macOS
+brew install go
+
+go version
+go env
 ```
 
-## 三、项目结构
-
-```
-my-app/
-├── index.html          # 入口 HTML（Vite 以此为构建入口）
-├── src/
-│   ├── main.ts
-│   └── App.vue
-├── public/             # 静态资源（原样拷贝）
-├── vite.config.ts      # 配置文件
-└── package.json
-```
-
-## 四、常用命令
+国内代理配置（必做，否则拉依赖极慢）：
 
 ```powershell
-pnpm dev                # 开发服务器（默认 5173）
-pnpm dev --port 3000    # 指定端口
-pnpm dev --host         # 局域网可访问
-pnpm build              # 生产构建 → dist/
-pnpm preview            # 本地预览 dist 产物
-pnpm build --mode staging   # 使用 .env.staging 环境变量
+go env -w GOPROXY=https://goproxy.cn,direct
+go env -w GOSUMDB=sum.golang.google.cn   # 或直接 GOSUMDB=off（内网）
+go env -w GO111MODULE=on
 ```
 
-## 五、配置文件详解
+## 三、新建项目
 
-```ts
-// vite.config.ts
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'node:path';
-
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd());
-  return {
-    plugins: [react()],
-
-    // 路径别名（需同步 tsconfig paths）
-    resolve: {
-      alias: { '@': path.resolve(__dirname, 'src') },
-    },
-
-    // 开发服务器
-    server: {
-      port: 5173,
-      open: true,
-      proxy: {
-        '/api': {
-          target: 'http://localhost:8080',
-          changeOrigin: true,
-          rewrite: (p) => p.replace(/^\/api/, ''),
-        },
-      },
-    },
-
-    // 构建选项
-    build: {
-      outDir: 'dist',
-      sourcemap: false,
-      target: 'es2018',
-      chunkSizeWarningLimit: 800,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
-          },
-        },
-      },
-    },
-
-    define: {
-      __APP_VERSION__: JSON.stringify(env.VITE_VERSION ?? 'dev'),
-    },
-  };
-});
+```powershell
+mkdir myapp && cd myapp
+go mod init github.com/yourname/myapp     # 初始化模块
 ```
 
-## 六、环境变量
+`go.mod` 示例：
 
-只有 `VITE_` 前缀的变量会暴露给客户端：
+```
+module github.com/yourname/myapp
 
-```ini
-# .env.development
-VITE_API_BASE=http://localhost:8080/api
+go 1.22
 
-# .env.production
-VITE_API_BASE=https://api.example.com
+require (
+    github.com/gin-gonic/gin v1.10.0
+    github.com/google/uuid v1.6.0
+)
+
+require (
+    // 间接依赖
+    golang.org/x/net v0.25.0 // indirect
+)
 ```
 
-```ts
-console.log(import.meta.env.VITE_API_BASE);
-console.log(import.meta.env.MODE);       // development / production
+## 四、依赖管理核心命令
+
+```powershell
+go get github.com/gin-gonic/gin@latest    # 添加/升级依赖
+go get github.com/gin-gonic/gin@v1.9.0    # 指定版本
+go get -u ./...                            # 升级所有直接依赖
+go get -u=patch ./...                      # 只升级补丁版本
+go mod tidy                                # 增删依赖，使其与代码一致（最常用）
+go mod download                            # 下载依赖到本地缓存
+go mod verify                              # 校验依赖完整性
+go mod graph                               # 打印依赖图
+go mod why github.com/xxx                  # 为什么需要这个依赖
+go list -m all                             # 列出所有依赖版本
+go mod vendor                              # 把依赖复制到 vendor/ 目录
+go clean -modcache                         # 清理模块缓存
 ```
 
-> 敏感信息（密钥）不要放进 `VITE_` 变量，它们会打进前端产物。
+## 五、构建与运行
 
-## 七、静态资源处理
+```powershell
+go build                    # 编译当前包，生成可执行文件
+go build -o app.exe ./cmd/app
+go run main.go              # 直接运行
+go run ./cmd/server
+go install ./cmd/tool       # 安装到 $GOPATH/bin
 
-```ts
-// 1. 直接导入，返回 URL（小于 4KB 自动转 base64）
-import logo from './assets/logo.png';
-
-// 2. 批量导入
-const modules = import.meta.glob('./pages/*.vue');
-
-// 3. 作为字符串导入
-import content from './file.txt?raw';
-
-// 4. 显式指定 URL
-import url from './worker.js?url';
+# 交叉编译（无需目标平台 SDK）
+$env:GOOS="linux"; $env:GOARCH="amd64"; go build -o app-linux
+$env:GOOS="windows"; $env:GOARCH="amd64"; go build -o app.exe
 ```
 
-`public/` 目录下的文件按原路径访问（如 `public/favicon.ico` → `/favicon.ico`）。
+## 六、版本选择规则（MVS）
 
-## 八、配置代理解决跨域
+Go 采用**最小版本选择**：所有依赖要求中选**最高的最小版本**，保证构建可复现。
 
-开发时前端 5173 调后端 8080 会跨域，用 `server.proxy` 转发，前端统一请求 `/api` 即可，无需后端改 CORS。
+替换与排除（`go.mod`）：
 
-## 九、性能优化清单
+```
+replace github.com/old/pkg => github.com/fork/pkg v1.0.0
+replace example.com/local => ../local           # 本地开发调试
+exclude github.com/bad/pkg v1.2.3
+```
 
-| 手段 | 做法 |
-| --- | --- |
-| 依赖预构建 | 默认自动；依赖变更时 `--force` 强制重建 |
-| 分包 | `manualChunks` 拆分 vendor |
-| 按需加载 | `React.lazy` / 动态 `import()` |
-| 图片压缩 | `vite-plugin-imagemin` 或构建前预处理 |
-| 分析体积 | `rollup-plugin-visualizer` |
-| CDN 外链 | `vite-plugin-cdn-import` |
-| Gzip/Brotli | `vite-plugin-compression` |
+## 七、多模块工作区（go work）
 
-## 十、常见问题
+Go 1.18+ 支持工作区，同时开发多个相关模块：
+
+```powershell
+go work init ./service ./lib
+go work use ./cli
+```
+
+`go.work`：
+
+```
+go 1.22
+
+use (
+    ./service
+    ./lib
+    ./cli
+)
+```
+
+> `go.work` 仅本地开发用，**不要提交**（或提交 `go.work.sum` 但要团队约定）；CI 用各模块自身构建。
+
+## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 启动后白屏 | 检查 `index.html` 入口路径、控制台报错 |
-| 修改依赖不生效 | `pnpm dev --force` 重建预构建缓存 |
-| 别名 `@` 报错 | 同时配 `vite.config.ts` 的 resolve.alias 与 `tsconfig.json` 的 paths |
-| 构建内存溢出 | `NODE_OPTIONS=--max-old-space-size=4096` |
-| 老浏览器不支持 ESM | 用 `@vitejs/plugin-legacy` 生成降级包 |
-| 部署到子路径 404 | 设置 `base: '/my-app/'` |
+| 拉依赖超时 | 设置 `GOPROXY=https://goproxy.cn,direct` |
+| `missing go.sum entry` | 执行 `go mod tidy` 或 `go mod download` |
+| 版本冲突/回退 | `go get pkg@vX` 显式指定，或 `go mod tidy` |
+| CI 构建慢 | 缓存 `$GOPATH/pkg/mod` 与 `go build` cache |
+| 私有仓库拉不下来 | `GOPRIVATE=git.company.com` + 配置 SSH / `GONOSUMDB` |
+| 误用 vendor 模式 | `go mod vendor` 后 go 命令自动用 vendor；删除 vendor 目录恢复 |
 
-## 十一、参考
+## 九、最佳实践
 
-- 官方文档（中文）：https://cn.vitejs.dev/
-- 插件列表：https://cn.vitejs.dev/plugins/
+1. 提交 `go.mod` 与 `go.sum`，**同一时间只由一个人执行 `go mod tidy`** 减少冲突。
+2. 提交前固定执行：`gofmt -l .`（或 `go fmt ./...`）、`go vet ./...`、`go test ./...`。
+3. 依赖选型优先标准库和成熟库，避免引入重量级框架。
+4. CI 中加 `go mod verify` 与 `-mod=readonly` 检测 go.mod 是否干净：
+
+```powershell
+go build -mod=readonly ./...
+```
+
+## 十、参考
+
+- 官方 Modules 文档：https://go.dev/ref/mod
+- Go 代理：https://goproxy.cn/
+- 官方 Wiki：https://github.com/golang/go/wiki/Modules
 

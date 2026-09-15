@@ -4,89 +4,183 @@ kind: day
 day: 9
 week: 2
 weekTitle: 包管理与运行时
-weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
-title: 执行包工具教程（npx / pnpm dlx / bunx）
-sourcePath: 02-包管理与运行时/03-执行包工具.md
+weekBlurb: Python 走 venv + pip（ml 课同款路线），Node 走 nvm + pnpm，Java / Rust / Go 的构建工具按语言需要选读。
+title: Node 包管理教程（npm / pnpm / yarn / bun）
+lead: Node 包管理教程（npm / pnpm / yarn / bun）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 02-包管理与运行时/02-Node包管理.md
 ---
 
-## 一、解决什么问题
+## 一、四者对比
 
-脚手架、CLI 工具（create-vite、eslint、serve 等）如果全局安装：
-- 版本会过时；
-- 全局污染；
-- 项目间版本不同会冲突。
+| 工具 | 安装方式 | 磁盘占用 | 速度 | 特点 |
+| --- | --- | --- | --- | --- |
+| npm | 随 Node 自带 | 高（每项目独立拷贝） | 一般 | 官方标配，最稳定 |
+| pnpm | 独立安装 | 极低（全局硬链接） | 快 | 严格依赖隔离，monorepo 首选 |
+| yarn（v1 / Berry） | 独立安装 | 中 | 快 | 老牌，Berry 支持 PnP 零 node_modules |
+| bun | 独立安装 | 低 | 最快 | 集运行时/包管理/测试于一体 |
 
-「执行包」工具可以**临时下载并运行，用完即走**。
-
-## 二、npx（npm 自带）
-
-```powershell
-npx create-vite my-app        # 下载最新 create-vite 并执行
-npx serve dist -p 3000        # 临时起静态服务器
-npx -y cowsay "hello"         # -y 跳过安装确认
-npx eslint@8 --version        # 指定版本执行
-npx --package=typescript tsc  # 指定包名与命令不同名时
-```
-
-关键行为：
-- 优先使用**本地 node_modules/.bin** 中的命令，没有才去下载；
-- 下载的包缓存到 npm cache，下次直接命中。
-
-## 三、pnpm dlx
+## 二、npm
 
 ```powershell
-pnpm dlx create-vite my-app
-pnpm dlx serve dist
-pnpm dlx create-next-app@latest
+npm -v
+npm init -y                       # 生成 package.json
+npm install                       # 安装 package.json 中所有依赖
+npm install express               # 生产依赖
+npm install -D typescript         # 开发依赖
+npm install -g pnpm               # 全局安装
+npm uninstall express
+npm update
+npm run dev                       # 运行 package.json scripts
 ```
 
-等价于 `pnpm dlx` = npx 的 pnpm 版本，但**不与本地 node_modules 冲突**，始终使用临时环境（更干净）。
-
-> 旧写法 `pnpm dlx` 曾叫 `pnpx`，现已统一为 `pnpm dlx`。
-
-## 四、bunx（bun x）
+常用补充：
 
 ```powershell
-bunx create-vite my-app
-bunx cowsay hello
-bun x --bun vite dev          # 强制用 bun 作为运行时执行
+npm ci                # CI 专用：严格按 lock 文件安装，比 install 快且可复现
+npm ls --depth=0      # 查看顶层依赖
+npm outdated          # 检查可升级依赖
+npm audit             # 安全漏洞检查
+npm audit fix
+npm cache clean --force
+npm config set registry https://registry.npmmirror.com   # 国内镜像
 ```
 
-bunx 速度最快，因为走 bun 的包缓存。
+`package.json` 版本号语义（semver）：
 
-## 五、yarn dlx
+```
+^1.2.3  允许 1.x.x 升级（不改变主版本）
+~1.2.3  允许 1.2.x 升级
+1.2.3   锁定精确版本
+*       任意版本（不推荐）
+```
+
+## 三、pnpm（推荐）
 
 ```powershell
-yarn dlx create-vite my-app
+# 安装
+winget install pnpm.pnpm
+# 或 corepack enable && corepack prepare pnpm@latest --activate
+# 或 npm install -g pnpm
 ```
 
-## 六、对比与选择
+```powershell
+pnpm install            # 安装（内容寻址存储 + 硬链接，秒级）
+pnpm add axios
+pnpm add -D vitest
+pnpm remove axios
+pnpm run build
+pnpm -r build           # 递归在所有 workspace 包中执行
+pnpm --filter web dev   # 只对 web 包执行
+```
 
-| 命令 | 归属 | 特点 |
+常用配套：
+
+```powershell
+pnpm dlx create-vite    # 不安装直接执行（类似 npx）
+pnpm approve-builds     # pnpm v10 后需显式允许依赖的 postinstall 脚本
+pnpm store prune        # 清理未使用缓存
+```
+
+`pnpm-workspace.yaml`（monorepo）：
+
+```yaml
+packages:
+  - "apps/*"
+  - "packages/*"
+```
+
+优势：
+- 全局只存一份包内容（`~/.pnpm-store`），项目里是硬链接，**节省大量磁盘**；
+- 默认禁止访问未声明的依赖（幽灵依赖问题），更严谨。
+
+## 四、yarn
+
+```powershell
+corepack enable
+corepack prepare yarn@4 --activate    # 现代推荐方式
+# 或 npm install -g yarn
+```
+
+```powershell
+yarn                    # 安装依赖
+yarn add react
+yarn add -D eslint
+yarn remove react
+yarn up react           # 升级
+yarn dlx create-next-app
+```
+
+`.yarnrc.yml`（Berry 常用配置）：
+
+```yaml
+nodeLinker: node-modules     # 默认 PnP，改成 node-modules 兼容性更好
+enableGlobalCache: true
+npmRegistryServer: "https://registry.npmmirror.com"
+```
+
+## 五、bun
+
+```powershell
+# Windows
+powershell -c "irm bun.sh/install.ps1 | iex"
+# macOS/Linux
+curl -fsSL https://bun.sh/install | bash
+```
+
+```powershell
+bun install             # 安装依赖（极快）
+bun add zod
+bun add -d @types/node
+bun remove zod
+bun run dev
+bun test                # 内置测试框架
+bunx create-vite        # 类似 npx
+```
+
+> bun 同时是运行时：`bun run index.ts` 可直接执行 TypeScript。
+
+## 六、锁定与一致性（团队/CI 必读）
+
+| 工具 | 锁文件 | CI 严格安装命令 |
 | --- | --- | --- |
-| `npx` | npm | 兼容性最好，会优先用本地依赖 |
-| `pnpm dlx` | pnpm | 隔离干净，速度较快 |
-| `bunx` | bun | 最快，依赖 bun 生态 |
-| `yarn dlx` | yarn | yarn 用户使用 |
+| npm | package-lock.json | `npm ci` |
+| pnpm | pnpm-lock.yaml | `pnpm install --frozen-lockfile` |
+| yarn | yarn.lock | `yarn install --immutable` |
+| bun | bun.lock | `bun install --frozen-lockfile` |
 
-**选择原则**：跟随项目所用包管理器即可，团队一致最重要。
+**锁文件必须提交进 Git**，且团队统一包管理器（用 `packageManager` 字段约束）：
 
-## 七、常见坑
+```json
+{
+  "packageManager": "pnpm@9.1.0"
+}
+```
+
+配合 corepack 后，其他成员误用 npm 会被拦截。
+
+## 七、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| `npx` 弹确认卡住 CI | 加 `-y`：`npx -y create-vite` |
-| 下载的是旧缓存版本 | `npx create-vite@latest` 或清理缓存 `npm cache clean --force` |
-| 公司网络装不了 | 配置 registry 镜像后重试 |
-| 想跑本地已安装的命令 | 直接用 `npm run xxx`（scripts 会自动加 node_modules/.bin 到 PATH）；或 `npx xxx` 也会优先本地 |
-| 全局命令与本地版本混淆 | 用 `npx eslint@8 --version` 明确指定版本 |
+| 安装卡住 / 下载慢 | 切换 npmmirror 镜像；检查代理 |
+| `ERESOLVE unable to resolve dependency tree` | 依赖冲突，先试 `npm install --legacy-peer-deps`，长期方案是修版本约束 |
+| node_modules 删不掉（Windows） | 关闭占用进程；`npx rimraf node_modules` |
+| pnpm 装完依赖后某些包构不出二进制 | `pnpm approve-builds` 放行对应包 |
+| 公司私有包 404 | 配置 `.npmrc`（`@corp:registry=https://npm.company.com`） |
+| 意外升级依赖导致线上问题 | CI 用 frozen lockfile；升级走 PR + review |
 
-## 八、实践建议
+## 八、最佳实践
 
-1. **创建项目用一次性命令即可**，不需要全局安装脚手架：
-   ```powershell
-   pnpm dlx create-vite@latest my-app
-   ```
-2. **CI 中禁止隐式下载**：把工具写进 devDependencies，用 `npm run xxx`，避免构建因网络抖动失败。
-3. 需要反复使用的工具（如 serve）考虑 devDependency + script，而不是每次 dlx。
+1. **一个项目只用一种包管理器**，用 `packageManager` 字段固定。
+2. **不要在 CI 里跑 `npm update`**，锁文件是唯一事实来源。
+3. monorepo 用 **pnpm workspace**（或 yarn/npm workspaces），避免多仓库同步问题。
+4. 依赖定期升级：`npm outdated` → 小步升级 → 跑测试。
+5. 提交前检查是否有 `node_modules` 误入 Git（`.gitignore`）。
+
+## 九、参考
+
+- npm 文档：https://docs.npmjs.com/
+- pnpm：https://pnpm.io/zh/
+- yarn：https://yarnpkg.com/
+- bun：https://bun.sh/docs
 

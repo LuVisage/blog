@@ -2,212 +2,198 @@
 slug: day-38
 kind: day
 day: 38
-week: 5
+week: 7
 weekTitle: 测试
-weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
-title: Go 测试教程（go test）
-sourcePath: 05-测试/09-Go-test.md
+weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test——backend 课 W1D4 是 pytest 的工程实战，这里是语法全集。
+title: Jest 使用教程
+lead: Jest 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 05-测试/02-Jest.md
 ---
 
-## 一、Go 测试的特点
+## 一、Jest 是什么
 
-Go **内置**测试框架，无需第三方库即可完成：单元测试、基准测试、示例测试、覆盖率、竞态检测。
+Facebook 出品的 JS/TS 测试框架，特点是**开箱即用**：断言、Mock、快照、覆盖率、并行执行全部内置。是目前生态最成熟的 JS 测试工具，CRA、React Native、大量存量项目默认使用。
 
-约定：
-- 测试文件命名 `xxx_test.go`；
-- 测试函数命名 `TestXxx(t *testing.T)`；
-- 与被测文件同目录、同包（也可用 `_test` 后缀包做黑盒测试）。
-
-## 二、基本测试
-
-`calc.go`：
-
-```go
-package calc
-
-func Add(a, b int) int { return a + b }
-
-func Div(a, b int) (int, error) {
-	if b == 0 {
-		return 0, fmt.Errorf("division by zero")
-	}
-	return a / b, nil
-}
-```
-
-`calc_test.go`：
-
-```go
-package calc
-
-import "testing"
-
-func TestAdd(t *testing.T) {
-	got := Add(1, 2)
-	if got != 3 {
-		t.Errorf("Add(1,2) = %d, want 3", got)
-	}
-}
-
-func TestDivByZero(t *testing.T) {
-	_, err := Div(1, 0)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-}
-```
-
-> `t.Errorf` 继续执行；`t.Fatalf` 立即终止当前测试。
-
-## 三、表驱动测试（Go 惯用法）
-
-```go
-func TestAdd(t *testing.T) {
-	tests := []struct {
-		name string
-		a, b int
-		want int
-	}{
-		{"正数", 1, 2, 3},
-		{"负数", -1, 1, 0},
-		{"零", 0, 0, 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := Add(tt.a, tt.b); got != tt.want {
-				t.Errorf("Add(%d,%d) = %d, want %d", tt.a, tt.b, got, tt.want)
-			}
-		})
-	}
-}
-```
-
-## 四、常用命令
+## 二、安装与初始化
 
 ```powershell
-go test ./...                    # 测试所有包
-go test -v ./...                 # 详细输出
-go test -run TestAdd ./calc      # 按名称过滤
-go test -run 'TestAdd/正数' ./calc   # 子测试过滤
-go test -count=1 ./...           # 禁用缓存，强制重跑
-go test -race ./...              # 竞态检测（重要！）
-go test -cover ./...             # 覆盖率
-go test -coverprofile=cover.out ./... && go tool cover -html=cover.out
-go test -short ./...             # 跳过标记为 -short 的重测试
-go test -timeout 30s ./...
+pnpm add -D jest @types/jest ts-jest
+# React 项目
+pnpm add -D jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
 
-## 五、基准测试
-
-```go
-func BenchmarkAdd(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Add(1, 2)
-	}
-}
-
-// 带子基准
-func BenchmarkStringJoin(b *testing.B) {
-	for _, n := range []int{10, 100, 1000} {
-		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				strings.Join(make([]string, n), ",")
-			}
-		})
-	}
-}
-```
+TypeScript 项目初始化：
 
 ```powershell
-go test -bench=. -benchmem ./...
-# 输出：ns/op 表示单次耗时，B/op、allocs/op 为内存分配
+npx ts-jest config:init
 ```
 
-## 六、示例测试（生成文档）
+## 三、配置
 
-```go
-func ExampleAdd() {
-	fmt.Println(Add(1, 2))
-	// Output: 3
-}
+`jest.config.ts`：
+
+```ts
+import type { Config } from 'jest';
+
+const config: Config = {
+  preset: 'ts-jest',
+  testEnvironment: 'jsdom',
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/*.test.ts', '**/*.test.tsx'],
+  setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '\\.(css|less|scss)$': 'identity-obj-proxy',
+    '\\.(png|jpg|svg)$': '<rootDir>/src/test/fileMock.ts',
+  },
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.test.json' }],
+  },
+  collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
+  coverageThreshold: {
+    global: { lines: 70, functions: 70 },
+  },
+};
+
+export default config;
 ```
 
-`go test` 会验证 `// Output:` 注释与实际输出是否一致，同时出现在 godoc 里。
+> 大型项目建议 `ts-jest` 换 `@swc/jest`（快 10x 以上）：
 
-## 七、测试辅助
-
-**跳过与并行**：
-
-```go
-func TestSlow(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
-	// ...
-}
-
-func TestParallel(t *testing.T) {
-	t.Parallel()   // 标记可并行
-	// ...
-}
+```ts
+transform: { '^.+\\.(t|j)sx?$': '@swc/jest' }
 ```
 
-**临时目录**：
+## 四、编写测试
 
-```go
-func TestWriteFile(t *testing.T) {
-	dir := t.TempDir()          // 测试结束自动清理
-	path := filepath.Join(dir, "a.txt")
-	os.WriteFile(path, []byte("hi"), 0o644)
-}
+```ts
+describe('购物车', () => {
+  let cart: Cart;
+
+  beforeEach(() => {
+    cart = new Cart();
+  });
+
+  test('添加商品后总价正确', () => {
+    cart.add({ name: '书', price: 50 });
+    cart.add({ name: '笔', price: 5 });
+    expect(cart.total()).toBe(55);
+  });
+
+  test('移除不存在的商品不报错', () => {
+    expect(() => cart.remove('nope')).not.toThrow();
+  });
+
+  test.each([1, 2, 3])('数量 %i 的折扣计算', (n) => {
+    expect(cart.discount(n)).toBeGreaterThanOrEqual(0);
+  });
+});
 ```
 
-**testify（可选，断言更省事）**：
+### 异步测试
 
-```go
-import "github.com/stretchr/testify/assert"
-import "github.com/stretchr/testify/require"
+```ts
+test('异步获取', async () => {
+  await expect(fetchUser(1)).resolves.toMatchObject({ id: 1 });
+});
 
-assert.Equal(t, 3, Add(1, 2))
-require.NoError(t, err)      // 失败立即终止
+test('回调风格', (done) => {
+  fetchUser(1, (err, user) => {
+    expect(user.id).toBe(1);
+    done();
+  });
+});
 ```
 
-**gomock / mockery（接口 Mock）**：
+### Mock
+
+```ts
+// 函数 Mock
+const mockFn = jest.fn().mockReturnValue(1);
+const mockAsync = jest.fn().mockResolvedValue({ ok: true });
+
+// 模块 Mock
+jest.mock('./api');
+import { fetchUser } from './api';
+(fetchUser as jest.Mock).mockResolvedValue({ id: 1 });
+
+// 局部 Mock
+jest.mock('./utils', () => ({
+  ...jest.requireActual('./utils'),
+  now: () => 1700000000000,
+}));
+
+// spy
+const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+// 定时器
+jest.useFakeTimers();
+jest.advanceTimersByTime(1000);
+```
+
+### 快照
+
+```ts
+test('组件渲染快照', () => {
+  const { asFragment } = render(<Button>OK</Button>);
+  expect(asFragment()).toMatchSnapshot();
+});
+// 更新：jest -u
+```
+
+## 五、常用命令
 
 ```powershell
-mockgen -source=repository.go -destination=mocks/repository_mock.go
+jest                       # 运行全部（watch 需 --watch）
+jest --watch               # 监听模式
+jest --coverage
+jest src/utils             # 按路径过滤
+jest -t "购物车"            # 按名称过滤
+jest -u                    # 更新快照
+jest --clearCache
+jest --runInBand           # 串行（排查并发问题时）
+jest --onlyChanged         # 只跑改动相关的（需 git）
 ```
 
-## 八、CI 集成
+## 六、CI 与报告
 
 ```yaml
-- run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
-- run: go tool cover -func=coverage.out
+- run: pnpm jest --ci --coverage --reporters=default --reporters=jest-junit
 ```
 
-## 九、常见问题
+## 七、Jest vs Vitest
+
+| 维度 | Jest | Vitest |
+| --- | --- | --- |
+| 生态成熟度 | 极高 | 高 |
+| 速度（TS 项目） | 中（需转换） | 快 |
+| ESM | 需配置开关，易踩坑 | 原生 |
+| 配置 | 独立一份 | 复用 Vite 配置 |
+| 覆盖面 | React Native / 老项目 | Vite 新项目 |
+
+**结论**：新项目（尤其 Vite）用 Vitest；React Native / 大型 jest 存量项目继续 Jest。
+
+## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 测试结果被缓存（改了代码没重跑） | `-count=1` |
-| 覆盖率统计到测试文件 | 覆盖率默认排除 `_test.go`，但会把未测试代码算作 0%，可接受 |
-| 偶发失败（flaky） | 用 `-race` 排查数据竞争；检查共享状态与时间依赖 |
-| 单测依赖真实 DB | 用接口 + mock；或 testcontainers-go 起临时容器 |
-| `t.Fatal` 在子测试里的行为 | 子测试中只终止该子测试，符合预期 |
-| 并行测试数据竞争 | 循环变量需 `tt := tt`（Go 1.22 已修复）；共享资源加锁或隔离 |
+| `Cannot use import statement outside a module` | 配 ts-jest/babel-jest；node_modules 里的 ESM 包加 `transformIgnorePatterns` 白名单 |
+| `SyntaxError: Unexpected token 'export'` | 同上，把该包加入 transform 白名单 |
+| jsdom 里 `matchMedia` 未定义 | setup 文件里 mock 掉 |
+| 测试莫名串行慢 | 检查 `testEnvironment` 全部 jsdom 的开销；纯逻辑用 `node` 环境 |
+| mock 不生效 | `jest.mock` 提升；检查路径大小写、模块缓存 `jest.resetModules()` |
+| 覆盖率统计了无关文件 | `collectCoverageFrom` 明确包含范围 |
 
-## 十、最佳实践
+## 九、最佳实践
 
-1. **表驱动测试**是 Go 社区标准写法，覆盖边界值。
-2. 测试文件与源码同目录，包名相同（可访问未导出成员）。
-3. CI 固定加 `-race`，早发现并发问题。
-4. 用 `httptest` 测 HTTP handler，用接口 + mock 隔离外部依赖。
-5. 覆盖率作为参考：核心包目标 80%+，handler/胶水层不必强求。
+1. 每个测试文件独立、无执行顺序依赖。
+2. `beforeEach` 中清理 mock：`jest.clearAllMocks()`。
+3. 测试命名用中文/英文完整描述行为。
+4. 快照测试只用于稳定 UI，避免频繁 `-u`。
+5. 大项目用 `--onlyChanged` + CI 分片（`--shard=1/3`）加速。
 
-## 十一、参考
+## 十、参考
 
-- 官方 testing 文档：https://pkg.go.dev/testing
-- Go 官方测试教程：https://go.dev/doc/tutorial/add-a-test
-- testify：https://github.com/stretchr/testify
+- 官方文档：https://jestjs.io/zh-Hans/
+- ts-jest：https://kulshekhar.github.io/ts-jest/
 

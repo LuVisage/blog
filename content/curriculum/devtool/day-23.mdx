@@ -2,251 +2,223 @@
 slug: day-23
 kind: day
 day: 23
-week: 3
-weekTitle: 构建打包
-weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
-title: 任务运行器教程（Make / Just / Task）
-sourcePath: 03-构建打包/10-Make-Just-Task.md
+week: 4
+weekTitle: 终端与命令行
+weekBlurb: 终端模拟器、tmux、WSL2 与 shell 配置——ml 课 Week00 的命令行动作，这里是完整版。
+title: 搜索与查找工具教程（ripgrep / fd / fzf）
+lead: 搜索与查找工具教程（ripgrep / fd / fzf）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 08-终端与命令行/05-搜索与查找.md
 ---
 
-## 一、为什么需要任务运行器
+## 一、为什么换掉 grep / find
 
-项目一复杂，命令就变长：
+| 老工具 | 问题 | 替代 |
+| --- | --- | --- |
+| grep -r | 慢、默认不忽略 .gitignore、正则语法繁琐 | **ripgrep（rg）** |
+| find | 语法古怪、慢 | **fd** |
+| 手动翻目录 | 效率低 | **fzf** |
 
-```powershell
-docker compose -f docker-compose.dev.yml up -d && pnpm --filter api migrate && pnpm --filter api dev
-```
+三者组合 = 命令行搜索的现代标准。
 
-任务运行器把这些封装成 `make dev` / `just dev` / `task dev`，让**命令可复用、可组合、可文档化**。
-
-## 二、Make
-
-最古老、几乎所有系统都有的构建工具。用 `Makefile` 定义「目标 + 依赖 + 命令」。
-
-### 基本语法
-
-```makefile
-.PHONY: install dev build test lint clean
-
-install:
-	pnpm install
-
-dev: install
-	pnpm dev
-
-build: install
-	pnpm build
-
-test:
-	pnpm test
-
-lint:
-	pnpm lint
-
-clean:
-	rm -rf dist node_modules
-```
-
-> **注意**：命令前必须是 **Tab**，不是空格。
-
-### 使用
-
-```powershell
-make build
-make dev
-make          # 默认第一个目标
-make -j4      # 并行执行
-make -n build # 只打印将执行的命令
-```
-
-### 变量与参数
-
-```makefile
-IMAGE ?= myapp
-TAG ?= latest
-
-docker-build:
-	docker build -t $(IMAGE):$(TAG) .
-```
-
-```powershell
-make docker-build TAG=v1.0
-```
-
-### 优缺点
-
-- 优点：无需安装、跨语言、依赖图成熟；
-- 缺点：语法古怪（Tab、shell 差异）、Windows 上需借助 Git Bash/WSL。
-
-Windows 安装：
-
-```powershell
-winget install GnuWin32.Make
-# 或 choco install make
-```
-
-## 三、Just
-
-Just 是「现代版 Make」：语法清晰、默认并行、跨平台，专注做**命令别名与参数化**，不像 Make 那么在意文件时间戳。
+## 二、ripgrep（rg）
 
 ### 安装
 
 ```powershell
-winget install Casey.Just
+winget install BurntSushi.ripgrep.MSVC
 # macOS
-brew install just
+brew install ripgrep
+# Ubuntu
+sudo apt install ripgrep
 ```
 
 ### 基本用法
 
-`justfile`：
-
-```makefile
-# 列出所有配方
-default:
-    @just --list
-
-# 安装依赖
-install:
-    pnpm install
-
-# 启动开发环境（依赖 install）
-dev: install
-    pnpm dev
-
-# 构建，支持参数
-build target="all":
-    pnpm build {{target}}
-
-# 带说明的配方
-test:
-    echo "运行测试"
-    pnpm test
+```powershell
+rg "TODO"                      # 当前目录递归搜索（自动忽略 .gitignore）
+rg "TODO" src/                 # 指定目录
+rg -i "todo"                   # 忽略大小写
+rg -w "user"                   # 整词匹配
+rg -t ts "interface"           # 只搜 TS 文件
+rg -T test "flaky"             # 排除测试文件
+rg -g "*.json" "version"       # 按 glob 过滤
+rg --hidden "secret"           # 包含隐藏文件
+rg -uuu "keyword"              # 不忽略任何东西（含 .gitignore、隐藏、二进制）
 ```
+
+### 输出与控制
 
 ```powershell
-just               # 执行 default
-just dev
-just build
-just build web     # 传参
-just --list        # 列出所有命令
+rg "function" -l               # 只列文件名
+rg "function" -c               # 每个文件匹配数
+rg "old" -r "new" --passthru   # 预览替换效果（不改文件）
+rg "error" -A 3 -B 1           # 显示后 3 行、前 1 行
+rg "error" -C 2                # 前后各 2 行
+rg "TODO" --stats              # 显示统计
 ```
 
-### 特色功能
+### 替换文件内容
 
-- **参数与默认值**，无需环境变量 hack；
-- **`@` 前缀**隐藏命令回显；
-- 支持 **shebang 脚本**、多种 Shell；
-- 跨平台（Windows 原生支持）；
-- `just --choose`（配合 fzf）交互式选择命令。
+```powershell
+rg "foo" -l | ForEach-Object { (Get-Content $_) -replace "foo","bar" | Set-Content $_ }
+# Linux/macOS
+rg "foo" -l | xargs sed -i 's/foo/bar/g'
+```
 
-## 四、Task（Taskfile）
+### 配置（`RIPGREP_CONFIG_PATH`）
 
-Go 编写的任务运行器，YAML 配置，支持依赖、变量、环境变量、文件监视。
+`~/.ripgreprc`：
+
+```
+--smart-case
+--hidden
+--glob=!.git/*
+--glob=!node_modules/*
+--max-columns=150
+```
+
+### 常用类型表
+
+`rg --type-list` 查看；常用 `js, ts, py, rust, go, json, yaml, md, html, css`。
+
+## 三、fd（find 的现代替代）
 
 ### 安装
 
 ```powershell
-winget install Task.Task
-# 或 scoop install task / choco install go-task
+winget install sharkdp.fd
+# macOS
+brew install fd
+# Ubuntu
+sudo apt install fd-find   # 命令名是 fdfind，可 alias fd=fdfind
 ```
 
-### Taskfile.yml
-
-```yaml
-version: '3'
-
-vars:
-  APP: myapp
-  VERSION:
-    sh: git describe --tags --always
-
-tasks:
-  default:
-    desc: 列出所有任务
-    cmds:
-      - task --list
-
-  install:
-    desc: 安装依赖
-    cmds:
-      - pnpm install
-
-  dev:
-    desc: 启动开发
-    deps: [install]
-    cmds:
-      - pnpm dev
-
-  build:
-    desc: 构建
-    cmds:
-      - pnpm build
-    sources:
-      - src/**/*
-    generates:
-      - dist/**
-
-  test:
-    desc: 运行测试
-    cmds:
-      - pnpm test
-
-  clean:
-    desc: 清理产物
-    cmds:
-      - rm -rf dist
-    status:
-      - test ! -d dist     # 条件：dist 不存在则跳过
-```
+### 基本用法
 
 ```powershell
-task             # 执行 default
-task build
-task --list      # 列出所有任务及描述
-task build VERSION=1.0.0
-task --watch build   # 文件变化自动重跑
+fd                          # 列出当前目录所有文件（递归，忽略 gitignore）
+fd config                   # 文件名含 config 的
+fd -e ts                    # 只列 .ts 文件
+fd -e ts -e tsx             # 多扩展名
+fd -t d                     # 只列目录
+fd -t f -x wc -l            # 对每个文件执行命令
+fd -H                       # 包含隐藏文件
+fd -I                       # 不忽略 gitignore
+fd "^test_"                 # 正则匹配文件名
+fd --changed-within 2d      # 最近 2 天修改过的
+fd --changed-before 1h
+fd -x rm                     # 删除所有匹配（危险，先确认）
+fd -0 | xargs -0 wc -l       # 配合 xargs
+fd -e png -x convert {} {.}.webp   # 批量转格式
 ```
 
-### 特色功能
+### 常用选项
 
-- `sources` / `generates`：**基于文件变更决定是否重跑**（类 Make 的增量）；
-- `deps` / `cmds`：任务依赖与并行；
-- `status`：自定义跳过条件；
-- `dotenv`：加载 `.env` 文件；
-- 跨平台（Linux/macOS/Windows 二进制）。
+| 选项 | 含义 |
+| --- | --- |
+| `-e ext` | 扩展名 |
+| `-t f/d/l` | 类型：文件/目录/符号链接 |
+| `-x cmd` | 对结果并行执行命令（`{}` = 路径，`{.}` = 去扩展名） |
+| `-X cmd` | 一次传入所有结果 |
+| `-d depth` | 最大深度 |
+| `-E pattern` | 排除 |
+| `--exec-batch` | 批量执行 |
 
-## 五、三者对比
+### fd vs find 对照
 
-| 维度 | Make | Just | Task |
-| --- | --- | --- | --- |
-| 配置格式 | Makefile | justfile | YAML |
-| 学习曲线 | 陡（历史包袱） | 平缓 | 平缓 |
-| Windows 支持 | 一般（需额外安装） | 好 | 好 |
-| 增量构建（文件时间戳） | 强 | 弱 | 有（sources） |
-| 参数传递 | 环境变量为主 | 原生参数 | 变量 |
-| 依赖编排 | 强 | 中 | 强 |
-| 最适合 | C/系统项目、通用构建 | 日常命令封装 | 现代多语言项目 |
+```bash
+# find 写法
+find . -name "*.ts" -not -path "*/node_modules/*" -type f
+# fd 写法
+fd -e ts
+```
 
-## 六、如何选择
+## 四、fzf（模糊查找）
 
-- 团队全是 Windows + Node/Python 项目 → **Task** 或 **Just**；
-- 已有 Makefile 历史 / C/C++ 项目 → **Make**；
-- 只想用最少的语法封装 20 个常用命令 → **Just**。
+### 安装
 
-## 七、常见问题
+```powershell
+winget install junegunn.fzf
+# macOS
+brew install fzf
+# 安装 shell 集成（键绑定）
+fzf --install     # 或按官方文档 source 对应脚本
+```
+
+### 基本用法
+
+```powershell
+fzf                                  # 从标准输入模糊筛选
+fd -e ts | fzf                       # 选文件
+git branch | fzf                     # 选分支
+fzf --preview 'bat --color=always {}'   # 带预览选文件
+```
+
+交互操作：
+- 输入即模糊匹配；
+- `Enter` 确认，`Esc` 取消；
+- `Ctrl+J/K` 上下移动；
+- `Tab` 多选（`-m` 模式）。
+
+### 与常用命令组合
+
+```powershell
+# 打开选中的文件
+code (fd -e ts | fzf)
+
+# 切换到选中分支
+git checkout (git branch | fzf | ForEach-Object { $_.Trim() })
+
+# 杀掉选中进程
+Get-Process | Where-Object { $_.Name -like "*node*" } | ForEach-Object { $_.Id.ToString() + " " + $_.Name } | fzf
+
+# 在选中文件中搜索内容（rg + fzf 联动）
+rg -l "TODO" | fzf --preview "rg -n --color=always TODO {}"
+```
+
+### Shell 集成后的快捷键（bash/zsh）
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `Ctrl+T` | 在当前目录模糊选文件并插入路径 |
+| `Alt+C` | 模糊选目录并 cd 进去 |
+| `Ctrl+R` | 模糊搜索历史命令（替代原生） |
+
+> `Ctrl+R` 历史搜索是 fzf **最常用的功能**，装好后立刻可用。
+
+### 主题与默认选项
+
+```powershell
+$env:FZF_DEFAULT_OPTS = "--height 40% --layout=reverse --border --preview 'bat --color=always {}'"
+```
+
+## 五、三者组合实战
+
+| 任务 | 命令 |
+| --- | --- |
+| 在项目中找某段代码 | `rg "handleSubmit" -C 2` |
+| 找一个叫 config 的文件 | `fd config` |
+| 交互式选择文件并打开 | `code (fd -e tsx \| fzf --preview 'bat {}')` |
+| 全局搜索并跳转 | `rg -l "TODO" \| fzf` |
+| 快速切目录 | `Alt+C`（fzf） |
+| 找最近改的文件 | `fd --changed-within 1h` |
+| 批量删除 .log | `fd -e log -x rm` |
+
+## 六、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| Make 报 `missing separator` | 命令行前用了空格，改成 Tab |
-| Make 在 Windows 中文乱码 | 用 WSL2 或 Git Bash 执行 |
-| Just 参数为空 | 用默认值 `param="default"`，或 `{{param}}` 前判断 |
-| Task 任务没有重跑 | 检查 `status` / `sources` 条件是否误判 |
-| 命令里的 `$` 被展开 | Make 中用 `$$` 转义；Just 中脚本用 `#!/usr/bin/env bash` 块 |
+| rg 搜不到 node_modules 里的内容 | 默认忽略，用 `-uuu` 或 `--no-ignore` |
+| 中文搜索乱码 | 终端设为 UTF-8 |
+| fd 在 Windows 上别名冲突 | PowerShell 中 `Set-Alias fd fd.exe`；Ubuntu 用 `fdfind` |
+| fzf 快捷键不生效 | 确认 shell 集成脚本已 source（在 `.zshrc`/`config.fish`/`$PROFILE`） |
+| rg 正则与 PCRE 不同 | 需要高级正则加 `-P`（look-behind 等） |
+| 想把 rg 当作 grep 用 | `alias grep='rg'`（注意输出格式变了） |
 
-## 八、参考
+## 七、参考
 
-- GNU Make：https://www.gnu.org/software/make/manual/
-- Just：https://just.systems/man/en/
-- Task：https://taskfile.dev/
+- ripgrep：https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md
+- fd：https://github.com/sharkdp/fd
+- fzf：https://github.com/junegunn/fzf
+- 速查表：https://github.com/junegunn/fzf#key-bindings
 

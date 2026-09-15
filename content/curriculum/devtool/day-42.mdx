@@ -2,178 +2,193 @@
 slug: day-42
 kind: day
 day: 42
-week: 6
-weekTitle: 调试与网络
-weekBlurb: DevTools 与调试器断点、curl / httpie、抓包、API 客户端与内网穿透——排查问题的完整工具箱。
-title: API 客户端使用教程（Postman / Insomnia / Apifox / Bruno）
-sourcePath: 06-调试与网络/04-API客户端.md
+week: 7
+weekTitle: 测试
+weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test——backend 课 W1D4 是 pytest 的工程实战，这里是语法全集。
+title: MSW（Mock Service Worker）使用教程
+lead: MSW（Mock Service Worker）使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 05-测试/06-MSW.md
 ---
 
-## 一、为什么需要 API 客户端
+## 一、MSW 是什么
 
-curl 适合单次请求，但日常开发还需要：
+MSW 通过 **Service Worker**（浏览器）或 **请求拦截器**（Node）在网络层拦截请求，返回你定义的 Mock 数据。
 
-- **保存与组织**接口集合（Collection）；
-- **环境变量**（dev / test / prod 一键切换）；
-- **鉴权管理**（Token 自动注入）；
-- **脚本化**（前置脚本、断言、测试）；
-- **团队共享**接口文档与用例。
+与传统 Mock 的区别：
 
-## 二、四款工具对比
+| 方式 | 做法 | 问题 |
+| --- | --- | --- |
+| 传统 Mock | 替换 `fetch`/`axios` 模块 | 与实现耦合，换 HTTP 库就失效；不覆盖真实 URL 语义 |
+| MSW | 拦截网络请求 | 与代码零耦合；开发、测试、Storybook 通用；可复用同一套 handler |
 
-| 工具 | 平台 | 收费 | 特点 | 适合 |
-| --- | --- | --- | --- | --- |
-| **Postman** | 全平台 | 免费 + 付费 | 生态最全，集合/环境/测试/mock/监控，体积重 | 通用、团队已有沉淀 |
-| **Insomnia** | 全平台 | 免费 + 付费 | 界面简洁，GraphQL/gRPC 支持好 | 喜欢轻量的开发者 |
-| **Apifox** | 全平台 | 免费 + 付费 | 中文，API 设计+调试+Mock+测试一体，国产 | 国内团队协作 |
-| **Bruno** | 全平台 | 完全免费开源 | **文件即集合**（Git 友好），离线优先，无账号 | 喜欢 Git 管理与隐私的团队 |
-
-## 三、Postman 快速上手
-
-### 基本流程
-
-1. 下载安装：https://www.postman.com/downloads/
-2. `New → Collection` 建集合（如「用户服务」）；
-3. 集合内 `Add request`：
- - 选方法（GET/POST...）与 URL；
- - `Params` 填查询参数；
- - `Authorization` 选 Bearer Token 填 `{{token}}`；
- - `Body → raw → JSON` 填请求体。
-4. 点击 `Send`，下方看响应（可切 Pretty / Raw / Preview）。
-
-### 环境变量
-
-1. 右上角 `Environments → Create`，定义：
-
-```json
-{
-  "baseUrl": "http://localhost:8080/api",
-  "token": "eyJhbGciOi..."
-}
-```
-
-2. 请求里使用 `{{baseUrl}}/users`，右上角切换环境即可切换 dev/prod。
-
-### 测试脚本
-
-`Tests` 标签页写断言：
-
-```js
-pm.test("状态码为 200", () => pm.response.to.have.status(200));
-
-pm.test("返回用户数组", () => {
-  const json = pm.response.json();
-  pm.expect(json).to.be.an('array');
-  pm.expect(json[0]).to.have.property('name');
-});
-
-// 把响应里的 token 存入环境变量，供后续请求使用
-const data = pm.response.json();
-pm.environment.set('token', data.token);
-```
-
-`Pre-request Script` 中可动态计算签名、时间戳。
-
-### 集合 Runner 与自动化
-
-- 左侧集合右键 → `Run collection`：批量执行、逐条断言；
-- 配合 `newman` 在 CI 中跑：
+## 二、安装与初始化
 
 ```powershell
-npm install -g newman
-newman run collection.json -e env.json --reporters cli,html
+pnpm add -D msw
+npx msw init public/ --save     # 生成 public/mockServiceWorker.js
 ```
 
-## 四、Insomnia 快速上手
+> `mockServiceWorker.js` 需要提交进版本库。
 
-1. 下载：https://insomnia.rest/download
-2. `New Request` → 选方法/URL/体；
-3. **Environment**：左下角切换，支持多种环境变量（Base / Sub environments）；
-4. 支持 **GraphQL**（自动拉 schema + 补全）、gRPC、WebSocket；
-5. 插件系统（`Preferences → Plugins`）可扩展模板函数。
+## 三、定义 Handler
 
-适合场景：接口不多、想要干净界面、常调 GraphQL。
+`src/mocks/handlers.ts`：
 
-## 五、Apifox 快速上手
+```ts
+import { http, HttpResponse, delay } from 'msw';
 
-1. 下载：https://apifox.com/
-2. 创建项目 → 定义接口（可直接写 OpenAPI/导入 Swagger）；
-3. 特色能力：
- - **设计与调试一体**：改接口定义即同步文档；
- - **Mock 服务**：在线 Mock URL，前端不依赖后端；
- - **自动化测试**：测试场景、断言、CI 集成（apifox-cli）；
- - **团队协作**：权限、变更记录、评论。
+export const handlers = [
+  // GET
+  http.get('/api/users', () =>
+    HttpResponse.json([
+      { id: 1, name: 'Ada' },
+      { id: 2, name: 'Linus' },
+    ]),
+  ),
 
-国内团队常用替代 Postman，中文体验好。
+  // 路径参数
+  http.get('/api/users/:id', ({ params }) =>
+    HttpResponse.json({ id: Number(params.id), name: 'Ada' }),
+  ),
 
-## 六、Bruno 快速上手
+  // POST + 读取请求体
+  http.post('/api/login', async ({ request }) => {
+    const body = (await request.json()) as { username: string; password: string };
+    if (body.password === 'secret') {
+      return HttpResponse.json({ token: 'fake-jwt' });
+    }
+    return HttpResponse.json({ message: '用户名或密码错误' }, { status: 401 });
+  }),
 
-1. 下载：https://www.usebruno.com/
-2. 创建 Collection 时选择**本地目录**（不是云端账号）；
-3. 每个请求是一个 `.bru` 文本文件：
+  // 延迟响应（测 loading 状态）
+  http.get('/api/slow', async () => {
+    await delay(500);
+    return HttpResponse.json({ ok: true });
+  }),
 
-```
-meta {
-  name: 获取用户
-  type: http
-  seq: 1
-}
-
-get {
-  url: {{baseUrl}}/users/{{userId}}
-  body: none
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{token}}
-}
-
-tests {
-  test("status is 200", function() {
-    expect(res.getStatus()).to.equal(200);
-  });
-}
+  // 只 mock 一次
+  http.get('/api/flaky', () => HttpResponse.json({ ok: true }), { once: true }),
+];
 ```
 
-4. **全部提交 Git**，团队成员 clone 即拥有同一套接口集合；
-5. 环境文件 `environments/dev.bru` 也纳入版本控制（敏感值用 secrets）。
+## 四、浏览器端使用（开发环境）
 
-优势：**离线、隐私、Git 管理、无账号绑定**，非常适合工程化团队。
+`src/mocks/browser.ts`：
 
-## 七、选型建议
+```ts
+import { setupWorker } from 'msw/browser';
+import { handlers } from './handlers';
 
-| 场景 | 推荐 |
+export const worker = setupWorker(...handlers);
+```
+
+入口按需启动：
+
+```ts
+// src/main.tsx
+async function enableMocking() {
+  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
+    const { worker } = await import('./mocks/browser');
+    return worker.start({ onUnhandledRequest: 'bypass' });
+  }
+}
+
+enableMocking().then(() => {
+  createRoot(document.getElementById('root')!).render(<App />);
+});
+```
+
+启动后控制台会打印 `[MSW] Mocking enabled`。**后端未就绪时前端可以先行开发。**
+
+## 五、测试中使用（Node 端）
+
+`src/test/setup.ts`：
+
+```ts
+import { setupServer } from 'msw/node';
+import { handlers } from '../mocks/handlers';
+
+export const server = setupServer(...handlers);
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());   // 每个测试后恢复默认 handler
+afterAll(() => server.close());
+```
+
+测试中覆盖 handler：
+
+```ts
+import { http, HttpResponse } from 'msw';
+import { server } from '../test/setup';
+import { render, screen } from '@testing-library/react';
+import { UserList } from './UserList';
+
+test('接口报错时展示错误提示', async () => {
+  server.use(
+    http.get('/api/users', () => HttpResponse.json({ message: 'boom' }, { status: 500 })),
+  );
+
+  render(<UserList />);
+  expect(await screen.findByText('加载失败')).toBeInTheDocument();
+});
+```
+
+## 六、在 Storybook 中使用
+
+```ts
+// .storybook/preview.ts
+import { initialize, mswLoader } from 'msw-storybook-addon';
+import { handlers } from '../src/mocks/handlers';
+
+initialize();
+export const loaders = [mswLoader];
+export const parameters = { msw: { handlers } };
+```
+
+单个 story 覆盖：
+
+```ts
+export const Error = {
+  parameters: {
+    msw: {
+      handlers: [http.get('/api/users', () => HttpResponse.json({}, { status: 500 }))],
+    },
+  },
+};
+```
+
+## 七、常用 API 速查
+
+| API | 用途 |
 | --- | --- |
-| 通用调试、生态成熟 | Postman |
-| 想要轻量、常调 GraphQL | Insomnia |
-| 国内团队、要文档+Mock+测试一体 | Apifox |
-| 团队用 Git 管理接口、重视隐私 | Bruno |
-| 已有 Postman 集合沉淀 | 继续 Postman |
+| `http.get/post/put/patch/delete` | 定义拦截规则 |
+| `HttpResponse.json/ text/ xml` | 构造响应 |
+| `delay(ms)` | 响应延迟 |
+| `{ once: true }` | 只拦截一次 |
+| `server.use(...)` | 测试内临时覆盖 |
+| `server.resetHandlers()` | 恢复默认 |
+| `onUnhandledRequest: 'error' \| 'bypass' \| 'warn'` | 未匹配请求处理策略 |
 
-## 八、通用最佳实践
-
-1. **环境分离**：`baseUrl`、`token` 一律用变量，禁止硬编码。
-2. **敏感值不入库**：token / 密码用本地环境或 secrets，不提交 Git。
-3. **集合分目录组织**：按业务模块划分，命名 `动词 + 资源`。
-4. **写断言**：至少校验状态码与关键字段，让集合成为回归测试。
-5. **导出/版本化**：Postman 集合导出 JSON 进 Git；Bruno 天然文件化。
-
-## 九、常见问题
+## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 请求报 CORS | API 客户端不受浏览器同源限制；报 CORS 说明你请求了浏览器页面，检查是否误用 |
-| 环境变量不生效 | 确认当前选中环境；变量语法 `{{var}}` 拼写 |
-| 上传文件失败 | 检查 Content-Type 是否为 multipart/form-data |
-| 自签证书报错 | 设置里关闭 SSL 校验（仅测试环境） |
-| token 过期频繁 | 用 Pre-request Script 自动刷新 token 并写入变量 |
-| Postman 同步冲突 | 使用 Workspace 权限规范；或改 Bruno 文件方案 |
+| MSW 没生效 | 确认 `worker.start()` 已 await；`public/mockServiceWorker.js` 存在 |
+| 生产包体积变大 | 用动态 `import()` 按需加载 mock 模块 |
+| 报 `request is not handled` | 检查 URL 与 baseURL 是否一致；加 `onUnhandledRequest: 'bypass'` |
+| 测试间相互污染 | `afterEach(() => server.resetHandlers())` |
+| SSE / WebSocket | MSW 提供 `sse` 与 `ws` API（v2） |
+| 与真实接口调试切换 | 用环境变量 `VITE_USE_MOCK` 控制 |
+
+## 九、最佳实践
+
+1. **handler 单一来源**：开发、测试、Storybook 共用 `handlers.ts`。
+2. handler 尽量模拟真实响应结构（含错误码、分页），减少联调时的惊喜。
+3. 测试里通过 `server.use()` 覆盖个别场景，而不是复制整套 handler。
+4. 发现接口契约变更时，同步更新 handler 与类型定义。
 
 ## 十、参考
 
-- Postman：https://learning.postman.com/docs/
-- Insomnia：https://docs.insomnia.rest/
-- Apifox：https://docs.apifox.com/
-- Bruno：https://docs.usebruno.com/
+- 官方文档：https://mswjs.io/docs/
+- 示例仓库：https://github.com/mswjs/examples
 

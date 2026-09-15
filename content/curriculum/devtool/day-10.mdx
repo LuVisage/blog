@@ -4,178 +4,90 @@ kind: day
 day: 10
 week: 2
 weekTitle: 包管理与运行时
-weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
-title: Python 环境与包管理教程（pip / venv / uv / poetry / conda）
-sourcePath: 02-包管理与运行时/04-Python环境与包管理.md
+weekBlurb: Python 走 venv + pip（ml 课同款路线），Node 走 nvm + pnpm，Java / Rust / Go 的构建工具按语言需要选读。
+title: 执行包工具教程（npx / pnpm dlx / bunx）
+lead: 执行包工具教程（npx / pnpm dlx / bunx）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 02-包管理与运行时/03-执行包工具.md
 ---
 
-## 一、工具定位
+## 一、解决什么问题
 
-| 工具 | 角色 | 说明 |
+脚手架、CLI 工具（create-vite、eslint、serve 等）如果全局安装：
+- 版本会过时；
+- 全局污染；
+- 项目间版本不同会冲突。
+
+「执行包」工具可以**临时下载并运行，用完即走**。
+
+## 二、npx（npm 自带）
+
+```powershell
+npx create-vite my-app        # 下载最新 create-vite 并执行
+npx serve dist -p 3000        # 临时起静态服务器
+npx -y cowsay "hello"         # -y 跳过安装确认
+npx eslint@8 --version        # 指定版本执行
+npx --package=typescript tsc  # 指定包名与命令不同名时
+```
+
+关键行为：
+- 优先使用**本地 node_modules/.bin** 中的命令，没有才去下载；
+- 下载的包缓存到 npm cache，下次直接命中。
+
+## 三、pnpm dlx
+
+```powershell
+pnpm dlx create-vite my-app
+pnpm dlx serve dist
+pnpm dlx create-next-app@latest
+```
+
+等价于 `pnpm dlx` = npx 的 pnpm 版本，但**不与本地 node_modules 冲突**，始终使用临时环境（更干净）。
+
+> 旧写法 `pnpm dlx` 曾叫 `pnpx`，现已统一为 `pnpm dlx`。
+
+## 四、bunx（bun x）
+
+```powershell
+bunx create-vite my-app
+bunx cowsay hello
+bun x --bun vite dev          # 强制用 bun 作为运行时执行
+```
+
+bunx 速度最快，因为走 bun 的包缓存。
+
+## 五、yarn dlx
+
+```powershell
+yarn dlx create-vite my-app
+```
+
+## 六、对比与选择
+
+| 命令 | 归属 | 特点 |
 | --- | --- | --- |
-| pip | 包安装器 | Python 自带，基础工具 |
-| venv | 虚拟环境 | 标准库自带，隔离依赖 |
-| uv | 新一代一体化工具 | Rust 编写，安装依赖快 10-100 倍，可管理 Python 版本 |
-| poetry | 项目依赖 + 打包 | 声明式依赖管理，pyproject.toml 为核心 |
-| conda | 科学计算环境 | 可管理非 Python 依赖（CUDA、C 库），数据科学习惯 |
+| `npx` | npm | 兼容性最好，会优先用本地依赖 |
+| `pnpm dlx` | pnpm | 隔离干净，速度较快 |
+| `bunx` | bun | 最快，依赖 bun 生态 |
+| `yarn dlx` | yarn | yarn 用户使用 |
 
-## 二、pip + venv（标准做法）
+**选择原则**：跟随项目所用包管理器即可，团队一致最重要。
 
-### 创建与激活虚拟环境
-
-```powershell
-# 创建
-python -m venv .venv
-
-# 激活（Windows PowerShell）
-.\.venv\Scripts\Activate.ps1
-# 若报执行策略错误，先执行：
-# Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-
-# macOS / Linux
-source .venv/bin/activate
-
-# 退出
-deactivate
-```
-
-### 安装与管理依赖
-
-```powershell
-python -m pip install --upgrade pip
-pip install requests flask
-pip install "requests==2.32.0"     # 锁定版本
-pip install -r requirements.txt
-pip freeze > requirements.txt      # 导出当前环境（含版本）
-pip uninstall requests
-pip list
-pip show requests
-```
-
-### 国内镜像加速
-
-```powershell
-pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
-# 常用：清华 tuna、阿里 mirrors.aliyun.com/pypi/simple
-```
-
-## 三、uv（强烈推荐，现代替代）
-
-### 安装
-
-```powershell
-# Windows
-winget install --id astral-sh.uv
-# 或 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-# macOS/Linux
-brew install uv
-```
-
-### 核心用法
-
-```powershell
-uv python install 3.12          # 安装 Python 版本（替代 pyenv）
-uv python list
-uv init myproject               # 新建项目（生成 pyproject.toml）
-uv venv                         # 创建虚拟环境（默认 .venv）
-uv add requests                 # 添加依赖并写入 pyproject.toml + uv.lock
-uv add --dev pytest             # 开发依赖
-uv remove requests
-uv sync                         # 按锁文件同步环境（CI 用 --frozen）
-uv run python main.py           # 自动在项目环境中运行
-uv run pytest                   # 无需先 activate
-uv pip install -r requirements.txt   # 兼容 pip 工作流
-uv tool install ruff            # 安装全局 CLI 工具（替代 pipx）
-uvx ruff check .                # 临时执行工具（替代 pipx run）
-```
-
-`pyproject.toml` 示例：
-
-```toml
-[project]
-name = "myproject"
-version = "0.1.0"
-requires-python = ">=3.11"
-dependencies = ["requests>=2.32", "click"]
-
-[dependency-groups]
-dev = ["pytest", "ruff"]
-```
-
-> uv 的速度优势明显：装 100 个包通常只需几秒，并自动缓存。
-
-## 四、poetry（项目化管理）
-
-```powershell
-# 安装
-pip install poetry
-# 或 (irm https://install.python-poetry.org | iex) 官方脚本
-
-poetry new myproject
-poetry init                    # 在已有目录初始化
-poetry add requests
-poetry add --group dev pytest
-poetry install                 # 安装全部依赖
-poetry run python main.py
-poetry shell                   # 进入虚拟环境
-poetry lock
-poetry build                   # 打包 wheel/sdist
-poetry publish                 # 发布到 PyPI
-```
-
-特点：`pyproject.toml` 声明依赖，`poetry.lock` 锁死版本，打包发布一体化。
-
-## 五、conda（科学计算 / 数据科学）
-
-```powershell
-# 安装：推荐 miniconda（轻量）
-winget install Anaconda.Miniconda3
-```
-
-```powershell
-conda create -n ml python=3.11
-conda activate ml
-conda install numpy pandas pytorch -c pytorch
-conda install -c conda-forge jupyterlab
-conda env export > environment.yml
-conda env create -f environment.yml
-conda deactivate
-conda env list
-```
-
-优势：能装非 Python 依赖（CUDA toolkit、MKL 等），科研/深度学习项目常用。
-
-## 六、如何选择
-
-| 场景 | 推荐 |
-| --- | --- |
-| 一般 Web / 脚本 / 工具开发 | **uv**（新项目） / pip+venv（传统） |
-| 需要发布 Python 包到 PyPI | poetry 或 uv |
-| 深度学习 / 科研 | conda 或 uv + pip |
-| CI 追求秒级安装 | uv（`uv sync --frozen`） |
-
-## 七、常见问题
+## 七、常见坑
 
 | 问题 | 解决 |
 | --- | --- |
-| PowerShell 禁止运行 Activate.ps1 | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
-| `pip` 装到系统环境 | 先激活虚拟环境再操作；用 `where python` 确认路径 |
-| 多个 Python 版本混乱 | 用 uv / pyenv 管理；`python -m pip` 确保用对应解释器 |
-| 依赖冲突 | 用 uv/poetry 的解析器；或 `pip install --upgrade --force-reinstall` 单个排查 |
-| 编译型包（如 lxml）安装失败 | 升级 pip，找预编译 wheel，或使用 conda |
-| 换机后环境不一致 | 提交锁文件：uv.lock / poetry.lock / requirements.txt（带版本） |
+| `npx` 弹确认卡住 CI | 加 `-y`：`npx -y create-vite` |
+| 下载的是旧缓存版本 | `npx create-vite@latest` 或清理缓存 `npm cache clean --force` |
+| 公司网络装不了 | 配置 registry 镜像后重试 |
+| 想跑本地已安装的命令 | 直接用 `npm run xxx`（scripts 会自动加 node_modules/.bin 到 PATH）；或 `npx xxx` 也会优先本地 |
+| 全局命令与本地版本混淆 | 用 `npx eslint@8 --version` 明确指定版本 |
 
-## 八、最佳实践
+## 八、实践建议
 
-1. **永远在虚拟环境中开发**，不要往系统 Python 装包。
-2. 项目根目录放 `.python-version`（写 `3.12`），配合 uv/pyenv 自动切换。
-3. 锁文件必须进 Git；`requirements.txt` 用 `pip freeze` 生成时注意剔除本地路径依赖。
-4. **一个项目只用一个依赖管理工具**，不要 pip/poetry/conda 混用。
-
-## 九、参考
-
-- Python 官方 venv 文档：https://docs.python.org/zh-cn/3/library/venv.html
-- uv：https://docs.astral.sh/uv/
-- poetry：https://python-poetry.org/docs/
-- conda：https://docs.conda.io/
+1. **创建项目用一次性命令即可**，不需要全局安装脚手架：
+   ```powershell
+   pnpm dlx create-vite@latest my-app
+   ```
+2. **CI 中禁止隐式下载**：把工具写进 devDependencies，用 `npm run xxx`，避免构建因网络抖动失败。
+3. 需要反复使用的工具（如 serve）考虑 devDependency + script，而不是每次 dlx。
 

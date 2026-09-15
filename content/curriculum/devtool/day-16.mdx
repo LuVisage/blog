@@ -3,170 +3,140 @@ slug: day-16
 kind: day
 day: 16
 week: 3
-weekTitle: 构建打包
-weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
-title: Rollup 使用教程
-sourcePath: 03-构建打包/03-Rollup.md
+weekTitle: 编辑器与 IDE
+weekBlurb: VSCode 是本站所有课程的推荐编辑器，先把它配顺手；Cursor、JetBrains、Neovim 按个人口味选读。
+title: Cursor 使用教程
+lead: Cursor 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 07-编辑器与IDE/02-Cursor.md
 ---
 
-## 一、Rollup 是什么
+## 一、Cursor 是什么
 
-Rollup 是专注 **JavaScript 库打包** 的模块打包器，特点是：
+Cursor 是基于 VS Code 二次开发的 **AI 原生编辑器**，核心卖点：
 
-- 基于 ES Module，**Tree Shaking 效果最好**，产物干净；
-- 支持输出多种格式：ESM / CJS / UMD / IIFE；
-- Vite 的生产构建底层就是 Rollup。
+- 把 AI 深度嵌入编辑流程（不只是侧边栏聊天）；
+- **代码库级理解**（index 整个仓库，回答带上下文）；
+- 支持多文件编辑（Composer / Agent 模式）；
+- 兼容 VS Code 扩展、快捷键、配置（可一键导入）。
 
-适合：npm 库、组件库、SDK。不适合：需要处理大量 CSS/图片资源的前端应用（那更适合 Vite/Webpack）。
+> 定位：VS Code 的体验 + AI 编码工作流。适合把 AI 作为主要生产力工具的开发者。
 
-## 二、快速开始
+## 二、安装与迁移
 
-```powershell
-pnpm add -D rollup typescript @rollup/plugin-typescript @rollup/plugin-node-resolve @rollup/plugin-commonjs
+1. 下载：https://cursor.com/
+2. 首次启动可选择「Import VS Code Settings」导入：
+ - 扩展、主题、快捷键、settings.json 全部继承；
+3. 登录账号（免费额度有限，Pro 订阅解锁更多模型与请求）。
+
+## 三、核心功能
+
+### 1. Tab 智能补全
+
+- 不只是补全当前行，还能**预测下一处编辑位置**；
+- 修改函数签名后，`Tab` 可跨行批量更新相关调用；
+- 建议接受：`Tab`；拒绝：继续输入或 `Esc`。
+
+### 2. 行内编辑（Cmd/Ctrl + K）
+
+选中代码 → 按 `Ctrl+K` → 输入指令：
+
+```
+把这段改成 async/await 写法
+给这个函数加错误处理和日志
+为这个组件添加 loading 状态
+优化这个查询的性能
 ```
 
-`rollup.config.mjs`：
+AI 直接在原位置生成 diff，`Accept` / `Reject` 决定是否应用。
 
-```js
-import typescript from '@rollup/plugin-typescript';
-import resolve from '@rollup/plugin-node-resolve';
-import commonjs from '@rollup/plugin-commonjs';
-import dts from 'rollup-plugin-dts';
+### 3. 聊天（Cmd/Ctrl + L）
 
-export default [
-  {
-    input: 'src/index.ts',
-    output: [
-      { file: 'dist/index.cjs', format: 'cjs', sourcemap: true },
-      { file: 'dist/index.mjs', format: 'esm', sourcemap: true },
-    ],
-    external: ['react', 'react-dom'],   // 不打进产物，由使用方提供
-    plugins: [
-      resolve(),           // 解析 node_modules
-      commonjs(),          // 支持 require 的依赖
-      typescript({ tsconfig: './tsconfig.json' }),
-    ],
-    treeshake: true,
-  },
-  {
-    input: 'src/index.ts',
-    output: { file: 'dist/index.d.ts', format: 'es' },
-    plugins: [dts()],
-  },
-];
+右侧聊天面板，可：
+
+- `@文件名` 引用具体文件；
+- `@Codebase` 全库检索相关代码；
+- `@Docs` 引用官方文档；
+- `@Web` 联网搜索；
+- 选中代码后提问，上下文自动附带。
+
+常用问法：
+
+```
+@Codebase 这个项目的鉴权是怎么实现的？
+@src/api/user.ts 这个接口的错误处理有什么问题？
+解释这段代码的逻辑，并指出潜在 bug
 ```
 
-`package.json`：
+### 4. Composer / Agent 模式（Cmd/Ctrl + I）
 
-```json
-{
-  "name": "my-lib",
-  "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
-    }
-  },
-  "files": ["dist"],
-  "sideEffects": false,
-  "scripts": {
-    "build": "rollup -c",
-    "dev": "rollup -c -w"
-  }
-}
+多文件编写模式，适合做整个功能：
+
+```
+在 src/features/comment 下实现评论功能：
+1. 创建 CommentList、CommentForm 组件
+2. 用 TanStack Query 封装 useComments hook
+3. 接入 MSW mock 数据
+4. 补充 Vitest 组件测试
 ```
 
-命令：
+Agent 会自主读文件、建文件、改文件，你可以逐条 review 差异后接受。
 
-```powershell
-pnpm build       # 打包
-pnpm dev         # 监听模式，改动自动重建
-rollup src/index.ts --format esm --file dist/index.mjs   # 免配置文件
+### 5. 规则文件（.cursorrules）
+
+项目根目录 `.cursorrules` 让 AI 遵循团队规范：
+
+```markdown
+# 项目规范
+- 技术栈：React 18 + TypeScript 5 + Vite + Tailwind
+- 组件用函数式 + hooks，不用 class
+- 样式一律 Tailwind，不写独立 CSS 文件
+- 状态管理用 Zustand，不用 Redux
+- API 请求统一走 src/api/client.ts 封装
+- 所有新组件必须写 Vitest 测试
+- 注释用中文，变量名用英文
 ```
 
-## 三、常用插件
+Cursor 也支持新版 `.cursor/rules/*.mdc` 分文件管理规则。
 
-| 插件 | 用途 |
+## 四、实用技巧
+
+| 技巧 | 说明 |
 | --- | --- |
-| @rollup/plugin-node-resolve | 解析 node_modules 中的模块 |
-| @rollup/plugin-commonjs | 转换 CJS 依赖为 ESM |
-| @rollup/plugin-typescript / rollup-plugin-esbuild | TS 编译 |
-| @rollup/plugin-json | 支持 `import data from './x.json'` |
-| @rollup/plugin-terser | 压缩 |
-| rollup-plugin-dts | 合并生成 `.d.ts` |
-| @rollup/plugin-replace | 注入环境变量 |
+| 选中代码再按 Ctrl+K | 只对该片段操作，精确可控 |
+| diff 逐条 review | 不要盲目 Accept All，尤其涉及配置/依赖 |
+| 用 `@` 精确指路 | 上下文越准，结果越好 |
+| 长任务拆小 | 一次让它做一件事，避免大范围乱改 |
+| 让它先给方案 | "先列实现步骤，我确认后再改代码" |
+| 报错粘贴给 AI | 完整错误堆栈 + 相关代码，定位快 |
+| 每步提交 Git | AI 改动大，用 git 兜底随时回退 |
+| 隐私注意 | 敏感代码/密钥不要发给云端模型；企业版有隐私模式 |
 
-## 四、输出格式说明
+## 五、与 VS Code 的关系
 
-| format | 产物 | 适用 |
+| 维度 | Cursor | VS Code |
 | --- | --- | --- |
-| `esm`（es） | `import/export` | 现代打包器（Vite/Webpack）消费 |
-| `cjs` | `require()` | Node 环境、老工具链 |
-| `umd` | 兼容 AMD/CJS/全局变量 | 浏览器 `<script>` 直接引入 |
-| `iife` | 立即执行函数 | 独立脚本 |
+| 基础体验 | 兼容 VS Code | 原生 |
+| AI 能力 | 深度集成（Tab/Chat/Agent） | Copilot 扩展（较弱） |
+| 扩展兼容 | 支持大部分 | 全部 |
+| 快捷键 | 基本一致 | — |
+| 试用方式 | 免费额度 | 免费 |
 
-## 五、体积优化技巧
+可以**两个都装**：Cursor 用于 AI 密集开发，VS Code 处理需要特殊扩展的场景。
 
-1. **`external` 外部化** peer 依赖（react、lodash 等），让使用方去 tree-shake：
-
-```js
-external: (id) => /^(react|react-dom|lodash)/.test(id)
-```
-
-2. **`sideEffects: false`**（package.json）让引用方可以安全 tree-shake。
-3. **多入口 + preserveModules**（保留文件结构，利于按需加载）：
-
-```js
-output: { dir: 'dist/es', format: 'esm', preserveModules: true, preserveModulesRoot: 'src' }
-```
-
-4. 检查产物：`rollup-plugin-visualizer`。
-
-## 六、插件开发（了解原理）
-
-Rollup 插件通过钩子介入构建：
-
-```js
-export default function myPlugin() {
-  return {
-    name: 'my-plugin',
-    resolveId(source) { /* 决定模块如何解析 */ },
-    load(id) { /* 返回模块源码 */ },
-    transform(code, id) { /* 转换源码 */ },
-    renderChunk(code) { /* 修改 chunk 产物 */ },
-  };
-}
-```
-
-## 七、Rollup vs 其他
-
-| 维度 | Rollup | esbuild | tsup | Webpack |
-| --- | --- | --- | --- | --- |
-| 定位 | 库打包 | 极速转译/打包 | 库打包封装 | 应用打包 |
-| Tree Shaking | 最好 | 好 | 好 | 好 |
-| 速度 | 中 | 极快 | 快 | 慢 |
-| 配置复杂度 | 中 | 低 | 极低 | 高 |
-| 产物纯净度 | 最高 | 高 | 高 | 一般 |
-
-**结论**：要极致控制产物 → Rollup；要开箱即用 → tsup；要极速 → esbuild。
-
-## 八、常见问题
+## 六、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 打包后 `require is not defined` | 依赖未转 ESM，加 `@rollup/plugin-commonjs` |
-| 类型文件没生成 | 单独用 `rollup-plugin-dts` 或先跑 `tsc --emitDeclarationOnly` |
-| peer 依赖被打进产物 | 配 `external` |
-| 循环依赖警告 | 重构拆分模块，或 `onwarn` 过滤（治标） |
-| 产物体积大 | 检查是否误打 node_modules，开 terser，检查 sideEffects |
+| 导入 VS Code 配置失败 | 手动复制 `%APPDATA%\Code\User\settings.json` 到 Cursor 对应目录 |
+| Tab 补全与 ESLint 冲突 | 检查格式化扩展优先级；Cursor 也支持 format on save |
+| AI 改错了文件 | `Ctrl+Z` 撤销；或 Git 回滚（务必勤提交） |
+| 请求次数用尽 | 切换更便宜的模型（如 Composer 自研模型），或升级 Pro |
+| 上下文太长导致回答变差 | 用 `@` 精确引用，避免一次性塞太多文件 |
+| 企业代码合规 | 开启隐私模式（Privacy Mode），代码不用于训练 |
 
-## 九、参考
+## 七、参考
 
-- 官方文档：https://rollupjs.org/
-- 插件列表：https://github.com/rollup/awesome
+- 官网：https://cursor.com/
+- 官方文档：https://docs.cursor.com/
+- 规则文件示例：https://cursor.directory/
 

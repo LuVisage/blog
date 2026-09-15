@@ -2,187 +2,179 @@
 slug: day-28
 kind: day
 day: 28
-week: 4
-weekTitle: 代码检查与格式化
-weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
-title: golangci-lint 使用教程
-sourcePath: 04-代码检查与格式化/05-golangci-lint.md
+week: 5
+weekTitle: 调试与网络
+weekBlurb: DevTools 与调试器断点、curl / httpie、抓包、API 客户端与内网穿透——后端课联调接口、agent 课排查调用时的工具箱。
+title: API 客户端使用教程（Postman / Insomnia / Apifox / Bruno）
+lead: API 客户端使用教程（Postman / Insomnia / Apifox / Bruno）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 06-调试与网络/04-API客户端.md
 ---
 
-## 一、golangci-lint 是什么
+## 一、为什么需要 API 客户端
 
-Go 生态的**聚合式 Linter 运行器**：把 `govet`、`staticcheck`、`errcheck`、`ineffassign`、`revive` 等几十个 linter 统一到一条命令，支持并行执行与结果去重，速度远快于逐个运行。
+curl 适合单次请求，但日常开发还需要：
 
-## 二、安装
+- **保存与组织**接口集合（Collection）；
+- **环境变量**（dev / test / prod 一键切换）；
+- **鉴权管理**（Token 自动注入）；
+- **脚本化**（前置脚本、断言、测试）；
+- **团队共享**接口文档与用例。
 
-```powershell
-# Windows
-winget install golangci-lint
-# 或 scoop install golangci-lint
-# macOS
-brew install golangci-lint
-# 通用（推荐，锁定版本）
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59.1
-```
+## 二、四款工具对比
 
-```powershell
-golangci-lint --version
-```
+| 工具 | 平台 | 收费 | 特点 | 适合 |
+| --- | --- | --- | --- | --- |
+| **Postman** | 全平台 | 免费 + 付费 | 生态最全，集合/环境/测试/mock/监控，体积重 | 通用、团队已有沉淀 |
+| **Insomnia** | 全平台 | 免费 + 付费 | 界面简洁，GraphQL/gRPC 支持好 | 喜欢轻量的开发者 |
+| **Apifox** | 全平台 | 免费 + 付费 | 中文，API 设计+调试+Mock+测试一体，国产 | 国内团队协作 |
+| **Bruno** | 全平台 | 完全免费开源 | **文件即集合**（Git 友好），离线优先，无账号 | 喜欢 Git 管理与隐私的团队 |
 
-## 三、基本使用
+## 三、Postman 快速上手
 
-```powershell
-golangci-lint run                  # 检查当前包及子包
-golangci-lint run ./...            # 全项目
-golangci-lint run --fix            # 自动修复可修复项
-golangci-lint run -v               # 显示更多信息
-golangci-lint run path/to/pkg/...  # 指定包
-golangci-lint linters              # 列出所有可用 linter
-golangci-lint cache clean
-```
+### 基本流程
 
-## 四、配置文件 `.golangci.yml`
+1. 下载安装：https://www.postman.com/downloads/
+2. `New → Collection` 建集合（如「用户服务」）；
+3. 集合内 `Add request`：
+ - 选方法（GET/POST...）与 URL；
+ - `Params` 填查询参数；
+ - `Authorization` 选 Bearer Token 填 `{{token}}`；
+ - `Body → raw → JSON` 填请求体。
+4. 点击 `Send`，下方看响应（可切 Pretty / Raw / Preview）。
 
-```yaml
-run:
-  timeout: 5m
-  tests: true
-  skip-dirs:
-    - vendor
-    - third_party
+### 环境变量
 
-linters:
-  enable:
-    - govet
-    - staticcheck
-    - errcheck
-    - ineffassign
-    - unused
-    - revive
-    - gocritic
-    - bodyclose
-    - contextcheck
-    - sqlclosecheck
-    - errname
-  disable:
-    - depguard
-
-linters-settings:
-  govet:
-    enable-all: true
-  revive:
-    rules:
-      - name: exported
-        disabled: true
-  gocritic:
-    enabled-tags:
-      - performance
-      - style
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-  max-issues-per-linter: 0
-  max-same-issues: 0
-```
-
-## 五、常用 linter 说明
-
-| Linter | 作用 |
-| --- | --- |
-| govet | 官方 vet，检查可疑构造（printf 参数、锁拷贝等） |
-| staticcheck | 最全面的静态分析（SA 系列检查） |
-| errcheck | 检查未处理的 error 返回值 |
-| ineffassign | 无效赋值 |
-| unused | 未使用的代码 |
-| revive | golint 替代品，可配置风格规则 |
-| gocritic | 性能与风格建议 |
-| bodyclose | HTTP body 未关闭 |
-| sqlclosecheck | sql.Rows/Stmt 未关闭 |
-| contextcheck | context 传递问题 |
-
-## 六、与格式化工具配合
-
-```powershell
-gofmt -l .                # 列出未格式化的文件
-goimports -l -w .         # 自动整理 import
-go vet ./...              # 官方基础检查
-golangci-lint run         # 综合检查
-```
-
-编辑器（VS Code + Go 扩展）`settings.json`：
+1. 右上角 `Environments → Create`，定义：
 
 ```json
 {
-  "go.lintTool": "golangci-lint",
-  "go.lintFlags": ["--fast"],
-  "go.formatTool": "goimports"
+  "baseUrl": "http://localhost:8080/api",
+  "token": "eyJhbGciOi..."
 }
 ```
 
-> `--fast` 只跑快速 linter，适合保存时触发；完整检查留给 CI。
+2. 请求里使用 `{{baseUrl}}/users`，右上角切换环境即可切换 dev/prod。
 
-## 七、CI 集成
+### 测试脚本
 
-**GitHub Actions**：
+`Tests` 标签页写断言：
 
-```yaml
-name: lint
-on: [push, pull_request]
-jobs:
-  golangci:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with: { go-version: '1.22' }
-      - uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.59.1
-          args: --timeout=5m
+```js
+pm.test("状态码为 200", () => pm.response.to.have.status(200));
+
+pm.test("返回用户数组", () => {
+  const json = pm.response.json();
+  pm.expect(json).to.be.an('array');
+  pm.expect(json[0]).to.have.property('name');
+});
+
+// 把响应里的 token 存入环境变量，供后续请求使用
+const data = pm.response.json();
+pm.environment.set('token', data.token);
 ```
 
-**pre-commit**：
+`Pre-request Script` 中可动态计算签名、时间戳。
 
-```yaml
-repos:
-  - repo: https://github.com/golangci/golangci-lint
-    rev: v1.59.1
-    hooks:
-      - id: golangci-lint
-        entry: golangci-lint run --new-from-rev=HEAD~1
+### 集合 Runner 与自动化
+
+- 左侧集合右键 → `Run collection`：批量执行、逐条断言；
+- 配合 `newman` 在 CI 中跑：
+
+```powershell
+npm install -g newman
+newman run collection.json -e env.json --reporters cli,html
 ```
 
-## 八、性能优化
+## 四、Insomnia 快速上手
 
-1. **只检查增量**：`golangci-lint run --new-from-rev=origin/main`（CI 中最实用）；
-2. 开缓存（默认开启，位于 `~/.cache/golangci-lint`）；
-3. `--concurrency` 调整并发；
-4. 关闭不需要的 linter，减少重复分析。
+1. 下载：https://insomnia.rest/download
+2. `New Request` → 选方法/URL/体；
+3. **Environment**：左下角切换，支持多种环境变量（Base / Sub environments）；
+4. 支持 **GraphQL**（自动拉 schema + 补全）、gRPC、WebSocket；
+5. 插件系统（`Preferences → Plugins`）可扩展模板函数。
+
+适合场景：接口不多、想要干净界面、常调 GraphQL。
+
+## 五、Apifox 快速上手
+
+1. 下载：https://apifox.com/
+2. 创建项目 → 定义接口（可直接写 OpenAPI/导入 Swagger）；
+3. 特色能力：
+ - **设计与调试一体**：改接口定义即同步文档；
+ - **Mock 服务**：在线 Mock URL，前端不依赖后端；
+ - **自动化测试**：测试场景、断言、CI 集成（apifox-cli）；
+ - **团队协作**：权限、变更记录、评论。
+
+国内团队常用替代 Postman，中文体验好。
+
+## 六、Bruno 快速上手
+
+1. 下载：https://www.usebruno.com/
+2. 创建 Collection 时选择**本地目录**（不是云端账号）；
+3. 每个请求是一个 `.bru` 文本文件：
+
+```
+meta {
+  name: 获取用户
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/users/{{userId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+```
+
+4. **全部提交 Git**，团队成员 clone 即拥有同一套接口集合；
+5. 环境文件 `environments/dev.bru` 也纳入版本控制（敏感值用 secrets）。
+
+优势：**离线、隐私、Git 管理、无账号绑定**，非常适合工程化团队。
+
+## 七、选型建议
+
+| 场景 | 推荐 |
+| --- | --- |
+| 通用调试、生态成熟 | Postman |
+| 想要轻量、常调 GraphQL | Insomnia |
+| 国内团队、要文档+Mock+测试一体 | Apifox |
+| 团队用 Git 管理接口、重视隐私 | Bruno |
+| 已有 Postman 集合沉淀 | 继续 Postman |
+
+## 八、通用最佳实践
+
+1. **环境分离**：`baseUrl`、`token` 一律用变量，禁止硬编码。
+2. **敏感值不入库**：token / 密码用本地环境或 secrets，不提交 Git。
+3. **集合分目录组织**：按业务模块划分，命名 `动词 + 资源`。
+4. **写断言**：至少校验状态码与关键字段，让集合成为回归测试。
+5. **导出/版本化**：Postman 集合导出 JSON 进 Git；Bruno 天然文件化。
 
 ## 九、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 首次运行内存占用高 | 加大内存或分目录跑；Go 1.19+ 支持 `GOMEMLIMIT` |
-| 报 `typecheck` 错误 | 通常是代码有编译错误，先 `go build ./...` 修复 |
-| 和 IDE 提示不一致 | 统一版本：让 IDE 与 CI 使用同一 golangci-lint 版本 |
-| 老项目一次报几千个问题 | 分阶段：先 `--new-from-rev`，再逐步开规则全量清理 |
-| 规则太啰嗦 | `.golangci.yml` 的 `issues.exclude-rules` 精确豁免 |
-| 升级后行为变化 | 版本号写死（go.mod 的 tool 依赖 / CI 指定 version） |
+| 请求报 CORS | API 客户端不受浏览器同源限制；报 CORS 说明你请求了浏览器页面，检查是否误用 |
+| 环境变量不生效 | 确认当前选中环境；变量语法 `{{var}}` 拼写 |
+| 上传文件失败 | 检查 Content-Type 是否为 multipart/form-data |
+| 自签证书报错 | 设置里关闭 SSL 校验（仅测试环境） |
+| token 过期频繁 | 用 Pre-request Script 自动刷新 token 并写入变量 |
+| Postman 同步冲突 | 使用 Workspace 权限规范；或改 Bruno 文件方案 |
 
-## 十、最佳实践
+## 十、参考
 
-1. **版本锁定**，团队/CI/IDE 三方一致。
-2. 新项目默认开启 `errcheck`、`staticcheck`、`govet`，这是收益最高的三个。
-3. 老项目用 `--new-from-rev` 逐步收紧，不要一次性全量强制。
-4. 每条 `//nolint` 注释写明原因：`//nolint:errcheck // 该错误已在调用方处理`。
-
-## 十一、参考
-
-- 官方文档：https://golangci-lint.run/
-- Linter 清单：https://golangci-lint.run/usage/linters/
+- Postman：https://learning.postman.com/docs/
+- Insomnia：https://docs.insomnia.rest/
+- Apifox：https://docs.apifox.com/
+- Bruno：https://docs.usebruno.com/
 

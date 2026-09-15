@@ -2,175 +2,233 @@
 slug: day-22
 kind: day
 day: 22
-week: 3
-weekTitle: 构建打包
-weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
-title: Nx 使用教程
-sourcePath: 03-构建打包/09-Nx.md
+week: 4
+weekTitle: 终端与命令行
+weekBlurb: 终端模拟器、tmux、WSL2 与 shell 配置——ml 课 Week00 的命令行动作，这里是完整版。
+title: Shell 配置教程（zsh + oh-my-zsh / fish）
+lead: Shell 配置教程（zsh + oh-my-zsh / fish）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 08-终端与命令行/04-Shell配置.md
 ---
 
-## 一、Nx 是什么
+## 一、Shell 是什么
 
-Nx 是**企业级 monorepo 平台**，除了任务编排与缓存，还提供：
+Shell 是命令解释器。常见：
 
-- 插件体系（React、Next、Nest、Go、Rust...）；
-- 代码生成器（generator）与迁移器（migrator）；
-- **依赖图与影响分析**（`nx affected`）；
-- 模块边界约束（enforce module boundaries）；
-- 交互式可视化 `nx graph`。
-
-适合中大型团队、需要统一工程规范的场景。
-
-## 二、创建与初始化
-
-```powershell
-# 新建 Nx 工作区
-pnpm dlx create-nx-workspace@latest my-org
-# 选择 preset：integrated（集成式，含 apps/libs）或 package-based
-
-# 在已有仓库中加入 Nx
-pnpm add -D nx
-npx nx init
-```
-
-## 三、目录结构
-
-```
-my-org/
-├── apps/
-│   ├── web/                 # 应用
-│   └── api/
-├── libs/
-│   ├── shared/ui/           # 库（可被依赖）
-│   └── shared/utils/
-├── nx.json                  # 全局配置
-├── package.json
-└── tools/                   # 自定义脚本/生成器
-```
-
-## 四、常用命令
-
-```powershell
-nx run web:build                # 执行单个目标
-nx run-many -t build            # 所有项目跑 build
-nx run-many -t test lint        # 多目标任务
-
-nx affected -t build            # 只跑受影响的（对比 base）
-nx affected -t test --base=main
-
-nx graph                        # 打开依赖图（交互式）
-nx graph --affected             # 只看受影响项目图
-
-nx g @nx/react:component Button # 生成组件
-nx g @nx/js:lib utils           # 生成库
-
-nx show project web             # 查看项目所有可用目标
-nx reset                        # 清空本地缓存
-nx migrate latest               # 升级 Nx 与插件版本
-```
-
-## 五、project.json 与目标
-
-每个项目的 `project.json` 声明任务：
-
-```json
-{
-  "name": "web",
-  "sourceRoot": "apps/web/src",
-  "projectType": "application",
-  "targets": {
-    "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
-      "options": { "outputPath": "dist/apps/web" },
-      "cache": true
-    },
-    "test": {
-      "executor": "@nx/vitest:test",
-      "options": { "reportsDirectory": "coverage/web" }
-    }
-  }
-}
-```
-
-## 六、缓存配置（nx.json）
-
-```jsonc
-{
-  "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "targetDefaults": {
-    "build": {
-      "cache": true,
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"],
-      "outputs": ["{projectRoot}/dist"]
-    },
-    "test": { "cache": true, "inputs": ["default", "^production"] }
-  },
-  "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
-    "production": ["default", "!{projectRoot}/**/*.spec.ts"],
-    "sharedGlobals": []
-  }
-}
-```
-
-远程缓存：
-
-```powershell
-nx cloud connect      # Nx Cloud（官方托管）
-# 或自建：设置 NX_CACHE_DIRECTORY / 任务缓存插件
-```
-
-## 七、模块边界约束
-
-`eslint.config.js` 中配置：
-
-```js
-'@nx/enforce-module-boundaries': ['error', {
-  depConstraints: [
-    { sourceTag: 'scope:shared', onlyDependOnLibsWithTags: ['scope:shared'] },
-    { sourceTag: 'type:app',   onlyDependOnLibsWithTags: ['type:lib', 'type:util'] },
-  ],
-}]
-```
-
-配合 `project.json` 的 `tags`，可阻止「底层库反向依赖上层应用」等架构腐化。
-
-## 八、CI 集成
-
-```yaml
-- run: pnpm install --frozen-lockfile
-- run: npx nx affected -t lint test build --base=origin/main --parallel=3
-```
-
-配合 Nx Cloud 可实现：分布式任务执行、远程缓存、失败自动重跑。
-
-## 九、Nx vs Turbo
-
-| 能力 | Nx | Turbo |
+| Shell | 平台 | 特点 |
 | --- | --- | --- |
-| 任务缓存 | | |
-| 影响分析 | （更精细） | 基础 |
-| 代码生成 | generators | |
-| 插件生态 | 丰富 | 无 |
-| 模块边界约束 | | |
-| 学习成本 | 高 | 低 |
-| 适合规模 | 中大型 | 中小型 |
+| bash | Linux/macOS 默认 | 通用性最强，脚本兼容最好 |
+| zsh | macOS 默认（Catalina+） | 功能强，插件生态好（oh-my-zsh） |
+| fish | 跨平台 | 开箱智能提示最友好，语法与 bash 不同 |
+| PowerShell | Windows 默认 | 面向对象管道，.NET 集成 |
 
-## 十、常见问题
+可以随时查看当前 shell：`echo $SHELL`（Windows：`$PSVersionTable`）。
+
+## 二、zsh + oh-my-zsh（macOS / WSL / Linux）
+
+### 安装
+
+```bash
+# 确认 zsh
+zsh --version
+# 安装（Debian/Ubuntu）
+sudo apt install zsh
+# 设为默认
+chsh -s $(which zsh)
+```
+
+安装 oh-my-zsh：
+
+```bash
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+```
+
+### 主题与插件
+
+编辑 `~/.zshrc`：
+
+```bash
+# 主题（推荐 powerlevel10k，功能与颜值兼顾）
+ZSH_THEME="robbyrussell"
+# 安装 p10k（需先装 Nerd Font）
+# git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
+# ZSH_THEME="powerlevel10k/powerlevel10k"
+
+# 插件（默认自带 git，其他需下载）
+plugins=(
+  git                    # git 别名与提示
+  z                      # 目录智能跳转
+  zsh-autosuggestions    # 历史命令灰字建议
+  zsh-syntax-highlighting # 命令语法高亮
+  sudo                   # 双击 Esc 补 sudo
+  extract                # x 命令解压任意压缩包
+)
+
+source $ZSH/oh-my-zsh.sh
+```
+
+安装第三方插件：
+
+```bash
+git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+git clone https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+```
+
+生效：`source ~/.zshrc`。
+
+### 自定义别名与函数
+
+```bash
+# 别名
+alias ll='ls -lah'
+alias gs='git status'
+alias gc='git commit -m'
+alias gco='git checkout'
+alias dps='docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+alias pn='pnpm'
+
+# 函数：创建目录并进入
+mkcd() { mkdir -p "$1" && cd "$1"; }
+
+# 环境变量
+export EDITOR=nvim
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+## 三、fish（开箱即用）
+
+### 安装与设为默认
+
+```powershell
+# Windows
+winget install fishshell.fish
+# macOS
+brew install fish
+# Ubuntu（PPA）
+sudo apt-add-repository ppa:fish-shell/release-3
+sudo apt install fish
+chsh -s $(which fish)
+```
+
+### 开箱即有的功能
+
+- **智能自动建议**（基于历史）；
+- **语法高亮**（错误命令变红）；
+- **Tab 补全带描述**；
+- **交互式历史搜索**（上箭头）。
+
+### 配置
+
+配置文件：`~/.config/fish/config.fish`
+
+```fish
+# 别名在 fish 里叫 abbr（缩写，输入时自动展开）
+abbr -a gs 'git status'
+abbr -a ll 'ls -lah'
+abbr -a pn 'pnpm'
+
+# 函数
+function mkcd
+    mkdir -p $argv[1]; and cd $argv[1]
+end
+
+# 环境变量
+set -gx EDITOR nvim
+set -gx PATH $HOME/.local/bin $PATH
+
+# 提示符（推荐 starship 或 tide）
+starship init fish | source
+```
+
+插件管理用 **fisher**：
+
+```fish
+curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher
+fisher install jorgebucaran/nvm.fish
+```
+
+### 与 bash 脚本的兼容性
+
+fish **不兼容 bash 语法**（如 `$var` 是 `$var`，但 `export`/`&&` 写法不同）。脚本一律写 `#!/usr/bin/env bash`，交互用 fish 无妨。
+
+## 四、PowerShell（Windows 用户重点）
+
+### 安装 PowerShell 7
+
+```powershell
+winget install Microsoft.PowerShell
+```
+
+### 配置文件 `$PROFILE`
+
+```powershell
+notepad $PROFILE      # 首次需先创建目录
+```
+
+```powershell
+# 别名
+Set-Alias ll Get-ChildItem
+function gs { git status }
+function gco { param($b) git checkout $b }
+
+# 提示符美化（oh-my-posh）
+oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH\jandedobbeleer.omp.json" | Invoke-Expression
+
+# PSReadLine 增强（历史搜索、智能补全）
+Import-Module PSReadLine
+Set-PSReadLineOption -PredictionSource HistoryAndPlugin
+Set-PSReadLineOption -PredictionViewStyle ListView
+Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
+Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
+
+# 目录跳转
+Set-Alias zoxide z
+Invoke-Expression (& { (zoxide init pwsh | Out-String) })
+```
+
+### 常用工具链（推荐）
+
+```powershell
+winget install JanDeDobbeleer.OhMyPosh      # 提示符
+winget install ajeetdsouza.zoxide           # 智能目录跳转（z 命令）
+winget install sharkdp.bat                  # cat 替代
+winget install BurntSushi.ripgrep.MSVC      # rg 搜索
+winget install junegunn.fzf                 # 模糊查找
+```
+
+## 五、三者对比
+
+| 维度 | zsh + omz | fish | PowerShell 7 |
+| --- | --- | --- | --- |
+| 平台 | macOS/Linux/WSL | 全平台 | Windows 为主 |
+| 开箱体验 | 需配置 | 最好 | 一般 |
+| bash 兼容 | 高 | 低 | 无 |
+| 脚本生态 | 大量 bash 脚本可用 | 较少 | PowerShell 生态 |
+| 推荐 | macOS 主力 | 追求开箱体验 | Windows 主力 |
+
+## 六、通用最佳实践
+
+1. **配置文件进 Git**（dotfiles 仓库），换机一键恢复；
+2. **别名不要过度**：只把高频长命令做别名，避免记不住；
+3. **提示符要简洁且含关键信息**（分支、状态、时间）；
+4. **历史搜索必学**：`Ctrl+R`（多数 shell 通用）；
+5. Windows 上建议 **WSL + zsh** 与 **PowerShell 7** 双轨：Linux 项目在 WSL，Windows 工具在 PS。
+
+## 七、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| `nx affected` 结果不对 | 检查 git base/head 参数，以及项目是否有正确的 `project.json` |
-| 缓存没生效 | 确认 target 的 `cache: true`、outputs/inputs 配置正确 |
-| 生成器写了不该覆盖的文件 | 先用 `--dry-run` 预览 |
-| 依赖图过于复杂 | 用 tags + module boundaries 拆分治理 |
-| Windows 长路径报错 | 开启长路径支持，或换 WSL2 开发 |
-| 升级后大量报错 | `nx migrate latest` 后按 `migrations.json` 逐步执行 |
+| oh-my-zsh 启动慢 | 减少插件；用 p10k 并按提示关闭不必要段 |
+| 提示符出现乱码方块 | 终端未装 Nerd Font |
+| fish 里 source .bashrc 失败 | fish 语法不同，用 `source (path)` 或改写 |
+| PowerShell 执行脚本被禁止 | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
+| 别名不生效 | 检查配置文件路径、是否重新 source |
+| WSL 里速度慢 | 项目放 Linux 侧；关掉 Windows 与 WSL 交叉路径操作 |
 
-## 十一、参考
+## 八、参考
 
-- 官方文档：https://nx.dev/getting-started/intro
-- Nx Cloud：https://nx.app/
+- oh-my-zsh：https://ohmyz.sh/
+- powerlevel10k：https://github.com/romkatv/powerlevel10k
+- fish：https://fishshell.com/docs/current/
+- Oh My Posh：https://ohmyposh.dev/
+- PSReadLine：https://learn.microsoft.com/zh-cn/powershell/module/psreadline/
 

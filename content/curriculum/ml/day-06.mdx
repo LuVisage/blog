@@ -10,6 +10,8 @@ lead: '本周唯一一天"不学数学"的日子。目标只有一个：**让后
 sourcePath: Week01_数学地基与环境/Day1_开发环境与工具链.md
 ---
 
+> **与工具箱的分工**：虚拟环境的「为什么」与 venv 的完整用法在 [devtool 的 Python 环境篇](/learn/devtool/day-11)；本篇只做 ml 课特有的部分——装齐五个核心库、选对 PyTorch 版本、跑通 Notebook。
+
 > 本周唯一一天"不学数学"的日子。目标只有一个：**让后面 59 篇教程的代码都能在你机器上跑起来。**
 
 ---
@@ -41,29 +43,16 @@ Day1 是纯粹的"工程准备"。它本身没有理论含量，但它决定你�
 
 ## 一、为什么需要虚拟环境
 
-Python 生态最大的痛点是**依赖冲突**。假设：
+Python 生态最大的痛点是**依赖冲突**：项目 A 要 `numpy==1.24`，项目 B 要 `numpy==2.0`，全装在全局 Python 里就无法共存。虚拟环境的作用是给每个项目一套独立的 `site-packages`。
 
-- 项目 A 需要 `numpy==1.24`
-- 项目 B 需要 `numpy==2.0`
-
-如果所有包都装在全局 Python 里，两者不能共存。虚拟环境的作用就是给每个项目一套独立的 `site-packages`。
-
-| 工具 | 特点 | 适用场景 |
-| --- | --- | --- |
-| `venv` | Python 内置、轻量 | 本课程推荐，够用 |
-| `conda` | 能管理非 Python 依赖（如 CUDA 库） | 需要装 GPU 环境时更省心 |
-| `uv` | 极快、Rust 实现 | 追求速度的老手 |
-
-### 用 venv 创建环境
+**本课程统一用 venv + pip**。工具对比（conda / uv / poetry）与导出复现的完整用法在[工具箱的 Python 环境篇](/learn/devtool/day-11)，这里只保留"够用"的三条命令：
 
 ```bash
-# 在项目根目录（教程/）下
+# 在项目根目录下
 python -m venv .venv
 
 # Windows PowerShell
 .venv\Scripts\Activate.ps1
-# Windows CMD
-.venv\Scripts\activate.bat
 # macOS / Linux
 source .venv/bin/activate
 
@@ -74,13 +63,6 @@ python -c "import sys; print(sys.executable)"
 > **Windows PowerShell 报错 `无法加载文件 ... Activate.ps1`？**
 > 这是执行策略限制，用管理员 PowerShell 执行一次：
 > `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
-
-### 导出与复现环境
-
-```bash
-pip freeze > requirements.txt     # 导出
-pip install -r requirements.txt   # 复现
-```
 
 ---
 

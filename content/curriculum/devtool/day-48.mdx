@@ -2,236 +2,172 @@
 slug: day-48
 kind: day
 day: 48
-week: 7
-weekTitle: 编辑器与 IDE
-weekBlurb: 以 VSCode 为主的配置、快捷键、调试与远程开发，把编辑器用到顺手。
-title: Neovim 使用教程
-sourcePath: 07-编辑器与IDE/04-Neovim.md
+week: 8
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: Rollup 使用教程
+lead: Rollup 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 03-构建打包/03-Rollup.md
 ---
 
-## 一、Neovim 是什么
+## 一、Rollup 是什么
 
-Neovim 是 Vim 的现代重写版：
+Rollup 是专注 **JavaScript 库打包** 的模块打包器，特点是：
 
-- 保留 Vim 的**模式编辑 + 全键盘操作**哲学；
-- 支持 Lua 配置、异步插件、内置 LSP 客户端；
-- 可在终端、SSH、Tmux 环境下获得与本地一致的开发体验；
-- 通过 LazyVim / NvChad / AstroNvim 等发行版可快速获得 IDE 级功能。
+- 基于 ES Module，**Tree Shaking 效果最好**，产物干净；
+- 支持输出多种格式：ESM / CJS / UMD / IIFE；
+- Vite 的生产构建底层就是 Rollup。
 
-> 学习成本高、配置需投入，但一旦熟练，编码效率与远程开发体验极佳。
+适合：npm 库、组件库、SDK。不适合：需要处理大量 CSS/图片资源的前端应用（那更适合 Vite/Webpack）。
 
-## 二、安装
-
-```powershell
-# Windows
-winget install Neovim.Neovim
-# macOS
-brew install neovim
-# Linux
-sudo apt install neovim
-```
+## 二、快速开始
 
 ```powershell
-nvim --version
-nvim                     # 打开
-nvim file.txt
+pnpm add -D rollup typescript @rollup/plugin-typescript @rollup/plugin-node-resolve @rollup/plugin-commonjs
 ```
 
-Windows Terminal 中建议使用 `nvim` 别名，并配置支持连字的字体（JetBrains Mono Nerd Font）。
+`rollup.config.mjs`：
 
-## 三、模式（核心概念）
+```js
+import typescript from '@rollup/plugin-typescript';
+import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+import dts from 'rollup-plugin-dts';
 
-| 模式 | 进入方式 | 用途 |
-| --- | --- | --- |
-| Normal | `Esc` | 移动、删除、复制、跳转 |
-| Insert | `i` `a` `o` | 输入文字 |
-| Visual | `v` `V` `Ctrl+v` | 选择文本 |
-| Command | `:` | 执行命令（保存、退出等） |
-| Replace | `R` | 覆盖输入 |
-
-**新手第一课**：频繁按 `Esc` 回到 Normal 模式。
-
-## 四、基础操作速查
-
-### 移动
-
-```
-h j k l          左 下 上 右
-w / b            下一个/上一个单词
-0 / $            行首 / 行尾
-gg / G           文件首 / 文件尾
-:42              跳到第 42 行
-Ctrl+d / Ctrl+u  向下/向上翻半页
-%                跳转匹配括号
-```
-
-### 编辑
-
-```
-i / a            在光标前/后插入
-o / O            下方/上方新建行并插入
-dd / yy / p      删除行 / 复制行 / 粘贴
-x / X            删除字符（后/前）
-u / Ctrl+r       撤销 / 重做
-ciw              删除当前单词并进入插入（change inner word）
-ci" / ci(        修改引号/括号内的内容
-di(              删除括号内内容
-yy 后 3p         复制一行并粘贴 3 次
+export default [
+  {
+    input: 'src/index.ts',
+    output: [
+      { file: 'dist/index.cjs', format: 'cjs', sourcemap: true },
+      { file: 'dist/index.mjs', format: 'esm', sourcemap: true },
+    ],
+    external: ['react', 'react-dom'],   // 不打进产物，由使用方提供
+    plugins: [
+      resolve(),           // 解析 node_modules
+      commonjs(),          // 支持 require 的依赖
+      typescript({ tsconfig: './tsconfig.json' }),
+    ],
+    treeshake: true,
+  },
+  {
+    input: 'src/index.ts',
+    output: { file: 'dist/index.d.ts', format: 'es' },
+    plugins: [dts()],
+  },
+];
 ```
 
-### 保存与退出
+`package.json`：
 
-```
-:w              保存
-:q              退出
-:wq 或 :x       保存并退出
-:q!             强制退出不保存
-```
-
-### 搜索与替换
-
-```
-/pattern        向下搜索（n/N 跳转下一个/上一个）
-?pattern        向上搜索
-*               搜索光标下单词
-:%s/old/new/g   全文替换
-:%s/old/new/gc  全文替换（逐个确认）
-:noh            清除搜索高亮
-```
-
-### 可视模式操作
-
-```
-v 选中后 d/y/c   删除/复制/修改
-V 行选择
-Ctrl+v 列选择（批量注释：选中列后 I 输入，Esc 生效）
-> / <            缩进/反缩进
+```json
+{
+  "name": "my-lib",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w"
+  }
+}
 ```
 
-### 窗口与标签
+命令：
 
-```
-:sp / :vs       水平/垂直分屏
-Ctrl+w h/j/k/l  切换窗口
-:tabnew         新建标签
-gt / gT         下一个/上一个标签
-```
-
-## 五、配置（Lua）
-
-配置文件：Windows `%LOCALAPPDATA%\nvim\init.lua`；macOS/Linux `~/.config/nvim/init.lua`。
-
-最小可用配置：
-
-```lua
--- init.lua
-vim.opt.number = true            -- 行号
-vim.opt.relativenumber = true    -- 相对行号
-vim.opt.tabstop = 2
-vim.opt.shiftwidth = 2
-vim.opt.expandtab = true
-vim.opt.ignorecase = true
-vim.opt.smartcase = true
-vim.opt.termguicolors = true
-vim.opt.clipboard = 'unnamedplus'  -- 与系统剪贴板互通
-vim.opt.scrolloff = 8
-
-vim.g.mapleader = ' '            -- 空格作为 leader 键
-
--- 快捷键
-vim.keymap.set('n', '<leader>w', ':w<CR>')
-vim.keymap.set('n', '<leader>q', ':q<CR>')
-vim.keymap.set('n', '<Esc>', ':noh<CR>')
-vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = '左窗口' })
+```powershell
+pnpm build       # 打包
+pnpm dev         # 监听模式，改动自动重建
+rollup src/index.ts --format esm --file dist/index.mjs   # 免配置文件
 ```
 
-## 六、插件管理（lazy.nvim 示例）
+## 三、常用插件
 
-```lua
--- lua/plugins/init.lua
-require('lazy').setup({
-  -- 主题
-  { 'folke/tokyonight.nvim', opts = { style = 'night' } },
-
-  -- 文件树
-  { 'nvim-tree/nvim-tree.lua', dependencies = { 'nvim-tree/nvim-web-devicons' },
-    config = function() require('nvim-tree').setup() end },
-
-  -- 模糊查找（fzf 风格）
-  { 'nvim-telescope/telescope.nvim', dependencies = { 'nvim-lua/plenary.nvim' } },
-
-  -- 状态栏
-  { 'nvim-lualine/lualine.nvim' },
-
-  -- 语法高亮
-  { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate' },
-
-  -- LSP
-  { 'neovim/nvim-lspconfig' },
-  { 'williamboman/mason.nvim', config = true },       -- LSP 安装器
-  { 'hrsh7th/nvim-cmp', dependencies = {            -- 补全
-      'hrsh7th/cmp-nvim-lsp',
-      'L3MON4D3/LuaSnip',
-  } },
-})
-```
-
-保存后运行 `:Lazy sync` 安装插件。
-
-## 七、推荐发行版（不想从零配置）
-
-| 发行版 | 特点 |
+| 插件 | 用途 |
 | --- | --- |
-| **LazyVim** | 开箱即用、模块化、社区最活跃（推荐新手） |
-| NvChad | 启动快、界面漂亮 |
-| AstroNvim | 功能全、插件精选 |
-| kickstart.nvim | 单文件教学型配置（学原理首选） |
+| @rollup/plugin-node-resolve | 解析 node_modules 中的模块 |
+| @rollup/plugin-commonjs | 转换 CJS 依赖为 ESM |
+| @rollup/plugin-typescript / rollup-plugin-esbuild | TS 编译 |
+| @rollup/plugin-json | 支持 `import data from './x.json'` |
+| @rollup/plugin-terser | 压缩 |
+| rollup-plugin-dts | 合并生成 `.d.ts` |
+| @rollup/plugin-replace | 注入环境变量 |
 
-安装 LazyVim：
+## 四、输出格式说明
 
-```powershell
-# 备份原配置后
-git clone https://github.com/LazyVim/starter $env:LOCALAPPDATA\nvim
-Remove-Item $env:LOCALAPPDATA\nvim\.git -Recurse -Force
-nvim    # 首次启动自动安装插件
+| format | 产物 | 适用 |
+| --- | --- | --- |
+| `esm`（es） | `import/export` | 现代打包器（Vite/Webpack）消费 |
+| `cjs` | `require()` | Node 环境、老工具链 |
+| `umd` | 兼容 AMD/CJS/全局变量 | 浏览器 `<script>` 直接引入 |
+| `iife` | 立即执行函数 | 独立脚本 |
+
+## 五、体积优化技巧
+
+1. **`external` 外部化** peer 依赖（react、lodash 等），让使用方去 tree-shake：
+
+```js
+external: (id) => /^(react|react-dom|lodash)/.test(id)
 ```
 
-## 八、常用内置命令
+2. **`sideEffects: false`**（package.json）让引用方可以安全 tree-shake。
+3. **多入口 + preserveModules**（保留文件结构，利于按需加载）：
 
-```
-:checkhealth        检查环境（LSP/剪贴板/插件是否正常）
-:Telescope find_files       查找文件（需 telescope）
-:Lazy               插件管理界面
-:Mason              LSP/格式化器安装界面
-:TSInstall python  安装语法解析
-gd / gr / gi       跳转定义 / 引用 / 实现（配 LSP 后）
-K                   查看文档悬停
-<leader>rn          重命名（配 LSP）
+```js
+output: { dir: 'dist/es', format: 'esm', preserveModules: true, preserveModulesRoot: 'src' }
 ```
 
-## 九、常见问题
+4. 检查产物：`rollup-plugin-visualizer`。
+
+## 六、插件开发（了解原理）
+
+Rollup 插件通过钩子介入构建：
+
+```js
+export default function myPlugin() {
+  return {
+    name: 'my-plugin',
+    resolveId(source) { /* 决定模块如何解析 */ },
+    load(id) { /* 返回模块源码 */ },
+    transform(code, id) { /* 转换源码 */ },
+    renderChunk(code) { /* 修改 chunk 产物 */ },
+  };
+}
+```
+
+## 七、Rollup vs 其他
+
+| 维度 | Rollup | esbuild | tsup | Webpack |
+| --- | --- | --- | --- | --- |
+| 定位 | 库打包 | 极速转译/打包 | 库打包封装 | 应用打包 |
+| Tree Shaking | 最好 | 好 | 好 | 好 |
+| 速度 | 中 | 极快 | 快 | 慢 |
+| 配置复杂度 | 中 | 低 | 极低 | 高 |
+| 产物纯净度 | 最高 | 高 | 高 | 一般 |
+
+**结论**：要极致控制产物 → Rollup；要开箱即用 → tsup；要极速 → esbuild。
+
+## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 复制到系统剪贴板失败 | 安装支持 clipboard 的版本，或装 `win32yank`；WSL 需配 剪贴板转发 |
-| 中文输入法在插入模式有问题 | Windows Terminal 相对更好；或配置 im-select 自动切英文 |
-| LSP 不生效 | `:checkhealth lsp` 查看；用 Mason 安装对应 server |
-| 启动变慢 | 用 `:Lazy profile` 分析，延迟加载重插件 |
-| ESC 不习惯 | 把 `jj` 映射为 Esc：`vim.keymap.set('i', 'jj', '<Esc>')` |
-| 与终端快捷键冲突 | 在 shell 配置里调整（如 tmux 前缀键） |
+| 打包后 `require is not defined` | 依赖未转 ESM，加 `@rollup/plugin-commonjs` |
+| 类型文件没生成 | 单独用 `rollup-plugin-dts` 或先跑 `tsc --emitDeclarationOnly` |
+| peer 依赖被打进产物 | 配 `external` |
+| 循环依赖警告 | 重构拆分模块，或 `onwarn` 过滤（治标） |
+| 产物体积大 | 检查是否误打 node_modules，开 terser，检查 sideEffects |
 
-## 十、学习路径建议
+## 九、参考
 
-1. 先用 `vimtutor`（终端输入 `vimtutor`）完成官方 30 分钟教程；
-2. 强迫自己每天用 Normal 模式操作，两周形成肌肉记忆；
-3. 需要 IDE 功能时，直接上 LazyVim，别从零折腾；
-4. 逐步替换为自定义配置，理解每一步在做什么；
-5. 远程开发场景（SSH 到服务器）是 Neovim 最大优势场景。
-
-## 十一、参考
-
-- 官方网站：https://neovim.io/
-- `:help` 是最权威文档；
-- LazyVim：https://www.lazyvim.org/
-- kickstart.nvim：https://github.com/nvim-lua/kickstart.nvim
+- 官方文档：https://rollupjs.org/
+- 插件列表：https://github.com/rollup/awesome
 

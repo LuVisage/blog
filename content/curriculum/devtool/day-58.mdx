@@ -4,313 +4,184 @@ kind: day
 day: 58
 week: 9
 weekTitle: 容器与部署运维
-weekBlurb: Docker 镜像与 compose、常见部署形态与基础运维，为后端课的模型服务化打底。
-title: Kubernetes 使用教程（kubectl / Helm / k9s）
-sourcePath: 09-容器与部署运维/04-Kubernetes.md
+weekBlurb: Docker 镜像与 compose、Nginx、K8s 与部署平台——backend 课 W4 用它把 FastAPI 服务真正部署上线，这里是全集。
+title: Podman 使用教程
+lead: Podman 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 09-容器与部署运维/03-Podman.md
 ---
 
-## 一、Kubernetes 是什么
+## 一、Podman 是什么
 
-K8s 是容器编排平台，解决：
+Podman（Pod Manager）是 Red Hat 主导的**无守护进程容器引擎**，与 Docker 高度兼容：
 
-- 容器调度到哪台机器；
-- 副本数维持、自动扩缩容；
-- 滚动更新与回滚；
-- 服务发现与负载均衡；
-- 配置与密钥管理。
+| 特性 | Docker | Podman |
+| --- | --- | --- |
+| 架构 | 客户端 + 常驻 daemon | 无守护进程（fork/exec） |
+| root 权限 | daemon 以 root 跑 | 支持 **rootless**（普通用户运行） |
+| 命令 | `docker ...` | `podman ...`（几乎一致） |
+| compose | docker compose | podman-compose / `podman compose` |
+| Pod 概念 | 无（K8s 才有） | 原生支持 Pod（多容器共享网络） |
+| systemd 集成 | 需额外配置 | `podman generate systemd` 原生 |
+| 授权 | Apache 2.0 | Apache 2.0 |
 
-**核心概念速览**：
+**适合**：不想装 Docker Desktop 的 Windows 用户（WSL 后端）、服务器上想 rootless 运行、K8s 开发者（podman 可直接生成 K8s YAML）。
 
-| 概念 | 说明 |
-| --- | --- |
-| Pod | 最小调度单位，含 1..n 个容器 |
-| Deployment | 管理 Pod 副本与滚动更新（无状态应用） |
-| StatefulSet | 有状态应用（数据库、MQ） |
-| Service | 稳定的访问入口（ClusterIP/NodePort/LoadBalancer） |
-| Ingress | HTTP 层路由（域名/路径 → Service） |
-| ConfigMap / Secret | 配置与密钥 |
-| Namespace | 逻辑隔离 |
-| PV / PVC | 持久卷与申请 |
-| HPA | 水平自动扩缩容 |
-
-## 二、kubectl 安装与配置
+## 二、安装
 
 ```powershell
-winget install Kubernetes.kubectl
+# Windows（提供 WSL2 后端）
+winget install RedHat.Podman
+winget install RedHat.Podman-Desktop    # 可选图形界面
+
 # macOS
-brew install kubectl
+brew install podman
+podman machine init && podman machine start
+
+# Linux (Fedora/RHEL 自带)
+sudo dnf install podman
+# Ubuntu
+sudo apt install podman
 ```
 
-`kubeconfig`（默认 `~/.kube/config`）保存集群凭证，可管理多个集群：
+验证：
 
 ```powershell
-kubectl config view
-kubectl config get-contexts
-kubectl config use-context prod
-kubectl config set-context --current --namespace=myapp
+podman --version
+podman run --rm hello-world
 ```
 
-### 常用工具
+Windows/macOS 上需先启动虚拟机：
 
-| 工具 | 用途 |
+```powershell
+podman machine init --cpus 4 --memory 4096
+podman machine start
+podman machine list
+```
+
+## 三、基本用法（与 Docker 几乎相同）
+
+```powershell
+podman pull nginx:alpine
+podman images
+podman run -d --name web -p 8080:80 nginx:alpine
+podman ps
+podman logs -f web
+podman exec -it web sh
+podman stop web && podman rm web
+podman build -t myapp:1.0 .
+podman push myapp:1.0
+podman volume create data
+podman network create mynet
+podman system prune -a
+```
+
+**省事技巧**：设置别名，让 docker 命令直接走 podman：
+
+```powershell
+Set-Alias docker podman
+# Linux/macOS: alias docker=podman
+```
+
+（Podman 官方也提供 `podman-docker` 包，安装后自动提供 docker 命令兼容层。）
+
+## 四、Podman 独有功能
+
+### 1. Pod（多容器共享网络命名空间）
+
+```powershell
+podman pod create --name mypod -p 8080:80
+podman run -d --pod mypod --name web nginx
+podman run -d --pod mypod --name redis redis
+podman pod ps
+podman pod stop mypod && podman pod rm mypod
+```
+
+Pod 内容器共享 localhost，与 K8s 的 Pod 概念一致。
+
+### 2. 生成 systemd 服务（服务器自启）
+
+```bash
+podman generate systemd --new --name web > ~/.config/systemd/user/web.service
+systemctl --user enable --now web
+# 或新命令
+podman quadlet ...
+```
+
+### 3. 生成 Kubernetes YAML
+
+```powershell
+podman generate kube web > web.yaml
+podman play kube web.yaml
+```
+
+本地容器直接转成 K8s 资源，非常适合 K8s 开发。
+
+### 4. rootless 模式（安全优势）
+
+普通用户即可运行容器，无需 sudo，容器逃逸风险显著降低：
+
+```bash
+podman run --rm -p 8080:80 nginx    # 普通用户直接跑
+```
+
+## 五、compose 支持
+
+```powershell
+# 方式一：podman-compose（Python 实现）
+pip install podman-compose
+podman-compose up -d
+
+# 方式二：podman compose（调用 docker compose 或 podman-compose）
+podman compose up -d
+
+# 方式三：直接用 docker compose 对接 podman socket
+systemctl --user enable --now podman.socket
+export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock
+docker compose up -d
+```
+
+## 六、Podman Desktop
+
+图形界面工具，功能类似 Docker Desktop：
+
+- 查看镜像/容器/卷/网络；
+- 一键安装 podman machine；
+- 支持 Kubernetes 本地集群（kind/minikube 集成）；
+- 免费开源，无商业授权限制（对比 Docker Desktop 大企业需付费）。
+
+## 七、Docker 用户迁移注意点
+
+| 事项 | 说明 |
 | --- | --- |
-| kubectx / kubens | 快速切换集群与命名空间 |
-| k9s | 终端 UI 管理集群（强烈推荐） |
-| helm | 包管理 |
-| kustomize | 配置叠加（kubectl 内置） |
-| stern | 多 Pod 日志聚合 |
+| 命令 | 基本一一对应，脚本改个命令名即可 |
+| 网络 | rootless 下端口 &lt; 1024 需配置 `net.ipv4.ip_unprivileged_port_start` |
+| 卷权限 | rootless 下 UID 映射（userns）可能导致挂载目录权限问题，加 `:U` 或 `--userns=keep-id` |
+| BuildKit | Podman 默认用 Buildah 构建，`--format docker` 可输出兼容格式 |
+| Docker Desktop 特性 | 如 Dev Environments、K8s 单机面板，Podman 需替代方案 |
+| socket 路径 | `DOCKER_HOST` 需指向 podman socket |
 
-## 三、kubectl 核心命令
-
-### 查看
-
-```powershell
-kubectl get pods                     # 当前命名空间 Pod
-kubectl get pods -A                  # 所有命名空间
-kubectl get pods -o wide             # 含 IP、节点
-kubectl get deploy,svc,ing -A
-kubectl get pod mypod -o yaml        # 完整 YAML
-kubectl describe pod mypod           # 事件与详情（排错第一步）
-kubectl logs mypod                   # 日志
-kubectl logs -f deploy/api --tail=100
-kubectl logs mypod -c sidecar        # 指定容器
-kubectl top pods                     # 资源使用（需 metrics-server）
-kubectl get events --sort-by=.lastTimestamp
-```
-
-### 操作
-
-```powershell
-kubectl apply -f deployment.yaml     # 创建/更新
-kubectl delete -f deployment.yaml
-kubectl scale deploy/api --replicas=5
-kubectl rollout restart deploy/api
-kubectl rollout status deploy/api
-kubectl rollout undo deploy/api      # 回滚上一版本
-kubectl rollout history deploy/api
-kubectl exec -it mypod -- sh         # 进入容器
-kubectl port-forward svc/api 8080:80 # 本地端口转发（调试神器）
-kubectl cp mypod:/app/log.txt ./log.txt
-kubectl edit deploy/api              # 在线编辑
-kubectl set image deploy/api api=myapi:1.2.3
-```
-
-### 排错流程
-
-```powershell
-kubectl describe pod mypod           # 看 Events：镜像拉取失败？调度失败？探针失败？
-kubectl logs mypod --previous        # 看崩溃前一次日志
-kubectl get pod mypod -o yaml        # 看 spec 与 status
-kubectl get events -A --sort-by=.metadata.creationTimestamp
-```
-
-常见状态：
-
-| 状态 | 原因 |
-| --- | --- |
-| ImagePullBackOff | 镜像名错误 / 私有仓库凭证缺失 |
-| CrashLoopBackOff | 应用启动即崩溃，看日志 |
-| Pending | 资源不足 / 节点选择器不匹配 / PVC 未绑定 |
-| OOMKilled | 内存超限，调 resources.limits |
-
-## 四、核心 YAML 示例
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: api
-  namespace: myapp
-spec:
-  replicas: 3
-  selector:
-    matchLabels: { app: api }
-  strategy:
-    type: RollingUpdate
-    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
-  template:
-    metadata:
-      labels: { app: api }
-    spec:
-      containers:
-        - name: api
-          image: registry.example.com/api:1.2.3
-          ports: [{ containerPort: 3000 }]
-          env:
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef: { name: db-secret, key: url }
-          resources:
-            requests: { cpu: 100m, memory: 128Mi }
-            limits: { cpu: 500m, memory: 512Mi }
-          readinessProbe:
-            httpGet: { path: /healthz, port: 3000 }
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet: { path: /healthz, port: 3000 }
-            initialDelaySeconds: 15
----
-apiVersion: v1
-kind: Service
-metadata: { name: api, namespace: myapp }
-spec:
-  selector: { app: api }
-  ports: [{ port: 80, targetPort: 3000 }]
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: api
-  namespace: myapp
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt
-spec:
-  ingressClassName: nginx
-  tls:
-    - hosts: [api.example.com]
-      secretName: api-tls
-  rules:
-    - host: api.example.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: api
-                port: { number: 80 }
-```
-
-## 五、Helm（包管理）
-
-Helm 把一组 K8s 资源打包成 Chart，支持**参数化 + 版本管理**。
-
-### 基本命令
-
-```powershell
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm repo update
-
-helm search repo postgresql
-helm install my-db bitnami/postgresql -n db --create-namespace -f values.yaml
-helm list -A
-helm status my-db -n db
-helm upgrade my-db bitnami/postgresql -f values-prod.yaml -n db
-helm rollback my-db 1 -n db
-helm uninstall my-db -n db
-helm template ./mychart -f values.yaml   # 本地渲染（不安装，调试用）
-```
-
-### 自定义 Chart 结构
-
-```
-mychart/
-├── Chart.yaml
-├── values.yaml
-└── templates/
-    ├── deployment.yaml
-    ├── service.yaml
-    ├── ingress.yaml
-    └── _helpers.tpl
-```
-
-`templates/deployment.yaml` 中使用变量：
-
-```yaml
-spec:
-  replicas: {{ .Values.replicaCount }}
-  template:
-    spec:
-      containers:
-        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-```
-
-```powershell
-helm create mychart      # 生成骨架
-helm lint mychart        # 检查
-helm package mychart     # 打包 .tgz
-```
-
-### values.yaml 覆盖
-
-```powershell
-helm upgrade api ./mychart -f values.yaml --set image.tag=1.2.4
-```
-
-**优先级**：`--set` > `-f 后加载的文件` > `-f 先加载的文件` > Chart 内 values.yaml。
-
-## 六、k9s（终端 UI，强烈推荐）
-
-```powershell
-winget install k9s
-# macOS
-brew install k9s
-```
-
-```powershell
-k9s                 # 启动
-k9s -n myapp        # 指定命名空间
-```
-
-操作：
-
-| 按键 | 功能 |
-| --- | --- |
-| `:pod` / `:deploy` / `:svc` | 切换资源视图 |
-| `0-9` | 切换命名空间 |
-| `l` | 查看日志（`w` 切换自动滚动） |
-| `s` | 进入 shell |
-| `d` | describe |
-| `e` | 编辑 YAML |
-| `Ctrl+d` | 删除 |
-| `Shift+F` | 端口转发 |
-| `?` | 帮助 |
-
-比反复敲 kubectl 命令效率高 10 倍。
-
-## 七、本地演练环境
-
-```powershell
-# 选项 1：Docker Desktop 内置 K8s（Settings → Kubernetes → Enable）
-# 选项 2：kind（K8s in Docker）
-winget install Kubernetes.kind
-kind create cluster --name dev
-# 选项 3：minikube
-winget install Kubernetes.minikube
-minikube start
-# 选项 4：k3d
-```
-
-## 八、最佳实践
-
-1. **一切声明式 + Git 管理**（YAML 进仓库，`kubectl apply` 而非 `edit`）。
-2. `resources.requests/limits` 必填，否则调度不均、易 OOM。
-3. **探针必配**（readiness + liveness），保证滚动更新平滑。
-4. 镜像 tag 用不可变标识（版本号或 sha），禁止 `latest`。
-5. Secret 用外部 KMS / sealed-secrets，不要明文提交 Git。
-6. 用 namespaces 隔离环境（dev/staging/prod）。
-7. 多环境差异用 Helm values 或 Kustomize overlay 管理。
-8. 生产变更走 GitOps（见 10-CICD/05-GitOps.md）。
-
-## 九、常见问题
+## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| Pod Pending | `describe` 看 Events：资源不足 / 污点 / PVC 未绑定 |
-| Probe 失败导致反复重启 | 探针路径/端口写错；initialDelay 太短 |
-| 拉私有镜像失败 | 创建 imagePullSecret 并配到 ServiceAccount |
-| Service 访问不通 | 检查 selector 是否匹配 Pod labels；targetPort 是否对 |
-| Ingress 404 | 检查 ingressClass、host、path 与 Service 端口 |
-| `kubectl` 权限不足 | 检查 RBAC / kubeconfig 上下文 |
-| 滚动更新卡住 | `kubectl rollout status` + describe 看新 Pod 状态 |
-| 日志太多刷屏 | 用 stern 聚合，或 k9s 的日志过滤 |
+| Windows 上启动失败 | 先 `podman machine start`；确认 WSL2 可用 |
+| 拉镜像慢 | 配置 registries.conf 镜像加速 |
+| rootless 端口被拒 | 用 >=1024 端口，或调整 `ip_unprivileged_port_start` |
+| 挂载目录权限错误 | 加 `:Z` / `:U` 选项；或 `--userns=keep-id` |
+| 与 Docker Desktop 冲突 | 二者可共存，但 socket/端口可能冲突，按需切换 |
+| compose 兼容性 | 复杂 compose 文件（如 profiles、extends）支持不完整，优先用 docker compose 对接 podman socket |
+
+## 九、选型建议
+
+- **个人/小团队 + Windows** → Podman Desktop（免授权费、够用）
+- **公司需要成熟生态与工具支持** → Docker
+- **服务器 rootless 安全要求高** → Podman
+- **K8s 开发者想本地快速验证** → Podman（generate kube 很方便）
 
 ## 十、参考
 
-- 官方文档：https://kubernetes.io/zh-cn/docs/
-- kubectl 速查：https://kubernetes.io/docs/reference/kubectl/quick-reference/
-- Helm：https://helm.sh/docs/
-- k9s：https://k9scli.io/
-- 12 因素应用：https://12factor.net/zh_cn/
+- 官网：https://podman.io/
+- 文档：https://docs.podman.io/
+- Podman Desktop：https://podman-desktop.io/
+- Docker 到 Podman 迁移指南：https://podman.io/blogs/2019/09/25/migrating-from-docker.html
 

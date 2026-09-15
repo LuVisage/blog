@@ -2,215 +2,157 @@
 slug: day-33
 kind: day
 day: 33
-week: 5
-weekTitle: 测试
-weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
-title: Cypress 使用教程
-sourcePath: 05-测试/04-Cypress.md
+week: 6
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: Biome 使用教程
+lead: Biome 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 04-代码检查与格式化/03-Biome.md
 ---
 
-## 一、Cypress 是什么
+## 一、Biome 是什么
 
-前端 E2E 测试框架，最大卖点是**开发者体验**：
+Biome 是 Rust 编写的**一体化前端工具链**，用一个工具替代：
 
-- **时间旅行**：测试运行后可以看到每一步的快照；
-- 自动等待，无需手写 wait；
-- 浏览器内运行，可直接访问 `window`、DOM、网络请求；
-- 交互式 Test Runner，实时看到每个命令的执行过程。
+- ESLint（Lint）
+- Prettier（格式化）
 
-## 二、安装与初始化
+特点：
+- **极快**：比 ESLint + Prettier 组合快 10 倍以上；
+- **零配置起步**：`biome init` 即可；
+- 单一二进制，无插件兼容地狱；
+- 支持 JS / TS / JSX / JSON / CSS / GraphQL（部分）。
+
+> 适合新项目、希望简化工具链的团队；老项目若依赖大量 ESLint 插件（如 react-hooks 之外的自定义规则），迁移需评估。
+
+## 二、安装
 
 ```powershell
-pnpm add -D cypress
-npx cypress open      # 首次运行会生成 cypress/ 目录并打开界面
-npx cypress run       # 无头模式运行
+pnpm add -D --save-exact @biomejs/biome
+npx biome init             # 生成 biome.json
 ```
 
-目录结构：
+VS Code 安装扩展 **Biome**（`biomejs.biome`）。
 
-```
-cypress/
-├── e2e/              # 测试用例 *.cy.ts
-├── fixtures/         # 测试数据（JSON）
-├── support/
-│   ├── commands.ts   # 自定义命令
-│   └── e2e.ts        # 全局配置
-└── downloads/
-cypress.config.ts
-```
+## 三、配置文件
 
-## 三、配置
+`biome.json`：
 
-`cypress.config.ts`：
+```jsonc
+{
+  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
+  "organizeImports": { "enabled": true },
 
-```ts
-import { defineConfig } from 'cypress';
-
-export default defineConfig({
-  e2e: {
-    baseUrl: 'http://localhost:5173',
-    viewportWidth: 1280,
-    viewportHeight: 720,
-    video: false,
-    screenshotOnRunFailure: true,
-    retries: { runMode: 2, openMode: 0 },
-    defaultCommandTimeout: 8000,
-    specPattern: 'cypress/e2e/**/*.cy.{ts,tsx}',
-    setupNodeEvents(on, config) {
-      // 插件挂载点
-      return config;
-    },
+  "files": {
+    "ignore": ["dist", "coverage", "node_modules"]
   },
-});
-```
 
-## 四、编写测试
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
 
-```ts
-describe('待办事项', () => {
-  beforeEach(() => {
-    cy.visit('/todos');
-  });
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all"
+    }
+  },
 
-  it('可以添加一条待办', () => {
-    cy.get('[data-testid="new-todo"]').type('买牛奶{enter}');
-    cy.get('[data-testid="todo-list"] li').should('have.length', 1);
-    cy.contains('li', '买牛奶').should('be.visible');
-  });
-
-  it('可以勾选完成', () => {
-    cy.get('[data-testid="new-todo"]').type('写周报{enter}');
-    cy.contains('li', '写周报').find('input[type=checkbox]').check();
-    cy.contains('li', '写周报').should('have.class', 'completed');
-  });
-});
-```
-
-### 常用命令
-
-```ts
-cy.visit('/login');
-cy.get('#username').type('admin');
-cy.get('button[type=submit]').click();
-cy.get('.error').should('contain.text', '密码错误');
-cy.get('input').clear().type('new');
-cy.get('select').select('shanghai');
-cy.get('input[type=file]').selectFile('fixtures/a.png');
-cy.url().should('include', '/dashboard');
-cy.title().should('eq', '控制台');
-cy.reload();
-cy.go('back');
-```
-
-断言链：
-
-```ts
-cy.get('.card')
-  .should('have.length', 3)
-  .first()
-  .should('have.text', '标题')
-  .and('be.visible');
-```
-
-### 网络请求
-
-```ts
-// 等待请求
-cy.intercept('POST', '/api/login').as('login');
-cy.get('form').submit();
-cy.wait('@login').its('response.statusCode').should('eq', 200);
-
-// Mock 响应
-cy.intercept('GET', '/api/users', { fixture: 'users.json' }).as('users');
-cy.visit('/users');
-cy.wait('@users');
-```
-
-### 自定义命令
-
-`cypress/support/commands.ts`：
-
-```ts
-Cypress.Commands.add('login', (username: string, password: string) => {
-  cy.session([username, password], () => {
-    cy.visit('/login');
-    cy.get('#username').type(username);
-    cy.get('#password').type(password);
-    cy.get('form').submit();
-    cy.url().should('include', '/dashboard');
-  });
-});
-```
-
-类型声明 `cypress/support/index.d.ts`：
-
-```ts
-declare global {
-  namespace Cypress {
-    interface Chainable {
-      login(username: string, password: string): Chainable<void>;
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": { "noExplicitAny": "warn" },
+      "style": { "noNonNullAssertion": "off" }
     }
   }
 }
-export {};
 ```
 
-`cy.session` 可缓存登录态，大幅加速测试套件。
-
-## 五、常用命令
+## 四、常用命令
 
 ```powershell
-npx cypress open                        # 交互模式
-npx cypress run                         # 无头运行全部
-npx cypress run --spec "cypress/e2e/login.cy.ts"
-npx cypress run --browser chrome
-npx cypress run --headed
-npx cypress run --record --key <key>    # Cypress Cloud（并行/录制）
+npx biome check .              # Lint + 格式检查 + import 排序（CI 用）
+npx biome check --write .      # 一键修复所有可修问题（日常开发）
+npx biome format . --write     # 只做格式化
+npx biome lint .               # 只做 lint
+npx biome lint --write .       # lint 自动修复
+npx biome ci .                 # CI 专用模式，输出更清晰、不写文件
+npx biome check --changed      # 只检查 git 变更文件
 ```
 
-## 六、CI 集成
+`package.json`：
 
-```yaml
-- uses: cypress-io/github-action@v6
-  with:
-    start: pnpm dev
-    wait-on: 'http://localhost:5173'
-    browser: chrome
+```json
+{
+  "scripts": {
+    "lint": "biome lint .",
+    "format": "biome format . --write",
+    "check": "biome check --write .",
+    "ci": "biome ci ."
+  }
+}
 ```
 
-## 七、Cypress vs Playwright
+## 五、迁移现有项目
 
-| 维度 | Cypress | Playwright |
+```powershell
+npx biome migrate eslint --write      # 读取 .eslintrc 转换规则
+npx biome migrate prettier --write    # 读取 .prettierrc 转换配置
+```
+
+迁移后：
+
+1. 删除 `eslint` / `prettier` 相关依赖与配置；
+2. 替换 scripts；
+3. 更新编辑器设置（禁用 Prettier/ESLint 扩展，启用 Biome）；
+4. 全量跑一次 `biome check --write`，作为独立提交。
+
+## 六、VS Code 集成
+
+`.vscode/settings.json`：
+
+```json
+{
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
+  }
+}
+```
+
+## 七、Biome vs ESLint + Prettier
+
+| 维度 | Biome | ESLint + Prettier |
 | --- | --- | --- |
-| 调试体验 | 时间旅行，最佳 | Trace / UI 模式，很好 |
-| 架构 | 浏览器内执行 | CDP 外部控制 |
-| 多标签页 | 有限（需 workaround） | 原生支持 |
-| 浏览器覆盖 | Chromium 系 + Firefox/WebKit 实验 | 三大内核完整 |
-| 免费并行 | 需 Cypress Cloud | 内置 |
-| 上手门槛 | 低 | 低 |
-| 适合 | 前端团队 / 快速起步 | 复杂场景 / 跨浏览器要求高 |
+| 性能 | 极快（Rust） | 慢（多进程 JS） |
+| 配置量 | 一个文件 | 多文件 + 多个插件 |
+| 插件生态 | 内置规则，扩展有限 | 极其丰富 |
+| 自动修复能力 | 强 | 强 |
+| 框架支持 | React hooks 等核心规则 | 全（Vue/Svelte/Angular...） |
+| 成熟度 | 快速成长中 | 十年生态 |
+| 适合 | 新项目、TS/React 团队 | 老项目、复杂插件需求 |
+
+> 结论：**TS/React 新项目可以优先 Biome**；Vue、依赖特殊插件的项目仍建议 ESLint。
 
 ## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 元素找不到 | Cypress 自动重试，但确认定位器是否正确；避免用会变化的 class |
-| 跨域访问失败 | 配置 `chromeWebSecurity: false`（仅测试环境）或 `cy.origin()` |
-| 需要访问 `window` 上的变量 | `cy.window().then(win => ...)` |
-| flaky 测试 | 用 `cy.intercept` 稳定网络；避免固定 `cy.wait(1000)` |
-| 上传文件 | `cy.selectFile()`，注意路径相对 fixtures |
-| 测试跑得慢 | 开启 `cy.session`；拆分 spec；只在 CI 用 `--record` 并行 |
+| 和 ESLint/Prettier 同时生效打架 | 禁用对应扩展，只保留 Biome |
+| 某规则太严格 | 在 `linter.rules` 中改为 `"warn"` 或 `"off"` |
+| 想忽略某文件 | `files.ignore` 或文件顶加 `// biome-ignore` |
+| CSS 格式化不符合预期 | 检查 `css.formatter` 配置，或暂时忽略 CSS 文件 |
+| 与 lint-staged 集成 | `"*.{ts,tsx,js,jsx,json,css}": ["biome check --write --no-errors-on-unmatched"]` |
 
-## 九、最佳实践
+## 九、参考
 
-1. 用 `data-testid` 定位，别依赖样式类名。
-2. 不要滥用 `cy.wait(ms)`，改用 `cy.intercept` + `cy.wait('@alias')`。
-3. `beforeEach` 中通过 API 快速准备数据，而非走完整 UI 流程。
-4. 关键流程（登录）用 `cy.session` 缓存。
-5. 只测 E2E 该测的东西（跨模块串联），细粒度逻辑放单元测试。
-
-## 十、参考
-
-- 官方文档：https://docs.cypress.io/
-- 最佳实践：https://docs.cypress.io/guides/references/best-practices
+- 官方文档：https://biomejs.dev/zh-cn/
+- 规则列表：https://biomejs.dev/linter/rules/
 

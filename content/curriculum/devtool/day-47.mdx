@@ -2,145 +2,179 @@
 slug: day-47
 kind: day
 day: 47
-week: 7
-weekTitle: 编辑器与 IDE
-weekBlurb: 以 VSCode 为主的配置、快捷键、调试与远程开发，把编辑器用到顺手。
-title: JetBrains 全家桶使用教程
-sourcePath: 07-编辑器与IDE/03-JetBrains全家桶.md
+week: 8
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: Webpack 使用教程
+lead: Webpack 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 03-构建打包/02-Webpack.md
 ---
 
-## 一、产品矩阵
+## 一、Webpack 是什么
 
-| IDE | 面向语言/技术 | 说明 |
-| --- | --- | --- |
-| IntelliJ IDEA | Java / Kotlin / Spring | 旗舰产品，分 Community（免费）与 Ultimate（付费） |
-| WebStorm | JavaScript / TypeScript / 前端框架 | 前端 IDE 标杆 |
-| PyCharm | Python | 含数据科学工具，分 Community / Professional |
-| GoLand | Go | 服务端 Go 开发 |
-| RustRover | Rust | 相对较新，已取代 CLion 的 Rust 插件路线 |
-| PhpStorm / CLion / Rider | PHP / C++ / .NET | 同类产品线 |
+Webpack 是最成熟的**模块打包器**：从入口出发递归构建依赖图，把所有模块（JS/CSS/图片/字体）打包成浏览器可用的静态资源。
 
-共同特点：**开箱即用的深度代码分析**、极强重构、数据库工具、调试器、测试集成。
+优点：生态极其丰富、可插拔、几乎支持一切场景。
+缺点：配置复杂、构建速度相对慢（相比 Vite/esbuild）。
 
-## 二、安装与激活
+> 现状：新项目多数选 Vite；但大量存量项目、微前端、复杂自定义场景仍用 Webpack。
 
-1. 官网下载：https://www.jetbrains.com/
-2. 用 **Toolbox App** 管理多个 IDE 与版本升级（推荐）；
-3. 激活方式：
- - 个人订阅 / 公司授权；
- - 学生与教师免费（凭 edu 邮箱申请）；
- - 开源项目免费授权；
- - Community 版（IDEA / PyCharm）免费。
+## 二、快速开始
 
-降低内存占用：`Help → Change Memory Settings` 调整 -Xmx（一般 2048-4096MB）。
+```powershell
+mkdir webpack-demo && cd webpack-demo
+pnpm init
+pnpm add -D webpack webpack-cli webpack-dev-server html-webpack-plugin
+```
 
-## 三、核心优势（相对 VS Code）
+`webpack.config.js`：
 
-| 能力 | JetBrains | VS Code |
-| --- | --- | --- |
-| 索引与代码理解 | 极强（整项目语义索引） | 依赖 LSP，稍弱 |
-| 重构 | 业界最强（安全重命名、抽取、内联） | 基础可用 |
-| 调试器 | 强大（条件断点、求值、远程） | 够用 |
-| 数据库工具 | 内置（Ultimate 版） | 需扩展 |
-| 框架支持 | 深度（Spring、Vue、React） | 靠插件 |
-| 启动/内存 | 重（吃内存） | 轻 |
-| 价格 | 收费（有免费版） | 免费 |
+```js
+const path = require('node:path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-**结论**：重度工程开发（Java/Go/大型前端）值得付费；轻量场景 VS Code 足够。
+module.exports = {
+  mode: 'development',
+  entry: './src/index.js',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: '[name].[contenthash].js',
+    clean: true,
+  },
+  module: {
+    rules: [
+      {
+        test: /\.(js|jsx)$/,
+        exclude: /node_modules/,
+        use: 'babel-loader',
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader'],
+      },
+      {
+        test: /\.(png|svg|jpg)$/,
+        type: 'asset',
+        parser: { dataUrlCondition: { maxSize: 8 * 1024 } },
+      },
+    ],
+  },
+  plugins: [
+    new HtmlWebpackPlugin({ template: './public/index.html' }),
+  ],
+  devServer: {
+    port: 3000,
+    hot: true,
+    open: true,
+    historyApiFallback: true,
+    proxy: [{ context: ['/api'], target: 'http://localhost:8080' }],
+  },
+  resolve: {
+    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    alias: { '@': path.resolve(__dirname, 'src') },
+  },
+  devtool: 'source-map',
+};
+```
 
-## 四、通用快捷键（Windows/Linux）
+`package.json` scripts：
 
-| 快捷键 | 功能 |
+```json
+{
+  "scripts": {
+    "dev": "webpack serve --mode development",
+    "build": "webpack --mode production"
+  }
+}
+```
+
+## 三、四个核心概念
+
+| 概念 | 作用 |
 | --- | --- |
-| `Shift+Shift`（连按两次 Shift） | 搜索一切（文件/类/符号/动作） |
-| `Ctrl+Shift+A` | 查找动作（Find Action） |
-| `Ctrl+N` / `Ctrl+Shift+N` | 找类 / 找文件 |
-| `Ctrl+B` / `Ctrl+点击` | 跳转定义 |
-| `Ctrl+Alt+B` | 跳转实现 |
-| `Alt+F7` | 查找用法 |
-| `Shift+F6` | 重命名 |
-| `Ctrl+Alt+L` | 格式化代码 |
-| `Ctrl+Alt+O` | 优化 import |
-| `Alt+Enter` | 快速修复 / 意图动作 |
-| `Ctrl+Alt+V` | 抽取变量 |
-| `Ctrl+Alt+M` | 抽取方法 |
-| `Ctrl+W` / `Ctrl+Shift+W` | 扩展/收缩选择 |
-| `Shift+F10` | 运行 |
-| `Shift+F9` | 调试 |
-| `F8` / `F7` / `Shift+F8` | 单步跳过 / 进入 / 跳出 |
-| `Ctrl+Shift+F` | 全局搜索 |
-| `Ctrl+E` | 最近文件 |
-| `Ctrl+Shift+E` | 最近修改位置 |
-| `Alt+1` | 项目面板 |
-| `Ctrl+`` ` | 终端 |
+| entry | 入口，依赖分析的起点 |
+| output | 输出位置与命名规则 |
+| loader | 把非 JS 文件转成模块（**Webpack 只懂 JS**） |
+| plugin | 介入构建生命周期的钩子，做打包以外的事 |
 
-macOS：`Ctrl` → `Cmd`，`Alt` → `Option`。
+常用 loader：`babel-loader`、`ts-loader`、`css-loader`、`style-loader`、`sass-loader`、`postcss-loader`。
+常用 plugin：`HtmlWebpackPlugin`、`MiniCssExtractPlugin`、`DefinePlugin`、`CopyWebpackPlugin`、`BundleAnalyzerPlugin`。
 
-## 五、各 IDE 上手要点
+## 四、代码分割与懒加载
 
-### IntelliJ IDEA（Java / Spring）
+```js
+// 动态 import 自动分包
+const { default: Editor } = await import(/* webpackChunkName: "editor" */ './Editor');
 
-- 新建项目：`File → New Project` 选 Maven/Gradle + JDK；
-- **Run/Debug Configurations** 配置启动项（Spring Boot 可一键识别）；
-- 数据库工具（Ultimate）：右侧 Database → 添加数据源 → 直接执行 SQL；
-- HTTP Client：`.http` 文件中写请求，点击运行（类似 Postman）；
-- **Diagrams**：右键类 → Diagrams 看继承关系；
-- 必备插件：Lombok（新版本内置支持）、MyBatisX、SonarLint、Key Promoter X（学快捷键）。
+// splitChunks 抽取公共依赖
+optimization: {
+  splitChunks: {
+    chunks: 'all',
+    cacheGroups: {
+      vendor: {
+        test: /[\\/]node_modules[\\/]/,
+        name: 'vendors',
+        priority: -10,
+      },
+    },
+  },
+  runtimeChunk: 'single',
+}
+```
 
-### WebStorm（前端）
+## 五、环境区分
 
-- 内置 ESLint / Prettier / Tailwind 支持（无需额外装）；
-- 保存时自动修复：`Settings → Languages & Frameworks → JavaScript → Code Quality → ESLint → Run eslint --fix on save`；
-- 框架识别：`Settings → Languages → Framework` 开启 Vue/React 支持；
-- `Alt+Enter` 对未安装的包可直接 `Install package`；
-- 调试：`Run → Edit Configurations` 添加 npm/浏览器配置。
+```js
+module.exports = (env, argv) => {
+  const isProd = argv.mode === 'production';
+  return {
+    mode: isProd ? 'production' : 'development',
+    devtool: isProd ? 'source-map' : 'eval-cheap-module-source-map',
+    // ...
+  };
+};
+```
 
-### PyCharm（Python）
+或用 `webpack-merge` 拆成 `webpack.common.js` / `webpack.dev.js` / `webpack.prod.js`。
 
-- 解释器配置：`Settings → Project → Python Interpreter` 选 venv/conda/uv；
-- 虚拟环境创建：`Add Interpreter → New`（自动装依赖）；
-- **科学模式**：Jupyter notebook 内置，变量查看器；
-- 调试 Django/Flask：Run Configuration 中直接指定框架；
-- 重构：`Shift+F6` 重命名跨文件生效。
+## 六、性能优化
 
-### GoLand（Go）
+| 方向 | 手段 |
+| --- | --- |
+| 构建速度 | `cache: { type: 'filesystem' }`、`thread-loader`、babel 缓存（`cacheDirectory`）、缩小 `include/exclude` |
+| 产物体积 | Tree Shaking（`sideEffects` 标记）、`splitChunks`、`MiniCssExtractPlugin`、图片压缩 |
+| 运行时加载 | 懒加载、prefetch/preload、CDN externals |
+| 分析 | `webpack-bundle-analyzer` |
 
-- 内置 Go Modules 支持，自动 `go mod tidy` 提示；
-- 运行/调试：函数左侧绿色三角直接 Run Test；
-- 代码检查：集成 go vet、golangci-lint（配置路径即可）；
-- 远程调试：`Run → Edit Configurations → Go Remote`；
-- 数据库/HTTP Client 同 IDEA。
+```js
+// externals：React 走 CDN 不打进包
+externals: { react: 'React', 'react-dom': 'ReactDOM' }
+```
 
-### RustRover（Rust）
+## 七、Webpack vs Vite
 
-- 首次打开自动 cargo check 索引；
-- 内置 clippy 提示、Cargo 工具窗口（依赖管理 UI）；
-- 调试：LLDB 集成；
-- 测试：点击左侧 ▶ 运行 #[test]。
+| 维度 | Webpack | Vite |
+| --- | --- | --- |
+| 冷启动 | 慢（全量构建） | 毫秒级（按需） |
+| HMR | 随项目增大变慢 | 恒定快 |
+| 生产打包 | 自身 | Rollup |
+| 生态/插件 | 最多 | 快速追赶 |
+| 配置复杂度 | 高 | 低 |
+| 适用 | 老项目、复杂定制 | 新项目 |
 
-## 六、通用效率功能
-
-1. **Live Templates**：`Settings → Editor → Live Templates`，如 `psvm` 展开 main 方法；
-2. **多光标**：`Alt+点击` 或用 `Ctrl+Shift+Alt+点击`；
-3. **Local History**：右键文件/目录 → Local History，找回未提交的历史版本（救命功能）；
-4. **终端与 VCS**：内置 Git 面板 + 冲突解决工具（3 窗格）；
-5. **Database 工具**：连接 MySQL/PG/Redis，直接写 SQL 查数据；
-6. **Profiler**：运行时可采样 CPU/内存（Ultimate）。
-
-## 七、常见问题
+## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 索引卡住/CPU 高 | `File → Invalidate Caches` 重建索引；排除大目录 |
-| 内存占用高 | 调 -Xmx；关掉不用的插件 |
-| 快捷键与系统/输入法冲突 | `Settings → Keymap` 修改或换映射方案 |
-| 中文注释显示异常 | 字体设置选择支持中文的字库（如微软雅黑） |
-| 新建文件默认带版权头 | `Settings → Editor → File and Code Templates` 修改 |
-| 恢复误删文件 | 项目右键 → Local History → Show History |
+| `Can't resolve 'xxx'` | 检查 alias、extensions、依赖是否安装 |
+| 打包产物过大 | 分析 `bundle-analyzer`，做 splitChunks + 按需引入 |
+| devServer 跨域 | 配置 `devServer.proxy` |
+| 构建慢 | 开 filesystem cache、thread-loader、swc-loader 替代 babel-loader |
+| CSS 不生效 | loader 顺序：`style-loader` 必须在前（从右往左执行） |
+| 生产环境 React 报错重复 | `resolve.alias` 固定 react 单实例，或 `splitChunks` 调整 |
 
-## 八、参考
+## 九、参考
 
-- 官方文档：https://www.jetbrains.com/help/
-- IDEA 快捷键 PDF：https://resources.jetbrains.com/storage/products/intellij-idea/docs/IntelliJIDEA_ReferenceCard.pdf
-- Toolbox App：https://www.jetbrains.com/toolbox-app/
+- 官方文档（中文）：https://webpack.docschina.org/
+- 配置手册示例：https://webpack.js.org/configuration/
 

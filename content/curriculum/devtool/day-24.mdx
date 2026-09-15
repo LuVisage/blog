@@ -3,163 +3,227 @@ slug: day-24
 kind: day
 day: 24
 week: 4
-weekTitle: 代码检查与格式化
-weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
-title: ESLint 使用教程
-sourcePath: 04-代码检查与格式化/01-ESLint.md
+weekTitle: 终端与命令行
+weekBlurb: 终端模拟器、tmux、WSL2 与 shell 配置——ml 课 Week00 的命令行动作，这里是完整版。
+title: 查看与处理文本教程（bat / jq / tldr）
+lead: 查看与处理文本教程（bat / jq / tldr）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 08-终端与命令行/06-查看与处理文本.md
 ---
 
-## 一、ESLint 是什么
+## 一、bat（带语法高亮的 cat）
 
-JavaScript / TypeScript 的**可插拔静态检查工具**：在不运行代码的情况下发现错误（未定义变量、未使用变量、错误的 API 用法）与风格问题。
-
-> ESLint v9 起使用 **flat config**（`eslint.config.js`），旧的 `.eslintrc` 已废弃。
-
-## 二、安装与初始化
+### 安装
 
 ```powershell
-pnpm add -D eslint @eslint/js typescript-eslint
-npx eslint --init        # 交互式生成配置（v9 支持）
+winget install sharkdp.bat
+# macOS
+brew install bat
+# Ubuntu
+sudo apt install bat     # 命令名为 batcat，可 alias bat=batcat
 ```
 
-React / Vue 额外插件：
+### 基本用法
 
 ```powershell
-pnpm add -D eslint-plugin-react-hooks eslint-plugin-react-refresh
-pnpm add -D eslint-plugin-vue vue-eslint-parser
+bat file.ts                    # 带行号 + 语法高亮
+bat -p file.ts                 # 纯净输出（无行号/文件头）
+bat -n file.ts                 # 只要行号
+bat -A file.txt                # 显示不可见字符（排查空白/换行问题）
+bat file1.ts file2.ts          # 连续查看多文件
+bat -r 10:20 file.ts           # 只看 10-20 行
+bat -l json data.txt           # 指定语言高亮
+bat --diff file1 file2         # 显示差异
 ```
 
-## 三、配置文件（flat config）
-
-`eslint.config.js`：
-
-```js
-import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import reactHooks from 'eslint-plugin-react-hooks';
-
-export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'coverage/**'] },
-
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-
-  {
-    files: ['**/*.{ts,tsx}'],
-    plugins: { 'react-hooks': reactHooks },
-    rules: {
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
-
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'warn',
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
-      eqeqeq: ['error', 'always'],
-      'prefer-const': 'error',
-    },
-  },
-);
-```
-
-旧项目（`.eslintrc.json`）仍可用 `ESLINT_USE_FLAT_CONFIG=false` 过渡。
-
-## 四、常用命令
+### 常用配置
 
 ```powershell
-npx eslint .                    # 检查当前目录
-npx eslint src --ext .ts,.tsx   # 指定扩展名（v9 默认已含）
-npx eslint . --fix              # 自动修复可修复的问题
-npx eslint . --max-warnings 0   # 有警告即失败（CI 常用）
-npx eslint . --format json -o report.json
-npx eslint --print-config src/index.ts   # 查看某文件的最终生效配置（排查利器）
+# 主题
+bat --list-themes
+$env:BAT_THEME = "Dracula"
+
+# 与 fzf 联动预览（配置文件写入 FZF_DEFAULT_OPTS）
+--preview 'bat --color=always --style=numbers {}'
 ```
 
-`package.json`：
+### 替代 cat 的注意点
 
-```json
-{
-  "scripts": {
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
-  }
-}
+`bat` 是**给人看的**，脚本中仍用 `cat`（bat 会加装饰、检测 TTY）。想在脚本中用高亮输出需加 `--style=plain`。
+
+## 二、jq（JSON 处理利器）
+
+### 安装
+
+```powershell
+winget install jqlang.jq
+# macOS
+brew install jq
+# Ubuntu
+sudo apt install jq
 ```
 
-## 五、规则等级与常见规则
+### 基本用法
 
-- `"off"` / `0`：关闭
-- `"warn"` / `1`：警告
-- `"error"` / `2`：错误（退出码非 0）
+```powershell
+echo '{"name":"Ada","age":36}' | jq
+# 输出格式化 JSON
+```
 
-高频规则：
+```powershell
+jq '.' data.json               # 格式化整个文件
+jq '.name' data.json           # 取字段
+jq '.user.name' data.json      # 嵌套字段
+jq '.items[0]' data.json       # 数组第一项
+jq '.items[]' data.json        # 展开数组
+jq '.items[].name' data.json   # 取数组每项字段
+jq -r '.name' data.json        # 原始字符串（去引号）
+```
 
-| 规则 | 作用 |
+### 过滤、转换、聚合
+
+```powershell
+# 条件过滤
+jq '.users[] | select(.age > 30)' data.json
+jq '.users[] | select(.city == "上海") | .name' data.json
+
+# 构造新对象
+jq '{name: .name, city: .address.city}' data.json
+jq '[.users[] | {n: .name}]' data.json
+
+# 数组操作
+jq 'sort_by(.age)' data.json
+jq '[.users[].age] | add / length' data.json      # 平均年龄
+jq '.users | length' data.json
+jq '.users | group_by(.city)' data.json
+
+# 修改后再输出
+jq '.version = "2.0"' package.json
+jq 'del(.devDependencies)' package.json
+jq '.scripts.test = "vitest"' package.json
+```
+
+### 实战场景
+
+```powershell
+# 1. 从接口响应提取字段（配合 curl）
+curl.exe -s https://api.github.com/repos/microsoft/vscode | jq '{name, stars: .stargazers_count, lang: .language}'
+
+# 2. 查 package.json 的所有 scripts
+jq -r '.scripts | to_entries[] | "\(.key)\t\(.value)"' package.json
+
+# 3. 汇总 npm 依赖版本
+jq -r '.dependencies | to_entries[] | "\(.key)@\(.value)"' package.json
+
+# 4. 改 package.json（写回）
+jq '.version = "1.0.1"' package.json > tmp.json && mv tmp.json package.json
+
+# 5. 处理 JSON Lines（每行一个 JSON）
+jq -s 'map(.level) | group_by(.) | map({level: .[0], count: length})' logs.jsonl
+
+# 6. YAML 互转（需 yq）
+yq -p yaml -o json config.yml | jq '.server.port'
+```
+
+### 常用选项
+
+| 选项 | 含义 |
 | --- | --- |
-| `no-unused-vars` | 未使用变量 |
-| `no-undef` | 未声明变量 |
-| `no-implicit-coercion` | 禁止隐式类型转换 |
-| `no-floating-promises`（TS） | 未处理的 Promise |
-| `@typescript-eslint/no-explicit-any` | 禁止 any |
-| `import/order` | import 排序 |
-| `react-hooks/exhaustive-deps` | hooks 依赖检查 |
+| `-r` | 原始字符串输出（去引号） |
+| `-c` | 紧凑输出（单行） |
+| `-s` | 把输入读成数组 |
+| `-n` | 不读输入，用于生成 |
+| `-e` | 结果为空时返回非零退出码 |
+| `--arg k v` | 传入字符串变量 `$k` |
+| `--slurpfile` | 读入文件为变量 |
 
-## 六、在编辑器中使用
+### jq 语法小抄
 
-VS Code 安装 **ESLint 扩展**，并在 `.vscode/settings.json`：
-
-```json
-{
-  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
-  "eslint.validate": ["javascript", "typescript", "vue", "typescriptreact"]
-}
+```jq
+.              # 当前值
+.field         # 取字段
+.[0]           # 数组索引
+.[]            # 展开
+|              # 管道
+select(cond)   # 过滤
+map(expr)      # 映射数组
+type           # 类型：object/array/string/number/...
+keys / values
+has("key")
+//             # 默认值： .name // "unknown"
 ```
 
-## 七、与 Prettier 协作
+## 三、tldr（简化版 man 手册）
 
-**推荐方案：分工明确** —— ESLint 管代码质量，Prettier 管格式。
+### 安装
 
 ```powershell
-pnpm add -D eslint-config-prettier
+winget install tldr
+# macOS
+brew install tldr
+# 或 npm install -g tldr
 ```
 
-```js
-// eslint.config.js 最后一项加入
-import prettier from 'eslint-config-prettier';
-export default [ /* ... */, prettier ];
+### 用法
+
+```powershell
+tldr tar                     # 只显示最常用的几个例子
+tldr git rebase
+tldr docker compose
+tldr --update                # 更新本地缓存
+tldr --platform linux tar    # 指定平台
 ```
 
-> `eslint-config-prettier` 关闭所有与 Prettier 冲突的格式规则，非常关键。
-> 不再推荐 `eslint-plugin-prettier`（把 Prettier 当 ESLint 规则跑，慢且报错难读）。
+对比：
 
-## 八、CI 集成
+- `man tar`：几十页完整文档，含所有参数；
+- `tldr tar`：5-8 条最常用示例，30 秒看完上手。
 
-```yaml
-- run: pnpm lint        # eslint . --max-warnings 0
+**推荐习惯**：新命令先 `tldr`，需要细节再 `man`。
+
+### 类似工具
+
+| 工具 | 特点 |
+| --- | --- |
+| `cheat` | 可自定义速查表 |
+| `navi` | 交互式选命令并填充参数 |
+| `eg` | 带示例的命令说明 |
+| `explainshell` | 网页版，逐段解释命令 |
+
+## 四、组合实战
+
+```powershell
+# 1. 查看并高亮格式化 JSON
+bat data.json | jq
+
+# 2. 快速浏览日志中的错误并计数
+rg "ERROR" app.log | jq -R 'split(" ") | .[3]' | sort | uniq -c | sort -rn | head
+
+# 3. 交互式选择并查看文件
+fd -e json | fzf --preview 'bat --color=always {} | jq'
+
+# 4. 学新命令
+tldr jq && tldr xargs
+
+# 5. 检查文件隐藏字符（排查诡异格式问题）
+bat -A suspicious.txt
 ```
 
-配合缓存：`actions/cache` 缓存 `.eslintcache`（需加 `--cache` 参数）。
-
-## 九、常见问题
+## 五、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| `Parsing error` TS 语法 | 配置 `typescript-eslint` parser |
-| 规则改了不生效 | `npx eslint --print-config file.ts` 查看实际生效配置 |
-| 与 Prettier 打架（引号/分号） | 加 `eslint-config-prettier` |
-| 忽略文件写法变了 | v9 用 `ignores` 字段；不再支持 `.eslintignore`（可迁移） |
-| 检查太慢 | 加 `--cache`；开启 `linterOptions` 排除大目录 |
-| Vue 文件报错 | 配置 `vue-eslint-parser`，parserOptions.parser 指向 TS parser |
+| bat 输出乱码/颜色缺失 | 终端不支持 256 色；设 `TERM=xterm-256color` |
+| `bat` 在脚本中输出多余装饰 | 加 `-p`（plain）或改回 `cat` |
+| jq 报 `Cannot iterate over null` | 先用 `jq type` 检查结构；用 `// []` 兜底 |
+| jq 中文转义成 \\uXXXX | 加 `-r`；数据源编码问题另查 |
+| jq 大文件内存爆 | 用 `--stream` 流式处理 |
+| `tldr` 拿不到最新示例 | `tldr --update` 强制更新 |
+| Windows 上 jq 引号麻烦 | 用单引号包表达式，或从文件读（`-f filter.jq`） |
 
-## 十、最佳实践
+## 六、参考
 
-1. 新项目直接用 **flat config + typescript-eslint 推荐配置**。
-2. CI 与本地**同一套规则**，避免环境差异。
-3. 规则上线策略：先 `warn` 全量跑一遍，清理后再升 `error`。
-4. 定期审视 `eslint-disable` 注释，用 `--report-unused-disable-directives` 清理无用豁免。
-
-## 十一、参考
-
-- 官方文档：https://eslint.org/docs/latest/
-- typescript-eslint：https://typescript-eslint.io/
-- 中文站点：https://eslint.nodejs.cn/
+- bat：https://github.com/sharkdp/bat
+- jq 手册：https://jqlang.github.io/jq/manual/
+- jq play（在线练习）：https://jqplay.org/
+- tldr：https://tldr.sh/
 

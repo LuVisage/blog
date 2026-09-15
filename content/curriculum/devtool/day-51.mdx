@@ -3,179 +3,188 @@ slug: day-51
 kind: day
 day: 51
 week: 8
-weekTitle: 终端与命令行
-weekBlurb: Shell、常用命令行工具与终端复用，把日常操作脚本化。
-title: WSL2 使用教程
-sourcePath: 08-终端与命令行/03-WSL2.md
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: TypeScript 使用教程
+lead: TypeScript 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 03-构建打包/06-TypeScript.md
 ---
 
-## 一、WSL2 是什么
+## 一、TypeScript 是什么
 
-WSL2（Windows Subsystem for Linux 2）在 Windows 上运行**真正的 Linux 内核**（轻量虚拟机），特点：
+JavaScript 的**超集**，在 JS 之上加了静态类型系统。类型在编译期检查、运行时被擦除。
 
-- 完整 Linux 兼容性（Docker、systemd、apt 都能用）；
-- 与 Windows 文件系统互通；
-- 启动秒级、内存动态占用；
-- 是 Windows 上做后端/运维/容器开发的最佳方案。
+收益：
+- 编辑器智能提示、自动补全；
+- 编译期发现类型错误；
+- 重构安全（改名/改签名一改到底）；
+- 类型即文档，团队协作更清晰。
 
-## 二、安装
-
-### 一键安装（Windows 10 2004+ / Windows 11）
-
-```powershell
-wsl --install                    # 默认安装 Ubuntu
-# 或指定发行版
-wsl --install -d Ubuntu-22.04
-```
-
-完成后**重启电脑**，首次启动 Ubuntu 时设置用户名和密码。
-
-### 常用管理命令
+## 二、安装与初始化
 
 ```powershell
-wsl --list --verbose         # 查看已安装发行版与状态
-wsl --list --online          # 查看可安装的发行版列表
-wsl --set-default-version 2
-wsl --set-default Ubuntu     # 设默认发行版
-wsl --shutdown               # 关闭所有 WSL 实例
-wsl --update                 # 更新 WSL 内核
-wsl --unregister Ubuntu      # 删除发行版（数据全丢）
-wsl -d Ubuntu-22.04          # 进入指定发行版
-wsl --export Ubuntu ubuntu.tar    # 备份
-wsl --import MyUbuntu C:\wsl\my ubuntu.tar  # 恢复
+pnpm add -D typescript
+npx tsc --init            # 生成 tsconfig.json
+npx tsc --version
 ```
 
-### 从旧版升级
+## 三、tsconfig.json 详解
+
+```jsonc
+{
+  "compilerOptions": {
+    /* 语言与环境 */
+    "target": "ES2022",              // 输出语法版本
+    "lib": ["ES2022", "DOM"],        // 可用的内置类型
+    "module": "ESNext",              // 模块系统
+    "moduleResolution": "bundler",   // 解析策略（Vite 项目推荐 bundler）
+    "jsx": "react-jsx",              // React 17+ 自动运行时
+
+    /* 严格性 */
+    "strict": true,                  // 开启全部严格检查（必开）
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    /* 输出 */
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,             // 生成 .d.ts
+    "sourceMap": true,
+
+    /* 互操作 */
+    "esModuleInterop": true,
+    "skipLibCheck": true,            // 跳过库类型检查，加速
+    "forceConsistentCasingInFileNames": true,
+
+    /* 路径别名 */
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+常用命令：
 
 ```powershell
-wsl --set-version Ubuntu 2
+npx tsc                     # 编译
+npx tsc --noEmit            # 只做类型检查，不产出（CI 最常用）
+npx tsc --watch             # 监听模式
+npx tsc --build             # 增量构建（monorepo 项目引用）
 ```
 
-## 三、安装位置与迁移
+## 四、核心类型速览
 
-WSL 默认装在 C 盘，占空间大后可迁移：
+```ts
+// 基础
+let n: number = 1;
+let s: string = 'hi';
+let b: boolean = true;
+let arr: number[] = [1, 2];
+let tuple: [string, number] = ['a', 1];
+let u: unknown = JSON.parse('{}');     // 比 any 安全，用前需收窄
+
+// 接口与类型别名
+interface User { id: number; name: string; age?: number }
+type Point = { x: number; y: number };
+type ID = string | number;
+
+// 联合与交叉
+type Status = 'idle' | 'loading' | 'done';
+type Admin = User & { role: 'admin' };
+
+// 泛型
+function first<T>(list: T[]): T | undefined { return list[0]; }
+interface ApiResponse<T> { code: number; data: T }
+
+// 工具类型
+type PartialUser = Partial<User>;      // 全部可选
+type RequiredUser = Required<User>;    // 全部必填
+type ReadonlyUser = Readonly<User>;
+type UserName = Pick<User, 'name'>;
+type NoId = Omit<User, 'id'>;
+type UserMap = Record<string, User>;
+type MaybeUser = User | null;
+
+// 类型收窄
+function fmt(v: string | number) {
+  if (typeof v === 'string') return v.trim();
+  return v.toFixed(2);
+}
+```
+
+## 五、工程实践要点
+
+### 1. `type` vs `interface`
+
+- `interface`：可声明合并、继承，适合对象/公共 API；
+- `type`：可联合、交叉、条件类型，更灵活；
+- 团队统一即可，没有绝对对错。
+
+### 2. 严格模式下的常见处理
+
+```ts
+// 非空断言（确认一定存在时）
+const el = document.getElementById('app')!;
+
+// 可选链 + 空值合并
+const name = user?.profile?.name ?? '匿名';
+
+// 类型断言（慎用）
+const data = resp as UserDto;
+
+// 类型守卫
+function isUser(x: unknown): x is User {
+  return typeof x === 'object' && x !== null && 'id' in x;
+}
+```
+
+### 3. 第三方库缺类型
 
 ```powershell
-wsl --shutdown
-wsl --export Ubuntu D:\wsl\ubuntu-backup.tar
-wsl --unregister Ubuntu
-wsl --import Ubuntu D:\wsl\Ubuntu D:\wsl\ubuntu-backup.tar
+pnpm add -D @types/lodash        # 大多数库社区已提供
 ```
 
-（GitHub 上有 `wsl2-move` 脚本可图形化操作。）
+自己补声明：`src/types/global.d.ts`
 
-## 四、Linux 发行版初始化
-
-进入 WSL 后：
-
-```bash
-# 更新系统
-sudo apt update && sudo apt upgrade -y
-
-# 常用工具
-sudo apt install -y build-essential git curl wget unzip ripgrep fd-find fzf jq
-
-# 安装 Node（用 nvm 或 fnm）
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-nvm install --lts
+```ts
+declare module 'some-legacy-lib';
+declare global {
+  interface Window { __CONFIG__: Record<string, string> }
+}
 ```
 
-## 五、Windows ↔ WSL 文件互访
+### 4. 类型检查与构建分离
 
-| 方向 | 路径 |
+现代工具（Vite / esbuild / SWC）只**擦除类型**不做检查，因此 CI 必须单独跑：
+
+```powershell
+npx tsc --noEmit
+```
+
+## 六、常见错误与解决
+
+| 错误 | 原因 / 解决 |
 | --- | --- |
-| WSL 访问 Windows 文件 | `/mnt/c/Users/你的用户名/...` |
-| Windows 访问 WSL 文件 | 资源管理器地址栏输入 `\\wsl$\Ubuntu\home\你的用户名` |
+| `Object is possibly 'undefined'` | 用可选链、判空或收窄 |
+| `Type 'X' is not assignable to type 'Y'` | 检查字段是否可选、联合类型是否收窄 |
+| `Cannot find module './x' or its type declarations` | 检查 `moduleResolution`、路径大小写、文件是否被 include |
+| `'xxx' implicitly has an 'any' type` | 显式标注类型，或 `@ts-expect-error`（谨慎） |
+| 别名 `@/` 编译报错 | paths 配置 tsconfig，同时构建工具也要配 alias |
+| 编译慢 | 开 `skipLibCheck`、`incremental: true`；monorepo 用 project references |
 
-**重要性能建议**：
+## 七、最佳实践
 
-- 项目代码放在 **Linux 文件系统**（`~/projects/...`），不要放在 `/mnt/c/...`；
-- 在 `/mnt/c` 下跑 `npm install` 会慢 5-10 倍（跨文件系统 IO）。
+1. **`strict: true` 从第一天开启**，后期再开成本极高。
+2. 少用 `any`，需要未知类型时用 `unknown` + 类型收窄。
+3. 公共 API 显式标注返回类型，避免意外推断变化。
+4. 用工具类型（`Pick/Omit/Partial`）派生类型，避免重复定义。
+5. CI 加入 `tsc --noEmit`，阻止类型错误进主干。
 
-## 六、与 VS Code 集成（强烈推荐）
+## 八、参考
 
-1. Windows 端安装 **WSL 扩展**（`ms-vscode-remote.remote-wsl`）；
-2. 在 WSL 中进入项目目录执行：
-
-```bash
-cd ~/projects/myapp
-code .                # 自动用 Windows 的 VS Code 打开，并连接 WSL
-```
-
-编辑器 UI 在 Windows，代码、终端、扩展运行在 Linux 中，兼得两者优势。
-
-也可以：
-
-- VS Code 左下角绿色图标 → `Connect to WSL`；
-- 或用 Cursor / JetBrains 网关做类似连接。
-
-## 七、WSL2 网络访问
-
-| 场景 | 做法 |
-| --- | --- |
-| Windows 访问 WSL 服务 | 直接 `http://localhost:端口`（自动转发） |
-| WSL 访问 Windows 服务 | 用 Windows 主机 IP（`cat /etc/resolv.conf` 中的 nameserver，或 `$(hostname).local`） |
-| 局域网设备访问 WSL 服务 | 需要 portproxy 转发（WSL2 是 NAT） |
-
-端口转发示例（管理员 PowerShell）：
-
-```powershell
-netsh interface portproxy add v4tov4 listenport=3000 listenaddress=0.0.0.0 connectport=3000 connectaddress=172.20.0.2
-```
-
-> Windows 11 + WSL 2.0 起支持 **镜像网络模式**（`networkingMode=mirrored`），可免配置直接互通。
-
-### 配置文件 `.wslconfig`（放用户目录）
-
-```ini
-[wsl2]
-memory=8GB
-processors=8
-swap=4GB
-networkingMode=mirrored
-autoProxy=true
-```
-
-改完执行 `wsl --shutdown` 生效。
-
-## 八、systemd 支持
-
-`.wslconfig` 或 WSL 内 `/etc/wsl.conf`：
-
-```ini
-[boot]
-systemd=true
-```
-
-之后 `systemctl` 可用，可像服务器一样管理服务：
-
-```bash
-sudo systemctl enable --now docker
-```
-
-## 九、Docker 与 WSL2
-
-推荐用 **Docker Desktop + WSL2 backend**：
-
-1. Docker Desktop 设置 → General → 勾选 `Use the WSL 2 based engine`；
-2. `Resources → WSL Integration` 勾选你的发行版；
-3. WSL 里即可直接 `docker ps`。
-
-## 十、常见问题
-
-| 问题 | 解决 |
-| --- | --- |
-| `wsl --install` 报错 | 开启虚拟化（BIOS）+ `dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all` |
-| WSL 内存占用过高 | `.wslconfig` 限制 memory；或定期 `wsl --shutdown` |
-| 磁盘占用持续增长 | 清理后执行 `wsl --shutdown` + `Optimize-VHD`（或 `diskpart` compact） |
-| 中文乱码/字体 | Windows Terminal 字体设置 + WSL locale 配置 `zh_CN.UTF-8` |
-| `code .` 不可用 | 先在 Windows 装 VS Code 与 WSL 扩展，再重启 WSL 终端 |
-| 时钟不同步 | `sudo hwclock -s` |
-| 网络代理不生效 | `.wslconfig` 设 `autoProxy=true`，或手动 export http_proxy 指向 Windows IP |
-
-## 十一、参考
-
-- 官方文档：https://learn.microsoft.com/zh-cn/windows/wsl/
-- WSL 发行版列表：`wsl --list --online`
-- 疑难解答：https://learn.microsoft.com/zh-cn/windows/wsl/troubleshooting
+- 官方手册：https://www.typescriptlang.org/docs/
+- 中文手册：https://www.tslang.cn/docs/home.html
+- Type Challenges（练习类型体操）：https://github.com/type-challenges/type-challenges
 

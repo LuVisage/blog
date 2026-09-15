@@ -2,169 +2,214 @@
 slug: day-39
 kind: day
 day: 39
-week: 6
-weekTitle: 调试与网络
-weekBlurb: DevTools 与调试器断点、curl / httpie、抓包、API 客户端与内网穿透——排查问题的完整工具箱。
-title: Chrome DevTools 使用教程
-sourcePath: 06-调试与网络/01-Chrome-DevTools.md
+week: 7
+weekTitle: 测试
+weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test——backend 课 W1D4 是 pytest 的工程实战，这里是语法全集。
+title: Playwright 使用教程
+lead: Playwright 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 05-测试/03-Playwright.md
 ---
 
-## 一、打开方式
+## 一、Playwright 是什么
 
-| 快捷键 | 说明 |
-| --- | --- |
-| `F12` / `Ctrl+Shift+I` | 打开 DevTools |
-| `Ctrl+Shift+C` | 打开并进入元素选择模式 |
-| `Ctrl+Shift+J` | 直接打开 Console |
-| `Ctrl+Shift+P` | 打开命令面板（DevTools 内部） |
+微软出品的现代**端到端（E2E）测试与浏览器自动化**框架：
 
-## 二、Panels 速览
+- 支持 Chromium / Firefox / WebKit（含移动端模拟）；
+- **自动等待**（auto-waiting），几乎不需要手写 `sleep`；
+- 内置并行、重试、录制器（codegen）、Trace 查看器；
+- 多语言：JS/TS、Python、Java、.NET。
 
-| 面板 | 用途 |
-| --- | --- |
-| Elements | 查看/编辑 DOM 与 CSS |
-| Console | 执行 JS、看日志与报错 |
-| Sources | 断点调试、查看源码 |
-| Network | 请求分析（最常用） |
-| Performance | 性能分析（火焰图） |
-| Memory | 内存快照、泄漏排查 |
-| Application | Storage / Cookie / Service Worker / 缓存 |
-| Lighthouse | 性能、可访问性、SEO 评分 |
+## 二、安装与初始化
 
-## 三、Console 技巧
-
-```js
-// 常用快捷变量
-$0            // 当前选中的元素（Elements 面板）
-$_            // 上一次表达式的结果
-$('selector') // = document.querySelector
-$$('selector')// = document.querySelectorAll（返回数组）
-
-// 打印技巧
-console.table(users);              // 表格展示数组/对象
-console.dir(el);                   // 展开对象结构
-console.time('loop'); /*...*/ console.timeEnd('loop');  // 计时
-console.count('hit');              // 计数
-console.trace();                   // 打印调用栈
-console.group('组'); console.groupEnd();
-
-// 断言
-console.assert(total === 100, { total });
-
-// 快速操作
-monitorEvents(window, 'resize');   // 监听事件
-copy(obj);                         // 复制到剪贴板
-queryObjects(Object.prototype);    // 查找所有对象实例
+```powershell
+pnpm create playwright        # 交互式初始化
+# 或手动
+pnpm add -D @playwright/test
+npx playwright install        # 下载浏览器（chromium/firefox/webkit）
+npx playwright install --with-deps   # CI 上装系统依赖
 ```
 
-`console.log` 支持样式：`console.log('%cHello', 'color:red;font-size:20px')`。
+## 三、配置
 
-## 四、Network 面板（重点）
+`playwright.config.ts`：
 
-### 常看列
+```ts
+import { defineConfig, devices } from '@playwright/test';
 
-| 列 | 含义 |
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 30_000,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 2 : undefined,
+  reporter: [['html', { open: 'never' }], ['list']],
+
+  use: {
+    baseURL: 'http://localhost:5173',
+    trace: 'on-first-retry',       // 失败时保留 trace
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+  },
+
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'mobile', use: { ...devices['iPhone 14'] } },
+  ],
+
+  webServer: {
+    command: 'pnpm dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: !process.env.CI,
+  },
+});
+```
+
+## 四、编写测试
+
+```ts
+import { test, expect } from '@playwright/test';
+
+test.describe('登录流程', () => {
+  test('正确账号可以登录', async ({ page }) => {
+    await page.goto('/login');
+
+    await page.getByLabel('用户名').fill('admin');
+    await page.getByLabel('密码').fill('secret');
+    await page.getByRole('button', { name: '登录' }).click();
+
+    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page.getByRole('heading', { name: '控制台' })).toBeVisible();
+  });
+
+  test('错误密码提示错误', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('用户名').fill('admin');
+    await page.getByLabel('密码').fill('wrong');
+    await page.getByRole('button', { name: '登录' }).click();
+    await expect(page.getByText('用户名或密码错误')).toBeVisible();
+  });
+});
+```
+
+### 定位器优先级（官方推荐）
+
+```ts
+page.getByRole('button', { name: '提交' });   // ① 最推荐（无障碍角色）
+page.getByLabel('邮箱');                       // ② 表单标签
+page.getByPlaceholder('请输入密码');           // ③
+page.getByText('欢迎回来');                    // ④
+page.getByTestId('submit-btn');               // ⑤ 显式测试 id，最稳定
+page.locator('.btn-primary');                 // ⑥ CSS，最后手段
+```
+
+### 常用操作
+
+```ts
+await page.goto('/');
+await page.getByRole('link', { name: '设置' }).click();
+await page.getByLabel('搜索').fill('playwright');
+await page.getByLabel('搜索').press('Enter');
+await page.selectOption('select#city', 'shanghai');
+await page.getByLabel('同意').check();
+await page.getByTestId('file').setInputFiles('fixtures/a.png');
+await expect(page.getByTestId('result')).toHaveText('找到 3 条');
+await expect(page).toHaveScreenshot('home.png');   // 视觉对比
+```
+
+### 网络拦截与 Mock
+
+```ts
+// 拦截并返回假数据
+await page.route('**/api/users', (route) =>
+  route.fulfill({ status: 200, json: [{ id: 1, name: 'Ada' }] }),
+);
+
+// 等待接口返回
+const respPromise = page.waitForResponse('**/api/login');
+await page.getByRole('button', { name: '登录' }).click();
+const resp = await respPromise;
+expect(resp.status()).toBe(200);
+```
+
+### 存储状态复用（登录一次，多测试复用）
+
+```ts
+// auth.setup.ts
+import { test as setup } from '@playwright/test';
+
+setup('登录并保存状态', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('用户名').fill('admin');
+  await page.getByLabel('密码').fill('secret');
+  await page.getByRole('button', { name: '登录' }).click();
+  await page.context().storageState({ path: 'e2e/.auth/user.json' });
+});
+```
+
+config 中配置 `projects` 依赖与 `storageState` 即可全程免登录。
+
+## 五、常用命令
+
+```powershell
+npx playwright test                    # 跑全部
+npx playwright test login.spec.ts      # 指定文件
+npx playwright test -g "登录"          # 按名称过滤
+npx playwright test --project=chromium # 只跑某浏览器
+npx playwright test --headed           # 显示浏览器窗口
+npx playwright test --ui               # UI 模式（调试神器）
+npx playwright test --debug            # 单步调试
+npx playwright codegen http://localhost:5173   # 录制生成代码
+npx playwright show-report             # 打开 HTML 报告
+npx playwright show-trace trace.zip    # 打开 trace 回放
+npx playwright test --update-snapshots # 更新视觉快照
+```
+
+## 六、CI 集成
+
+```yaml
+- run: pnpm playwright install --with-deps chromium
+- run: pnpm playwright test --project=chromium
+- uses: actions/upload-artifact@v4
+  if: failure()
+  with:
+    name: playwright-report
+    path: playwright-report/
+```
+
+## 七、Playwright vs Cypress
+
+| 维度 | Playwright | Cypress |
+| --- | --- | --- |
+| 浏览器支持 | Chromium/Firefox/WebKit | 主要 Chromium 系（+Firefox/WebKit 实验） |
+| 多标签/多窗口 | 原生支持 | 支持有限 |
+| 自动等待 | 强 | 强 |
+| 执行架构 | 进程外（CDP） | 进程内（跑在浏览器里） |
+| 并行 | 内置 shard / worker | 需 Dashboard（付费）或第三方 |
+| 调试体验 | Trace / UI / codegen | 时间旅行调试极佳 |
+| 语言 | JS/TS/Python/Java/.NET | 仅 JS/TS |
+
+## 八、常见问题
+
+| 问题 | 解决 |
 | --- | --- |
-| Name | 请求 URL |
-| Status | 状态码（4xx 红、5xx 红、304 灰） |
-| Type | 资源类型（fetch/xhr/document/script） |
-| Size | 传输大小 / 解压后大小 |
-| Time | 耗时 |
-| Waterfall | 时间瀑布图，看阻塞点 |
+| 元素定位不稳定 | 改用 `getByRole/getByTestId`；避免依赖 nth-child |
+| CI 上浏览器装不上 | `playwright install --with-deps`；或用官方 docker 镜像 |
+| 本地过、CI 挂 | 检查时区/语言/视口；开 trace 分析；提高 retries |
+| 登录态每个测试都要重登 | 用 `storageState` 复用 |
+| 测试太慢 | 只跑必要 project（CI 跑 chromium）；开 `fullyParallel` |
+| 视觉对比经常失败 | 设 `maxDiffPixelRatio`；字体渲染差异用固定环境 |
 
-### 常用筛选
+## 九、最佳实践
 
-- 顶部 `Fetch/XHR`：只看接口请求；
-- 过滤框输入 `status-code:500`、`larger-than:100k`、`domain:api.example.com`；
-- 勾选 **Preserve log**：页面跳转后保留记录；
-- 限速：`No throttling` → `Slow 3G`（模拟弱网）；
-- 禁用缓存：勾选 **Disable cache**（开发时必开）。
+1. **E2E 只测关键路径**（登录、下单、支付），数量控制在几十个以内。
+2. 用 `data-testid` 作为稳定契约，与产品约定好。
+3. 失败必留 **trace + 截图 + 视频**，定位成本大幅降低。
+4. 并行 + 重试 + 分层（smoke 每次提交跑，全量每晚跑）。
+5. 不依赖真实第三方服务，全部 route mock。
 
-### 排查利器
+## 十、参考
 
-1. **查看请求头/响应头**：Headers → Request Headers（Cookie、Authorization）、Response Headers（CORS 头）。
-2. **查看载荷**：Payload → 表单/JSON 数据。
-3. **预览与响应**：Preview 是格式化 JSON，Response 是原始内容。
-4. **复制为 curl**：右键请求 → Copy → Copy as cURL，可在终端复现。
-5. **重放请求**：右键 → Replay XHR（REST 不行，fetch 可）。
-6. **CORS 报错**：Console 里会提示缺少哪个响应头。
-
-## 五、Sources 面板断点调试
-
-1. 打开 Sources → 左侧文件树找到你的 JS/TS；
-2. 点击行号设置断点（蓝色）；
-3. 触发代码路径后：
- - **右侧 Scope**：查看当前作用域变量；
- - **Call Stack**：调用栈，逐层回溯；
- - **Watch**：添加自定义监听表达式。
-
-断点类型：
-
-| 类型 | 用途 |
-| --- | --- |
-| 行断点 | 最常用 |
-| 条件断点（右键行号） | 条件满足才停（如 `i === 5`） |
-| 日志断点（Logpoint） | 不暂停，只打印表达式（不侵入代码） |
-| DOM 断点（Elements 右键） | 元素被修改时暂停 |
-| XHR 断点（Sources → XHR/fetch） | URL 匹配时暂停 |
-
-调试控制：`F8` 继续、`F10` 单步跳过、`F11` 单步进入、`Shift+F11` 跳出。
-
-### 调试已压缩的线上代码
-
-1. Sources → 找到文件；
-2. 右下角 `{}`（Pretty print）格式化；
-3. 结合 Source Map：构建时输出 `.map` 并部署，可定位到原始 TS 源码。
-
-## 六、Performance 面板
-
-1. 点 `●` 录制 → 复现操作 → 停止；
-2. 关注：
- - **FPS** 条：红色表示掉帧；
- - **Main 火焰图**：找出耗时长的长任务（Long Task）；
- - **Bottom-Up / Call Tree**：定位哪个函数最耗时。
-
-常见优化结论：长任务拆分、减少重排重绘、虚拟列表、图片懒加载。
-
-## 七、Memory 面板排查内存泄漏
-
-1. 打开页面做操作 → 拍 Heap Snapshot；
-2. 反复操作几轮 → 再拍一次；
-3. 对比快照（Comparison），看哪些对象数量持续增长；
-4. 常见泄漏：未解绑事件、闭包持有大对象、定时器未清理、全局缓存无上限。
-
-## 八、Application 面板
-
-- **Storage**：LocalStorage / SessionStorage / IndexedDB（可编辑、删除）；
-- **Cookies**：查看/修改过期时间、Domain；
-- **Service Workers**：查看注册与状态，`Unregister` 排查缓存问题；
-- **Cache Storage**：查看 PWA 缓存内容；
-- **Clear storage**：一键清空站点数据（调试脏数据必备）。
-
-## 九、移动端调试
-
-1. **设备模拟**：DevTools 左上角手机图标（`Ctrl+Shift+M`），选机型与网络；
-2. **真机远程调试**：
- - Android：USB 连接 + `chrome://inspect`；
- - iOS：Safari → 开发 → 选择设备（需 Mac）。
-3. **手机内查看**：装 **vConsole / eruda** 在页面注入调试面板。
-
-## 十、实用技巧合集
-
-| 需求 | 做法 |
-| --- | --- |
-| 临时改样式 | Elements 里直接编辑 CSS |
-| 找元素绑定的事件 | Elements → Event Listeners 面板 |
-| 存储内容太大看不了 | Application 里右键存储项复制/删除 |
-| 强制加载最新资源 | Network 勾 Disable cache + `Ctrl+Shift+R` |
-| 模拟离线 | Network → Offline |
-| 模拟定位 | 命令面板 → Sensors → 设置经纬度 |
-| 修改 UA | Network → 自定义 UA，或 Sensors 面板 |
-| 截图整页 | 命令面板 → Capture full size screenshot |
-| 查看真实设备性能 | 用远程调试，别只看模拟器 |
-
-## 十一、参考
-
-- 官方文档：https://developer.chrome.com/docs/devtools/
-- 中文教程：https://developer.chrome.com/docs/devtools/overview?hl=zh-cn
+- 官方文档：https://playwright.dev/
+- Trace Viewer：https://playwright.dev/docs/trace-viewer
 

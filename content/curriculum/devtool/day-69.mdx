@@ -4,236 +4,212 @@ kind: day
 day: 69
 week: 11
 weekTitle: 数据库与中间件
-weekBlurb: 常用数据库与缓存、消息中间件的本地搭建与客户端使用，对应后端课的存储层。
-title: Redis 与 RedisInsight 使用教程
-sourcePath: 11-数据库与中间件/03-Redis管理.md
+weekBlurb: '数据库与缓存的图形化管理工具（DBeaver、pgAdmin、RedisInsight）——backend 课 W3 讲 SQL 本身，这里管"看得见"。'
+title: PostgreSQL 与 MySQL 管理工具教程（pgAdmin / MySQL Workbench）
+lead: PostgreSQL 与 MySQL 管理工具教程（pgAdmin / MySQL Workbench）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 11-数据库与中间件/02-PostgreSQL与MySQL管理.md
 ---
 
-## 一、RedisInsight 是什么
+## 一、pgAdmin（PostgreSQL 官方）
 
-Redis 官方可视化管理工具，功能：
+### 安装与连接
 
-- 浏览 Key（按类型、TTL、大小过滤）；
-- 查看/编辑各种数据结构（String/List/Hash/Set/ZSet/Stream/JSON）；
-- **内置 CLI**（和 redis-cli 一致）；
-- **慢查询与命令分析**（Profiler）；
-- 内存分析（哪些 Key 占内存）；
-- 支持连接 Redis 集群、哨兵、Redis Cloud。
+1. 下载：https://www.pgadmin.org/download/
+2. `Add New Server`：
+ - General → Name：`本地开发`
+ - Connection → Host：`localhost`，Port `5432`，Database `postgres`，Username `postgres`；
+3. 保存后可展开 Databases → Schemas → Tables。
 
-## 二、安装与连接
+> Docker 里跑 PG 时用 pgAdmin 容器可免安装：
+> ```powershell
+> docker run -d -p 5050:80 -e PGADMIN_DEFAULT_EMAIL=a@b.com -e PGADMIN_DEFAULT_PASSWORD=admin dpage/pgadmin4
+> ```
+
+### 核心功能
+
+| 功能 | 位置 |
+| --- | --- |
+| Query Tool | 右键库 → Query Tool（写 SQL） |
+| 执行计划 | Query Tool → Explain（`F7` 生成计划不执行） |
+| 表数据编辑 | 右键表 → View/Edit Data → All Rows |
+| 备份/恢复 | 右键库 → Backup / Restore（生成 .backup） |
+| 导出查询结果 | 结果网格 → 下载图标 → CSV |
+| 服务器状态 | Dashboard（连接数、事务、锁） |
+| ERD | 右键 Schema → ERD For Database |
+
+### PostgreSQL 常用运维命令（psql）
+
+```sql
+-- 查看当前连接与活动
+SELECT pid, usename, state, query_start, left(query, 50)
+FROM pg_stat_activity
+WHERE state <> 'idle'
+ORDER BY query_start;
+
+-- 查看表大小（Top 20）
+SELECT relname,
+       pg_size_pretty(pg_total_relation_size(relid)) AS total
+FROM pg_catalog.pg_statio_user_tables
+ORDER BY pg_total_relation_size(relid) DESC
+LIMIT 20;
+
+-- 查看慢查询（需开启 pg_stat_statements）
+SELECT query, calls, mean_exec_time, total_exec_time
+FROM pg_stat_statements
+ORDER BY total_exec_time DESC
+LIMIT 10;
+
+-- 索引使用情况（找无用索引）
+SELECT indexrelname, idx_scan
+FROM pg_stat_user_indexes
+ORDER BY idx_scan
+LIMIT 20;
+
+-- 终止慢查询
+SELECT pg_terminate_backend(12345);
+
+-- 逻辑备份（命令行）
+-- pg_dump -h localhost -U postgres -d mydb -F c -f mydb.backup
+-- pg_restore -h localhost -U postgres -d mydb_new mydb.backup
+```
+
+### 常见调优参数（postgresql.conf）
+
+| 参数 | 建议 |
+| --- | --- |
+| shared_buffers | 内存的 25% |
+| work_mem | 复杂排序/哈希操作，按连接分配（别设太大） |
+| maintenance_work_mem | VACUUM/建索引使用 |
+| max_connections | 过高反而伤性能，配合连接池 |
+| effective_cache_size | 内存的 50-75% |
+
+## 二、MySQL Workbench（MySQL 官方）
+
+### 安装与连接
+
+1. 下载：https://dev.mysql.com/downloads/workbench/
+2. `+` 新建连接 → 填 Hostname/Port/User；
+3. `Test Connection`（首次需下载驱动）→ OK。
+
+### 核心功能
+
+| 功能 | 说明 |
+| --- | --- |
+| SQL Editor | 写查询、执行（`Ctrl+Enter`）、查看结果 |
+| Visual Explain | 图形化执行计划（慢查询分析利器） |
+| Schema 设计 | 可视化建表、外键、ER 图 |
+| Data Export/Import | 导出 SQL/CSV，导入数据 |
+| Performance Dashboard | 性能仪表盘（需开启 performance_schema） |
+| Server Status | 连接数、QPS、InnoDB 状态 |
+
+### MySQL 常用运维命令
+
+```sql
+-- 当前进程与慢查询
+SHOW FULL PROCESSLIST;
+SELECT * FROM information_schema.processlist WHERE time > 5;
+
+-- 终止连接
+KILL 12345;
+
+-- 表大小（Top 20）
+SELECT table_schema, table_name,
+       ROUND((data_length + index_length) / 1024 / 1024, 2) AS size_mb
+FROM information_schema.tables
+ORDER BY (data_length + index_length) DESC
+LIMIT 20;
+
+-- 索引使用情况（MySQL 8）
+SELECT * FROM sys.schema_unused_indexes;
+
+-- 查看执行计划
+EXPLAIN ANALYZE SELECT * FROM orders WHERE user_id = 1;
+
+-- 开启慢查询日志
+SET GLOBAL slow_query_log = 'ON';
+SET GLOBAL long_query_time = 1;
+SET GLOBAL slow_query_log_file = '/var/log/mysql/slow.log';
+```
+
+### 备份与恢复（mysqldump）
 
 ```powershell
-winget install Redis.RedisInsight
-# macOS
-brew install --cask redisinsight
-# 或 Docker
-docker run -d -p 8001:8001 -v redisinsight:/db redislabs/redisinsight
+# 备份（含存储过程、触发器）
+mysqldump -h localhost -u root -p --single-transaction --routines --triggers mydb > mydb.sql
+
+# 恢复
+mysql -h localhost -u root -p mydb_new < mydb.sql
+
+# 只备份结构
+mysqldump -u root -p --no-data mydb > schema.sql
 ```
 
-连接：
-1. `Add Redis Database`；
-2. 填 Host `localhost`、Port `6379`，有密码填密码；
-3. 生产环境 TLS 勾选 `Use TLS`。
+> 大库用 `--single-transaction`（InnoDB 一致性快照，不锁表）；生产大库考虑 XtraBackup 物理备份。
 
-## 三、Redis 核心操作（CLI）
+## 三、查询优化通用方法
 
-### 连接
+### 1. 看执行计划
 
-```bash
-redis-cli -h 127.0.0.1 -p 6379
-redis-cli -h host -p 6379 -a password
-redis-cli -u redis://user:password@host:6379/0
+**PostgreSQL**：
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT ...;
 ```
 
-### 通用 Key 操作
+**MySQL**：
 
-```bash
-KEYS *                    # 生产禁用！O(N) 阻塞
-SCAN 0 MATCH user:* COUNT 100    # 用 SCAN 代替 KEYS
-TYPE mykey                # 类型
-TTL mykey                 # 剩余过期时间（-1 永不过期，-2 不存在）
-EXPIRE mykey 3600         # 设置过期
-PERSIST mykey             # 移除过期
-EXISTS mykey
-DEL mykey
-UNLINK mykey              # 异步删除（大 Key 用它，不阻塞）
-RENAME old new
+```sql
+EXPLAIN ANALYZE SELECT ...;
+-- 或 EXPLAIN FORMAT=JSON
 ```
 
-### 五种基础数据结构
+关注点：
 
-```bash
-# String（缓存、计数器）
-SET user:1:name "Ada"
-SET token:abc "1" EX 3600 NX        # 带过期 + 不存在才设置（分布式锁）
-GET user:1:name
-INCR page:view:2026-09-14           # 原子自增
-INCRBY counter 10
-MSET k1 v1 k2 v2
-MGET k1 k2
-
-# Hash（对象存储）
-HSET user:1 name Ada age 36
-HGET user:1 name
-HGETALL user:1
-HINCRBY user:1 age 1
-HDEL user:1 age
-
-# List（队列、最新列表）
-LPUSH queue task1 task2
-RPOP queue
-LRANGE queue 0 -1
-BLPOP queue 5               # 阻塞弹出（消费队列）
-LTRIM queue 0 99            # 只保留 100 个（消息列表）
-
-# Set（去重、标签、共同好友）
-SADD article:1:tags redis db cache
-SMEMBERS article:1:tags
-SISMEMBER article:1:tags redis
-SINTER set1 set2            # 交集
-SUNION set1 set2
-
-# ZSet（排行榜、延时队列）
-ZADD rank 100 alice 95 bob
-ZRANGE rank 0 -1 WITHSCORES
-ZREVRANGE rank 0 9 WITHSCORES     # Top 10
-ZINCRBY rank 5 alice
-ZRANGEBYSCORE rank 90 100
-```
-
-### 其他常用
-
-```bash
-PING
-INFO                      # 服务器信息（版本、内存、连接数）
-INFO memory
-DBSIZE                    # 当前库 Key 数量
-SELECT 1                  # 切库（集群不支持）
-FLUSHDB                   # 清空当前库（危险！）
-CLIENT LIST
-SLOWLOG GET 10            # 慢查询日志
-MEMORY USAGE mykey        # 单个 Key 内存占用
-```
-
-## 四、实战场景
-
-### 1. 缓存（Cache Aside 模式）
-
-```python
-def get_user(user_id):
-    key = f"user:{user_id}"
-    cached = redis.get(key)             # ① 查缓存
-    if cached:
-        return json.loads(cached)
-
-    user = db.query_user(user_id)       # ② 未命中查库
-    if user:
-        redis.set(key, json.dumps(user), ex=3600)   # ③ 写回缓存（带随机过期防雪崩）
-    return user
-
-def update_user(user_id, data):
-    db.update(user_id, data)
-    redis.delete(f"user:{user_id}")     # ④ 更新时删除缓存（而非更新，避免并发脏数据）
-```
-
-要点：
-- 过期时间加随机抖动（避免同一时刻集体失效 — 缓存雪崩）；
-- 热点 Key 空值也缓存短 TTL（防穿透）；
-- 设置 `maxmemory-policy allkeys-lru`。
-
-### 2. 分布式锁
-
-```bash
-# 加锁（NX 保证互斥，EX 防死锁）
-SET lock:order:123 <unique-token> NX EX 30
-# 释放（Lua 保证「判断是自己的锁再删」的原子性）
-```
-
-```lua
--- unlock.lua
-if redis.call("GET", KEYS[1]) == ARGV[1] then
-  return redis.call("DEL", KEYS[1])
-else
-  return 0
-end
-```
-
-生产建议用 Redisson 等成熟库，或 Redlock 算法。
-
-### 3. 排行榜
-
-```bash
-ZINCRBY leaderboard 10 player:1
-ZREVRANGE leaderboard 0 9 WITHSCORES
-ZRANK leaderboard player:1         # 我的排名
-```
-
-### 4. 限流（滑动窗口）
-
-```bash
-INCR rate:user:1:2026091412
-EXPIRE rate:user:1:2026091412 60
-# 超过阈值即拒绝
-```
-
-### 5. 消息队列（Stream）
-
-```bash
-XADD orders * userId 1 amount 99
-XLEN orders
-XREAD COUNT 10 STREAMS orders 0
-XGROUP CREATE orders group1 0
-XREADGROUP GROUP group1 consumer1 COUNT 10 STREAMS orders >
-XACK orders group1 <id>
-```
-
-## 五、持久化与高可用
-
-| 机制 | 说明 |
+| 关键词 | 含义 |
 | --- | --- |
-| RDB | 定时快照，文件小、恢复快，可能丢最后几分钟数据 |
-| AOF | 追加命令日志，`everysec` 最多丢 1 秒 |
-| 混合 | RDB + AOF 兼顾（推荐） |
-| 主从复制 | `replicaof host port` |
-| 哨兵（Sentinel） | 自动故障转移，主从切换 |
-| Cluster | 分片集群（16384 槽），水平扩容 |
+| Seq Scan / type: ALL | 全表扫描（大表即需优化） |
+| Index Scan | 走索引，正常 |
+| rows 估算 vs 实际 | 偏差过大说明统计信息过期（ANALYZE 表） |
+| Using filesort / Using temporary | 排序/临时表开销大 |
+| cost 高 | 需要改写或加索引 |
 
-生产配置建议：
+### 2. 索引设计原则
+
+- WHERE / JOIN / ORDER BY 的列考虑建索引；
+- **联合索引最左前缀**：`(a,b,c)` 能用于 `a`、`a,b`、`a,b,c`；
+- **区分度高的列在前**（性别这种低区分度不适合单独建）；
+- 覆盖索引（查询列都在索引里）避免回表；
+- 写多读少的表少建索引（每个索引都拖慢写入）；
+- 定期清理无用索引。
+
+### 3. 慢查询定位流程
 
 ```
-appendonly yes
-appendfsync everysec
-maxmemory 4gb
-maxmemory-policy allkeys-lru
-save 900 1
-save 300 10
+发现接口慢
+  → 开启慢查询日志（long_query_time = 1s）
+  → 找出 TOP SQL
+  → EXPLAIN 分析
+  → 加索引 / 改写 SQL（减少回表、避免 SELECT *）
+  → 再验证（EXPLAIN 对比 + 压测）
+  → 上线后持续观察
 ```
 
-## 六、常见问题
+## 四、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| `KEYS *` 卡死服务 | 用 `SCAN` 迭代；生产配置 `rename-command KEYS ""` 禁用 |
-| 大 Key 导致超时 | `MEMORY USAGE` 排查；用 `UNLINK` 异步删；拆分大 Hash/List |
-| 内存持续增长 | 检查无 TTL 的 Key；配置淘汰策略；分析 `INFO memory` |
-| 主从延迟 | 检查网络与 `repl-backlog-size`；读从库注意一致性 |
-| 连接数打满 | 用连接池；`maxclients` 调优 |
-| 缓存与 DB 不一致 | 更新 DB 后删缓存；设置合理 TTL 兜底 |
-| 集群模式报 `MOVED` | 客户端需支持集群（Cluster 客户端自动重定向） |
+| Workbench 连接报 1251 | MySQL 8 认证插件问题：改用户为 `mysql_native_password`（旧客户端） |
+| pgAdmin 保存密码失败 | 设置 master password；或 Docker 版权限问题 |
+| 时区/编码错误 | 连接参数与服务器配置统一 UTF-8、Asia/Shanghai |
+| 导入大 SQL 超时 | 命令行导入（`mysql < file.sql`）；调整 `max_allowed_packet` |
+| 执行计划与生产差异大 | 数据量不同；用生产数据量的影子库验证 |
+| 锁等待超时 | 查 `pg_locks` / `information_schema.innodb_trx`，定位阻塞事务 |
 
-## 七、RedisInsight 常用技巧
+## 五、参考
 
-1. **Browser 面板**：按 Key 前缀过滤、按类型筛选、查看 TTL；
-2. **CLI 面板**：写命令时自动补全，比本地 redis-cli 更方便；
-3. **Profiler**：实时看命令流（排查谁在打 Redis）；
-4. **Slowlog**：定位慢命令；
-5. **Memory Analysis**：找出内存占用 Top Key；
-6. **Workbench**：保存常用查询与内置教程。
-
-## 八、参考
-
-- Redis 官方文档：https://redis.io/docs/
-- 命令参考：https://redis.io/commands/
-- RedisInsight：https://redis.io/insight/
-- Try Redis（在线练习）：https://try.redis.io/
+- pgAdmin 文档：https://www.pgadmin.org/docs/
+- PostgreSQL 文档：https://www.postgresql.org/docs/
+- MySQL Workbench：https://dev.mysql.com/doc/workbench/en/
+- MySQL 手册：https://dev.mysql.com/doc/refman/8.4/en/
+- 索引原理（Use The Index, Luke）：https://use-the-index-luke.com/
 

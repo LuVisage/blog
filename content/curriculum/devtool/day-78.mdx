@@ -4,273 +4,291 @@ kind: day
 day: 78
 week: 12
 weekTitle: 日志与监控
-weekBlurb: 日志规范、指标与告警的可观测性入门，服务上线后靠它定位问题。
-title: 分布式链路追踪教程（Jaeger / Zipkin）
-sourcePath: 12-日志与监控/07-Jaeger与Zipkin.md
+weekBlurb: Sentry、OpenTelemetry、Prometheus、Loki 与链路追踪——backend 课 W2D10 与 agent 课 W6 是课程向实战，这里是工具全集。
+title: ELK 使用教程（Elasticsearch / Logstash / Kibana）
+lead: ELK 使用教程（Elasticsearch / Logstash / Kibana）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 12-日志与监控/06-ELK.md
 ---
 
-## 一、为什么需要链路追踪
+## 一、ELK 是什么
 
-微服务下一个请求经过多个服务，出问题时：
+经典日志与搜索技术栈：
 
-- 日志分散在各服务，无法串起来；
-- 「慢」到底慢在哪个服务、哪次数据库调用？
+| 组件 | 角色 |
+| --- | --- |
+| **Elasticsearch** | 分布式搜索引擎与存储（核心） |
+| **Logstash** | 采集与加工管道（重，常被 Beats 替代） |
+| **Kibana** | 可视化与查询界面 |
+| **Filebeat** | 轻量采集器（装在服务器上） |
 
-**链路追踪**把一次请求的所有环节串成一条 Trace，可视化每个 Span 的耗时。
+> 现代演进：**Elastic Stack**（含 Beats、APM）；采集侧多用 Filebeat / Fluent Bit，Logstash 仅做复杂加工。
 
-## 二、核心概念
+## 二、核心概念（Elasticsearch）
 
 | 概念 | 说明 |
 | --- | --- |
-| Trace | 一次完整请求的调用链（Trace ID 全局唯一） |
-| Span | 链中的一环（一次 RPC / DB 查询 / 函数），有耗时与父子关系 |
-| Parent Span | 上游调用者 |
-| Context Propagation | 跨服务透传 Trace ID（HTTP header `traceparent` / `uber-trace-id`） |
-| Sampling | 采样（全量会爆炸，通常 1-10%） |
+| Index | 索引（类似数据库的表） |
+| Document | 文档（JSON 记录） |
+| Field Mapping | 字段类型（text / keyword / date / long...） |
+| Shard / Replica | 分片与副本 |
+| Analyzer | 分词器（中文需 IK 分词器） |
+| DSL | 查询语言（JSON） |
 
-## 三、Jaeger vs Zipkin
+**关键区分**：
+- `text`：会分词，用于全文搜索；
+- `keyword`：不分词，用于精确匹配、聚合、排序。
 
-| 维度 | Jaeger | Zipkin |
-| --- | --- | --- |
-| 出身 | Uber → CNCF 毕业项目 | Twitter，最早的开源追踪系统 |
-| 存储 | ES / Cassandra / Badger | ES / MySQL / Cassandra / 内存 |
-| 功能 | 更丰富（服务依赖图、对比、深链路分析） | 简洁，够用 |
-| 采样 | 自适应采样 | 基础采样 |
-| UI | 现代、功能全 | 简洁 |
-| 生态 | OpenTelemetry 一等公民 | 被 OTel 支持 |
-| 现状 | 活跃（v2 基于 OTel Collector） | 维护模式 |
+## 三、快速起环境
 
-**建议**：新项目直接用 **OpenTelemetry 采集 + Jaeger 或云厂商后端**；Zipkin 适合轻量快速验证。
+`docker-compose.yml`：
 
-## 四、Jaeger 快速部署
+```yaml
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports: ["9200:9200"]
+    volumes: ["es-data:/usr/share/elasticsearch/data"]
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.14.0
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports: ["5601:5601"]
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.14.0
+    user: root
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+  es-data:
+```
+
+验证：
 
 ```powershell
-# 一体化（含内存存储 + UI，测试用）
-docker run -d --name jaeger `
-  -p 16686:16686 `      # UI
-  -p 4317:4317 `        # OTLP gRPC
-  -p 4318:4318 `        # OTLP HTTP
-  jaegertracing/all-in-one:latest
+curl.exe http://localhost:9200      # 返回集群信息即成功
+# Kibana: http://localhost:5601
 ```
 
-访问 http://localhost:16686 即 UI。
+## 四、Filebeat 配置
 
-生产部署（ES 存储）：
+`filebeat.yml`：
+
+```yaml
+filebeat.inputs:
+  - type: filestream
+    id: app-logs
+    paths:
+      - /var/log/myapp/*.log
+    json.keys_under_root: true      # 日志本身是 JSON 时直接展开
+    json.add_error_key: true
+    fields:
+      env: prod
+      app: my-api
+
+processors:
+  - drop_event.when.regexp:
+      message: '^/healthz'          # 丢弃健康检查噪音
+
+  - add_host_metadata: ~
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "myapp-%{+yyyy.MM.dd}"     # 按天建索引（便于清理）
+```
+
+启动：
 
 ```powershell
-docker run -d --name jaeger `
-  -e SPAN_STORAGE_TYPE=elasticsearch `
-  -e ES_SERVER_URLS=http://elasticsearch:9200 `
-  -p 16686:16686 -p 4317:4317 `
-  jaegertracing/jaeger:latest
+filebeat -e -c filebeat.yml -d "publish"
 ```
 
-## 五、接入示例（基于 OpenTelemetry）
+## 五、Logstash 管道（复杂加工）
 
-### Node.js
+`logstash.conf`：
 
-```ts
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+```ruby
+input {
+  beats { port => 5044 }
+  tcp  { port => 5000 codec => json }
+}
 
-const sdk = new NodeSDK({
-  serviceName: 'order-service',
-  traceExporter: new OTLPTraceExporter({
-    url: 'http://localhost:4318/v1/traces',     // 直接发 Jaeger
-  }),
-  instrumentations: [getNodeAutoInstrumentations()],
-});
+filter {
+  # 解析 JSON
+  json { source => "message" target => "data" }
 
-sdk.start();
-```
+  # Grok 解析非结构化日志（Nginx 示例）
+  grok {
+    match => { "message" => '%{IPORHOST:clientip} %{HTTPDUSER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] "%{WORD:verb} %{DATA:request} HTTP/%{NUMBER:httpversion}" %{NUMBER:response}' }
+  }
 
-启动：`node --import ./instrumentation.ts src/server.ts`
+  # 时间字段标准化
+  date { match => ["timestamp", "dd/MMM/yyyy:HH:mm:ss Z"] }
 
-### Python
+  # 删除敏感字段
+  mutate { remove_field => ["password", "token", "credit_card"] }
 
-```python
-# pip install opentelemetry-distro opentelemetry-exporter-otlp
-# opentelemetry-bootstrap -a install
-# opentelemetry-instrument --service_name order-api python app.py
+  # 按业务分流
+  if [status] == "500" {
+    mutate { add_tag => ["error"] }
+  }
+}
 
-from opentelemetry import trace
-tracer = trace.get_tracer(__name__)
-
-with tracer.start_as_current_span("process_payment") as span:
-    span.set_attribute("payment.provider", "alipay")
-    do_payment()
-```
-
-### Go
-
-```go
-import (
-    "go.opentelemetry.io/otel"
-    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-    sdktrace "go.opentelemetry.io/otel/sdk/trace"
-)
-
-func initTracer() func() {
-    exporter, _ := otlptracehttp.New(context.Background(),
-        otlptracehttp.WithEndpoint("localhost:4318"), otlptracehttp.WithInsecure())
-    tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
-    otel.SetTracerProvider(tp)
-    return func() { _ = tp.Shutdown(context.Background()) }
+output {
+  elasticsearch {
+    hosts => ["http://elasticsearch:9200"]
+    index => "logs-%{[app]}-%{+yyyy.MM.dd}"
+  }
 }
 ```
 
-### HTTP 跨服务透传
+## 六、Kibana 使用
 
-OpenTelemetry 的自动埋点会自动注入与解析 `traceparent` 头，**前提是**：
-- 服务间调用都走被埋点的 HTTP client；
-- 网关/Nginx 不要剥离 `traceparent` 头（检查配置）。
+### 1. 创建 Data View
 
-手动透传示例：
+`Stack Management → Data Views → Create`：
 
-```ts
-import { propagation, context } from '@opentelemetry/api';
+- 匹配索引模式：`myapp-*`；
+- 时间字段选 `@timestamp`。
 
-// 发送方
-const headers: Record<string, string> = {};
-propagation.inject(context.active(), headers);
-await fetch('http://user-service/api/profile', { headers });
+### 2. Discover 探索日志
 
-// 接收方（框架自动处理；手动时）
-const ctx = propagation.extract(context.active(), req.headers);
+- 顶部时间选择器（最近 15 分钟 / 自定义）；
+- **KQL 查询语法**：
+
+```
+level: error
+status >= 500 and app: "my-api"
+message: "timeout"
+user.id: 123
+not path: "/healthz"
 ```
 
-## 六、Zipkin 使用
+- 左侧字段列表可点击过滤 / 排除；
+- 点某条日志查看完整 JSON，可复制字段值。
 
-### 部署
+### 3. 可视化与 Dashboard
 
-```powershell
-docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin
-```
-
-访问 http://localhost:9411 查看 UI。
-
-### 上报数据
-
-```powershell
-# 方式一：OTel Collector 导出到 Zipkin
-# exporters:
-#   zipkin:
-#     endpoint: http://zipkin:9411/api/v2/spans
-
-# 方式二：应用直接上报（V2 JSON API）
-curl.exe -X POST http://localhost:9411/api/v2/spans `
-  -H "Content-Type: application/json" `
-  -d '[{"traceId":"a1b2c3d4e5f60718","id":"1122334455667788","name":"get /api/users","timestamp":1757800000000000,"duration":45000,"localEndpoint":{"serviceName":"api"}}]'
-```
-
-Python 直接接入：
-
-```powershell
-pip install pyzipkin
-```
-
-```python
-from py_zipkin.zipkin import zipkin_span
-
-def do_work():
-    with zipkin_span(
-        service_name='order-api',
-        span_name='submit_order',
-        transport_handler=lambda x: send_to_zipkin(x),  # 上报函数
-        sample_rate=10.0,        # 10% 采样
-    ):
-        process()
-```
-
-## 七、Jaeger/Zipkin UI 使用
-
-### 查询链路
-
-1. 选 Service（如 `order-service`）；
-2. 选 Operation（如 `POST /api/orders`）；
-3. 设置时间范围与 Tags（如 `http.status_code=500`）；
-4. 点 Find Traces。
-
-### 分析
-
-| 视图 | 用途 |
+| 图表 | 用途 |
 | --- | --- |
-| Trace Timeline | 瀑布图，直观看每个 Span 耗时占比 |
-| Span Details | 标签、日志、耗时明细 |
-| Service Dependencies（Jaeger） | 服务依赖拓扑图 |
-| Compare（Jaeger） | 对比两条链路差异 |
-| Deep Link | 从日志中的 traceId 直接跳转 |
+| Lens | 拖拽式可视化（推荐） |
+| TSVB | 复杂时序 |
+| Maps | 地理分布 |
+| Data Table | 明细统计 |
 
-**典型排查**：
+典型 Dashboard：错误趋势、Top 报错接口、状态码分布、响应时间 P95。
+
+### 4. 告警
+
+`Stack Management → Rules → Create rule`：
 
 ```
-接口 P95 从 200ms 涨到 2s
-  → 查慢 Trace
-  → 看瀑布图：哪个 Span 占了大头
-  → 若是 DB Span → 查那条 SQL（见数据库教程）
-  → 若是下游 HTTP Span → 跳到下游服务的链路继续看
-  → 若是自身计算 Span → 看代码逻辑
+索引条件：myapp-* 中 level: error
+阈值：5 分钟内 > 50 条
+动作：发送到 Webhook（接飞书/钉钉）/ 邮件 / Slack
 ```
 
-## 八、采样策略
-
-| 策略 | 说明 |
-| --- | --- |
-| 头部采样 | 请求入口决定是否采样（简单，可能丢错误链路） |
-| 尾部采样 | 收集完整链路后按规则决定（保留慢/错误链路，推荐） |
-| 自适应采样 | 按流量动态调整（Jaeger 特性） |
-
-OTel 环境变量：
+## 七、ES 常用操作
 
 ```powershell
-$env:OTEL_TRACES_SAMPLER="parentbased_traceidratio"
-$env:OTEL_TRACES_SAMPLER_ARG="0.1"     # 10%
+# 查询
+curl.exe "http://localhost:9200/myapp-*/_search?pretty" -H "Content-Type: application/json" -d '{\"query\":{\"match\":{\"message\":\"timeout\"}},\"size\":5}'
+
+# 索引管理
+curl.exe "http://localhost:9200/_cat/indices?v"
+curl.exe -X DELETE "http://localhost:9200/myapp-2026.08.*"
+
+# 集群健康
+curl.exe "http://localhost:9200/_cluster/health?pretty"
 ```
 
-尾部采样在 Collector 中配置（`tail_sampling` processor）：
+DSL 查询示例：
 
-```yaml
-processors:
-  tail_sampling:
-    decision_wait: 10s
-    policies:
-      - name: errors
-        type: status_code
-        status_code: { status_codes: [ERROR] }
-      - name: slow
-        type: latency
-        latency: { threshold_ms: 1000 }
-      - name: random
-        type: probabilistic
-        probabilistic: { sampling_percentage: 5 }
+```json
+{
+  "query": {
+    "bool": {
+      "must": [{ "match": { "message": "timeout" } }],
+      "filter": [
+        { "term": { "level": "error" } },
+        { "range": { "@timestamp": { "gte": "now-1h" } } }
+      ]
+    }
+  },
+  "aggs": {
+    "by_path": { "terms": { "field": "path.keyword", "size": 10 } }
+  }
+}
 ```
 
-## 九、与日志/指标联动
+## 八、索引生命周期（ILM）
 
-1. **日志 → Trace**：日志里带 `traceId`，Grafana/Loki 配 Derived field 跳转 Jaeger；
-2. **指标 → Trace**：Prometheus Exemplars 标注样本对应 traceId；
-3. **Trace → 日志**：Jaeger 中配置日志的跳转链接（按 traceId 搜 Loki）。
+避免磁盘被日志撑满：
 
-实现三者互跳后，排查路径变成：**告警（指标）→ 定位服务 → 看链路找瓶颈 → 查日志看细节**。
+```
+hot（7 天，可写）→ warm（30 天，只读压缩）→ cold → delete
+```
 
-## 十、常见问题
+Kibana 中配置：`Stack Management → Index Lifecycle Policies`，或用 ILM API：
+
+```json
+PUT _ilm/policy/logs-policy
+{
+  "policy": {
+    "phases": {
+      "hot":    { "actions": { "rollover": { "max_size": "50gb", "max_age": "1d" } } },
+      "delete": { "min_age": "30d", "actions": { "delete": {} } }
+    }
+  }
+}
+```
+
+## 九、性能与成本优化
+
+1. **按天建索引** + ILM 自动清理；
+2. **字段映射控制**：不要全字段 `text`，日志字段多用 `keyword`；
+3. 关闭不需要的字段索引：`"index": false`；
+4. 控制副本数（日志类 `number_of_replicas: 0` 可省一半空间）；
+5. 采集端过滤噪音日志（健康检查、debug）；
+6. 冷数据用 **Searchable Snapshots** 或转存对象存储；
+7. 中文搜索装 **IK 分词器**。
+
+## 十、ELK vs Loki
+
+| 维度 | ELK | Loki |
+| --- | --- | --- |
+| 存储成本 | 高（全文索引） | 低 |
+| 查询能力 | 最强（全文检索、复杂聚合） | 够用（标签 + 过滤 + 管道） |
+| 运维复杂度 | 高（JVM、分片、调优） | 低 |
+| 适合 | 安全审计、海量全文检索、日志分析平台 | 常规运维排查（配 Grafana） |
+| 起步门槛 | 中高 | 低 |
+
+**建议**：中小团队优先 Loki；需要审计、合规、复杂检索再上 ELK。
+
+## 十一、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 只有单个 Span，链路断开 | `traceparent` 头未透传（网关剥离）；异步任务未传递 context |
-| 服务名不显示 | `serviceName` 未配置或配置不一致 |
-| 找不到某条 Trace | 采样未命中；调高采样率或用尾部采样保留错误 |
-| Span 时间不准 | 各服务器时钟不同步（NTP 对时） |
-| 数据量太大 | 降采样率、Collector 过滤低价值服务 |
-| Jaeger 存储满 | 配 ES ILM 或用 Cassandra；设置 retention |
-| 异步/消息队列链路断 | 需手动把 context 注入消息头并在消费端提取 |
+| ES 启动失败（内存） | 设置 `ES_JAVA_OPTS=-Xms1g -Xmx1g`；`vm.max_map_count` 调大 |
+| Kibana 查不到新日志 | 检查 Filebeat 采集、索引模式时间字段、ES 写入报错 |
+| 中文搜不到 | 装 IK 分词器并指定 analyzer |
+| 磁盘爆满 | 配 ILM 自动删除；`_cat/indices` 找大索引 |
+| 查询慢 | 缩小时间范围、避免通配符开头、`keyword` 字段用于聚合 |
+| 集群 yellow | 副本未分配（单节点属正常），或加节点 |
+| 字段类型冲突 | 重新建索引 + 显式 mapping（`text` vs `keyword`） |
 
-## 十一、参考
+## 十二、参考
 
-- Jaeger：https://www.jaegertracing.io/docs/
-- Zipkin：https://zipkin.io/pages/quickstart.html
-- OpenTelemetry 追踪：https://opentelemetry.io/docs/concepts/signals/traces/
-- W3C Trace Context：https://www.w3.org/TR/trace-context/
-- Grafana Tempo（Jaeger 的现代替代）：https://grafana.com/docs/tempo/latest/
+- Elastic 官方文档：https://www.elastic.co/guide/index.html
+- Elasticsearch 中文：https://www.elastic.co/guide/cn/elasticsearch/guide/current/index.html
+- Kibana：https://www.elastic.co/guide/en/kibana/current/index.html
+- 中文分词 IK：https://github.com/infinilabs/analysis-ik
 

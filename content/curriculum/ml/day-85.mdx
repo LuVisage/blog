@@ -10,6 +10,8 @@ lead: '今日目标：理解"自回归语言模型"这一极简范式；说清 G
 sourcePath: Week16_生成模型与大语言模型/Day5_大语言模型.md
 ---
 
+> **前置与衔接**：Token / Embedding / RAG 的直觉分别由 [Week00 数学直觉](/learn/ml/day-05)、[Week08 文本预处理](/learn/ml/day-44)与[术语表](/learn/ml/glossary)铺垫；本篇之后的两条出路见文末。
+
 > 今日目标：理解"自回归语言模型"这一极简范式；说清 GPT 的 Decoder-only 结构；掌握预训练→SFT→RLHF 三段式流程；理解 temperature / top-k / top-p 的采样策略；手写一个能生成文本的小型 GPT。
 > 配套案例：`code/day5_gpt.py`
 
@@ -421,3 +423,13 @@ $$\mathcal{L} \propto N^{-\alpha} \quad\text{（}N\text{：参数量、数据量
 >
 > 两者结合，才是"AI 应用工程师"的完整技能栈。
 
+---
+
+## 出口：两条路
+
+**模型原理的主线到这里完结。**「会训模型」和「能交付产品」之间还隔着一段工程路，接下来两条路任选，也可以并行：
+
+- **把模型做成可靠的服务** → [Python 工程化与后端实战](/learn/backend/overview)：类型注解、FastAPI、数据库、Docker 部署，最后以 RAG 服务毕业；
+- **把模型用成能感知、能行动的产品** → [从零到生产级 Agent](/learn/agent)：LangChain、LangGraph、MCP 与多智能体，40 天带毕业项目。
+
+> 两条路都会用到本课 Week08 的数据处理与 Week09 的 PyTorch 管线——那是它们共同的地基。

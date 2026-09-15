@@ -3,205 +3,210 @@ slug: day-30
 kind: day
 day: 30
 week: 5
-weekTitle: 测试
-weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
-title: Vitest 使用教程
-sourcePath: 05-测试/01-Vitest.md
+weekTitle: 调试与网络
+weekBlurb: DevTools 与调试器断点、curl / httpie、抓包、API 客户端与内网穿透——后端课联调接口、agent 课排查调用时的工具箱。
+title: 内网穿透使用教程（ngrok / cloudflared / localtunnel）
+lead: 内网穿透使用教程（ngrok / cloudflared / localtunnel）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 06-调试与网络/06-内网穿透.md
 ---
 
-## 一、Vitest 是什么
+## 一、解决什么问题
 
-Vite 原生的测试框架，特点：
+本地服务跑在 `localhost:3000`，外网无法访问。需要临时把本地端口暴露到公网时，用**内网穿透**：
 
-- **配置与 Vite 共用**（vite.config.ts），零额外构建配置；
-- 极快（基于 Vite 的转换管线 + 多线程）；
-- **兼容 Jest API**（`describe/it/expect` 基本一致，迁移成本低）；
-- 内置断言、Mock、覆盖率、快照、UI 界面。
+- 微信 / 支付宝 / 支付回调调试（必须公网 HTTPS 回调地址）；
+- GitHub / GitLab Webhook 调试；
+- 手机真机访问本机开发服务；
+- 给客户/同事演示正在开发的功能。
 
-## 二、安装与初始化
+## 二、三款工具对比
 
-```powershell
-pnpm add -D vitest
-# 配套（按需）
-pnpm add -D @vitest/coverage-v8 @vitest/ui jsdom @testing-library/react
-```
+| 工具 | 厂商 | 免费额度 | 特点 |
+| --- | --- | --- | --- |
+| ngrok | ngrok | 免费（随机域名、有限连接数） | 老牌、文档全、国内访问一般 |
+| cloudflared | Cloudflare | 免费额度大、可自定义域名 | 稳定、速度快、支持固定域名（需自有域名接入 CF） |
+| localtunnel | 开源 | 完全免费 | 零配置、极简，稳定性一般 |
 
-`package.json`：
+## 三、ngrok 使用
 
-```json
-{
-  "scripts": {
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
-  }
-}
-```
-
-## 三、配置
-
-`vite.config.ts`：
-
-```ts
-/// <reference types="vitest/config" />
-import { defineConfig } from 'vite';
-
-export default defineConfig({
-  test: {
-    globals: true,                 // 免 import describe/it/expect
-    environment: 'jsdom',          // 组件测试用 jsdom / happy-dom
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],
-      exclude: ['**/*.d.ts', '**/types/**', 'src/main.tsx'],
-      thresholds: { lines: 70, functions: 70 },
-    },
-  },
-});
-```
-
-`src/test/setup.ts`：
-
-```ts
-import '@testing-library/jest-dom/vitest';
-import { afterEach } from 'vitest';
-import { cleanup } from '@testing-library/react';
-
-afterEach(() => cleanup());
-```
-
-## 四、编写测试
-
-### 基本结构
-
-```ts
-import { describe, it, expect } from 'vitest';
-import { add, fetchUser } from './math';
-
-describe('add', () => {
-  it('两数相加', () => {
-    expect(add(1, 2)).toBe(3);
-  });
-
-  it.each([
-    [1, 1, 2],
-    [2, 3, 5],
-    [-1, 1, 0],
-  ])('add(%i, %i) = %i', (a, b, expected) => {
-    expect(add(a, b)).toBe(expected);
-  });
-});
-```
-
-### 异步
-
-```ts
-it('获取用户', async () => {
-  const user = await fetchUser(1);
-  expect(user.name).toBe('Ada');
-});
-
-it('抛出错误', async () => {
-  await expect(fetchUser(-1)).rejects.toThrow('invalid id');
-});
-```
-
-### Mock
-
-```ts
-import { vi, expect, it } from 'vitest';
-
-// 1. Mock 函数
-const fn = vi.fn().mockReturnValue(42);
-expect(fn()).toBe(42);
-expect(fn).toHaveBeenCalledTimes(1);
-
-// 2. Mock 模块
-vi.mock('./api', () => ({
-  fetchUser: vi.fn().mockResolvedValue({ id: 1, name: 'Ada' }),
-}));
-
-// 3. 监听对象方法
-const obj = { save: () => 'real' };
-const spy = vi.spyOn(obj, 'save').mockReturnValue('mocked');
-
-// 4. 假定时器
-vi.useFakeTimers();
-setTimeout(() => console.log('hi'), 1000);
-vi.advanceTimersByTime(1000);
-vi.useRealTimers();
-
-// 5. 环境变量
-vi.stubEnv('VITE_API_BASE', 'http://test.local');
-```
-
-### 快照
-
-```ts
-it('渲染一致', () => {
-  expect(renderToString(<Button />)).toMatchSnapshot();
-  // 更新快照：vitest run -u
-});
-```
-
-## 五、常用命令
+### 安装与配置
 
 ```powershell
-vitest                      # watch 模式（默认）
-vitest run                  # 单次运行（CI）
-vitest run src/utils         # 只跑匹配路径
-vitest run -t "add"          # 只跑匹配名称
-vitest --ui                  # 浏览器 UI（需 @vitest/ui）
-vitest run --coverage
-vitest related src/a.ts      # 只跑与某文件相关的测试（配合 lint-staged）
-vitest bench                 # 运行 benchmark
+winget install ngrok.ngrok
+# 或 scoop install ngrok
 ```
 
-## 六、CI 集成
+1. 注册账号：https://dashboard.ngrok.com/signup
+2. 获取 Authtoken 并配置：
+
+```powershell
+ngrok config add-authtoken <YOUR_TOKEN>
+```
+
+### 基本用法
+
+```powershell
+ngrok http 3000                  # 暴露本地 3000 端口
+ngrok http 3000 --region ap      # 选择亚太节点（国内更快）
+ngrok http https://localhost:8443   # 转发到本地 HTTPS 服务
+```
+
+输出示例：
+
+```
+Forwarding  https://a1b2-c3d4.ngrok-free.app -> http://localhost:3000
+```
+
+把这个公网地址填到回调 / Webhook 配置里即可。
+
+### 实用功能
+
+```powershell
+ngrok http 3000 --basic-auth "user:pass"    # 加基础认证保护
+ngrok http 3000 --host-header=rewrite       # 改写 Host 头（虚拟主机场景）
+ngrok tcp 22                                # 暴露 TCP（非 HTTP）
+ngrok http 3000 --domain=your-domain.com    # 付费固定域名
+```
+
+本地 Web 面板：http://127.0.0.1:4040 可查看所有转发请求（含重放）。
+
+## 四、cloudflared 使用
+
+Cloudflare 的隧道工具，免费且稳定。
+
+### 安装
+
+```powershell
+winget install Cloudflare.cloudflared
+# macOS
+brew install cloudflared
+```
+
+### 快速隧道（免登录，随机域名）
+
+```powershell
+cloudflared tunnel --url http://localhost:3000
+```
+
+输出会给出一个 `https://xxx.trycloudflare.com` 地址。
+
+### 命名隧道（需登录 + 自有域名，地址固定）
+
+```powershell
+cloudflared tunnel login                       # 浏览器授权
+cloudflared tunnel create mytunnel             # 创建隧道
+cloudflared tunnel route dns mytunnel dev.example.com
+cloudflared tunnel run mytunnel                # 启动
+```
+
+配置文件 `~/.cloudflared/config.yml`：
 
 ```yaml
-- run: pnpm vitest run --coverage
+tunnel: mytunnel
+credentials-file: C:\Users\me\.cloudflared\<id>.json
+
+ingress:
+  - hostname: dev.example.com
+    service: http://localhost:3000
+  - hostname: api.example.com
+    service: http://localhost:8080
+  - service: http_status:404
 ```
 
-配合 `--reporter=junit --outputFile=report.xml` 可对接测试报告系统。
+启动后：
 
-## 七、Vitest vs Jest
+```powershell
+cloudflared tunnel run mytunnel
+```
 
-| 维度 | Vitest | Jest |
-| --- | --- | --- |
-| 速度 | 快（Vite 原生 ESM） | 较慢（需 babel/ts-jest 转换） |
-| 配置 | 复用 vite.config | 独立配置，需 transform |
-| ESM 支持 | 原生 | 需实验开关，坑多 |
-| 生态 | 快速增长 | 极其成熟 |
-| API | 兼容 Jest | — |
-| 适合 | Vite 项目、新项目 | 老项目、CRA、React Native |
+### 常用命令
 
-**迁移建议**：Vite 项目直接用 Vitest；Jest 项目想迁移时，多数代码只改 import 即可。
+```powershell
+cloudflared tunnel list
+cloudflared tunnel info mytunnel
+cloudflared tunnel delete mytunnel
+cloudflared service install     # 安装为系统服务，开机自启
+```
+
+## 五、localtunnel 使用
+
+零配置、无需注册：
+
+```powershell
+npx localtunnel --port 3000
+# 输出: your url is: https://xxx.loca.lt
+```
+
+指定子域名：
+
+```powershell
+npx localtunnel --port 3000 --subdomain myapp-demo
+```
+
+注意：首次访问会有一个「点击继续」的验证页；对自动化回调不友好，正式调试建议用 cloudflared。
+
+## 六、常见场景配置
+
+### 微信/支付宝回调调试
+
+1. 启动 `cloudflared tunnel --url http://localhost:8080`（需支持 HTTPS）；
+2. 把生成的 `https://xxx.trycloudflare.com/notify` 填入支付平台回调地址；
+3. 本地打印收到的回调报文，验证签名逻辑。
+
+### GitHub Webhook 调试
+
+1. 仓库 → Settings → Webhooks → Add webhook；
+2. Payload URL 填隧道地址 + `/webhook`；
+3. Content type 选 `application/json`；
+4. 本地用 `ngrok` 面板的 Replay 功能反复测试。
+
+### 手机真机访问本地开发服务
+
+```powershell
+# 方案 A：同一局域网直接访问电脑 IP（最简单，无需穿透）
+# 电脑 IP：ipconfig 查 IPv4，手机浏览器访问 http://192.168.x.x:5173
+
+# 方案 B：需要 HTTPS / 不在同一网络 → 内网穿透
+cloudflared tunnel --url http://localhost:5173
+```
+
+### 多个服务同时暴露
+
+```powershell
+# 开多个终端，或用 cloudflared 命名隧道的 ingress 多 hostname 配置
+ngrok http 3000
+ngrok http 8080
+```
+
+## 七、安全提醒
+
+1. 穿透地址是**公网可达**的，务必：
+ - 加基础认证（ngrok `--basic-auth`）；
+ - 或仅暴露非敏感服务；
+ - 用完立即停止隧道。
+2. 不要在穿透暴露的服务里放**真实用户数据**或生产数据库连接。
+3. 免费隧道的域名会被扫描机器人访问，日志里出现异常请求属正常。
 
 ## 八、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| `document is not defined` | 设 `environment: 'jsdom'` 或 happy-dom |
-| CSS/图片导入报错 | 配置 `test.css: false` 或加相应 transformer |
-| 别名 `@/` 不解析 | 复用 vite 的 resolve.alias（Vitest 自动继承） |
-| Mock 不生效 | `vi.mock` 会被提升到文件顶部，注意工厂函数内不能用外部变量（用 `vi.hoisted`） |
-| 覆盖率偏低 | 排除入口、类型、配置文件；关注核心模块 |
-| 测试串行互相污染 | 每个测试独立准备数据；用 `beforeEach` 重置 mock（`vi.clearAllMocks()`） |
+| ngrok 连接超时 | 换 region：`--region ap`；或检查公司网络是否拦截 |
+| 隧道地址每次重启都变 | 用 cloudflared 命名隧道（自有域名）或 ngrok 付费固定域名 |
+| HTTPS 证书不受信任 | 免费隧道域名证书由厂商签发，浏览器一般直接信任；若自签则需注意 |
+| 回调收到 502 | 本地服务未启动或端口写错；检查防火墙 |
+| 上传大文件超时 | 免费版有请求体大小/超时限制，考虑自建 frp/其他方案 |
+| 想让同事长期访问 | 用 cloudflared 命名隧道 + 自有域名，而非临时随机域名 |
 
-## 九、最佳实践
+## 九、选型建议
 
-1. **测试文件与被测文件同目录**：`utils.ts` + `utils.test.ts`。
-2. 名字描述行为：`it('当余额不足时拒绝转账')`，而非 `it('test transfer')`。
-3. 优先 `getByRole/getByLabelText`（Testing Library），避免 `container.querySelector`。
-4. 网络请求一律 Mock（MSW），不依赖真实后端。
-5. CI 中 `vitest run --coverage` 并把 thresholds 打开，防止覆盖率持续下滑。
+- **临时演示、快速验证** → ngrok（生态好）
+- **需要稳定固定域名、长期使用** → cloudflared（免费且强）
+- **完全免费零注册** → localtunnel（体验将就）
 
 ## 十、参考
 
-- 官方文档：https://vitest.dev/
-- 中文文档：https://cn.vitest.dev/
+- ngrok：https://ngrok.com/docs
+- cloudflared：https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+- localtunnel：https://github.com/localtunnel/localtunnel
 

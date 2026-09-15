@@ -3,177 +3,161 @@ slug: day-49
 kind: day
 day: 49
 week: 8
-weekTitle: 终端与命令行
-weekBlurb: Shell、常用命令行工具与终端复用，把日常操作脚本化。
-title: 终端模拟器使用教程（Windows Terminal / iTerm2 / Warp / Tabby）
-sourcePath: 08-终端与命令行/01-终端模拟器.md
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: esbuild 与 SWC 使用教程
+lead: '两者都是**原生语言编写的极速编译工具**，用于替代传统的 Babel + Terser 慢速链路。'
+sourcePath: 03-构建打包/04-esbuild与SWC.md
 ---
 
-## 一、终端模拟器 vs Shell
+两者都是**原生语言编写的极速编译工具**，用于替代传统的 Babel + Terser 慢速链路。
 
-- **终端模拟器（Terminal）**：显示与交互的窗口（Windows Terminal、iTerm2）；
-- **Shell**：解释你输入命令的程序（PowerShell、zsh、bash）。
+| 维度 | esbuild | SWC |
+| --- | --- | --- |
+| 语言 | Go | Rust |
+| 定位 | 打包器 + 转译器 + 压缩器 | 转译器（编译器），可替代 Babel |
+| 速度 | 极快（比 Webpack 快 10-100x） | 极快（比 Babel 快 20x+） |
+| 集成 | 独立 CLI / API，被 Vite 用作依赖预构建 | 被 Next.js、Vite 等用作编译器 |
+| 配置 | CLI 参数或 JS API | `.swcrc` 配置 |
 
-换个终端不会改变命令语法，只改变显示与操作体验。
-
-## 二、Windows Terminal（Windows 首选）
+## 一、esbuild
 
 ### 安装
 
 ```powershell
-winget install Microsoft.WindowsTerminal
-winget install Microsoft.PowerShell     # 建议升级到 PowerShell 7
+pnpm add -D esbuild
 ```
 
-### 核心功能
+### CLI 用法
 
-- **多标签 + 多窗格**（`Alt+Shift+D` 分屏）；
-- 支持 PowerShell / CMD / WSL / SSH 多 Profile；
-- GPU 渲染，快到飞起；
-- 完全可配置（JSON）、支持主题与背景图；
-- 内置搜索、复制粘贴、字体连字支持。
+```powershell
+# 打包 + 压缩
+esbuild src/index.ts --bundle --minify --outfile=dist/bundle.js
 
-### 常用快捷键
+# 输出 ESM，指定平台
+esbuild src/index.ts --bundle --format=esm --platform=browser --outfile=dist/index.mjs
 
-| 快捷键 | 功能 |
-| --- | --- |
-| `Ctrl+Shift+T` | 新建标签 |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | 切换标签 |
-| `Alt+Shift+D` | 自动分屏（水平/垂直） |
-| `Alt+Shift+加号/减号` | 垂直/水平分屏 |
-| `Alt+方向键` | 窗格间切换 |
-| `Ctrl+Shift+W` | 关闭当前窗格 |
-| `Ctrl+Shift+P` | 命令面板 |
-| `Ctrl+,` | 打开设置 |
-| `Ctrl++` / `Ctrl+-` | 字号 |
+# 开发模式：监听 + sourcemap
+esbuild src/index.ts --bundle --outfile=dist/bundle.js --watch --sourcemap
 
-### 配置（settings.json）
-
-`Ctrl+,` → 左下角「打开 JSON 文件」：
-
-```jsonc
-{
-  "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",  // PowerShell 7 的 GUID
-  "profiles": {
-    "defaults": {
-      "font": { "face": "JetBrainsMono Nerd Font", "size": 11 },
-      "opacity": 95,
-      "useAcrylic": true,
-      "padding": "8, 8, 8, 8",
-      "scrollbarState": "hidden"
-    },
-    "list": [
-      { "name": "PowerShell", "source": "Windows.Terminal.PowershellCore" },
-      { "name": "Ubuntu", "source": "Windows.Terminal.Wsl" },
-      { "name": "SSH Server", "commandline": "ssh user@server.com" }
-    ]
-  },
-  "actions": [
-    { "command": "find", "keys": "ctrl+shift+f" },
-    { "command": { "action": "splitPane", "split": "auto" }, "keys": "alt+shift+d" }
-  ]
-}
+# 本地服务器
+esbuild src/index.ts --bundle --outfile=dist/bundle.js --servedir=dist
 ```
 
-推荐安装 [Nerd Font](https://www.nerdfonts.com/)（JetBrains Mono / FiraCode）以显示图标。
+### JS API
 
-## 三、iTerm2（macOS 首选）
+```js
+import * as esbuild from 'esbuild';
 
-### 安装
+// 单次构建
+await esbuild.build({
+  entryPoints: ['src/index.ts'],
+  bundle: true,
+  outfile: 'dist/bundle.js',
+  minify: true,
+  sourcemap: true,
+  target: ['es2018'],
+  format: 'esm',
+  external: ['react'],
+  loader: { '.png': 'dataurl', '.svg': 'text' },
+  define: { 'process.env.NODE_ENV': '"production"' },
+});
 
-```bash
-brew install --cask iterm2
+// watch 模式
+const ctx = await esbuild.context({ entryPoints: ['src/index.ts'], outfile: 'dist/bundle.js', bundle: true });
+await ctx.watch();
 ```
 
-### 核心功能
+### 特点与限制
 
-- 分屏（`Cmd+D` 垂直、`Cmd+Shift+D` 水平）；
-- **搜索高亮、自动补全、粘贴历史**；
-- **Profiles**：不同项目用不同配色/启动目录；
-- **Shell Integration**：命令状态标记、快速跳转历史输出；
-- **tmux 集成**（原生窗口式 tmux）；
-- 支持图片显示（imgcat）。
+- 支持 TS、JSX、CSS、JSON、图片等 loader；
+- **不做类型检查**（只删类型），类型检查交给 `tsc --noEmit`；
+- 某些 Babel 插件特性（装饰器旧语法等）支持有限。
 
-### 常用快捷键
-
-| 快捷键 | 功能 |
-| --- | --- |
-| `Cmd+T` / `Cmd+W` | 新标签 / 关闭 |
-| `Cmd+D` / `Cmd+Shift+D` | 垂直 / 水平分屏 |
-| `Cmd+;` | 自动补全历史命令 |
-| `Cmd+Shift+H` | 粘贴历史 |
-| `Cmd+F` | 搜索 |
-| `Cmd+Option+方向` | 窗格切换 |
-| `Cmd+K` | 清屏 |
-
-### 建议设置
-
-- `Profiles → Terminal → Report Terminal Type` 设为 `xterm-256color`；
-- 开启 `Unlimited scrollback`；
-- 安装 Shell Integration：`iTerm2 → Install Shell Integration`。
-
-## 四、Warp（AI 增强，macOS / Linux / Windows）
-
-### 特点
-
-- **命令输入像编辑器**：多光标、选择、复制；
-- **命令块（Block）**：每条命令及其输出是一个块，可单独复制/分享；
-- **AI 辅助**：`#` 开头用自然语言描述，自动生成命令；
-- 内置补全与纠错提示。
-
-### 使用
-
-```bash
-# 输入后按 Enter 前，AI 可建议修正
-git comit -m "fix"      # Warp 会提示 comit → commit
-
-# AI 生成命令（以 # 开头）
-# 找出当前目录下最大的 10 个文件
-```
-
-适合愿意尝试新交互、喜欢 AI 辅助的用户；习惯传统终端的人可能更喜欢 Windows Terminal/iTerm2。
-
-## 五、Tabby（跨平台，可替代 PuTTY）
-
-### 特点
-
-- 跨平台（Win/macOS/Linux）；
-- 内置 **SSH / Telnet / 串口** 客户端；
-- 界面现代，插件与主题丰富；
-- 支持分屏、保存 SSH 会话。
+## 二、SWC
 
 ### 安装与使用
 
 ```powershell
-winget install Eugeny.Tabby
-# macOS
-brew install --cask tabby
+pnpm add -D @swc/cli @swc/core
+
+swc src -d dist                      # 编译目录
+swc src/index.ts -o dist/index.js
+swc src -d dist --watch
 ```
 
-`Settings → Profiles` 添加 SSH 连接（保存主机、端口、密钥），一键连接，适合管理大量服务器。
+### .swcrc 配置
 
-## 六、快速对比
+```json
+{
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "tsx": true,
+      "decorators": true
+    },
+    "target": "es2018",
+    "transform": {
+      "react": { "runtime": "automatic" }
+    },
+    "minify": { "compress": true, "mangle": true }
+  },
+  "module": {
+    "type": "es6"
+  },
+  "sourceMaps": true
+}
+```
 
-| 终端 | 平台 | 亮点 | 适合 |
-| --- | --- | --- | --- |
-| Windows Terminal | Windows | 微软官方、快、免费 | Windows 所有人 |
-| iTerm2 | macOS | 功能最全、免费 | Mac 开发者 |
-| Warp | 全平台 | AI、命令块、Rust 快 | 喜欢新鲜交互 |
-| Tabby | 全平台 | 内置 SSH 管理、跨平台 | 需要管理多服务器 |
+### 在构建工具中替代 Babel
 
-## 七、通用提效配置
+**Webpack**：
 
-1. **字体**：Nerd Font（图标、连字）；
-2. **配色**：Catppuccin / Dracula / Tokyo Night 主题；
-3. **透明度**：85-95%，好看且能隐约看到背景；
-4. **滚动缓冲**：拉到 10000 行以上；
-5. **快捷键**：分屏 + 标签切换必须熟练；
-6. **复制粘贴**：Windows `Ctrl+Shift+C/V`，Mac `Cmd+C/V`。
+```js
+module.exports = {
+  module: {
+    rules: [
+      { test: /\.[jt]sx?$/, exclude: /node_modules/, use: { loader: 'swc-loader' } },
+    ],
+  },
+};
+```
 
-## 八、参考
+**Jest**：
 
-- Windows Terminal：https://learn.microsoft.com/zh-cn/windows/terminal/
-- iTerm2：https://iterm2.com/documentation.html
-- Warp：https://docs.warp.dev/
-- Tabby：https://tabby.sh/
+```json
+{ "transform": { "^.+\\.(t|j)sx?$": ["@swc/jest"] } }
+```
+
+**Next.js**（内置，一行开启）：
+
+```js
+// next.config.js
+module.exports = { swcMinify: true };
+```
+
+## 三、何时选谁
+
+| 场景 | 选择 |
+| --- | --- |
+| 需要「打包 + 转译 + 压缩」一条龙 | esbuild |
+| 需要替换 Babel（保留原打包器） | SWC（兼容 Babel 配置习惯） |
+| Webpack 项目加速 | `swc-loader` 替换 `babel-loader` |
+| 库打包 | 直接用 tsup（底层 esbuild） |
+| 需要严格类型检查 | 两者都不做，另跑 `tsc --noEmit` |
+
+## 四、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| esbuild 报 TS 类型错误？ | 它不检查类型，用 `tsc --noEmit` 单独检查 |
+| 装饰器/old proposal 语法不识别 | 配置 `tsconfig.json` 的 `experimentalDecorators`；SWC 在 `.swcrc` 中开 `decorators` |
+| 产物用了新语法导致老浏览器报错 | 设置 `target`（esbuild `--target=es2018`，SWC `jsc.target`） |
+| CSS Modules 支持 | esbuild 用 `--loader:.module.css=local-css`；SWC 需其他工具配合 |
+| Windows 二进制安装失败 | 重装依赖（`pnpm rebuild esbuild`），检查网络 |
+
+## 五、参考
+
+- esbuild 文档：https://esbuild.github.io/
+- SWC 文档：https://swc.rs/docs/
 

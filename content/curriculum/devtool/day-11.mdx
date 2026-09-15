@@ -4,206 +4,181 @@ kind: day
 day: 11
 week: 2
 weekTitle: 包管理与运行时
-weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
-title: Java 构建工具教程（Maven / Gradle）
-sourcePath: 02-包管理与运行时/05-Java构建工具.md
+weekBlurb: Python 走 venv + pip（ml 课同款路线），Node 走 nvm + pnpm，Java / Rust / Go 的构建工具按语言需要选读。
+title: Python 环境与包管理教程（pip / venv / uv / poetry / conda）
+lead: Python 环境与包管理教程（pip / venv / uv / poetry / conda）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 02-包管理与运行时/04-Python环境与包管理.md
 ---
 
-## 一、定位
+> **与课程的关系**：ml 课的[环境准备](/learn/ml/day-06)沿用的就是本篇的 venv + pip 路线；uv / poetry / conda 是进阶选项，第一次装环境不必全学。
 
-| 工具 | 配置方式 | 特点 |
+## 一、工具定位
+
+| 工具 | 角色 | 说明 |
 | --- | --- | --- |
-| Maven | XML（pom.xml） | 约定优于配置，标准化强，企业常见 |
-| Gradle | Groovy/Kotlin DSL | 灵活、增量构建快，Android/Spring 新项目主流 |
+| pip | 包安装器 | Python 自带，基础工具 |
+| venv | 虚拟环境 | 标准库自带，隔离依赖 |
+| uv | 新一代一体化工具 | Rust 编写，安装依赖快 10-100 倍，可管理 Python 版本 |
+| poetry | 项目依赖 + 打包 | 声明式依赖管理，pyproject.toml 为核心 |
+| conda | 科学计算环境 | 可管理非 Python 依赖（CUDA、C 库），数据科学习惯 |
 
-两者都负责：依赖管理、编译、测试、打包、发布。
+## 二、pip + venv（标准做法）
 
-## 二、环境准备
-
-```powershell
-# JDK（先装）
-winget install EclipseAdoptium.Temurin.21.JDK
-java -version
-
-# Maven
-winget install Apache.Maven
-mvn -v
-
-# Gradle（推荐用 wrapper，不必全局安装）
-winget install Gradle.Gradle
-gradle -v
-```
-
-国内加速（Maven `~/.m2/settings.xml`）：
-
-```xml
-<mirrors>
-  <mirror>
-    <id>aliyun</id>
-    <mirrorOf>central</mirrorOf>
-    <url>https://maven.aliyun.com/repository/public</url>
-  </mirror>
-</mirrors>
-```
-
-Gradle 加速（`init.gradle` 或项目仓库声明）：
-
-```groovy
-repositories {
-    maven { url 'https://maven.aliyun.com/repository/public' }
-    mavenCentral()
-}
-```
-
-## 三、Maven 使用
-
-### 常用命令
+### 创建与激活虚拟环境
 
 ```powershell
-mvn archetype:generate -DgroupId=com.demo -DartifactId=demo-app -DarchetypeArtifactId=maven-archetype-quickstart
-mvn clean                 # 清理 target
-mvn compile               # 编译
-mvn test                  # 跑测试
-mvn package               # 打包（jar/war）
-mvn install               # 装入本地仓库 ~/.m2
-mvn deploy                # 发布到私服
-mvn spring-boot:run       # Spring Boot 运行
-mvn dependency:tree       # 查看依赖树（排查冲突）
-mvn -DskipTests package   # 跳过测试打包
-mvn versions:display-dependency-updates   # 检查可更新依赖
+# 创建
+python -m venv .venv
+
+# 激活（Windows PowerShell）
+.\.venv\Scripts\Activate.ps1
+# 若报执行策略错误，先执行：
+# Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+# macOS / Linux
+source .venv/bin/activate
+
+# 退出
+deactivate
 ```
 
-### pom.xml 核心结构
-
-```xml
-<project>
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>com.demo</groupId>
-  <artifactId>demo-app</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
-
-  <properties>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
-
-  <dependencies>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>33.2.0-jre</version>
-    </dependency>
-  </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.2.5</version>
-      </plugin>
-    </plugins>
-  </build>
-</project>
-```
-
-依赖范围 `scope`：`compile`（默认）、`provided`、`runtime`、`test`、`system`。
-
-### 多模块
-
-```xml
-<modules>
-  <module>common</module>
-  <module>service</module>
-  <module>web</module>
-</modules>
-```
-
-父 POM 统一管理版本（`dependencyManagement`），子模块声明依赖不写版本号。
-
-## 四、Gradle 使用
-
-### 初始化与命令
+### 安装与管理依赖
 
 ```powershell
-gradle init                # 交互式生成项目
-.\gradlew build            # 用 wrapper 构建（推荐，团队版本一致）
-.\gradlew test
-.\gradlew run
-.\gradlew bootRun          # Spring Boot
-.\gradlew dependencies     # 依赖树
-.\gradlew --refresh-dependencies
+python -m pip install --upgrade pip
+pip install requests flask
+pip install "requests==2.32.0"     # 锁定版本
+pip install -r requirements.txt
+pip freeze > requirements.txt      # 导出当前环境（含版本）
+pip uninstall requests
+pip list
+pip show requests
 ```
 
-> 永远用 `gradlew`（wrapper）而不是全局 `gradle`，保证团队/CI 使用同一 Gradle 版本。
+### 国内镜像加速
 
-### build.gradle.kts（Kotlin DSL 示例）
-
-```kotlin
-plugins {
-    java
-    application
-}
-
-group = "com.demo"
-version = "1.0.0"
-
-java {
-    toolchain { languageVersion = JavaLanguageVersion.of(21) }
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation("com.google.guava:guava:33.2.0-jre")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
-}
-
-tasks.test { useJUnitPlatform() }
-
-application { mainClass = "com.demo.App" }
+```powershell
+pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+# 常用：清华 tuna、阿里 mirrors.aliyun.com/pypi/simple
 ```
 
-### 常用概念
+## 三、uv（强烈推荐，现代替代）
 
-- `implementation` / `api` / `testImplementation`：依赖配置（可见性不同，影响编译与传递）；
-- `tasks.register(...)`：自定义任务；
-- `settings.gradle.kts`：多模块 `include(":common", ":service")`。
+### 安装
 
-## 五、Maven vs Gradle 选择
+```powershell
+# Windows
+winget install --id astral-sh.uv
+# 或 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+# macOS/Linux
+brew install uv
+```
 
-| 维度 | Maven | Gradle |
-| --- | --- | --- |
-| 上手难度 | 低（XML 直观） | 中（需懂 DSL） |
-| 构建速度 | 一般 | 快（增量 + 缓存 + 并行） |
-| 灵活性 | 低 | 高（可写逻辑） |
-| 生态 | 企业/老项目多 | Android、Spring 新项目多 |
-| 建议 | 维护老项目 | 新项目 / Android / 追求速度 |
+### 核心用法
 
-## 六、常见问题
+```powershell
+uv python install 3.12          # 安装 Python 版本（替代 pyenv）
+uv python list
+uv init myproject               # 新建项目（生成 pyproject.toml）
+uv venv                         # 创建虚拟环境（默认 .venv）
+uv add requests                 # 添加依赖并写入 pyproject.toml + uv.lock
+uv add --dev pytest             # 开发依赖
+uv remove requests
+uv sync                         # 按锁文件同步环境（CI 用 --frozen）
+uv run python main.py           # 自动在项目环境中运行
+uv run pytest                   # 无需先 activate
+uv pip install -r requirements.txt   # 兼容 pip 工作流
+uv tool install ruff            # 安装全局 CLI 工具（替代 pipx）
+uvx ruff check .                # 临时执行工具（替代 pipx run）
+```
+
+`pyproject.toml` 示例：
+
+```toml
+[project]
+name = "myproject"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["requests>=2.32", "click"]
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+```
+
+> uv 的速度优势明显：装 100 个包通常只需几秒，并自动缓存。
+
+## 四、poetry（项目化管理）
+
+```powershell
+# 安装
+pip install poetry
+# 或 (irm https://install.python-poetry.org | iex) 官方脚本
+
+poetry new myproject
+poetry init                    # 在已有目录初始化
+poetry add requests
+poetry add --group dev pytest
+poetry install                 # 安装全部依赖
+poetry run python main.py
+poetry shell                   # 进入虚拟环境
+poetry lock
+poetry build                   # 打包 wheel/sdist
+poetry publish                 # 发布到 PyPI
+```
+
+特点：`pyproject.toml` 声明依赖，`poetry.lock` 锁死版本，打包发布一体化。
+
+## 五、conda（科学计算 / 数据科学）
+
+```powershell
+# 安装：推荐 miniconda（轻量）
+winget install Anaconda.Miniconda3
+```
+
+```powershell
+conda create -n ml python=3.11
+conda activate ml
+conda install numpy pandas pytorch -c pytorch
+conda install -c conda-forge jupyterlab
+conda env export > environment.yml
+conda env create -f environment.yml
+conda deactivate
+conda env list
+```
+
+优势：能装非 Python 依赖（CUDA toolkit、MKL 等），科研/深度学习项目常用。
+
+## 六、如何选择
+
+| 场景 | 推荐 |
+| --- | --- |
+| 一般 Web / 脚本 / 工具开发 | **uv**（新项目） / pip+venv（传统） |
+| 需要发布 Python 包到 PyPI | poetry 或 uv |
+| 深度学习 / 科研 | conda 或 uv + pip |
+| CI 追求秒级安装 | uv（`uv sync --frozen`） |
+
+## 七、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 依赖冲突（NoSuchMethodError） | Maven：`mvn dependency:tree`；Gradle：`gradlew dependencies`，用 `exclude` 或 `resolutionStrategy` 强制版本 |
-| 下载依赖慢 | 配置阿里云镜像，或公司私服 Nexus |
-| `JAVA_HOME` 未设置 | `setx JAVA_HOME "C:\Program Files\Eclipse Adoptium\jdk-21"`，重启终端 |
-| Gradle 版本不兼容插件 | 修改 `gradle-wrapper.properties` 中的 distributionUrl |
-| 中文乱码（Windows） | 设置 `-Dfile.encoding=UTF-8` 与终端 UTF-8 |
-| 内存不足 | `JAVA_OPTS=-Xmx2g` 或 Gradle `org.gradle.jvmargs` |
+| PowerShell 禁止运行 Activate.ps1 | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
+| `pip` 装到系统环境 | 先激活虚拟环境再操作；用 `where python` 确认路径 |
+| 多个 Python 版本混乱 | 用 uv / pyenv 管理；`python -m pip` 确保用对应解释器 |
+| 依赖冲突 | 用 uv/poetry 的解析器；或 `pip install --upgrade --force-reinstall` 单个排查 |
+| 编译型包（如 lxml）安装失败 | 升级 pip，找预编译 wheel，或使用 conda |
+| 换机后环境不一致 | 提交锁文件：uv.lock / poetry.lock / requirements.txt（带版本） |
 
-## 七、最佳实践
+## 八、最佳实践
 
-1. **锁依赖版本**：Maven 用父 POM `dependencyManagement`；Gradle 用 version catalog（`libs.versions.toml`）。
-2. **保留 wrapper**：`mvnw` / `gradlew` 必须提交（Gradle 尤其重要）。
-3. **CI 中跳过无关任务**：`mvn -DskipTests package`、`gradlew build -x test`（单元测试单独跑）。
-4. **构建产物统一目录**：Maven `target/`、Gradle `build/`，加入 `.gitignore`。
+1. **永远在虚拟环境中开发**，不要往系统 Python 装包。
+2. 项目根目录放 `.python-version`（写 `3.12`），配合 uv/pyenv 自动切换。
+3. 锁文件必须进 Git；`requirements.txt` 用 `pip freeze` 生成时注意剔除本地路径依赖。
+4. **一个项目只用一个依赖管理工具**，不要 pip/poetry/conda 混用。
 
-## 八、参考
+## 九、参考
 
-- Maven 官方：https://maven.apache.org/guides/
-- Gradle 官方：https://docs.gradle.org/current/userguide/userguide.html
-- Spring Initializr：https://start.spring.io/
+- Python 官方 venv 文档：https://docs.python.org/zh-cn/3/library/venv.html
+- uv：https://docs.astral.sh/uv/
+- poetry：https://python-poetry.org/docs/
+- conda：https://docs.conda.io/
 

@@ -3,161 +3,145 @@ slug: day-17
 kind: day
 day: 17
 week: 3
-weekTitle: 构建打包
-weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
-title: esbuild 与 SWC 使用教程
-lead: '两者都是**原生语言编写的极速编译工具**，用于替代传统的 Babel + Terser 慢速链路。'
-sourcePath: 03-构建打包/04-esbuild与SWC.md
+weekTitle: 编辑器与 IDE
+weekBlurb: VSCode 是本站所有课程的推荐编辑器，先把它配顺手；Cursor、JetBrains、Neovim 按个人口味选读。
+title: JetBrains 全家桶使用教程
+lead: JetBrains 全家桶使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 07-编辑器与IDE/03-JetBrains全家桶.md
 ---
 
-两者都是**原生语言编写的极速编译工具**，用于替代传统的 Babel + Terser 慢速链路。
+## 一、产品矩阵
 
-| 维度 | esbuild | SWC |
+| IDE | 面向语言/技术 | 说明 |
 | --- | --- | --- |
-| 语言 | Go | Rust |
-| 定位 | 打包器 + 转译器 + 压缩器 | 转译器（编译器），可替代 Babel |
-| 速度 | 极快（比 Webpack 快 10-100x） | 极快（比 Babel 快 20x+） |
-| 集成 | 独立 CLI / API，被 Vite 用作依赖预构建 | 被 Next.js、Vite 等用作编译器 |
-| 配置 | CLI 参数或 JS API | `.swcrc` 配置 |
+| IntelliJ IDEA | Java / Kotlin / Spring | 旗舰产品，分 Community（免费）与 Ultimate（付费） |
+| WebStorm | JavaScript / TypeScript / 前端框架 | 前端 IDE 标杆 |
+| PyCharm | Python | 含数据科学工具，分 Community / Professional |
+| GoLand | Go | 服务端 Go 开发 |
+| RustRover | Rust | 相对较新，已取代 CLion 的 Rust 插件路线 |
+| PhpStorm / CLion / Rider | PHP / C++ / .NET | 同类产品线 |
 
-## 一、esbuild
+共同特点：**开箱即用的深度代码分析**、极强重构、数据库工具、调试器、测试集成。
 
-### 安装
+## 二、安装与激活
 
-```powershell
-pnpm add -D esbuild
-```
+1. 官网下载：https://www.jetbrains.com/
+2. 用 **Toolbox App** 管理多个 IDE 与版本升级（推荐）；
+3. 激活方式：
+ - 个人订阅 / 公司授权；
+ - 学生与教师免费（凭 edu 邮箱申请）；
+ - 开源项目免费授权；
+ - Community 版（IDEA / PyCharm）免费。
 
-### CLI 用法
+降低内存占用：`Help → Change Memory Settings` 调整 -Xmx（一般 2048-4096MB）。
 
-```powershell
-# 打包 + 压缩
-esbuild src/index.ts --bundle --minify --outfile=dist/bundle.js
+## 三、核心优势（相对 VS Code）
 
-# 输出 ESM，指定平台
-esbuild src/index.ts --bundle --format=esm --platform=browser --outfile=dist/index.mjs
+| 能力 | JetBrains | VS Code |
+| --- | --- | --- |
+| 索引与代码理解 | 极强（整项目语义索引） | 依赖 LSP，稍弱 |
+| 重构 | 业界最强（安全重命名、抽取、内联） | 基础可用 |
+| 调试器 | 强大（条件断点、求值、远程） | 够用 |
+| 数据库工具 | 内置（Ultimate 版） | 需扩展 |
+| 框架支持 | 深度（Spring、Vue、React） | 靠插件 |
+| 启动/内存 | 重（吃内存） | 轻 |
+| 价格 | 收费（有免费版） | 免费 |
 
-# 开发模式：监听 + sourcemap
-esbuild src/index.ts --bundle --outfile=dist/bundle.js --watch --sourcemap
+**结论**：重度工程开发（Java/Go/大型前端）值得付费；轻量场景 VS Code 足够。
 
-# 本地服务器
-esbuild src/index.ts --bundle --outfile=dist/bundle.js --servedir=dist
-```
+## 四、通用快捷键（Windows/Linux）
 
-### JS API
-
-```js
-import * as esbuild from 'esbuild';
-
-// 单次构建
-await esbuild.build({
-  entryPoints: ['src/index.ts'],
-  bundle: true,
-  outfile: 'dist/bundle.js',
-  minify: true,
-  sourcemap: true,
-  target: ['es2018'],
-  format: 'esm',
-  external: ['react'],
-  loader: { '.png': 'dataurl', '.svg': 'text' },
-  define: { 'process.env.NODE_ENV': '"production"' },
-});
-
-// watch 模式
-const ctx = await esbuild.context({ entryPoints: ['src/index.ts'], outfile: 'dist/bundle.js', bundle: true });
-await ctx.watch();
-```
-
-### 特点与限制
-
-- 支持 TS、JSX、CSS、JSON、图片等 loader；
-- **不做类型检查**（只删类型），类型检查交给 `tsc --noEmit`；
-- 某些 Babel 插件特性（装饰器旧语法等）支持有限。
-
-## 二、SWC
-
-### 安装与使用
-
-```powershell
-pnpm add -D @swc/cli @swc/core
-
-swc src -d dist                      # 编译目录
-swc src/index.ts -o dist/index.js
-swc src -d dist --watch
-```
-
-### .swcrc 配置
-
-```json
-{
-  "jsc": {
-    "parser": {
-      "syntax": "typescript",
-      "tsx": true,
-      "decorators": true
-    },
-    "target": "es2018",
-    "transform": {
-      "react": { "runtime": "automatic" }
-    },
-    "minify": { "compress": true, "mangle": true }
-  },
-  "module": {
-    "type": "es6"
-  },
-  "sourceMaps": true
-}
-```
-
-### 在构建工具中替代 Babel
-
-**Webpack**：
-
-```js
-module.exports = {
-  module: {
-    rules: [
-      { test: /\.[jt]sx?$/, exclude: /node_modules/, use: { loader: 'swc-loader' } },
-    ],
-  },
-};
-```
-
-**Jest**：
-
-```json
-{ "transform": { "^.+\\.(t|j)sx?$": ["@swc/jest"] } }
-```
-
-**Next.js**（内置，一行开启）：
-
-```js
-// next.config.js
-module.exports = { swcMinify: true };
-```
-
-## 三、何时选谁
-
-| 场景 | 选择 |
+| 快捷键 | 功能 |
 | --- | --- |
-| 需要「打包 + 转译 + 压缩」一条龙 | esbuild |
-| 需要替换 Babel（保留原打包器） | SWC（兼容 Babel 配置习惯） |
-| Webpack 项目加速 | `swc-loader` 替换 `babel-loader` |
-| 库打包 | 直接用 tsup（底层 esbuild） |
-| 需要严格类型检查 | 两者都不做，另跑 `tsc --noEmit` |
+| `Shift+Shift`（连按两次 Shift） | 搜索一切（文件/类/符号/动作） |
+| `Ctrl+Shift+A` | 查找动作（Find Action） |
+| `Ctrl+N` / `Ctrl+Shift+N` | 找类 / 找文件 |
+| `Ctrl+B` / `Ctrl+点击` | 跳转定义 |
+| `Ctrl+Alt+B` | 跳转实现 |
+| `Alt+F7` | 查找用法 |
+| `Shift+F6` | 重命名 |
+| `Ctrl+Alt+L` | 格式化代码 |
+| `Ctrl+Alt+O` | 优化 import |
+| `Alt+Enter` | 快速修复 / 意图动作 |
+| `Ctrl+Alt+V` | 抽取变量 |
+| `Ctrl+Alt+M` | 抽取方法 |
+| `Ctrl+W` / `Ctrl+Shift+W` | 扩展/收缩选择 |
+| `Shift+F10` | 运行 |
+| `Shift+F9` | 调试 |
+| `F8` / `F7` / `Shift+F8` | 单步跳过 / 进入 / 跳出 |
+| `Ctrl+Shift+F` | 全局搜索 |
+| `Ctrl+E` | 最近文件 |
+| `Ctrl+Shift+E` | 最近修改位置 |
+| `Alt+1` | 项目面板 |
+| `Ctrl+`` ` | 终端 |
 
-## 四、常见问题
+macOS：`Ctrl` → `Cmd`，`Alt` → `Option`。
+
+## 五、各 IDE 上手要点
+
+### IntelliJ IDEA（Java / Spring）
+
+- 新建项目：`File → New Project` 选 Maven/Gradle + JDK；
+- **Run/Debug Configurations** 配置启动项（Spring Boot 可一键识别）；
+- 数据库工具（Ultimate）：右侧 Database → 添加数据源 → 直接执行 SQL；
+- HTTP Client：`.http` 文件中写请求，点击运行（类似 Postman）；
+- **Diagrams**：右键类 → Diagrams 看继承关系；
+- 必备插件：Lombok（新版本内置支持）、MyBatisX、SonarLint、Key Promoter X（学快捷键）。
+
+### WebStorm（前端）
+
+- 内置 ESLint / Prettier / Tailwind 支持（无需额外装）；
+- 保存时自动修复：`Settings → Languages & Frameworks → JavaScript → Code Quality → ESLint → Run eslint --fix on save`；
+- 框架识别：`Settings → Languages → Framework` 开启 Vue/React 支持；
+- `Alt+Enter` 对未安装的包可直接 `Install package`；
+- 调试：`Run → Edit Configurations` 添加 npm/浏览器配置。
+
+### PyCharm（Python）
+
+- 解释器配置：`Settings → Project → Python Interpreter` 选 venv/conda/uv；
+- 虚拟环境创建：`Add Interpreter → New`（自动装依赖）；
+- **科学模式**：Jupyter notebook 内置，变量查看器；
+- 调试 Django/Flask：Run Configuration 中直接指定框架；
+- 重构：`Shift+F6` 重命名跨文件生效。
+
+### GoLand（Go）
+
+- 内置 Go Modules 支持，自动 `go mod tidy` 提示；
+- 运行/调试：函数左侧绿色三角直接 Run Test；
+- 代码检查：集成 go vet、golangci-lint（配置路径即可）；
+- 远程调试：`Run → Edit Configurations → Go Remote`；
+- 数据库/HTTP Client 同 IDEA。
+
+### RustRover（Rust）
+
+- 首次打开自动 cargo check 索引；
+- 内置 clippy 提示、Cargo 工具窗口（依赖管理 UI）；
+- 调试：LLDB 集成；
+- 测试：点击左侧 ▶ 运行 #[test]。
+
+## 六、通用效率功能
+
+1. **Live Templates**：`Settings → Editor → Live Templates`，如 `psvm` 展开 main 方法；
+2. **多光标**：`Alt+点击` 或用 `Ctrl+Shift+Alt+点击`；
+3. **Local History**：右键文件/目录 → Local History，找回未提交的历史版本（救命功能）；
+4. **终端与 VCS**：内置 Git 面板 + 冲突解决工具（3 窗格）；
+5. **Database 工具**：连接 MySQL/PG/Redis，直接写 SQL 查数据；
+6. **Profiler**：运行时可采样 CPU/内存（Ultimate）。
+
+## 七、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| esbuild 报 TS 类型错误？ | 它不检查类型，用 `tsc --noEmit` 单独检查 |
-| 装饰器/old proposal 语法不识别 | 配置 `tsconfig.json` 的 `experimentalDecorators`；SWC 在 `.swcrc` 中开 `decorators` |
-| 产物用了新语法导致老浏览器报错 | 设置 `target`（esbuild `--target=es2018`，SWC `jsc.target`） |
-| CSS Modules 支持 | esbuild 用 `--loader:.module.css=local-css`；SWC 需其他工具配合 |
-| Windows 二进制安装失败 | 重装依赖（`pnpm rebuild esbuild`），检查网络 |
+| 索引卡住/CPU 高 | `File → Invalidate Caches` 重建索引；排除大目录 |
+| 内存占用高 | 调 -Xmx；关掉不用的插件 |
+| 快捷键与系统/输入法冲突 | `Settings → Keymap` 修改或换映射方案 |
+| 中文注释显示异常 | 字体设置选择支持中文的字库（如微软雅黑） |
+| 新建文件默认带版权头 | `Settings → Editor → File and Code Templates` 修改 |
+| 恢复误删文件 | 项目右键 → Local History → Show History |
 
-## 五、参考
+## 八、参考
 
-- esbuild 文档：https://esbuild.github.io/
-- SWC 文档：https://swc.rs/docs/
+- 官方文档：https://www.jetbrains.com/help/
+- IDEA 快捷键 PDF：https://resources.jetbrains.com/storage/products/intellij-idea/docs/IntelliJIDEA_ReferenceCard.pdf
+- Toolbox App：https://www.jetbrains.com/toolbox-app/
 

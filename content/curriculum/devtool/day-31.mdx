@@ -2,197 +2,165 @@
 slug: day-31
 kind: day
 day: 31
-week: 5
-weekTitle: 测试
-weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
-title: Jest 使用教程
-sourcePath: 05-测试/02-Jest.md
+week: 6
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: ESLint 使用教程
+lead: ESLint 使用教程：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 04-代码检查与格式化/01-ESLint.md
 ---
 
-## 一、Jest 是什么
+## 一、ESLint 是什么
 
-Facebook 出品的 JS/TS 测试框架，特点是**开箱即用**：断言、Mock、快照、覆盖率、并行执行全部内置。是目前生态最成熟的 JS 测试工具，CRA、React Native、大量存量项目默认使用。
+JavaScript / TypeScript 的**可插拔静态检查工具**：在不运行代码的情况下发现错误（未定义变量、未使用变量、错误的 API 用法）与风格问题。
+
+> ESLint v9 起使用 **flat config**（`eslint.config.js`），旧的 `.eslintrc` 已废弃。
 
 ## 二、安装与初始化
 
 ```powershell
-pnpm add -D jest @types/jest ts-jest
-# React 项目
-pnpm add -D jest-environment-jsdom @testing-library/react @testing-library/jest-dom
+pnpm add -D eslint @eslint/js typescript-eslint
+npx eslint --init        # 交互式生成配置（v9 支持）
 ```
 
-TypeScript 项目初始化：
+React / Vue 额外插件：
 
 ```powershell
-npx ts-jest config:init
+pnpm add -D eslint-plugin-react-hooks eslint-plugin-react-refresh
+pnpm add -D eslint-plugin-vue vue-eslint-parser
 ```
 
-## 三、配置
+## 三、配置文件（flat config）
 
-`jest.config.ts`：
+`eslint.config.js`：
 
-```ts
-import type { Config } from 'jest';
+```js
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
 
-const config: Config = {
-  preset: 'ts-jest',
-  testEnvironment: 'jsdom',
-  roots: ['<rootDir>/src'],
-  testMatch: ['**/*.test.ts', '**/*.test.tsx'],
-  setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '\\.(css|less|scss)$': 'identity-obj-proxy',
-    '\\.(png|jpg|svg)$': '<rootDir>/src/test/fileMock.ts',
+export default tseslint.config(
+  { ignores: ['dist/**', 'node_modules/**', 'coverage/**'] },
+
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+
+  {
+    files: ['**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      eqeqeq: ['error', 'always'],
+      'prefer-const': 'error',
+    },
   },
-  transform: {
-    '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.test.json' }],
-  },
-  collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
-  coverageThreshold: {
-    global: { lines: 70, functions: 70 },
-  },
-};
-
-export default config;
+);
 ```
 
-> 大型项目建议 `ts-jest` 换 `@swc/jest`（快 10x 以上）：
+旧项目（`.eslintrc.json`）仍可用 `ESLINT_USE_FLAT_CONFIG=false` 过渡。
 
-```ts
-transform: { '^.+\\.(t|j)sx?$': '@swc/jest' }
-```
-
-## 四、编写测试
-
-```ts
-describe('购物车', () => {
-  let cart: Cart;
-
-  beforeEach(() => {
-    cart = new Cart();
-  });
-
-  test('添加商品后总价正确', () => {
-    cart.add({ name: '书', price: 50 });
-    cart.add({ name: '笔', price: 5 });
-    expect(cart.total()).toBe(55);
-  });
-
-  test('移除不存在的商品不报错', () => {
-    expect(() => cart.remove('nope')).not.toThrow();
-  });
-
-  test.each([1, 2, 3])('数量 %i 的折扣计算', (n) => {
-    expect(cart.discount(n)).toBeGreaterThanOrEqual(0);
-  });
-});
-```
-
-### 异步测试
-
-```ts
-test('异步获取', async () => {
-  await expect(fetchUser(1)).resolves.toMatchObject({ id: 1 });
-});
-
-test('回调风格', (done) => {
-  fetchUser(1, (err, user) => {
-    expect(user.id).toBe(1);
-    done();
-  });
-});
-```
-
-### Mock
-
-```ts
-// 函数 Mock
-const mockFn = jest.fn().mockReturnValue(1);
-const mockAsync = jest.fn().mockResolvedValue({ ok: true });
-
-// 模块 Mock
-jest.mock('./api');
-import { fetchUser } from './api';
-(fetchUser as jest.Mock).mockResolvedValue({ id: 1 });
-
-// 局部 Mock
-jest.mock('./utils', () => ({
-  ...jest.requireActual('./utils'),
-  now: () => 1700000000000,
-}));
-
-// spy
-const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
-// 定时器
-jest.useFakeTimers();
-jest.advanceTimersByTime(1000);
-```
-
-### 快照
-
-```ts
-test('组件渲染快照', () => {
-  const { asFragment } = render(<Button>OK</Button>);
-  expect(asFragment()).toMatchSnapshot();
-});
-// 更新：jest -u
-```
-
-## 五、常用命令
+## 四、常用命令
 
 ```powershell
-jest                       # 运行全部（watch 需 --watch）
-jest --watch               # 监听模式
-jest --coverage
-jest src/utils             # 按路径过滤
-jest -t "购物车"            # 按名称过滤
-jest -u                    # 更新快照
-jest --clearCache
-jest --runInBand           # 串行（排查并发问题时）
-jest --onlyChanged         # 只跑改动相关的（需 git）
+npx eslint .                    # 检查当前目录
+npx eslint src --ext .ts,.tsx   # 指定扩展名（v9 默认已含）
+npx eslint . --fix              # 自动修复可修复的问题
+npx eslint . --max-warnings 0   # 有警告即失败（CI 常用）
+npx eslint . --format json -o report.json
+npx eslint --print-config src/index.ts   # 查看某文件的最终生效配置（排查利器）
 ```
 
-## 六、CI 与报告
+`package.json`：
+
+```json
+{
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  }
+}
+```
+
+## 五、规则等级与常见规则
+
+- `"off"` / `0`：关闭
+- `"warn"` / `1`：警告
+- `"error"` / `2`：错误（退出码非 0）
+
+高频规则：
+
+| 规则 | 作用 |
+| --- | --- |
+| `no-unused-vars` | 未使用变量 |
+| `no-undef` | 未声明变量 |
+| `no-implicit-coercion` | 禁止隐式类型转换 |
+| `no-floating-promises`（TS） | 未处理的 Promise |
+| `@typescript-eslint/no-explicit-any` | 禁止 any |
+| `import/order` | import 排序 |
+| `react-hooks/exhaustive-deps` | hooks 依赖检查 |
+
+## 六、在编辑器中使用
+
+VS Code 安装 **ESLint 扩展**，并在 `.vscode/settings.json`：
+
+```json
+{
+  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
+  "eslint.validate": ["javascript", "typescript", "vue", "typescriptreact"]
+}
+```
+
+## 七、与 Prettier 协作
+
+**推荐方案：分工明确** —— ESLint 管代码质量，Prettier 管格式。
+
+```powershell
+pnpm add -D eslint-config-prettier
+```
+
+```js
+// eslint.config.js 最后一项加入
+import prettier from 'eslint-config-prettier';
+export default [ /* ... */, prettier ];
+```
+
+> `eslint-config-prettier` 关闭所有与 Prettier 冲突的格式规则，非常关键。
+> 不再推荐 `eslint-plugin-prettier`（把 Prettier 当 ESLint 规则跑，慢且报错难读）。
+
+## 八、CI 集成
 
 ```yaml
-- run: pnpm jest --ci --coverage --reporters=default --reporters=jest-junit
+- run: pnpm lint        # eslint . --max-warnings 0
 ```
 
-## 七、Jest vs Vitest
+配合缓存：`actions/cache` 缓存 `.eslintcache`（需加 `--cache` 参数）。
 
-| 维度 | Jest | Vitest |
-| --- | --- | --- |
-| 生态成熟度 | 极高 | 高 |
-| 速度（TS 项目） | 中（需转换） | 快 |
-| ESM | 需配置开关，易踩坑 | 原生 |
-| 配置 | 独立一份 | 复用 Vite 配置 |
-| 覆盖面 | React Native / 老项目 | Vite 新项目 |
-
-**结论**：新项目（尤其 Vite）用 Vitest；React Native / 大型 jest 存量项目继续 Jest。
-
-## 八、常见问题
+## 九、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| `Cannot use import statement outside a module` | 配 ts-jest/babel-jest；node_modules 里的 ESM 包加 `transformIgnorePatterns` 白名单 |
-| `SyntaxError: Unexpected token 'export'` | 同上，把该包加入 transform 白名单 |
-| jsdom 里 `matchMedia` 未定义 | setup 文件里 mock 掉 |
-| 测试莫名串行慢 | 检查 `testEnvironment` 全部 jsdom 的开销；纯逻辑用 `node` 环境 |
-| mock 不生效 | `jest.mock` 提升；检查路径大小写、模块缓存 `jest.resetModules()` |
-| 覆盖率统计了无关文件 | `collectCoverageFrom` 明确包含范围 |
+| `Parsing error` TS 语法 | 配置 `typescript-eslint` parser |
+| 规则改了不生效 | `npx eslint --print-config file.ts` 查看实际生效配置 |
+| 与 Prettier 打架（引号/分号） | 加 `eslint-config-prettier` |
+| 忽略文件写法变了 | v9 用 `ignores` 字段；不再支持 `.eslintignore`（可迁移） |
+| 检查太慢 | 加 `--cache`；开启 `linterOptions` 排除大目录 |
+| Vue 文件报错 | 配置 `vue-eslint-parser`，parserOptions.parser 指向 TS parser |
 
-## 九、最佳实践
+## 十、最佳实践
 
-1. 每个测试文件独立、无执行顺序依赖。
-2. `beforeEach` 中清理 mock：`jest.clearAllMocks()`。
-3. 测试命名用中文/英文完整描述行为。
-4. 快照测试只用于稳定 UI，避免频繁 `-u`。
-5. 大项目用 `--onlyChanged` + CI 分片（`--shard=1/3`）加速。
+1. 新项目直接用 **flat config + typescript-eslint 推荐配置**。
+2. CI 与本地**同一套规则**，避免环境差异。
+3. 规则上线策略：先 `warn` 全量跑一遍，清理后再升 `error`。
+4. 定期审视 `eslint-disable` 注释，用 `--report-unused-disable-directives` 清理无用豁免。
 
-## 十、参考
+## 十一、参考
 
-- 官方文档：https://jestjs.io/zh-Hans/
-- ts-jest：https://kulshekhar.github.io/ts-jest/
+- 官方文档：https://eslint.org/docs/latest/
+- typescript-eslint：https://typescript-eslint.io/
+- 中文站点：https://eslint.nodejs.cn/
 

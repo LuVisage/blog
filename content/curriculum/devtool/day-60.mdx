@@ -4,280 +4,312 @@ kind: day
 day: 60
 week: 9
 weekTitle: 容器与部署运维
-weekBlurb: Docker 镜像与 compose、常见部署形态与基础运维，为后端课的模型服务化打底。
-title: 前端与应用部署平台教程（Vercel / Netlify / Cloudflare Pages / Railway / Render / Fly.io）
-sourcePath: 09-容器与部署运维/06-前端部署平台.md
+weekBlurb: Docker 镜像与 compose、Nginx、K8s 与部署平台——backend 课 W4 用它把 FastAPI 服务真正部署上线，这里是全集。
+title: Web 服务器使用教程（Nginx / Caddy）
+lead: Web 服务器使用教程（Nginx / Caddy）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 09-容器与部署运维/05-Web服务器.md
 ---
 
-## 一、平台定位对比
+> **与课程的关系**：[backend 课 W4 Day3](/learn/backend/week-4-plan) 的 Nginx 重点在 SSE 缓冲配置与 HTTPS；本篇是 Nginx / Caddy 全集。
 
-| 平台 | 定位 | 免费额度 | 特点 |
-| --- | --- | --- | --- |
-| **Vercel** | 前端/Next.js 首选 | 个人免费（100GB 带宽/月） | Git 推送即部署、Preview 环境、边缘函数 |
-| **Netlify** | 前端静态站 | 免费（100GB/月） | 表单、Identity、Functions、老牌 |
-| **Cloudflare Pages** | 静态站 + Workers | 免费额度大、不限带宽 | 全球 CDN 快、Workers 边缘计算 |
-| **Railway** | 全栈应用 | 试用额度 | 部署后端/数据库简单，用量计费 |
-| **Render** | 全栈应用 | 有免费实例（休眠） | 类似 Heroku 体验，支持 Cron/Redis/PG |
-| **Fly.io** | 全球容器部署 | 少量免费额度 | Docker 镜像直接跑，边缘就近部署 |
+## 一、两者定位
 
-## 二、Vercel
+| 维度 | Nginx | Caddy |
+| --- | --- | --- |
+| 定位 | 高性能、成熟的 Web 服务器/反向代理 | 现代、自动 HTTPS 的 Web 服务器 |
+| 配置 | 自有 DSL（nginx.conf） | Caddyfile（极简） |
+| HTTPS | 需手动配证书/Let's Encrypt 脚本 | **自动申请与续期** |
+| 性能 | 业界标杆 | 够用（Go 编写） |
+| 生态 | 极丰富（模块、教程、云厂商） | 快速增长 |
+| 适合 | 大型生产、复杂路由、已有沉淀 | 小团队/个人服务器、图省事 |
 
-### 快速部署（最常用）
+**一句话**：需要自动 HTTPS、配置简单 → Caddy；需要复杂路由与高性能调优 → Nginx。
 
-1. 代码推到 GitHub；
-2. 访问 https://vercel.com/ → `Add New Project` → 选仓库；
-3. 自动识别框架（Next/Vite/Nuxt），点击 Deploy。
+## 二、Nginx 使用
 
-**之后每次 push 自动部署**：
+### 安装（服务器上）
 
-| 分支 | 行为 |
-| --- | --- |
-| main | 生产环境部署 |
-| 其他分支 / PR | 生成 **Preview URL**（可分享评审） |
+```bash
+# Ubuntu/Debian
+sudo apt update && sudo apt install nginx
+sudo systemctl enable --now nginx
 
-### CLI 方式
-
-```powershell
-npm i -g vercel
-vercel login
-vercel              # 预览部署
-vercel --prod       # 生产部署
-vercel env add API_KEY
-vercel logs <deployment-url>
+# 检查配置
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
-### 配置 `vercel.json`
+Windows 可下载 zip 解压运行（开发测试用）。
 
-```json
-{
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://api.example.com/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+### 静态网站
+
+```nginx
+server {
+    listen 80;
+    server_name example.com;
+    root /var/www/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;   # SPA 路由回退（关键）
     }
-  ]
+
+    location ~* \.(js|css|png|jpg|svg|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
 }
 ```
 
-### 特点与注意
+### 反向代理
 
-- **Serverless / Edge Functions**：`api/` 目录下的文件自动成为接口；
-- 无状态，不能用本地文件系统存数据（用数据库/对象存储）；
-- 带宽超额会暂停（免费版）；
-- 适合前端 + BFF，不适合长驻服务（长连接、WebSocket 有超时限制）。
+```nginx
+server {
+    listen 80;
+    server_name api.example.com;
 
-## 三、Netlify
-
-### 部署
-
-1. 连接 Git 仓库，配置构建命令（`pnpm build`）与发布目录（`dist`）；
-2. 或拖拽 dist 文件夹到 https://app.netlify.com/drop（最快验证）。
-
-### 配置 `netlify.toml`
-
-```toml
-[build]
-  command = "pnpm build"
-  publish = "dist"
-
-[build.environment]
-  NODE_VERSION = "20"
-
-[[redirects]]
-  from = "/api/*"
-  to = "https://api.example.com/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200      # SPA 回退
-
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;      # WebSocket
+        proxy_set_header Connection "upgrade";
+    }
+}
 ```
 
-### CLI
+### 前端 + 后端同域（避免 CORS）
 
-```powershell
-npm i -g netlify-cli
-netlify login
-netlify deploy            # 预览
-netlify deploy --prod
-netlify env:set API_KEY xxx
-netlify dev               # 本地模拟 Netlify 环境（含 functions）
+```nginx
+server {
+    listen 80;
+    server_name app.example.com;
+
+    root /var/www/frontend;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080/;    # 末尾斜杠会去掉 /api 前缀（按需）
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
 ```
 
-特色：Netlify Functions、Forms（表单收集）、Identity（用户认证）、Split Testing。
+### HTTPS（Let's Encrypt）
 
-## 四、Cloudflare Pages
-
-### 部署
-
-1. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git；
-2. 构建命令 `pnpm build`，输出目录 `dist`；
-3. 全球 CDN 自动生效。
-
-### 特点
-
-- **不限带宽**（免费版最香）；
-- 与 Cloudflare 生态打通（DNS、Workers、KV、R2、D1）；
-- 国内访问速度相对较好（有中国节点需企业版）；
-- Functions：`/functions` 目录写 Workers 风格的边缘函数。
-
-### Wrangler CLI
-
-```powershell
-npm i -g wrangler
-wrangler login
-wrangler pages deploy dist --project-name my-site
-wrangler pages dev dist          # 本地预览
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d example.com -d www.example.com
+sudo systemctl status certbot.timer    # 自动续期
 ```
 
-### 配置 `_redirects`（dist 目录内）
+生成的配置可参考 `/etc/letsencrypt/live/example.com/`。
 
-```
-/api/*  https://api.example.com/:splat  200
-/*      /index.html                     200
-```
+### 常用命令
 
-## 五、Railway
-
-适合「后端 + 数据库」的快速上线。
-
-```powershell
-npm i -g @railway/cli
-railway login
-railway init
-railway up               # 部署当前目录（自动识别 Dockerfile / package.json）
-railway add              # 添加 PostgreSQL / Redis / MySQL
-railway variables set DATABASE_URL=...
-railway logs
-railway domain           # 生成公网域名
+```bash
+sudo nginx -t                 # 测试配置语法
+sudo nginx -s reload          # 热重载
+sudo systemctl restart nginx
+tail -f /var/log/nginx/access.log
+tail -f /var/log/nginx/error.log
 ```
 
-特点：
-- 从 GitHub 直接部署，自动检测语言；
-- 内置数据库一键添加，自动注入 `DATABASE_URL`；
-- 支持 Dockerfile；
-- 按用量计费（有试用额度）。
+### 负载均衡
 
-## 六、Render
+```nginx
+upstream api_servers {
+    least_conn;
+    server 10.0.0.1:3000 weight=3;
+    server 10.0.0.2:3000;
+    server 10.0.0.3:3000 backup;
+}
 
-Heroku 的现代替代。
-
-1. Dashboard → `New +` → 选 Web Service / Static Site / PostgreSQL / Cron Job / Redis；
-2. 连接 GitHub 仓库 → 配置启动命令（`node dist/server.js`）；
-3. 部署完成自动 HTTPS 域名。
-
-配置 `render.yaml`（基础设施即代码）：
-
-```yaml
-services:
-  - type: web
-    name: api
-    runtime: node
-    buildCommand: pnpm install && pnpm build
-    startCommand: node dist/server.js
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: app-db
-          property: connectionString
-
-databases:
-  - name: app-db
-    plan: free
+server {
+    location / {
+        proxy_pass http://api_servers;
+    }
+}
 ```
 
-免费实例会在无访问 15 分钟后休眠（首次访问冷启动慢）。
+### 限流与压缩
 
-## 七、Fly.io
+```nginx
+# 压缩
+gzip on;
+gzip_types text/plain text/css application/json application/javascript image/svg+xml;
+gzip_min_length 1024;
 
-「把 Docker 镜像跑在全球边缘」。
-
-```powershell
-# 安装
-powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
-
-fly auth login
-fly launch                 # 扫描项目生成 fly.toml
-fly deploy                 # 部署
-fly status
-fly logs
-fly scale count 2          # 扩容
-fly secrets set DB_URL=...
-fly postgres create        # 创建托管 PG
+# 限流：每 IP 每秒 10 个请求
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+location /api/ {
+    limit_req zone=api burst=20 nodelay;
+    proxy_pass http://127.0.0.1:8080;
+}
 ```
 
-`fly.toml` 示例：
+## 三、Caddy 使用
 
-```toml
-app = "my-api"
-primary_region = "nrt"      # 东京，离国内较近
+### 安装
 
-[build]
-  dockerfile = "Dockerfile"
+```bash
+# Ubuntu
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+sudo apt install caddy
 
-[http_service]
-  internal_port = 3000
-  force_https = true
-  auto_stop_machines = true
-  auto_start_machines = true
-  min_machines_running = 0
-
-[[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
+# macOS
+brew install caddy
+# Windows
+winget install CaddyServer.Caddy
 ```
 
-特点：Docker 原生、可选择就近区域、支持持久卷与 WebSocket 长连接。
-
-## 八、选型决策树
+### Caddyfile 基础
 
 ```
-纯前端静态站？
-├── 是 → 要免费无限带宽？ Cloudflare Pages
-│        要生态与函数？   Vercel / Netlify
-│        要国内快 → 考虑国内云（OSS+CDN）或 Cloudflare
-└── 否（有后端）
-     ├── 只想要简单后端 + 数据库 → Railway / Render
-     ├── 想用 Docker 精确控制 → Fly.io
-     └── 团队规模大、要 K8s → 云厂商 K8s（见 04-Kubernetes.md）
+example.com {
+    root * /var/www/html
+    file_server
+    try_files {path} /index.html       # SPA
+    encode gzip
+
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8080
+    }
+}
 ```
 
-## 九、通用最佳实践
+就这么多——**HTTPS 证书自动申请、自动续期**，无需任何额外配置。
 
-1. **环境变量**放平台配置（不要写进代码仓库）；
-2. **区分 Preview / Production**：PR 用预览环境验证，合并才上生产；
-3. **构建产物才部署**：在 CI 或平台构建，不要在服务器上边跑边编；
-4. **SPA 路由回退**必配，否则刷新 404；
-5. **缓存策略**：带 hash 的静态资源长缓存，HTML 不缓存；
-6. **监控与告警**：接 Sentry（错误）+ 平台自带指标（见 12-日志与监控）。
+### 常见配置
 
-## 十、常见问题
+```caddy
+# 本地开发（自动用内部证书，local 域名走 https）
+localhost {
+    reverse_proxy 127.0.0.1:5173
+}
+
+# 多域名 + 重定向
+example.com, www.example.com {
+    redir https://example.com{uri} permanent
+}
+
+# 反向代理 + 负载均衡
+api.example.com {
+    reverse_proxy 10.0.0.1:3000 10.0.0.2:3000 {
+        lb_policy round_robin
+        health_uri /healthz
+    }
+}
+
+# 静态文件 + 缓存头
+static.example.com {
+    root * /srv/static
+    file_server
+    header Cache-Control "public, max-age=31536000, immutable"
+}
+
+# 基础认证
+admin.example.com {
+    basicauth {
+        admin $2a$14$...   # caddy hash-password 生成
+    }
+    reverse_proxy 127.0.0.1:9000
+}
+
+# 日志
+example.com {
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
+### 常用命令
+
+```bash
+caddy run                      # 前台运行
+caddy start / stop
+caddy reload --config Caddyfile    # 热重载
+caddy validate --config Caddyfile  # 校验
+caddy fmt --overwrite Caddyfile    # 格式化配置
+caddy adapt                        # 转换为 JSON 配置（排错）
+caddy hash-password                # 生成密码哈希
+```
+
+### 作为系统服务
+
+```bash
+sudo systemctl enable --now caddy
+# 配置放 /etc/caddy/Caddyfile
+```
+
+## 四、配置模板：典型单机部署
+
+### 方案 A：Caddy（推荐小团队）
+
+```caddy
+app.example.com {
+    encode gzip
+    reverse_proxy web:3000 api:8080
+}
+```
+
+用 docker compose 时 Caddy 与服务同网络，直接写服务名。
+
+### 方案 B：Nginx
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name app.example.com;
+    ssl_certificate     /etc/letsencrypt/live/app.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/app.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://web:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location /api/ {
+        proxy_pass http://api:8080/;
+        proxy_set_header Host $host;
+    }
+}
+server {
+    listen 80;
+    server_name app.example.com;
+    return 301 https://$host$request_uri;
+}
+```
+
+## 五、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 部署成功但白屏 | 检查 `base` 路径、路由模式（history 需回退）、环境变量是否注入 |
-| 刷新 404 | 配置 SPA 回退（vercel.json / netlify.toml / _redirects） |
-| 环境变量是 undefined | 变量名前缀（Vite 需 `VITE_`）；改后需重新部署 |
-| 构建内存不足 | 降低 Node 版本无关；检查依赖体积；用 `NODE_OPTIONS=--max-old-space-size=4096` |
-| 免费实例冷启动慢 | Render 免费版特性；换 Fly.io 或付费计划 |
-| 国内访问慢 | Cloudflare / 国内云；Vercel 默认节点在海外 |
+| 配置改完没生效 | `nginx -t` 校验 → `reload`；Caddy 用 `caddy reload` |
+| 502 Bad Gateway | 后端未启动/端口错/容器名错；查 error.log |
+| 404 但文件存在 | 权限（www-data 需可读）、root 路径错 |
+| SPA 刷新 404 | 加 `try_files $uri /index.html` |
+| WebSocket 连不上 | Nginx 需 Upgrade/Connection 头；Caddy 默认支持 |
+| HTTPS 证书申请失败 | 80/443 端口被占、DNS 未解析、防火墙拦截 |
+| 中文/大文件上传 413 | Nginx `client_max_body_size 50m;` |
+| Caddy 自动 HTTPS 在测试环境 | 用 `localhost` 或 `{file_server}`；或配 `tls internal` |
 
-## 十一、参考
+## 六、参考
 
-- Vercel：https://vercel.com/docs
-- Netlify：https://docs.netlify.com/
-- Cloudflare Pages：https://developers.cloudflare.com/pages/
-- Railway：https://docs.railway.app/
-- Render：https://render.com/docs
-- Fly.io：https://fly.io/docs/
+- Nginx 中文文档：https://nginx.org/en/docs/ 及 https://www.nginx.cn/doc/
+- Caddy 文档：https://caddyserver.com/docs/
+- Mozilla SSL 配置生成：https://ssl-config.mozilla.org/
+- SSLLabs 测试：https://www.ssllabs.com/ssltest/
 

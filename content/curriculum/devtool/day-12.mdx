@@ -4,172 +4,207 @@ kind: day
 day: 12
 week: 2
 weekTitle: 包管理与运行时
-weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
-title: Rust Cargo 使用教程
-sourcePath: 02-包管理与运行时/06-Rust-Cargo.md
+weekBlurb: Python 走 venv + pip（ml 课同款路线），Node 走 nvm + pnpm，Java / Rust / Go 的构建工具按语言需要选读。
+title: Java 构建工具教程（Maven / Gradle）
+lead: Java 构建工具教程（Maven / Gradle）：安装、配置、常用命令与常见坑速查，按需查阅。
+sourcePath: 02-包管理与运行时/05-Java构建工具.md
 ---
 
-## 一、Cargo 是什么
+## 一、定位
 
-Cargo 是 Rust 的**包管理器 + 构建系统 + 测试运行器 + 发布工具**，一站式覆盖：
+| 工具 | 配置方式 | 特点 |
+| --- | --- | --- |
+| Maven | XML（pom.xml） | 约定优于配置，标准化强，企业常见 |
+| Gradle | Groovy/Kotlin DSL | 灵活、增量构建快，Android/Spring 新项目主流 |
 
-- 依赖管理（crates.io）
-- 编译构建
-- 单元/集成测试
-- 文档生成
-- 发布 crate
+两者都负责：依赖管理、编译、测试、打包、发布。
 
-## 二、安装 rustup
-
-```powershell
-# Windows
-winget install Rustlang.Rustup
-# 或访问 https://rustup.rs/ 下载 rustup-init.exe
-
-# macOS / Linux
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
+## 二、环境准备
 
 ```powershell
-rustup --version
-rustc --version
-cargo --version
+# JDK（先装）
+winget install EclipseAdoptium.Temurin.21.JDK
+java -version
 
-rustup update                 # 更新工具链
-rustup toolchain list
-rustup default stable
-rustup component add rustfmt clippy    # 常用组件
+# Maven
+winget install Apache.Maven
+mvn -v
+
+# Gradle（推荐用 wrapper，不必全局安装）
+winget install Gradle.Gradle
+gradle -v
 ```
 
-国内镜像（`~/.cargo/config.toml`）：
+国内加速（Maven `~/.m2/settings.xml`）：
 
-```toml
-[source.crates-io]
-replace-with = "ustc"
-
-[source.ustc]
-registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
+```xml
+<mirrors>
+  <mirror>
+    <id>aliyun</id>
+    <mirrorOf>central</mirrorOf>
+    <url>https://maven.aliyun.com/repository/public</url>
+  </mirror>
+</mirrors>
 ```
 
-## 三、Cargo 核心命令
+Gradle 加速（`init.gradle` 或项目仓库声明）：
+
+```groovy
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    mavenCentral()
+}
+```
+
+## 三、Maven 使用
+
+### 常用命令
 
 ```powershell
-cargo new hello            # 创建二进制项目（含 git 初始化）
-cargo new mylib --lib      # 创建库项目
-cargo init                 # 在已有目录初始化
-
-cargo build                # 调试构建（target/debug）
-cargo build --release      # 发布构建（target/release，优化）
-cargo run                  # 构建并运行
-cargo run -- arg1 arg2     # 传参给程序
-
-cargo test                 # 运行所有测试
-cargo test test_name       # 运行匹配的测试
-cargo test -- --nocapture  # 显示 println 输出
-
-cargo check                # 只做类型检查（比 build 快得多）
-cargo clippy               # 静态检查（Lint）
-cargo fmt                  # 格式化代码
-cargo doc --open           # 生成并打开文档
-
-cargo add serde --features derive   # 添加依赖
-cargo remove serde
-cargo update               # 按 Cargo.toml 约束升级依赖
-cargo tree                 # 依赖树
-cargo clean                # 清理构建产物
+mvn archetype:generate -DgroupId=com.demo -DartifactId=demo-app -DarchetypeArtifactId=maven-archetype-quickstart
+mvn clean                 # 清理 target
+mvn compile               # 编译
+mvn test                  # 跑测试
+mvn package               # 打包（jar/war）
+mvn install               # 装入本地仓库 ~/.m2
+mvn deploy                # 发布到私服
+mvn spring-boot:run       # Spring Boot 运行
+mvn dependency:tree       # 查看依赖树（排查冲突）
+mvn -DskipTests package   # 跳过测试打包
+mvn versions:display-dependency-updates   # 检查可更新依赖
 ```
 
-## 四、项目结构
+### pom.xml 核心结构
 
+```xml
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.demo</groupId>
+  <artifactId>demo-app</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+
+  <properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>33.2.0-jre</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
 ```
-hello/
-├── Cargo.toml        # 清单文件
-├── Cargo.lock        # 锁定精确版本（应用提交；库可不提交）
-├── src/
-│   ├── main.rs       # 二进制入口
-│   └── lib.rs        # 库入口
-├── tests/            # 集成测试
-└── benches/          # 基准测试
+
+依赖范围 `scope`：`compile`（默认）、`provided`、`runtime`、`test`、`system`。
+
+### 多模块
+
+```xml
+<modules>
+  <module>common</module>
+  <module>service</module>
+  <module>web</module>
+</modules>
 ```
 
-`Cargo.toml` 示例：
+父 POM 统一管理版本（`dependencyManagement`），子模块声明依赖不写版本号。
 
-```toml
-[package]
-name = "hello"
-version = "0.1.0"
-edition = "2021"
+## 四、Gradle 使用
 
-[dependencies]
-serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1", features = ["full"] }
-
-[dev-dependencies]
-criterion = "0.5"
-
-[profile.release]
-opt-level = 3
-lto = true
-```
-
-## 五、Workspace（多 crate 仓库）
-
-`Cargo.toml`：
-
-```toml
-[workspace]
-members = ["crates/core", "crates/cli", "crates/api"]
-resolver = "2"
-```
+### 初始化与命令
 
 ```powershell
-cargo build --workspace
-cargo test -p core        # 只测某个 crate
+gradle init                # 交互式生成项目
+.\gradlew build            # 用 wrapper 构建（推荐，团队版本一致）
+.\gradlew test
+.\gradlew run
+.\gradlew bootRun          # Spring Boot
+.\gradlew dependencies     # 依赖树
+.\gradlew --refresh-dependencies
 ```
 
-## 六、发布到 crates.io
+> 永远用 `gradlew`（wrapper）而不是全局 `gradle`，保证团队/CI 使用同一 Gradle 版本。
 
-```powershell
-cargo login <token>        # 从 crates.io 获取 API token
-cargo publish --dry-run
-cargo publish
+### build.gradle.kts（Kotlin DSL 示例）
+
+```kotlin
+plugins {
+    java
+    application
+}
+
+group = "com.demo"
+version = "1.0.0"
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("com.google.guava:guava:33.2.0-jre")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+}
+
+tasks.test { useJUnitPlatform() }
+
+application { mainClass = "com.demo.App" }
 ```
 
-注意：版本号遵循 semver；已被引用的版本**不可撤回**（只能 yank）。
+### 常用概念
 
-## 七、工具链文件与团队一致性
+- `implementation` / `api` / `testImplementation`：依赖配置（可见性不同，影响编译与传递）；
+- `tasks.register(...)`：自定义任务；
+- `settings.gradle.kts`：多模块 `include(":common", ":service")`。
 
-`rust-toolchain.toml`：
+## 五、Maven vs Gradle 选择
 
-```toml
-[toolchain]
-channel = "1.79.0"
-components = ["rustfmt", "clippy"]
-```
+| 维度 | Maven | Gradle |
+| --- | --- | --- |
+| 上手难度 | 低（XML 直观） | 中（需懂 DSL） |
+| 构建速度 | 一般 | 快（增量 + 缓存 + 并行） |
+| 灵活性 | 低 | 高（可写逻辑） |
+| 生态 | 企业/老项目多 | Android、Spring 新项目多 |
+| 建议 | 维护老项目 | 新项目 / Android / 追求速度 |
 
-提交后，团队与 CI 自动使用指定版本。
-
-## 八、常见问题
+## 六、常见问题
 
 | 问题 | 解决 |
 | --- | --- |
-| 编译慢 | 用 sccache、`cargo check` 代替 build；开启 `lto = "thin"` |
-| 下载依赖慢 | 配置 ustc/rsproxy 镜像 |
-| Windows 缺少链接器 | 安装 Visual Studio Build Tools（MSVC 工具链）或使用 `rustup default stable-gnu` |
-| 依赖树里两个版本冲突 | `cargo tree -d` 查找重复依赖；升级或 patch |
-| 磁盘占用大 | `cargo clean`；target 目录常达数 GB |
-| clippy 报警告失败 CI | 本地先 `cargo clippy -- -D warnings` 修复 |
+| 依赖冲突（NoSuchMethodError） | Maven：`mvn dependency:tree`；Gradle：`gradlew dependencies`，用 `exclude` 或 `resolutionStrategy` 强制版本 |
+| 下载依赖慢 | 配置阿里云镜像，或公司私服 Nexus |
+| `JAVA_HOME` 未设置 | `setx JAVA_HOME "C:\Program Files\Eclipse Adoptium\jdk-21"`，重启终端 |
+| Gradle 版本不兼容插件 | 修改 `gradle-wrapper.properties` 中的 distributionUrl |
+| 中文乱码（Windows） | 设置 `-Dfile.encoding=UTF-8` 与终端 UTF-8 |
+| 内存不足 | `JAVA_OPTS=-Xmx2g` 或 Gradle `org.gradle.jvmargs` |
 
-## 九、最佳实践
+## 七、最佳实践
 
-1. 提交 **Cargo.lock**（应用项目），保证构建可复现。
-2. CI 流程固定为：`cargo fmt --check` → `cargo clippy -- -D warnings` → `cargo test`。
-3. 用 workspace 管理多 crate，共享依赖版本。
-4. 二进制体积优化：`strip = true`、`panic = "abort"`。
+1. **锁依赖版本**：Maven 用父 POM `dependencyManagement`；Gradle 用 version catalog（`libs.versions.toml`）。
+2. **保留 wrapper**：`mvnw` / `gradlew` 必须提交（Gradle 尤其重要）。
+3. **CI 中跳过无关任务**：`mvn -DskipTests package`、`gradlew build -x test`（单元测试单独跑）。
+4. **构建产物统一目录**：Maven `target/`、Gradle `build/`，加入 `.gitignore`。
 
-## 十、参考
+## 八、参考
 
-- 官方文档：https://doc.rust-lang.org/cargo/
-- Rust 中文教程：https://kaisery.github.io/trpl-zh-cn/
-- crates.io：https://crates.io/
+- Maven 官方：https://maven.apache.org/guides/
+- Gradle 官方：https://docs.gradle.org/current/userguide/userguide.html
+- Spring Initializr：https://start.spring.io/
 
