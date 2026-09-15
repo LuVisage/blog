@@ -9,10 +9,10 @@
     <lastBuildDate>Wed, 16 Sep 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://LuVisage.github.io/blog/rss.xml" rel="self" type="application/rss+xml"/>
     <item>
-      <title>Coding Agent 横向测评：从 Claude Code 到 Qoder，十一款工具我各用了一个月</title>
+      <title>Coding Agent 横向测评：从 Claude Code 到 DeepSeek Harness 的十二款工具</title>
       <link>https://LuVisage.github.io/blog/posts/vibe-coding-agent-comparison/</link>
       <guid isPermaLink="true">https://LuVisage.github.io/blog/posts/vibe-coding-agent-comparison/</guid>
-      <description>同一组任务跑遍 Claude Code、Codex CLI、OpenCode、Windsurf、Trae、Qoder、CodeBuddy、Comate，以及作为引擎与基础设施的 DeepSeek、智谱 Z Code 与 OpenRouter：五个维度横评、按人群选型表，和「工具与引擎解耦」的双轨组合策略。</description>
+      <description>同一组任务跑遍 Claude Code、Codex CLI、OpenCode、DeepSeek Harness、Windsurf、Trae、Qoder、CodeBuddy、ZCode、WorkBuddy、百度搭子与豆包，外加 DeepSeek / GLM 引擎与 OpenRouter 基础设施：五维横评、按人群选型表、2026 年 9 月价格快照，以及「工具与引擎解耦」的组合策略。</description>
       <pubDate>Wed, 16 Sep 2026 00:00:00 GMT</pubDate>
       <atom:updated>2026-09-16T00:00:00.000Z</atom:updated>
     </item>

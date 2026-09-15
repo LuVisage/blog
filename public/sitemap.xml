@@ -1759,13 +1759,7 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://LuVisage.github.io/blog/tags/Codex/</loc>
-    <lastmod>2026-09-15</lastmod>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://LuVisage.github.io/blog/tags/CodeBuddy/</loc>
+    <loc>https://LuVisage.github.io/blog/tags/DeepSeek%20Harness/</loc>
     <lastmod>2026-09-15</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
@@ -1777,7 +1771,7 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://LuVisage.github.io/blog/tags/Qoder/</loc>
+    <loc>https://LuVisage.github.io/blog/tags/CodeBuddy/</loc>
     <lastmod>2026-09-15</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
