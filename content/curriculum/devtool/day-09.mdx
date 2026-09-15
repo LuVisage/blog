@@ -1,0 +1,92 @@
+---
+slug: day-09
+kind: day
+day: 9
+week: 2
+weekTitle: 包管理与运行时
+weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
+title: 执行包工具教程（npx / pnpm dlx / bunx）
+sourcePath: 02-包管理与运行时/03-执行包工具.md
+---
+
+## 一、解决什么问题
+
+脚手架、CLI 工具（create-vite、eslint、serve 等）如果全局安装：
+- 版本会过时；
+- 全局污染；
+- 项目间版本不同会冲突。
+
+「执行包」工具可以**临时下载并运行，用完即走**。
+
+## 二、npx（npm 自带）
+
+```powershell
+npx create-vite my-app        # 下载最新 create-vite 并执行
+npx serve dist -p 3000        # 临时起静态服务器
+npx -y cowsay "hello"         # -y 跳过安装确认
+npx eslint@8 --version        # 指定版本执行
+npx --package=typescript tsc  # 指定包名与命令不同名时
+```
+
+关键行为：
+- 优先使用**本地 node_modules/.bin** 中的命令，没有才去下载；
+- 下载的包缓存到 npm cache，下次直接命中。
+
+## 三、pnpm dlx
+
+```powershell
+pnpm dlx create-vite my-app
+pnpm dlx serve dist
+pnpm dlx create-next-app@latest
+```
+
+等价于 `pnpm dlx` = npx 的 pnpm 版本，但**不与本地 node_modules 冲突**，始终使用临时环境（更干净）。
+
+> 旧写法 `pnpm dlx` 曾叫 `pnpx`，现已统一为 `pnpm dlx`。
+
+## 四、bunx（bun x）
+
+```powershell
+bunx create-vite my-app
+bunx cowsay hello
+bun x --bun vite dev          # 强制用 bun 作为运行时执行
+```
+
+bunx 速度最快，因为走 bun 的包缓存。
+
+## 五、yarn dlx
+
+```powershell
+yarn dlx create-vite my-app
+```
+
+## 六、对比与选择
+
+| 命令 | 归属 | 特点 |
+| --- | --- | --- |
+| `npx` | npm | 兼容性最好，会优先用本地依赖 |
+| `pnpm dlx` | pnpm | 隔离干净，速度较快 |
+| `bunx` | bun | 最快，依赖 bun 生态 |
+| `yarn dlx` | yarn | yarn 用户使用 |
+
+**选择原则**：跟随项目所用包管理器即可，团队一致最重要。
+
+## 七、常见坑
+
+| 问题 | 解决 |
+| --- | --- |
+| `npx` 弹确认卡住 CI | 加 `-y`：`npx -y create-vite` |
+| 下载的是旧缓存版本 | `npx create-vite@latest` 或清理缓存 `npm cache clean --force` |
+| 公司网络装不了 | 配置 registry 镜像后重试 |
+| 想跑本地已安装的命令 | 直接用 `npm run xxx`（scripts 会自动加 node_modules/.bin 到 PATH）；或 `npx xxx` 也会优先本地 |
+| 全局命令与本地版本混淆 | 用 `npx eslint@8 --version` 明确指定版本 |
+
+## 八、实践建议
+
+1. **创建项目用一次性命令即可**，不需要全局安装脚手架：
+   ```powershell
+   pnpm dlx create-vite@latest my-app
+   ```
+2. **CI 中禁止隐式下载**：把工具写进 devDependencies，用 `npm run xxx`，避免构建因网络抖动失败。
+3. 需要反复使用的工具（如 serve）考虑 devDependency + script，而不是每次 dlx。
+

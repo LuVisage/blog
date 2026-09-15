@@ -1,0 +1,195 @@
+---
+slug: day-07
+kind: day
+day: 7
+week: 2
+weekTitle: 包管理与运行时
+weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
+title: Node 版本管理教程（nvm / fnm / volta / mise / asdf）
+sourcePath: 02-包管理与运行时/01-Node版本管理.md
+---
+
+## 一、为什么需要版本管理
+
+- 旧项目依赖 Node 16，新项目要 Node 22，全局只能装一个版本会互相冲突；
+- CI 与本机需要严格一致；
+- 快速试用新版本而不影响现有项目。
+
+## 二、工具对比
+
+| 工具 | 语言 | 速度 | 特点 | 推荐场景 |
+| --- | --- | --- | --- | --- |
+| nvm-windows | Go | 快 | Windows 平台最流行的 Node 版本管理 | Windows 用户 |
+| nvm（nvm-sh） | Shell | 一般 | macOS/Linux 经典工具，启动慢 | macOS/Linux 传统项目 |
+| fnm | Rust | 极快 | 跨平台、支持自动切换（`.nvmrc`） | 追求速度的跨平台用户 |
+| volta | Rust | 极快 | 可锁定每个项目的 node/npm/yarn 版本，无需手动切换 | 团队统一版本 |
+| mise | Rust | 极快 | 支持 Node/Python/Java/Go/Rust 等多语言 | 想用一个工具管所有语言 |
+| asdf | Shell | 一般 | 插件化多语言，生态老牌 | 多语言但已用 asdf 的团队 |
+
+## 三、nvm-windows 使用（Windows 推荐）
+
+### 安装
+
+1. 到 https://github.com/coreybutler/nvm-windows/releases 下载 `nvm-setup.exe`；或
+
+```powershell
+winget install CoreyButler.NVMforWindows
+# 或 choco install nvm
+```
+
+2. 安装前**先卸载已有的全局 Node**，避免冲突。
+
+### 常用命令
+
+```powershell
+nvm version              # 查看 nvm 版本
+nvm list available       # 列出可安装的 Node 版本
+nvm install 20.11.0      # 安装指定版本
+nvm install lts          # 安装最新 LTS
+nvm list                 # 查看已安装版本
+nvm use 20.11.0          # 切换版本（管理员权限）
+nvm uninstall 18.19.0
+nvm node_mirror https://npmmirror.com/mirrors/node/   # 国内加速
+nvm npm_mirror https://npmmirror.com/mirrors/npm/
+```
+
+### `.nvmrc` 约定
+
+项目根目录创建 `.nvmrc`：
+
+```
+20.11.0
+```
+
+进入目录后执行 `nvm use`（自动读取）。Windows 版需要手动 `nvm use $(Get-Content .nvmrc)` 或使用脚本包装。
+
+## 四、fnm 使用（跨平台推荐）
+
+```powershell
+# Windows
+winget install Schniz.fnm
+# macOS
+brew install fnm
+```
+
+PowerShell 中启用自动切换（写入 `$PROFILE`）：
+
+```powershell
+fnm env --use-on-cd | Out-String | Invoke-Expression
+```
+
+常用命令：
+
+```powershell
+fnm list                 # 已安装版本
+fnm list-remote          # 远程所有版本（加 --lts 只看 LTS）
+fnm install --lts
+fnm use 20
+fnm default 20           # 设置默认版本
+fnm current
+```
+
+进入带 `.node-version` 或 `.nvmrc` 的目录会**自动切换**版本，这是 fnm 最大优势。
+
+## 五、volta 使用（团队锁定版本）
+
+```powershell
+# Windows
+winget install Volta.Volta
+# macOS
+brew install volta
+```
+
+核心思想：版本信息写进 `package.json`，任何人安装后自动使用正确版本。
+
+```powershell
+volta install node@20.11.0
+volta install pnpm@9
+volta pin node@20.11.0        # 写入 package.json 的 volta 字段
+volta list
+```
+
+`package.json` 会新增：
+
+```json
+{
+  "volta": { "node": "20.11.0", "pnpm": "9.1.0" }
+}
+```
+
+之后在该项目下无论谁执行 `node` / `pnpm`，volta 都会自动使用锁定版本。
+
+## 六、mise 使用（多语言统一管理）
+
+```powershell
+# Windows
+winget install jdx.mise
+# macOS
+brew install mise
+```
+
+```powershell
+mise use -g node@20           # 全局
+mise use node@20 python@3.12  # 项目级，写入 .mise.toml
+mise install
+mise ls
+mise current node
+```
+
+`.mise.toml`：
+
+```toml
+[tools]
+node = "20"
+python = "3.12"
+```
+
+一个工具管理 Node/Python/Java/Go/Rust，适合多语言开发者。
+
+## 七、asdf 使用（插件化多语言）
+
+```powershell
+# macOS / Linux
+git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+```
+
+```powershell
+asdf plugin add nodejs
+asdf install nodejs 20.11.0
+asdf global nodejs 20.11.0        # 全局
+asdf local nodejs 20.11.0         # 写入 .tool-versions
+asdf list nodejs
+```
+
+`.tool-versions`：
+
+```
+nodejs 20.11.0
+python 3.12.3
+```
+
+## 八、如何选择
+
+- **Windows 单语言（Node）**：nvm-windows 或 fnm
+- **macOS/Linux 追求速度与自动切换**：fnm
+- **团队规模大、要求版本绝对一致**：volta
+- **多语言（Node + Python + Java...）**：mise（新）或 asdf（老牌）
+
+## 九、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `nvm use` 提示权限不足 | 以管理员运行终端；或改用 fnm |
+| 切换后 `node -v` 仍是旧版本 | 检查 PATH 顺序，卸载系统全局 Node；重启终端 |
+| fnm 自动切换不生效 | 确认 `fnm env --use-on-cd` 已写入 PowerShell `$PROFILE` 并重启终端 |
+| CI 中首次安装很慢 | 使用缓存（GitHub Actions 用 `actions/setup-node` 自带缓存） |
+| 国内下载慢 | 配置镜像（nvm node_mirror / volta 用代理 / mise 见官方 mirror 配置） |
+
+## 十、参考
+
+- nvm-windows：https://github.com/coreybutler/nvm-windows
+- fnm：https://github.com/Schniz/fnm
+- volta：https://volta.sh/
+- mise：https://mise.jdx.dev/
+- asdf：https://asdf-vm.com/
+

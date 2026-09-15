@@ -1,0 +1,199 @@
+---
+slug: day-41
+kind: day
+day: 41
+week: 6
+weekTitle: 调试与网络
+weekBlurb: DevTools 与调试器断点、curl / httpie、抓包、API 客户端与内网穿透——排查问题的完整工具箱。
+title: curl 与 HTTPie 使用教程
+sourcePath: 06-调试与网络/03-curl与httpie.md
+---
+
+## 一、curl 是什么
+
+`curl` 是几乎所有系统都自带的命令行 HTTP 客户端，用于发起请求、下载文件、调试接口。脚本化、可复制、无依赖是它的最大价值。
+
+Windows 10+ 自带 `curl.exe`（PowerShell 中 `curl` 是 `Invoke-WebRequest` 别名，建议显式写 `curl.exe`）。
+
+## 二、基本请求
+
+```powershell
+# GET
+curl.exe https://api.github.com/users/octocat
+
+# 只看响应头
+curl.exe -I https://example.com
+
+# 显示请求与响应全过程（调试神器）
+curl.exe -v https://example.com
+
+# 只显示状态码
+curl.exe -s -o NUL -w "%{http_code}" https://example.com
+
+# 输出到文件
+curl.exe -o page.html https://example.com
+curl.exe -O https://example.com/file.zip     # 用远端文件名保存
+```
+
+## 三、请求方法与数据
+
+```powershell
+# POST JSON
+curl.exe -X POST https://api.example.com/users `
+  -H "Content-Type: application/json" `
+  -d '{\"name\":\"Ada\",\"age\":36}'
+
+# POST 表单
+curl.exe -X POST https://example.com/login -d "username=admin&password=secret"
+
+# PUT / PATCH / DELETE
+curl.exe -X PUT https://api.example.com/users/1 -H "Content-Type: application/json" -d '{\"name\":\"Bob\"}'
+curl.exe -X DELETE https://api.example.com/users/1
+```
+
+> PowerShell 里 JSON 引号转义麻烦，推荐：
+> - 用单引号包裹并双写内部引号；
+> - 或把 JSON 存到文件：`curl.exe -X POST -H "Content-Type: application/json" -d "@body.json" URL`；
+> - 或改用 Git Bash / WSL 执行。
+
+## 四、常用选项速查
+
+| 选项 | 作用 |
+| --- | --- |
+| `-X METHOD` | 指定方法 |
+| `-H "K: V"` | 添加请求头（可多个） |
+| `-d` / `--data` | 请求体（表单/JSON 字符串） |
+| `--data-binary @file` | 二进制/文件作为请求体 |
+| `-F "file=@a.png"` | multipart 上传 |
+| `-u user:pass` | Basic 认证 |
+| `-b "k=v"` / `-b cookies.txt` | 发送 Cookie |
+| `-c cookies.txt` | 保存响应 Cookie |
+| `-L` | 跟随重定向 |
+| `-k` | 忽略证书校验（自签证书） |
+| `-x http://127.0.0.1:7890` | 使用代理 |
+| `--connect-timeout 5` | 连接超时 |
+| `--retry 3` | 失败重试 |
+| `-s` | 静默（不显示进度） |
+| `-S` | 静默但显示错误 |
+| `-w "%{time_total}"` | 输出耗时等指标 |
+| `-i` | 响应中包含响应头 |
+| `--http2` / `--http1.1` | 指定协议版本 |
+
+## 五、典型场景
+
+### 带认证的接口
+
+```powershell
+# Bearer Token
+curl.exe https://api.example.com/me -H "Authorization: Bearer eyJhbGci..."
+
+# Basic Auth
+curl.exe -u admin:secret https://api.example.com/admin
+```
+
+### 上传文件
+
+```powershell
+curl.exe -X POST https://api.example.com/upload -F "file=@C:\path\to\a.png" -F "type=avatar"
+```
+
+### 下载大文件（断点续传）
+
+```powershell
+curl.exe -C - -O https://example.com/big.iso
+```
+
+### 测接口耗时
+
+```powershell
+curl.exe -o NUL -s -w "DNS:%{time_namelookup}s 连接:%{time_connect}s TLS:%{time_appconnect}s 首字节:%{time_starttransfer}s 总:%{time_total}s`n" https://example.com
+```
+
+### 从浏览器复制
+
+Chrome DevTools → 右键请求 → Copy → **Copy as cURL (bash)**，粘贴到 Git Bash 直接复现。
+
+## 六、HTTPie 使用教程
+
+HTTPie（`http` / `https` 命令）是 curl 的**人性化替代**：语法像自然语言，输出带颜色与格式化 JSON。
+
+### 安装
+
+```powershell
+winget install HTTPie.HTTPie
+# 或 pip install httpie
+```
+
+### 基本用法
+
+```powershell
+http GET https://api.github.com/users/octocat
+http https://api.github.com/users/octocat        # GET 可省略
+https example.com                                # HTTPS 简写
+```
+
+### 发送数据（语法极简）
+
+```powershell
+# JSON（默认）
+http POST api.example.com/users name=Ada age:=36
+
+# 嵌套与数组
+http POST api.example.com/users user[name]=Ada tags[]=a tags[]=b
+
+# 字符串 vs 原始类型： name=Ada → "Ada"（字符串）； age:=36 → 36（数字）
+http POST api.example.com/users name=Ada ok:=true
+
+# 表单
+http --form POST example.com/login username=admin password=secret
+
+# 请求头
+http GET example.com Authorization:"Bearer token" X-Trace:abc
+
+# 文件上传
+http --form POST example.com/upload file@a.png
+
+# 下载
+http --download GET example.com/big.iso
+```
+
+### 常用选项
+
+| 选项 | 作用 |
+| --- | --- |
+| `-v` | 显示完整请求/响应 |
+| `-h` | 只显示请求头 |
+| `-b` | 只显示响应体 |
+| `--json` / `--form` | 指定体格式 |
+| `--pretty=all` | 彩色格式化输出 |
+| `--offline` | 只打印将发送的请求（不实际发） |
+| `--session=name` | 会话（自动管理 Cookie 与认证） |
+
+### 与 curl 对比
+
+| 维度 | curl | HTTPie |
+| --- | --- | --- |
+| 可读性 | 参数复杂、无格式输出 | 语法简洁、彩色 JSON |
+| 可用性 | 系统自带 | 需安装 |
+| 脚本化 | 最通用 | 也可以 |
+| 上传/表单 | `-F` | `file@path`、`--form` |
+
+**建议**：排查线上接口用 curl（到处都有）；日常调试用 HTTPie 更舒服。
+
+## 七、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| PowerShell 里 curl 报 `-X not recognized` | 用 `curl.exe`，或加 `--%` 停止参数解析 |
+| JSON 引号被吃掉 | 用 `-d @body.json`，或改用 Git Bash |
+| HTTPS 自签证书报错 | 加 `-k`（仅测试环境） |
+| 中文乱码 | 加 `-H "Accept-Charset: utf-8"`，终端设 UTF-8 |
+| 代理不生效 | 明确 `-x`，并 `-H "Proxy-Connection: keep-alive"`（部分网络） |
+| 想看重定向链路 | `curl -v -L`，观察 `Location:` 头 |
+
+## 八、参考
+
+- curl 官方：https://curl.se/docs/manpage.html
+- HTTPie 官方：https://httpie.io/docs/cli
+- 转 cURL 工具：https://curlconverter.com/
+

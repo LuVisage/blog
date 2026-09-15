@@ -1,0 +1,323 @@
+---
+slug: day-74
+kind: day
+day: 74
+week: 12
+weekTitle: 日志与监控
+weekBlurb: 日志规范、指标与告警的可观测性入门，服务上线后靠它定位问题。
+title: Prometheus 使用教程
+sourcePath: 12-日志与监控/03-Prometheus.md
+---
+
+## 一、Prometheus 是什么
+
+CNCF 出品的指标监控系统，事实标准。核心模型：**拉取（Pull）时间序列数据 + PromQL 查询 + 告警规则**。
+
+| 组件 | 作用 |
+| --- | --- |
+| Prometheus Server | 抓取、存储、查询指标 |
+| Exporter | 把应用/系统指标暴露成 `/metrics` 端点 |
+| Alertmanager | 告警路由、分组、抑制、静默 |
+| Pushgateway | 短任务指标推送（批处理） |
+| Grafana | 可视化（见 04-Grafana.md） |
+
+## 二、安装与启动
+
+```powershell
+# Docker 方式（推荐）
+docker run -d --name prometheus `
+  -p 9090:9090 `
+  -v ${PWD}/prometheus.yml:/etc/prometheus/prometheus.yml `
+  prom/prometheus
+```
+
+`prometheus.yml`：
+
+```yaml
+global:
+  scrape_interval: 15s        # 抓取间隔
+  evaluation_interval: 15s    # 告警规则评估间隔
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node'
+    static_configs:
+      - targets: ['host.docker.internal:9100']   # node_exporter
+
+  - job_name: 'my-api'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['my-api:3000']
+    # 或基于服务发现的动态目标
+```
+
+访问 http://localhost:9090 使用查询界面。
+
+## 三、常用 Exporter
+
+| Exporter | 监控对象 |
+| --- | --- |
+| node_exporter | 主机（CPU、内存、磁盘、网络） |
+| cadvisor | 容器资源 |
+| mysqld_exporter / postgres_exporter | 数据库 |
+| redis_exporter | Redis |
+| blackbox_exporter | 黑盒探测（HTTP/TCP/ICMP 可用性） |
+| nginx-prometheus-exporter | Nginx |
+
+```powershell
+docker run -d --name node-exporter -p 9100:9100 prom/node-exporter
+docker run -d --name cadvisor -p 8080:8080 -v /:/rootfs:ro -v /var/run:/var/run:ro google/cadvisor
+```
+
+## 四、应用埋点
+
+### Node.js
+
+```powershell
+pnpm add prom-client
+```
+
+```ts
+import client from 'prom-client';
+import express from 'express';
+
+const app = express();
+
+// 默认指标（CPU、内存、事件循环等）
+client.collectDefaultMetrics({ prefix: 'myapp_' });
+
+// 自定义 Counter
+const httpRequests = new client.Counter({
+  name: 'myapp_http_requests_total',
+  help: 'HTTP 请求总数',
+  labelNames: ['method', 'route', 'status'],
+});
+
+// 自定义 Histogram（延迟分布）
+const httpDuration = new client.Histogram({
+  name: 'myapp_http_request_duration_seconds',
+  help: '请求延迟',
+  labelNames: ['method', 'route'],
+  buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+});
+
+// 中间件自动采集
+app.use((req, res, next) => {
+  const end = httpDuration.startTimer({ method: req.method, route: req.path });
+  res.on('finish', () => {
+    httpRequests.inc({ method: req.method, route: req.path, status: res.statusCode });
+    end();
+  });
+  next();
+});
+
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
+```
+
+### Python（FastAPI）
+
+```python
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from fastapi import FastAPI, Response
+import time
+
+app = FastAPI()
+REQUESTS = Counter("http_requests_total", "Total requests", ["path", "status"])
+LATENCY = Histogram("http_request_duration_seconds", "Latency", ["path"])
+
+@app.middleware("http")
+async def metrics_middleware(request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    REQUESTS.labels(request.url.path, response.status_code).inc()
+    LATENCY.labels(request.url.path).observe(time.time() - start)
+    return response
+
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+```
+
+### Go
+
+```go
+import "github.com/prometheus/client_golang/prometheus/promhttp"
+
+http.Handle("/metrics", promhttp.Handler())
+```
+
+## 五、PromQL 核心语法
+
+### 数据选择
+
+```promql
+http_requests_total                          # 原始样本
+http_requests_total{status="500"}            # 按标签过滤
+http_requests_total{status=~"5.."}           # 正则匹配
+rate(http_requests_total[5m])                # 5 分钟速率（每秒请求数）
+```
+
+### 常用函数
+
+| 函数 | 用途 |
+| --- | --- |
+| `rate(counter[5m])` | 每秒增长率（用于 Counter） |
+| `increase(counter[1h])` | 一小时内增量 |
+| `sum / avg / max / min` | 聚合 |
+| `sum by (path) (rate(...))` | 分组聚合 |
+| `histogram_quantile(0.95, ...)` | 分位数（P95 延迟） |
+| `topk(5, ...)` | 前 5 名 |
+| `delta(gauge[5m])` | Gauge 变化量 |
+| `predict_linear(disk_free[6h], 4*3600)` | 预测（磁盘 4 小时后是否写满） |
+
+### 实战查询示例
+
+```promql
+# QPS（按路由）
+sum by (route) (rate(myapp_http_requests_total[5m]))
+
+# 错误率
+sum(rate(myapp_http_requests_total{status=~"5.."}[5m]))
+/ sum(rate(myapp_http_requests_total[5m]))
+
+# P95 延迟（毫秒）
+histogram_quantile(0.95,
+  sum by (le, route) (rate(myapp_http_request_duration_seconds_bucket[5m]))
+) * 1000
+
+# 主机 CPU 使用率
+100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+# 内存使用率
+(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100
+
+# 磁盘剩余空间预测（4 小时后）
+predict_linear(node_filesystem_avail_bytes{mountpoint="/"}[6h], 4*3600) < 0
+
+# 容器内存 Top 5
+topk(5, sum by (name) (container_memory_usage_bytes))
+```
+
+## 六、告警规则
+
+`rules/alerts.yml`：
+
+```yaml
+groups:
+  - name: app-alerts
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(myapp_http_requests_total{status=~"5.."}[5m]))
+          / sum(rate(myapp_http_requests_total[5m])) > 0.05
+        for: 5m                    # 持续 5 分钟才触发（防抖动）
+        labels:
+          severity: critical
+        annotations:
+          summary: "错误率超过 5%（当前 {{ $value | humanizePercentage }}）"
+          description: "服务 {{ $labels.job }} 错误率异常"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(myapp_http_request_duration_seconds_bucket[5m]))
+          ) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "P95 延迟超过 1 秒"
+
+      - alert: DiskWillFillIn4Hours
+        expr: predict_linear(node_filesystem_avail_bytes{mountpoint="/"}[6h], 4*3600) < 0
+        for: 30m
+        labels: { severity: warning }
+```
+
+在 `prometheus.yml` 引用：
+
+```yaml
+rule_files:
+  - rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+```
+
+## 七、Alertmanager 配置
+
+`alertmanager.yml`：
+
+```yaml
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    - matchers: [severity="critical"]
+      receiver: 'feishu-critical'
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://feishu-bridge:8080/webhook'
+
+  - name: 'feishu-critical'
+    webhook_configs:
+      - url: 'https://open.feishu.cn/open-apis/bot/v2/hook/xxxx'
+    # 也支持 email_configs / slack_configs / pagerduty_configs
+
+inhibit_rules:
+  - source_matchers: [alertname="ServiceDown"]
+    target_matchers: [severity="warning"]
+    equal: ['instance']       # 服务挂了就抑制其他告警，避免刷屏
+```
+
+## 八、Prometheus 的局限与替代
+
+| 局限 | 说明 |
+| --- | --- |
+| 单机存储 | 本地磁盘存储，容量有限（长期存储需 Thanos / VictoriaMetrics / Mimir） |
+| 不适合日志 | 只存指标，日志用 Loki/ELK |
+| 高可用复杂 | 原生无集群方案，需依赖远端存储 |
+
+**轻量替代**：VictoriaMetrics（兼容 PromQL、存储效率更高）；**云上**：直接用云监控服务。
+
+## 九、最佳实践
+
+1. **命名规范**：`<namespace>_<name>_<unit>`（如 `myapp_http_requests_total`）；
+2. **标签谨慎使用**：高基数标签（user_id、request_id）会导致内存爆炸；
+3. **Counter 用 `_total` 后缀**，Gauge 不加；
+4. 抓取间隔 15s 起步，频繁抓取只会增加负担；
+5. **告警要有 `for`**，避免瞬时抖动刷屏；
+6. 每个告警都要能对应「怎么做」，否则不配；
+7. 用 `up == 0` 监控目标是否存活（最基础的一条告警）。
+
+## 十、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 目标 down | 检查网络连通、`/metrics` 路径、防火墙 |
+| 指标缺失 | Exporter 未启动；指标名拼错；标签过滤过严 |
+| 内存暴涨 | 高基数标签；减少抓取目标；缩短 retention |
+| 告警不触发 | 检查 `expr` 在查询界面是否有数据；`for` 时间未到；rule_files 是否加载 |
+| 时间不同步 | 服务器 NTP 对时，Prometheus 对时间敏感 |
+| 数据保留 | `--storage.tsdb.retention.time=30d` |
+
+## 十一、参考
+
+- 官方文档：https://prometheus.io/docs/
+- PromQL 指南：https://prometheus.io/docs/prometheus/latest/querying/basics/
+- Awesome Prometheus 告警规则：https://awesome-prometheus-alerts.grep.to/
+- VictoriaMetrics：https://docs.victoriametrics.com/
+

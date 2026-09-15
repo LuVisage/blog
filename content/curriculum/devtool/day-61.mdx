@@ -1,0 +1,355 @@
+---
+slug: day-61
+kind: day
+day: 61
+week: 9
+weekTitle: 容器与部署运维
+weekBlurb: Docker 镜像与 compose、常见部署形态与基础运维，为后端课的模型服务化打底。
+title: 基础设施即代码教程（Terraform / Ansible）
+sourcePath: 09-容器与部署运维/07-IaC与配置管理.md
+---
+
+## 一、两者定位
+
+| 维度 | Terraform | Ansible |
+| --- | --- | --- |
+| 解决的问题 | **创建/管理云资源**（VPC、服务器、数据库、LB） | **配置服务器内部**（装软件、改配置、部署） |
+| 模式 | 声明式（描述最终状态） | 过程式/幂等的任务编排 |
+| 状态 | 有 state 文件（跟踪资源） | 无状态，每次按剧本执行 |
+| 通信 | 调用云厂商 API | SSH（或无代理 API） |
+| 典型用法 | `terraform apply` 创建 3 台 EC2 + 数据库 | `ansible-playbook` 在这 3 台上装 Nginx |
+
+**经典组合**：Terraform 负责「买机器」，Ansible 负责「装软件」。
+
+## 二、Terraform
+
+### 安装
+
+```powershell
+winget install Hashicorp.Terraform
+# macOS
+brew tap hashicorp/tap && brew install hashicorp/tap/terraform
+```
+
+```powershell
+terraform -version
+terraform -install-autocomplete
+```
+
+### 基本工作流
+
+```powershell
+terraform init        # 下载 provider（云厂商插件）
+terraform fmt         # 格式化 HCL
+terraform validate    # 语法校验
+terraform plan        # 预览将要发生的变更（重要！）
+terraform apply       # 执行（会要求确认）
+terraform destroy     # 销毁所有资源（谨慎）
+terraform output      # 查看输出值
+terraform state list  # 查看已管理资源
+```
+
+### 最小示例（创建云服务器）
+
+`main.tf`：
+
+```hcl
+terraform {
+  required_version = ">= 1.6"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+  backend "s3" {                    # 远端 state（团队协作必配）
+    bucket = "my-tf-state"
+    key    = "prod/terraform.tfstate"
+    region = "ap-northeast-1"
+  }
+}
+
+provider "aws" {
+  region = var.region
+}
+
+variable "region" {
+  type    = string
+  default = "ap-northeast-1"
+}
+
+variable "instance_count" {
+  type    = number
+  default = 2
+}
+
+resource "aws_instance" "web" {
+  count         = var.instance_count
+  ami           = "ami-0abcdef1234567890"
+  instance_type = "t3.micro"
+
+  tags = {
+    Name = "web-${count.index + 1}"
+    Env  = "prod"
+  }
+}
+
+output "instance_ips" {
+  value = aws_instance.web[*].public_ip
+}
+```
+
+使用：
+
+```powershell
+terraform init
+terraform plan -var="instance_count=3"
+terraform apply -auto-approve
+terraform output instance_ips
+```
+
+### 变量与多环境
+
+`terraform.tfvars`（不要提交敏感值）：
+
+```hcl
+region         = "ap-northeast-1"
+instance_count = 3
+```
+
+环境目录结构：
+
+```
+infra/
+├── modules/
+│   └── web-server/        # 可复用模块
+├── envs/
+│   ├── dev/
+│   │   ├── main.tf
+│   │   └── terraform.tfvars
+│   └── prod/
+│       ├── main.tf
+│       └── terraform.tfvars
+```
+
+### 常用命令补充
+
+```powershell
+terraform show                       # 查看 state 详情
+terraform state rm aws_instance.web[0]   # 从管理移除（不删真实资源）
+terraform import aws_instance.web i-1234567890  # 导入已有资源
+terraform workspace list / new prod / select prod
+terraform plan -out=tfplan && terraform apply tfplan   # 保存并应用计划
+terraform force-unlock <lock-id>
+```
+
+### 最佳实践
+
+1. **state 放远端**（S3 + DynamoDB 锁 / Terraform Cloud），绝不提交 Git；
+2. **每次 apply 前必看 plan**；
+3. 模块化（`modules/`），环境用目录或 workspace 隔离；
+4. 敏感变量用 `TF_VAR_xxx` 环境变量或 Vault，不写文件；
+5. 版本锁定 provider（`~>` 约束）；
+6. CI 中 plan 作为 PR 检查（见 `terraform plan` 输出评论）。
+
+### 替代品
+
+| 工具 | 特点 |
+| --- | --- |
+| OpenTofu | Terraform 的开源分支（Linux 基金会），命令兼容 |
+| Pulumi | 用 TS/Python/Go 写基础设施代码 |
+| AWS CDK | AWS 官方，用编程语言生成 CloudFormation |
+
+## 三、Ansible
+
+### 安装
+
+```powershell
+pip install ansible
+# Ubuntu
+sudo apt install ansible
+# macOS
+brew install ansible
+```
+
+```powershell
+ansible --version
+```
+
+> Windows 控制节点不被支持（受控节点可以是 Windows，通过 WinRM）。
+
+### 核心概念
+
+| 概念 | 说明 |
+| --- | --- |
+| Inventory | 主机清单（哪些机器） |
+| Playbook | 剧本（做什么），YAML |
+| Task | 单个任务 |
+| Module | 功能单元（copy、apt、service...） |
+| Role | 可复用的任务/变量/模板打包 |
+| Handler | 被触发才执行的任务（如重启服务） |
+
+### Inventory
+
+`inventory.ini`：
+
+```ini
+[web]
+web1 ansible_host=10.0.0.1
+web2 ansible_host=10.0.0.2
+
+[database]
+db1 ansible_host=10.0.0.10
+
+[all:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
+ansible_python_interpreter=/usr/bin/python3
+```
+
+### 临时命令（ad-hoc）
+
+```powershell
+ansible all -i inventory.ini -m ping
+ansible web -i inventory.ini -a "uptime"
+ansible web -i inventory.ini -m apt -a "name=nginx state=present" --become
+```
+
+### Playbook 示例
+
+`deploy.yml`：
+
+```yaml
+---
+- name: 部署 Web 服务
+  hosts: web
+  become: true
+
+  vars:
+    app_dir: /opt/myapp
+
+  tasks:
+    - name: 更新 apt 缓存
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: 安装 Nginx 与 Node
+      apt:
+        name: [nginx, nodejs, npm]
+        state: present
+
+    - name: 创建应用目录
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: www-data
+        mode: "0755"
+
+    - name: 复制构建产物
+      copy:
+        src: ./dist/
+        dest: "{{ app_dir }}/dist/"
+
+    - name: 渲染 Nginx 配置
+      template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/sites-available/myapp
+      notify: reload nginx          # 变更时触发 handler
+
+    - name: 启用站点
+      file:
+        src: /etc/nginx/sites-available/myapp
+        dest: /etc/nginx/sites-enabled/myapp
+        state: link
+
+    - name: 确保 Nginx 运行
+      service:
+        name: nginx
+        state: started
+        enabled: true
+
+  handlers:
+    - name: reload nginx
+      service:
+        name: nginx
+        state: reloaded
+```
+
+执行：
+
+```powershell
+ansible-playbook -i inventory.ini deploy.yml
+ansible-playbook -i inventory.ini deploy.yml --check      # 干跑（不实际改）
+ansible-playbook -i inventory.ini deploy.yml --diff       # 显示文件差异
+ansible-playbook -i inventory.ini deploy.yml --limit web1 # 只对某主机
+ansible-playbook -i inventory.ini deploy.yml -vvv         # 详细日志
+```
+
+### Role 结构（大型项目）
+
+```
+roles/
+└── nginx/
+    ├── tasks/main.yml
+    ├── handlers/main.yml
+    ├── templates/
+    ├── files/
+    ├── vars/main.yml
+    └── defaults/main.yml
+```
+
+`site.yml` 引用：
+
+```yaml
+- hosts: web
+  roles:
+    - common
+    - nginx
+    - { role: app, tags: [app] }
+```
+
+```powershell
+ansible-galaxy init roles/nginx      # 生成骨架
+ansible-galaxy install geerlingguy.docker   # 安装社区角色
+```
+
+### 最佳实践
+
+1. **幂等性**：任务重复执行结果一致（用模块而非 shell 命令）；
+2. 用 **Vault** 加密敏感变量：`ansible-vault encrypt group_vars/prod.yml`；
+3. `--check --diff` 先预览再执行；
+4. 大项目拆 Role + tags，便于局部执行；
+5. 远程执行默认 SSH，密钥用 ssh-agent 管理。
+
+## 四、两者协作示例
+
+```
+1. Terraform：创建 3 台服务器 + 安全组 + 数据库
+   terraform apply
+2. 生成 inventory（可用 terraform output 自动生成）
+3. Ansible：在 3 台上安装运行时、部署应用、配置 Nginx
+   ansible-playbook -i inventory.ini site.yml
+4. 后续变更：改配置 → 重新跑 playbook（幂等）
+```
+
+## 五、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| Terraform state 锁住 | 找到锁 ID `force-unlock`，或检查上一个任务是否异常退出 |
+| plan 显示要重建资源 | 检查不可变字段变更（如实例类型、镜像），确认是否可接受 |
+| 误删生产资源 | 用 `prevent_destroy` 生命周期保护；state 加锁与备份 |
+| Ansible 连接失败 | `-vvv` 看 SSH 细节；检查 user/key/inventory IP |
+| `--check` 模式下不支持某些模块 | 部分命令型任务无法预演，属正常 |
+| 变量优先级混乱 | 记住优先级：命令行 `-e` > role vars > host_vars > group_vars > defaults |
+| Windows 被管理节点 | 用 WinRM（`ansible_connection: winrm`）+ PowerShell 模块 |
+
+## 六、参考
+
+- Terraform 文档：https://developer.hashicorp.com/terraform/docs
+- OpenTofu：https://opentofu.org/
+- Ansible 文档：https://docs.ansible.com/
+- Ansible Galaxy：https://galaxy.ansible.com/
+- Ansible for DevOps（书）：https://www.ansiblefordevops.com/
+

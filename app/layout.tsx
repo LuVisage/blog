@@ -17,6 +17,7 @@ import { PointerFeedback } from '@/components/pointer-feedback'
 import { PageTransition, PageSweep } from '@/components/page-transition'
 import { getAllPosts } from '@/lib/posts'
 import { COURSE_IDS, getAllLessons, getReferencePages } from '@/lib/curriculum'
+import 'katex/dist/katex.min.css'
 import './globals.css'
 
 export const metadata: Metadata = {

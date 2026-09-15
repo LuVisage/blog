@@ -1,0 +1,227 @@
+---
+slug: week-2-plan
+kind: reference
+day: 2
+week: 2
+weekTitle: FastAPI 后端开发
+weekBlurb: HTTP 与 FastAPI、依赖注入与中间件、JWT 鉴权、SSE 流式输出、错误处理与可观测性。
+title: FastAPI 后端开发
+lead: '**本周目标**：把 Week1 的包变成一个**真正的 HTTP 服务** —— 别人可以通过网络调用它。'
+sourcePath: Python工程化与后端实战/Week2_FastAPI后端开发/README.md
+---
+
+> **本周目标**：把 Week1 的包变成一个**真正的 HTTP 服务** —— 别人可以通过网络调用它。
+
+---
+
+## 为什么是 FastAPI
+
+| 框架 | 特点 | 在 AI 应用里的地位 |
+| --- | --- | --- |
+| Flask | 简单，同步为主 | 老项目多 |
+| Django | 全家桶，重 | 内容管理系统 |
+| **FastAPI** | **异步原生 + Pydantic + 自动文档** | **AI 应用的事实标准** |
+
+**FastAPI 的三个决定性优势**：
+
+**① 异步原生** —— 与 Week1 Day3 的知识直接对接，能承载并发。
+
+**② 基于 Pydantic**（Week1 Day1）—— 类型注解直接变成：
+- 请求体校验
+- 响应体序列化
+- **自动生成的交互式 API 文档**（`/docs`）
+
+**③ 依赖注入** —— 让数据库会话、当前用户、限流器这些东西优雅地注入到路由里。
+
+**现实**：LangServe、vLLM 的 OpenAI 兼容接口、大多数 LLM 应用的后端**都是 FastAPI**。
+
+---
+
+## 五天安排
+
+| 天 | 主题 | 关键内容 | 时长 |
+| --- | --- | --- | --- |
+| Day1 | HTTP 与 FastAPI 基础 | 请求/响应 / 路由 / Pydantic 模型 / 自动文档 | 3h |
+| Day2 | 依赖注入与中间件 | `Depends` / 中间件 / 生命周期 / CORS | 3.5h |
+| Day3 | 鉴权与安全 | JWT / 密码哈希 / 限流 / 密钥管理 | 4h |
+| Day4 | **SSE 流式输出**（重点） | Server-Sent Events / 打字机效果 | 4h |
+| Day5 | 错误处理与可观测性 | 异常处理 / trace_id / 健康检查 | 3h |
+
+---
+
+## 为什么 Day4 是重点
+
+**LLM 应用与前端的主要接口形式就是 SSE。**
+
+```
+同步返回（传统 API）:
+  用户点"发送" -> [等待 15 秒...] -> 一次性显示全部回答
+                                     ↑ 用户会以为卡死了
+
+SSE 流式（LLM 应用）:
+  用户点"发送" -> "今" -> "今天" -> "今天天" -> "今天天气" -> ...
+                                     ↑ 打字机效果，体验完全不同
+```
+
+**这个效果的实现就是 SSE（Server-Sent Events）**：
+
+```python
+@router.post("/chat/stream")
+async def chat_stream(req: ChatRequest):
+    async def event_generator():
+        async for token in llm.astream(req.prompt):
+            yield f"data: {json.dumps({'token': token})}\n\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+```
+
+**关键点**：`async for` + `yield` —— 这需要 Week1 Day3 的异步基础。
+
+---
+
+## 学习目标（可检验）
+
+学完本周，你应该能：
+
+- [ ] 说清 HTTP 请求/响应的结构，以及 RESTful 的设计原则
+- [ ] 用 FastAPI 写一个带路径参数、查询参数、请求体的接口
+- [ ] 用 `Depends` 实现依赖注入（数据库会话、当前用户）
+- [ ] 写一个中间件，给每个请求分配 `trace_id` 并记录耗时
+- [ ] 实现 JWT 鉴权：注册、登录、受保护的接口
+- [ ] 用 `StreamingResponse` 实现 SSE 流式输出
+- [ ] 统一处理异常，返回一致的错误格式
+- [ ] 写 API 测试（用 `TestClient` / `httpx.AsyncClient`）
+- [ ] 说清 CORS 是什么、为什么需要、怎么配
+
+---
+
+## HTTP 速查（如果你不熟）
+
+### 请求
+
+```http
+POST /api/chat HTTP/1.1
+Host: example.com
+Content-Type: application/json
+Authorization: Bearer eyJhbGc...
+
+{"prompt": "你好", "temperature": 0.7}
+```
+
+| 部分 | 说明 |
+| --- | --- |
+| **方法** | GET（查）/ POST（建）/ PUT（全改）/ PATCH（部分改）/ DELETE（删） |
+| **路径** | `/api/chat` |
+| **Headers** | 元数据（认证、内容类型、追踪 ID） |
+| **Body** | 请求体（GET 通常没有） |
+
+### 响应
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{"content": "你好！有什么可以帮你的？", "tokens": 25}
+```
+
+| 状态码 | 含义 |
+| --- | --- |
+| **2xx** | 成功（200 OK / 201 Created / 204 No Content） |
+| **3xx** | 重定向 |
+| **4xx** | **客户端错误**（400 参数错 / 401 未认证 / 403 无权限 / 404 不存在 / 429 限流） |
+| **5xx** | **服务端错误**（500 内部错误 / 502 上游错 / 503 不可用 / 504 超时） |
+
+> **面试常问**：「401 和 403 的区别？」—— 401 是"你没登录"，403 是"你登录了但没权限"。
+
+### RESTful 设计原则
+
+| 原则 | 例子 |
+| --- | --- |
+| 用名词表示资源 | `/users` 而不是 `/getUsers` |
+| 用 HTTP 方法表示动作 | `DELETE /users/1` 而不是 `POST /deleteUser` |
+| 用复数 | `/users` 而不是 `/user` |
+| 用路径表示层级 | `/users/1/orders` |
+| 版本化 | `/api/v1/chat` |
+
+---
+
+## 最终产出
+
+到 Day5 结束，你会有一个完整的 API 服务：
+
+```
+demo_api/
+├── src/demo_service/
+│   ├── config.py               # Week1 Day4
+│   ├── models.py               # Week1 Day1
+│   ├── decorators.py           # Week1 Day2
+│   ├── client.py               # Week1 Day3
+│   ├── service.py              # Week1 Day5
+│   │
+│   ├── api/                    # ★ 本周新增
+│   │   ├── __init__.py
+│   │   ├── app.py              # FastAPI 实例 + 生命周期
+│   │   ├── routes.py           # 路由
+│   │   ├── deps.py             # 依赖注入
+│   │   ├── middleware.py       # 中间件（trace_id、耗时）
+│   │   ├── security.py         # JWT 鉴权
+│   │   ├── errors.py           # 统一异常处理
+│   │   └── sse.py              # 流式输出
+│   ├── main.py                 # 入口
+│   └── cli.py
+└── tests/
+    ├── conftest.py
+    ├── test_api.py
+    └── test_auth.py
+```
+
+**API 端点清单**：
+
+| 方法 | 路径 | 说明 | 鉴权 |
+| --- | --- | --- | --- |
+| GET | `/health` | 健康检查 | |
+| POST | `/api/v1/auth/register` | 注册 | |
+| POST | `/api/v1/auth/token` | 登录拿 token | |
+| GET | `/api/v1/users/me` | 当前用户信息 | |
+| POST | `/api/v1/chat` | 同步对话 | |
+| POST | `/api/v1/chat/batch` | 批量对话 | |
+| **POST** | **`/api/v1/chat/stream`** | **SSE 流式对话** | |
+
+---
+
+## 环境准备
+
+```bash
+pip install fastapi uvicorn
+pip install "python-jose[cryptography]" "passlib[bcrypt]" python-multipart
+pip install httpx pytest pytest-asyncio
+```
+
+**启动服务**：
+
+```bash
+uvicorn demo_service.main:app --reload --port 8000
+```
+
+然后打开 **http://localhost:8000/docs** —— 你会看到自动生成的交互式文档，**可以直接在浏览器里测试所有接口**。
+
+> **这是 FastAPI 最让人惊艳的地方**：你什么文档都没写，但它已经有了完整的 API 文档，
+> 因为一切信息都来自你的类型注解（Week1 Day1 的知识）。
+
+---
+
+## 本周检查清单
+
+- [ ] 我能说清 401 / 403 / 429 / 500 分别在什么时候返回
+- [ ] 我能用 `Depends` 实现依赖注入，并说清它比全局变量好在哪
+- [ ] 我能写一个中间件，给每个请求分配 trace_id 并注入到日志里
+- [ ] 我能实现 JWT 鉴权，并说清 access token 与 refresh token 的区别
+- [ ] 我能用 `StreamingResponse` 实现 SSE，并说清它与 WebSocket 的区别
+- [ ] 我能统一处理异常，让所有错误返回一致的 JSON 格式
+- [ ] 我能写 API 测试，覆盖正常路径、鉴权失败、参数错误
+- [ ] 我能说清 CORS 是什么、为什么浏览器需要它
+- [ ] 我知道为什么密码要用 bcrypt 而不是 md5/sha256
+
+---
+
+**开始**：[Day1_HTTP与FastAPI基础.md](/learn/backend/day-06)
+

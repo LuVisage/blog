@@ -1,0 +1,181 @@
+---
+slug: day-51
+kind: day
+day: 51
+week: 8
+weekTitle: 终端与命令行
+weekBlurb: Shell、常用命令行工具与终端复用，把日常操作脚本化。
+title: WSL2 使用教程
+sourcePath: 08-终端与命令行/03-WSL2.md
+---
+
+## 一、WSL2 是什么
+
+WSL2（Windows Subsystem for Linux 2）在 Windows 上运行**真正的 Linux 内核**（轻量虚拟机），特点：
+
+- 完整 Linux 兼容性（Docker、systemd、apt 都能用）；
+- 与 Windows 文件系统互通；
+- 启动秒级、内存动态占用；
+- 是 Windows 上做后端/运维/容器开发的最佳方案。
+
+## 二、安装
+
+### 一键安装（Windows 10 2004+ / Windows 11）
+
+```powershell
+wsl --install                    # 默认安装 Ubuntu
+# 或指定发行版
+wsl --install -d Ubuntu-22.04
+```
+
+完成后**重启电脑**，首次启动 Ubuntu 时设置用户名和密码。
+
+### 常用管理命令
+
+```powershell
+wsl --list --verbose         # 查看已安装发行版与状态
+wsl --list --online          # 查看可安装的发行版列表
+wsl --set-default-version 2
+wsl --set-default Ubuntu     # 设默认发行版
+wsl --shutdown               # 关闭所有 WSL 实例
+wsl --update                 # 更新 WSL 内核
+wsl --unregister Ubuntu      # 删除发行版（数据全丢）
+wsl -d Ubuntu-22.04          # 进入指定发行版
+wsl --export Ubuntu ubuntu.tar    # 备份
+wsl --import MyUbuntu C:\wsl\my ubuntu.tar  # 恢复
+```
+
+### 从旧版升级
+
+```powershell
+wsl --set-version Ubuntu 2
+```
+
+## 三、安装位置与迁移
+
+WSL 默认装在 C 盘，占空间大后可迁移：
+
+```powershell
+wsl --shutdown
+wsl --export Ubuntu D:\wsl\ubuntu-backup.tar
+wsl --unregister Ubuntu
+wsl --import Ubuntu D:\wsl\Ubuntu D:\wsl\ubuntu-backup.tar
+```
+
+（GitHub 上有 `wsl2-move` 脚本可图形化操作。）
+
+## 四、Linux 发行版初始化
+
+进入 WSL 后：
+
+```bash
+# 更新系统
+sudo apt update && sudo apt upgrade -y
+
+# 常用工具
+sudo apt install -y build-essential git curl wget unzip ripgrep fd-find fzf jq
+
+# 安装 Node（用 nvm 或 fnm）
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+nvm install --lts
+```
+
+## 五、Windows ↔ WSL 文件互访
+
+| 方向 | 路径 |
+| --- | --- |
+| WSL 访问 Windows 文件 | `/mnt/c/Users/你的用户名/...` |
+| Windows 访问 WSL 文件 | 资源管理器地址栏输入 `\\wsl$\Ubuntu\home\你的用户名` |
+
+**重要性能建议**：
+
+- 项目代码放在 **Linux 文件系统**（`~/projects/...`），不要放在 `/mnt/c/...`；
+- 在 `/mnt/c` 下跑 `npm install` 会慢 5-10 倍（跨文件系统 IO）。
+
+## 六、与 VS Code 集成（强烈推荐）
+
+1. Windows 端安装 **WSL 扩展**（`ms-vscode-remote.remote-wsl`）；
+2. 在 WSL 中进入项目目录执行：
+
+```bash
+cd ~/projects/myapp
+code .                # 自动用 Windows 的 VS Code 打开，并连接 WSL
+```
+
+编辑器 UI 在 Windows，代码、终端、扩展运行在 Linux 中，兼得两者优势。
+
+也可以：
+
+- VS Code 左下角绿色图标 → `Connect to WSL`；
+- 或用 Cursor / JetBrains 网关做类似连接。
+
+## 七、WSL2 网络访问
+
+| 场景 | 做法 |
+| --- | --- |
+| Windows 访问 WSL 服务 | 直接 `http://localhost:端口`（自动转发） |
+| WSL 访问 Windows 服务 | 用 Windows 主机 IP（`cat /etc/resolv.conf` 中的 nameserver，或 `$(hostname).local`） |
+| 局域网设备访问 WSL 服务 | 需要 portproxy 转发（WSL2 是 NAT） |
+
+端口转发示例（管理员 PowerShell）：
+
+```powershell
+netsh interface portproxy add v4tov4 listenport=3000 listenaddress=0.0.0.0 connectport=3000 connectaddress=172.20.0.2
+```
+
+> Windows 11 + WSL 2.0 起支持 **镜像网络模式**（`networkingMode=mirrored`），可免配置直接互通。
+
+### 配置文件 `.wslconfig`（放用户目录）
+
+```ini
+[wsl2]
+memory=8GB
+processors=8
+swap=4GB
+networkingMode=mirrored
+autoProxy=true
+```
+
+改完执行 `wsl --shutdown` 生效。
+
+## 八、systemd 支持
+
+`.wslconfig` 或 WSL 内 `/etc/wsl.conf`：
+
+```ini
+[boot]
+systemd=true
+```
+
+之后 `systemctl` 可用，可像服务器一样管理服务：
+
+```bash
+sudo systemctl enable --now docker
+```
+
+## 九、Docker 与 WSL2
+
+推荐用 **Docker Desktop + WSL2 backend**：
+
+1. Docker Desktop 设置 → General → 勾选 `Use the WSL 2 based engine`；
+2. `Resources → WSL Integration` 勾选你的发行版；
+3. WSL 里即可直接 `docker ps`。
+
+## 十、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `wsl --install` 报错 | 开启虚拟化（BIOS）+ `dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all` |
+| WSL 内存占用过高 | `.wslconfig` 限制 memory；或定期 `wsl --shutdown` |
+| 磁盘占用持续增长 | 清理后执行 `wsl --shutdown` + `Optimize-VHD`（或 `diskpart` compact） |
+| 中文乱码/字体 | Windows Terminal 字体设置 + WSL locale 配置 `zh_CN.UTF-8` |
+| `code .` 不可用 | 先在 Windows 装 VS Code 与 WSL 扩展，再重启 WSL 终端 |
+| 时钟不同步 | `sudo hwclock -s` |
+| 网络代理不生效 | `.wslconfig` 设 `autoProxy=true`，或手动 export http_proxy 指向 Windows IP |
+
+## 十一、参考
+
+- 官方文档：https://learn.microsoft.com/zh-cn/windows/wsl/
+- WSL 发行版列表：`wsl --list --online`
+- 疑难解答：https://learn.microsoft.com/zh-cn/windows/wsl/troubleshooting
+

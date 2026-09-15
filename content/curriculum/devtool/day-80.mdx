@@ -1,0 +1,299 @@
+---
+slug: day-80
+kind: day
+day: 80
+week: 13
+weekTitle: 文档与协作
+weekBlurb: Markdown、API 文档、Storybook、图表与团队协作规范，把知识沉淀下来。
+title: Storybook 使用教程
+sourcePath: 13-文档与协作/02-Storybook.md
+---
+
+## 一、Storybook 是什么
+
+组件开发与文档工具：**在隔离环境中开发、预览、测试 UI 组件**。
+
+解决的问题：
+- 组件依赖页面才能看效果（改一个按钮要跑整个页面）；
+- 各种状态（loading / error / 空数据 / 超长文本）难以覆盖；
+- 组件文档散落，缺少统一示例；
+- UI 回归缺少基线。
+
+支持 React / Vue / Svelte / Angular / Web Components。
+
+## 二、安装与启动
+
+```powershell
+# 在已有项目里初始化（自动检测框架）
+npx storybook@latest init
+
+# 启动
+pnpm storybook          # 默认 http://localhost:6006
+
+# 构建静态站点（可部署）
+pnpm build-storybook    # 输出 storybook-static/
+```
+
+目录结构：
+
+```
+src/components/Button/
+├── Button.tsx
+├── Button.stories.tsx    # 故事文件
+└── Button.test.tsx
+.storybook/
+├── main.ts               # 主配置
+└── preview.ts            # 全局装饰器与参数
+```
+
+## 三、编写 Story
+
+```tsx
+// Button.stories.tsx
+import type { Meta, StoryObj } from '@storybook/react';
+import { Button } from './Button';
+
+const meta = {
+  title: 'Components/Button',       // 侧边栏分组路径
+  component: Button,
+  tags: ['autodocs'],               // 自动生成文档页
+  parameters: {
+    layout: 'centered',
+  },
+  argTypes: {
+    variant: { control: 'select', options: ['primary', 'secondary', 'danger'] },
+    size: { control: 'radio', options: ['sm', 'md', 'lg'] },
+    onClick: { action: 'clicked' },
+  },
+} satisfies Meta<typeof Button>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+// 基础
+export const Primary: Story = {
+  args: {
+    variant: 'primary',
+    children: '提交订单',
+  },
+};
+
+// 各状态
+export const Loading: Story = {
+  args: { variant: 'primary', loading: true, children: '提交中' },
+};
+
+export const Disabled: Story = {
+  args: { variant: 'primary', disabled: true, children: '不可用' },
+};
+
+export const LongText: Story = {
+  args: { children: '这是一段非常长的按钮文案用于测试换行与截断表现' },
+};
+```
+
+### Vue 版本
+
+```vue
+<!-- Button.stories.ts -->
+<script setup>
+import Button from './Button.vue';
+</script>
+```
+
+```ts
+import type { Meta, StoryObj } from '@storybook/vue3';
+import Button from './Button.vue';
+
+const meta: Meta<typeof Button> = {
+  title: 'Components/Button',
+  component: Button,
+  render: (args) => ({
+    components: { Button },
+    setup: () => ({ args }),
+    template: '<Button v-bind="args">按钮</Button>',
+  }),
+};
+export default meta;
+```
+
+## 四、核心功能
+
+### 1. Controls（交互式调参）
+
+自动从 props/TS 类型生成控件（文本、下拉、开关、颜色），可在页面上实时改参数看效果，**无需改代码**。
+
+### 2. Actions（事件日志）
+
+点击、输入等事件会在 Actions 面板显示：
+
+```ts
+parameters: { actions: { argTypesRegex: '^on[A-Z].*' } }
+```
+
+### 3. Docs（自动文档）
+
+`tags: ['autodocs']` 自动生成：组件说明 + Props 表格 + 所有 Story 示例。
+
+手写文档：
+
+````mdx
+// Button.mdx
+import { Meta, Canvas, Controls } from '@storybook/blocks';
+import * as ButtonStories from './Button.stories';
+
+<Meta of={ButtonStories} />
+
+# Button 按钮
+
+用于触发操作的基础交互组件。
+
+<Canvas of={ButtonStories.Primary} />
+<Controls of={ButtonStories.Primary} />
+````
+
+### 4. 全局装饰器（主题/路由/Provider）
+
+`.storybook/preview.tsx`：
+
+```tsx
+import type { Preview } from '@storybook/react';
+import { ThemeProvider } from '../src/theme';
+import '../src/styles/global.css';
+
+const preview: Preview = {
+  decorators: [
+    (Story, context) => (
+      <ThemeProvider theme={context.globals.theme}>
+        <Story />
+      </ThemeProvider>
+    ),
+  ],
+  globalTypes: {
+    theme: {
+      description: '主题',
+      toolbar: {
+        icon: 'paintbrush',
+        items: ['light', 'dark'],
+        dynamicTitle: true,
+      },
+    },
+  },
+  initialGlobals: { theme: 'light' },
+};
+
+export default preview;
+```
+
+### 5. MSW 集成（Mock 接口）
+
+```ts
+// .storybook/preview.ts
+import { initialize, mswLoader } from 'msw-storybook-addon';
+import { handlers } from '../src/mocks/handlers';
+
+initialize();
+export const loaders = [mswLoader];
+export const parameters = { msw: { handlers } };
+```
+
+单个 Story 覆盖数据：
+
+```ts
+export const Empty: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get('/api/orders', () => HttpResponse.json({ items: [] })),
+      ],
+    },
+  },
+};
+```
+
+## 五、测试能力
+
+### 交互测试（play 函数）
+
+```ts
+import { expect } from '@storybook/test';
+import { userEvent, within } from '@storybook/test';
+
+export const SubmitFlow: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.type(canvas.getByLabelText('邮箱'), 'a@b.com');
+    await userEvent.click(canvas.getByRole('button', { name: '提交' }));
+
+    await expect(canvas.getByText('提交成功')).toBeInTheDocument();
+  },
+};
+```
+
+### 视觉回归测试
+
+```powershell
+# Chromatic（官方托管服务）
+npx chromatic --project-token=<token>
+```
+
+每次提交自动截图对比，UI 变化时提示 review。也可用 Playwright 自建快照测试。
+
+### 可访问性测试
+
+```powershell
+pnpm add -D @storybook/addon-a11y
+```
+
+所有 Story 自动跑 axe 检查，报告对比度、ARIA 等问题。
+
+## 六、目录组织建议
+
+```
+Components/           # 基础组件（Button、Input、Modal）
+Patterns/             # 组合模式（SearchBar、DataTable）
+Pages/                # 页面级组件（OrderList、LoginPage）
+Flows/                # 跨页面流程
+```
+
+命名：`title: 'Components/Forms/Input'`（侧边栏自动分层）。
+
+## 七、部署文档站
+
+```yaml
+# GitHub Actions 部署到 GitHub Pages / Vercel / Netlify
+- run: pnpm build-storybook
+- uses: actions/upload-pages-artifact@v3
+  with:
+    path: storybook-static
+```
+
+团队即可通过 URL 查看最新组件库。
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| Storybook 起不来 | 检查框架版本兼容（`npx storybook@latest upgrade`） |
+| CSS 不生效 | preview.ts 中 import 全局样式；检查 Tailwind 配置 content 包含 stories |
+| 别名 `@/` 报错 | main.ts 中配置 viteFinal/webpackFinal 复用项目 alias |
+| 组件依赖 Router/i18n | 加全局 decorator 包一层 Provider |
+| 构建产物很大 | 正常（含所有示例）；部署时可分层管理 |
+| 与 Next.js App Router 冲突 | 用 `@storybook/nextjs` 框架适配（server components 支持有限） |
+| 接口请求报错 | 接 MSW mock，不依赖真实后端 |
+
+## 九、最佳实践
+
+1. **每个通用组件至少 3 个 Story**：默认态、边界态（空/超长）、异常态；
+2. **autodocs 自动生成文档**，减少手工维护；
+3. **与 MSW 结合**：让「有数据的组件」也能独立预览；
+4. **addon-a11y 常开**：顺手提升无障碍质量；
+5. 组件库 + Storybook 部署为内部站点，设计与前端共用一套「活文档」。
+
+## 十、参考
+
+- 官方文档：https://storybook.js.org/docs
+- 中文文档：https://storybook.js.org/docs/get-started/ 官方支持中文切换
+- Chromatic：https://www.chromatic.com/
+- addon 列表：https://storybook.js.org/addons
+

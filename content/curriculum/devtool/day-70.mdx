@@ -1,0 +1,199 @@
+---
+slug: day-70
+kind: day
+day: 70
+week: 11
+weekTitle: 数据库与中间件
+weekBlurb: 常用数据库与缓存、消息中间件的本地搭建与客户端使用，对应后端课的存储层。
+title: MongoDB 与 Compass 使用教程
+sourcePath: 11-数据库与中间件/04-MongoDB管理.md
+---
+
+## 一、MongoDB Compass 是什么
+
+MongoDB 官方图形客户端：
+
+- 可视化浏览数据库、集合、文档；
+- **可视化查询构建器**（不熟语法也能查）；
+- 索引管理（查看、创建、分析使用情况）；
+- **Schema 分析**（抽样统计字段类型分布，排查脏数据神器）；
+- 聚合管道构建器（可视化搭 pipeline）；
+- 性能面板（实时监控慢操作）。
+
+## 二、安装与连接
+
+```powershell
+winget install MongoDB.Compass.Full
+# macOS
+brew install --cask mongodb-compass
+```
+
+连接串格式：
+
+```
+mongodb://user:password@host:27017/?authSource=admin
+mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/
+```
+
+Compass 中填 `mongodb://localhost:27017` 即可连本地。
+
+## 三、mongosh（命令行）
+
+```powershell
+# 安装
+winget install MongoDB.Shell
+# 连接
+mongosh "mongodb://localhost:27017"
+mongosh "mongodb+srv://user:pass@cluster.mongodb.net/mydb"
+```
+
+### 基本操作
+
+```javascript
+// 数据库
+show dbs
+use myapp                       // 不存在则创建（插入数据才真正创建）
+db.dropDatabase()
+
+// 集合
+show collections
+db.createCollection("users")
+db.users.drop()
+
+// 插入
+db.users.insertOne({ name: "Ada", age: 36, tags: ["a", "b"] })
+db.users.insertMany([
+  { name: "Bob", age: 28, city: "上海" },
+  { name: "Cindy", age: 31, city: "北京" }
+])
+
+// 查询
+db.users.find()                             // 全部
+db.users.find({ age: { $gt: 30 } })         // 大于 30
+db.users.findOne({ name: "Ada" })
+db.users.find({ city: "上海" }, { name: 1, age: 1, _id: 0 })   // 投影
+db.users.find().sort({ age: -1 }).limit(2).skip(0)
+db.users.countDocuments({ age: { $gte: 30 } })
+
+// 更新
+db.users.updateOne({ name: "Ada" }, { $set: { age: 37 } })
+db.users.updateMany({ city: "上海" }, { $inc: { age: 1 } })
+db.users.replaceOne({ name: "Bob" }, { name: "Bob", age: 29 })
+
+// 删除
+db.users.deleteOne({ name: "Cindy" })
+db.users.deleteMany({ age: { $lt: 18 } })
+
+// 索引
+db.users.createIndex({ name: 1 }, { unique: true })
+db.users.createIndex({ city: 1, age: -1 })     // 复合索引
+db.users.getIndexes()
+db.users.dropIndex("name_1")
+db.users.find({ age: { $gt: 30 } }).explain("executionStats")  // 看是否走索引
+
+// 聚合
+db.orders.aggregate([
+  { $match: { status: "paid", createdAt: { $gte: ISODate("2026-01-01") } } },
+  { $group: { _id: "$userId", total: { $sum: "$amount" }, count: { $sum: 1 } } },
+  { $sort: { total: -1 } },
+  { $limit: 10 },
+  { $lookup: { from: "users", localField: "_id", foreignField: "_id", as: "user" } }
+])
+```
+
+### 查询操作符速查
+
+| 操作符 | 含义 |
+| --- | --- |
+| `$eq / $ne` | 等于 / 不等于 |
+| `$gt / $gte / $lt / $lte` | 比较 |
+| `$in / $nin` | 在/不在集合中 |
+| `$and / $or / $not / $nor` | 逻辑 |
+| `$exists` | 字段存在 |
+| `$regex` | 正则 |
+| `$elemMatch` | 数组元素匹配 |
+| `$size` | 数组长度 |
+| `$all` | 数组包含全部 |
+| `$set / $unset` | 更新：设置/删除字段 |
+| `$inc / $mul` | 更新：加减/乘 |
+| `$push / $pull / $addToSet` | 数组操作 |
+
+## 四、Compass 使用要点
+
+| 功能 | 位置 |
+| --- | --- |
+| 查询文档 | 顶部 Filter 栏输入 `{ age: { $gt: 30 } }` |
+| 只看字段 | Options → Project 填 `{ name: 1 }` |
+| 排序分页 | Sort / Skip / Limit 设置 |
+| 编辑文档 | 双击文档 → 修改 → Update |
+| 创建索引 | Indexes 面板 → Create Index，可看使用统计 |
+| Schema 分析 | Schema 面板 → Analyze（抽样查看字段类型分布） |
+| 聚合管道 | Aggregations 面板，逐阶段预览结果 |
+| 导出数据 | 集合右键 → Export Collection |
+| 性能监控 | 右上 Performance（实时慢操作、连接数） |
+
+**Schema 分析特别有用**：比如某字段 98% 是 string、2% 是 int，一眼看出脏数据。
+
+## 五、数据建模要点
+
+| 关系 | 建议 |
+| --- | --- |
+| 一对少（订单-收货地址） | 内嵌（Embedded） |
+| 一对多（用户-订单） | 引用（Reference）+ `$lookup` |
+| 多对多 | 双方存 ID 数组 |
+| 频繁读、很少变 | 内嵌（一次查询拿全） |
+| 会无限增长 | 引用（避免 16MB 文档上限） |
+
+MongoDB 无固定 Schema，但**应用层要有校验**（JSON Schema validator）：
+
+```javascript
+db.createCollection("users", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["name", "email"],
+      properties: {
+        name: { bsonType: "string", maxLength: 100 },
+        email: { bsonType: "string", pattern: "^.+@.+$" },
+        age: { bsonType: "int", minimum: 0 }
+      }
+    }
+  }
+})
+```
+
+## 六、索引与性能
+
+```javascript
+// 查看执行统计（关键指标：totalDocsExamined vs nReturned）
+db.users.find({ email: "a@b.com" }).explain("executionStats")
+// 理想情况：totalDocsExamined ≈ nReturned（走索引精确命中）
+// 若 totalDocsExamined 远大于 nReturned → 缺索引或索引不匹配
+```
+
+要点：
+- **ESR 原则**：复合索引顺序 Equality → Sort → Range（等值字段在前，排序其次，范围最后）；
+- `_id` 自带索引；低区分度字段（性别）单独建索引意义不大；
+- 每条索引都影响写入性能；
+- 慢查询：`db.setProfilingLevel(1, { slowms: 100 })` + `db.system.profile.find()`。
+
+## 七、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 连接报认证失败 | 检查 `authSource`（用户创建在哪个库）；密码特殊字符要 URL 编码 |
+| 查询很慢 | `explain()` 看是否全表扫描；补索引；避免 `$where` |
+| 文档超过 16MB | 重构结构（把大数组拆到独立集合） |
+| 内存占用高 | WiredTiger 会用大量内存做缓存（正常）；调 `wiredTigerCacheSizeGB` |
+| 副本集读不到最新数据 | 用 `readConcern: "majority"` 或从主库读 |
+| Compass 连不上 Atlas | 检查 IP 白名单、连接串、TLS |
+| 集群/分片复杂 | 初期用副本集即可；数据量大再考虑分片（sharding key 选择很关键） |
+
+## 八、参考
+
+- MongoDB 官方文档：https://www.mongodb.com/docs/
+- 中文文档：https://www.mongodb.com/zh-cn/docs/
+- mongosh 手册：https://www.mongodb.com/docs/mongodb-shell/
+- Compass：https://www.mongodb.com/products/compass
+- MongoDB University（免费课程）：https://learn.mongodb.com/
+

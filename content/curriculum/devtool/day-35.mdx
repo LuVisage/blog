@@ -1,0 +1,193 @@
+---
+slug: day-35
+kind: day
+day: 35
+week: 5
+weekTitle: 测试
+weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
+title: MSW（Mock Service Worker）使用教程
+sourcePath: 05-测试/06-MSW.md
+---
+
+## 一、MSW 是什么
+
+MSW 通过 **Service Worker**（浏览器）或 **请求拦截器**（Node）在网络层拦截请求，返回你定义的 Mock 数据。
+
+与传统 Mock 的区别：
+
+| 方式 | 做法 | 问题 |
+| --- | --- | --- |
+| 传统 Mock | 替换 `fetch`/`axios` 模块 | 与实现耦合，换 HTTP 库就失效；不覆盖真实 URL 语义 |
+| MSW | 拦截网络请求 | 与代码零耦合；开发、测试、Storybook 通用；可复用同一套 handler |
+
+## 二、安装与初始化
+
+```powershell
+pnpm add -D msw
+npx msw init public/ --save     # 生成 public/mockServiceWorker.js
+```
+
+> `mockServiceWorker.js` 需要提交进版本库。
+
+## 三、定义 Handler
+
+`src/mocks/handlers.ts`：
+
+```ts
+import { http, HttpResponse, delay } from 'msw';
+
+export const handlers = [
+  // GET
+  http.get('/api/users', () =>
+    HttpResponse.json([
+      { id: 1, name: 'Ada' },
+      { id: 2, name: 'Linus' },
+    ]),
+  ),
+
+  // 路径参数
+  http.get('/api/users/:id', ({ params }) =>
+    HttpResponse.json({ id: Number(params.id), name: 'Ada' }),
+  ),
+
+  // POST + 读取请求体
+  http.post('/api/login', async ({ request }) => {
+    const body = (await request.json()) as { username: string; password: string };
+    if (body.password === 'secret') {
+      return HttpResponse.json({ token: 'fake-jwt' });
+    }
+    return HttpResponse.json({ message: '用户名或密码错误' }, { status: 401 });
+  }),
+
+  // 延迟响应（测 loading 状态）
+  http.get('/api/slow', async () => {
+    await delay(500);
+    return HttpResponse.json({ ok: true });
+  }),
+
+  // 只 mock 一次
+  http.get('/api/flaky', () => HttpResponse.json({ ok: true }), { once: true }),
+];
+```
+
+## 四、浏览器端使用（开发环境）
+
+`src/mocks/browser.ts`：
+
+```ts
+import { setupWorker } from 'msw/browser';
+import { handlers } from './handlers';
+
+export const worker = setupWorker(...handlers);
+```
+
+入口按需启动：
+
+```ts
+// src/main.tsx
+async function enableMocking() {
+  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
+    const { worker } = await import('./mocks/browser');
+    return worker.start({ onUnhandledRequest: 'bypass' });
+  }
+}
+
+enableMocking().then(() => {
+  createRoot(document.getElementById('root')!).render(<App />);
+});
+```
+
+启动后控制台会打印 `[MSW] Mocking enabled`。**后端未就绪时前端可以先行开发。**
+
+## 五、测试中使用（Node 端）
+
+`src/test/setup.ts`：
+
+```ts
+import { setupServer } from 'msw/node';
+import { handlers } from '../mocks/handlers';
+
+export const server = setupServer(...handlers);
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());   // 每个测试后恢复默认 handler
+afterAll(() => server.close());
+```
+
+测试中覆盖 handler：
+
+```ts
+import { http, HttpResponse } from 'msw';
+import { server } from '../test/setup';
+import { render, screen } from '@testing-library/react';
+import { UserList } from './UserList';
+
+test('接口报错时展示错误提示', async () => {
+  server.use(
+    http.get('/api/users', () => HttpResponse.json({ message: 'boom' }, { status: 500 })),
+  );
+
+  render(<UserList />);
+  expect(await screen.findByText('加载失败')).toBeInTheDocument();
+});
+```
+
+## 六、在 Storybook 中使用
+
+```ts
+// .storybook/preview.ts
+import { initialize, mswLoader } from 'msw-storybook-addon';
+import { handlers } from '../src/mocks/handlers';
+
+initialize();
+export const loaders = [mswLoader];
+export const parameters = { msw: { handlers } };
+```
+
+单个 story 覆盖：
+
+```ts
+export const Error = {
+  parameters: {
+    msw: {
+      handlers: [http.get('/api/users', () => HttpResponse.json({}, { status: 500 }))],
+    },
+  },
+};
+```
+
+## 七、常用 API 速查
+
+| API | 用途 |
+| --- | --- |
+| `http.get/post/put/patch/delete` | 定义拦截规则 |
+| `HttpResponse.json/ text/ xml` | 构造响应 |
+| `delay(ms)` | 响应延迟 |
+| `{ once: true }` | 只拦截一次 |
+| `server.use(...)` | 测试内临时覆盖 |
+| `server.resetHandlers()` | 恢复默认 |
+| `onUnhandledRequest: 'error' \| 'bypass' \| 'warn'` | 未匹配请求处理策略 |
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| MSW 没生效 | 确认 `worker.start()` 已 await；`public/mockServiceWorker.js` 存在 |
+| 生产包体积变大 | 用动态 `import()` 按需加载 mock 模块 |
+| 报 `request is not handled` | 检查 URL 与 baseURL 是否一致；加 `onUnhandledRequest: 'bypass'` |
+| 测试间相互污染 | `afterEach(() => server.resetHandlers())` |
+| SSE / WebSocket | MSW 提供 `sse` 与 `ws` API（v2） |
+| 与真实接口调试切换 | 用环境变量 `VITE_USE_MOCK` 控制 |
+
+## 九、最佳实践
+
+1. **handler 单一来源**：开发、测试、Storybook 共用 `handlers.ts`。
+2. handler 尽量模拟真实响应结构（含错误码、分页），减少联调时的惊喜。
+3. 测试里通过 `server.use()` 覆盖个别场景，而不是复制整套 handler。
+4. 发现接口契约变更时，同步更新 handler 与类型定义。
+
+## 十、参考
+
+- 官方文档：https://mswjs.io/docs/
+- 示例仓库：https://github.com/mswjs/examples
+

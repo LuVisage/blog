@@ -1,0 +1,179 @@
+---
+slug: day-49
+kind: day
+day: 49
+week: 8
+weekTitle: 终端与命令行
+weekBlurb: Shell、常用命令行工具与终端复用，把日常操作脚本化。
+title: 终端模拟器使用教程（Windows Terminal / iTerm2 / Warp / Tabby）
+sourcePath: 08-终端与命令行/01-终端模拟器.md
+---
+
+## 一、终端模拟器 vs Shell
+
+- **终端模拟器（Terminal）**：显示与交互的窗口（Windows Terminal、iTerm2）；
+- **Shell**：解释你输入命令的程序（PowerShell、zsh、bash）。
+
+换个终端不会改变命令语法，只改变显示与操作体验。
+
+## 二、Windows Terminal（Windows 首选）
+
+### 安装
+
+```powershell
+winget install Microsoft.WindowsTerminal
+winget install Microsoft.PowerShell     # 建议升级到 PowerShell 7
+```
+
+### 核心功能
+
+- **多标签 + 多窗格**（`Alt+Shift+D` 分屏）；
+- 支持 PowerShell / CMD / WSL / SSH 多 Profile；
+- GPU 渲染，快到飞起；
+- 完全可配置（JSON）、支持主题与背景图；
+- 内置搜索、复制粘贴、字体连字支持。
+
+### 常用快捷键
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `Ctrl+Shift+T` | 新建标签 |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | 切换标签 |
+| `Alt+Shift+D` | 自动分屏（水平/垂直） |
+| `Alt+Shift+加号/减号` | 垂直/水平分屏 |
+| `Alt+方向键` | 窗格间切换 |
+| `Ctrl+Shift+W` | 关闭当前窗格 |
+| `Ctrl+Shift+P` | 命令面板 |
+| `Ctrl+,` | 打开设置 |
+| `Ctrl++` / `Ctrl+-` | 字号 |
+
+### 配置（settings.json）
+
+`Ctrl+,` → 左下角「打开 JSON 文件」：
+
+```jsonc
+{
+  "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",  // PowerShell 7 的 GUID
+  "profiles": {
+    "defaults": {
+      "font": { "face": "JetBrainsMono Nerd Font", "size": 11 },
+      "opacity": 95,
+      "useAcrylic": true,
+      "padding": "8, 8, 8, 8",
+      "scrollbarState": "hidden"
+    },
+    "list": [
+      { "name": "PowerShell", "source": "Windows.Terminal.PowershellCore" },
+      { "name": "Ubuntu", "source": "Windows.Terminal.Wsl" },
+      { "name": "SSH Server", "commandline": "ssh user@server.com" }
+    ]
+  },
+  "actions": [
+    { "command": "find", "keys": "ctrl+shift+f" },
+    { "command": { "action": "splitPane", "split": "auto" }, "keys": "alt+shift+d" }
+  ]
+}
+```
+
+推荐安装 [Nerd Font](https://www.nerdfonts.com/)（JetBrains Mono / FiraCode）以显示图标。
+
+## 三、iTerm2（macOS 首选）
+
+### 安装
+
+```bash
+brew install --cask iterm2
+```
+
+### 核心功能
+
+- 分屏（`Cmd+D` 垂直、`Cmd+Shift+D` 水平）；
+- **搜索高亮、自动补全、粘贴历史**；
+- **Profiles**：不同项目用不同配色/启动目录；
+- **Shell Integration**：命令状态标记、快速跳转历史输出；
+- **tmux 集成**（原生窗口式 tmux）；
+- 支持图片显示（imgcat）。
+
+### 常用快捷键
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `Cmd+T` / `Cmd+W` | 新标签 / 关闭 |
+| `Cmd+D` / `Cmd+Shift+D` | 垂直 / 水平分屏 |
+| `Cmd+;` | 自动补全历史命令 |
+| `Cmd+Shift+H` | 粘贴历史 |
+| `Cmd+F` | 搜索 |
+| `Cmd+Option+方向` | 窗格切换 |
+| `Cmd+K` | 清屏 |
+
+### 建议设置
+
+- `Profiles → Terminal → Report Terminal Type` 设为 `xterm-256color`；
+- 开启 `Unlimited scrollback`；
+- 安装 Shell Integration：`iTerm2 → Install Shell Integration`。
+
+## 四、Warp（AI 增强，macOS / Linux / Windows）
+
+### 特点
+
+- **命令输入像编辑器**：多光标、选择、复制；
+- **命令块（Block）**：每条命令及其输出是一个块，可单独复制/分享；
+- **AI 辅助**：`#` 开头用自然语言描述，自动生成命令；
+- 内置补全与纠错提示。
+
+### 使用
+
+```bash
+# 输入后按 Enter 前，AI 可建议修正
+git comit -m "fix"      # Warp 会提示 comit → commit
+
+# AI 生成命令（以 # 开头）
+# 找出当前目录下最大的 10 个文件
+```
+
+适合愿意尝试新交互、喜欢 AI 辅助的用户；习惯传统终端的人可能更喜欢 Windows Terminal/iTerm2。
+
+## 五、Tabby（跨平台，可替代 PuTTY）
+
+### 特点
+
+- 跨平台（Win/macOS/Linux）；
+- 内置 **SSH / Telnet / 串口** 客户端；
+- 界面现代，插件与主题丰富；
+- 支持分屏、保存 SSH 会话。
+
+### 安装与使用
+
+```powershell
+winget install Eugeny.Tabby
+# macOS
+brew install --cask tabby
+```
+
+`Settings → Profiles` 添加 SSH 连接（保存主机、端口、密钥），一键连接，适合管理大量服务器。
+
+## 六、快速对比
+
+| 终端 | 平台 | 亮点 | 适合 |
+| --- | --- | --- | --- |
+| Windows Terminal | Windows | 微软官方、快、免费 | Windows 所有人 |
+| iTerm2 | macOS | 功能最全、免费 | Mac 开发者 |
+| Warp | 全平台 | AI、命令块、Rust 快 | 喜欢新鲜交互 |
+| Tabby | 全平台 | 内置 SSH 管理、跨平台 | 需要管理多服务器 |
+
+## 七、通用提效配置
+
+1. **字体**：Nerd Font（图标、连字）；
+2. **配色**：Catppuccin / Dracula / Tokyo Night 主题；
+3. **透明度**：85-95%，好看且能隐约看到背景；
+4. **滚动缓冲**：拉到 10000 行以上；
+5. **快捷键**：分屏 + 标签切换必须熟练；
+6. **复制粘贴**：Windows `Ctrl+Shift+C/V`，Mac `Cmd+C/V`。
+
+## 八、参考
+
+- Windows Terminal：https://learn.microsoft.com/zh-cn/windows/terminal/
+- iTerm2：https://iterm2.com/documentation.html
+- Warp：https://docs.warp.dev/
+- Tabby：https://tabby.sh/
+

@@ -1,0 +1,425 @@
+---
+slug: day-46
+kind: day
+day: 46
+week: 9
+weekTitle: PyTorch 框架与数据管线
+weekBlurb: 张量、自动求导、计算图，Dataset / DataLoader 与第一个训练循环。
+title: 张量与自动求导
+lead: '今日目标：掌握 `Tensor` 的创建与形状操作，理解 `autograd` 是如何把"手写反向传播"变成一行 `backward()` 的；能说清梯度累积这个 PyTorch 头号陷阱的成因。'
+sourcePath: Week09_PyTorch框架与数据管线/Day1_张量与自动求导.md
+---
+
+> 今日目标：掌握 `Tensor` 的创建与形状操作，理解 `autograd` 是如何把"手写反向传播"变成一行 `backward()` 的；能说清梯度累积这个 PyTorch 头号陷阱的成因。
+> 配套案例：`code/day1_tensor_autograd.py`
+
+---
+
+## 1.1 知识地图
+
+```
+Week07 神经网络基础（NumPy）
+  ├─ 计算图与链式法则        ← 你已经手推过
+  ├─ 手写 Affine.backward()   ← 你已经手写过
+  └─ 手写 SoftmaxWithLoss
+          │
+          ▼
+Week09 Day1（今天）★ 把上面这些交给 autograd
+  ├─ Tensor：新的数据容器
+  ├─ autograd：自动构建计算图 + 自动反向
+  └─ 三个必须记住的差异
+          │
+          ▼
+Week09 Day2  nn.Module：把层封装成类
+Week09 Day3  Dataset / DataLoader：把数据变成流水线
+Week09 Day4  训练循环：把上面全部串起来
+```
+
+**一句话定位**：Week07 你手写了"引擎"，今天开始你只需要踩油门。
+
+---
+
+## 1.2 先回答一个问题：既然手写过，为什么还要框架
+
+Week07 的 `day4_two_layer_net.py` 里，光是反向传播你就写了：
+
+```python
+class Affine:
+    def backward(self, dout):
+        self.dW = self.x.T @ dout
+        self.db = dout.sum(axis=0)
+        return dout @ self.W.T
+
+class ReLU:
+    def backward(self, dout):
+        return dout * self.mask
+```
+
+一个两层网络要写 4 个类、约 60 行反向代码。而 CNN 的卷积层反向传播、LSTM 的门控反向传播、Transformer 的多头注意力反向传播，手写难度是它的几十倍，出错概率接近 100%。
+
+PyTorch 的做法是：**你只写前向传播，反向传播由框架根据计算图自动推导。**
+
+| 维度 | NumPy 手写 | PyTorch |
+| --- | --- | --- |
+| 需要写的代码 | 前向 + 反向 | **只写前向** |
+| 加一层新结构 | 手推导数、手写 backward | 直接前向拼上去 |
+| 出错概率 | 高（符号错、形状错） | 低（框架负责） |
+| 调试手段 | 梯度检查 | 梯度检查 + 内置工具 |
+| GPU | 不支持 | 一行 `.to("cuda")` |
+
+> **但请记住**：手写过的人能调试，没手写过的人只会抄。当 loss 不下降时，你至少知道该怀疑哪一步 —— 这份直觉是后面 8 周的护城河。
+
+---
+
+## 1.3 Tensor：新的数据容器
+
+`Tensor` 是 PyTorch 的核心数据结构。可以把它理解成"**带自动求导能力、能上 GPU 的 ndarray**"。
+
+### 1.3.1 四种创建方式
+
+```python
+import torch
+
+a = torch.tensor([[1., 2.], [3., 4.]])          # 从 Python 列表
+b = torch.from_numpy(np.array([[1., 2.]]))       # 从 ndarray（共享内存！）
+c = torch.zeros(2, 3)                            # 全 0
+d = torch.randn(2, 3)                            # 标准正态
+e = torch.arange(0, 10, 2)                       # 序列
+f = torch.linspace(0, 1, 5)                      # 等分
+```
+
+### 1.3.2 与 ndarray 的四个关键差异
+
+| 差异 | NumPy | PyTorch | 影响 |
+| --- | --- | --- | --- |
+| **默认浮点类型** | `float64` | **`float32`** | 精度不同，混用会报错 |
+| **设备** | 只有 CPU | CPU / CUDA | 跨设备运算会报错 |
+| **自动求导** | 无 | `requires_grad` | 训练的基础 |
+| **原地操作** | 随便用 | 可能破坏计算图 | 训练时报错 |
+
+**坑 1：默认 dtype 是 float32**
+
+```python
+torch.tensor([1, 2, 3]).dtype        # torch.int64  ← 整数默认 int64
+torch.tensor([1., 2., 3.]).dtype     # torch.float32 ← 浮点默认 float32
+np.array([1., 2., 3.]).dtype         # float64
+```
+
+做数值微分（梯度检查）时，`float32` 的精度不够，必须显式转成 `float64`：
+
+```python
+x = torch.tensor([1.0], dtype=torch.float64)
+```
+
+**坑 2：设备不一致**
+
+```python
+w = torch.randn(3, device="cuda")
+x = torch.randn(3)              # 在 CPU 上
+w + x                           # RuntimeError！
+```
+
+模型和数据必须在**同一个设备**上，这是新手最常见的报错之一。
+
+---
+
+## 1.4 形状操作：view / reshape / squeeze / permute
+
+| 方法 | 作用 | 记忆点 |
+| --- | --- | --- |
+| `view(*shape)` | 改变形状 | **要求内存连续**，否则报错 |
+| `reshape(*shape)` | 改变形状 | 更宽容，不连续时自动拷贝 |
+| `squeeze(dim)` | 去掉长度为 1 的维度 | 常用于去掉 batch 维 |
+| `unsqueeze(dim)` | 插入一个长度为 1 的维度 | 常用于给单个样本加 batch 维 |
+| `transpose(d1, d2)` | 交换两个维度 | **之后通常不再连续** |
+| `permute(*dims)` | 重排所有维度 | 转置的推广 |
+
+**最经典的连锁坑**：
+
+```python
+x = torch.randn(2, 3, 4)
+y = x.transpose(0, 1)      # (3, 2, 4)
+y.view(6, 4)               # RuntimeError: view size is not compatible...
+
+y.reshape(6, 4)            # OK（自动拷贝）
+y.contiguous().view(6, 4)  # OK（先整理成连续内存）
+```
+
+**为什么？** `transpose` 只是改了"步长（stride）"，没有搬动数据。`view` 要求内存里就是按新形状连续排布的，所以失败。
+
+> 这不只是报错问题。CNN 里 `(N, C, H, W)` ↔ `(N, H, W, C)` 的转换、Transformer 里多头注意力拆分，每一步都涉及这些操作，必须熟练。
+
+---
+
+## 1.5 视图与拷贝：一个安静的陷阱
+
+Week08 你已经知道 pandas 的切片可能返回视图。PyTorch 同样如此，而且更危险：
+
+```python
+x = torch.arange(6.).reshape(2, 3)
+
+y = x.view(6)          # 共享内存
+y[0] = 100.
+print(x[0, 0])         # tensor(100.)  ← x 也被改了！
+
+z = x.clone()          # 真拷贝
+z[0] = 999.
+print(x[0, 0])         # tensor(100.)  ← x 不变
+```
+
+**判断方法**：
+
+```python
+y.data_ptr() == x.data_ptr()    # True 表示共享内存
+```
+
+`view` / `reshape`（在不拷贝时）/ `transpose` / `permute` / 基本索引 → 视图
+`clone` / `contiguous`（在不连续时）/ 高级索引 → 拷贝
+
+---
+
+## 1.6 自动求导：autograd
+
+### 1.6.1 最小的例子
+
+$$y = x^3 + 2x \quad\Longrightarrow\quad \frac{dy}{dx} = 3x^2 + 2$$
+
+```python
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 3 + 2 * x
+y.backward()
+print(x.grad)          # tensor([14.])  即 3*4+2 = 14
+```
+
+对比 Week07 的写法：你需要手推 $3x^2+2$ 并手写出来。现在只需要写前向。
+
+### 1.6.2 计算图长什么样
+
+`requires_grad=True` 之后，每一次运算都会在后台记录成一个节点：
+
+```
+      x (requires_grad=True)  ← 叶子节点
+     / \
+    ▼   ▼
+   x³   2x                    ← 中间节点
+     \ /
+      +  (Add)
+      ▼
+      y                       ← 输出节点
+
+反向：从 y 出发，沿箭头反向走，每步用链式法则乘上局部导数
+```
+
+这就是 Week07 Day3 讲的"计算图"，只不过现在是**框架自动构建**的。
+
+### 1.6.3 叶子节点与非叶子节点
+
+```python
+x = torch.tensor([2.0], requires_grad=True)   # 叶子节点（自己创建的）
+y = x * 3                                     # 非叶子节点（运算产生的）
+z = y.sum()
+
+z.backward()
+print(x.grad)      # tensor([3.])   ← 叶子节点保存梯度
+print(y.grad)      # None           ← 非叶子节点默认不保存
+print(y.is_leaf)   # False
+```
+
+**为什么非叶子节点不保存梯度？** 因为一个中间结果可能被多个分支用到，全部保存会占用大量内存。确实需要时用 `y.retain_grad()`。
+
+### 1.6.4 backward() 之后，图就被释放了
+
+```python
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 2
+y.backward()
+y.backward()       # RuntimeError: Trying to backward through the graph a second time
+```
+
+PyTorch 在反向传播结束后会**释放计算图**以节省内存。需要二次反向就传 `retain_graph=True`（做二阶梯度、或者同一 loss 多处反向时）。
+
+---
+
+## 1.7 梯度累积：PyTorch 的头号坑
+
+NumPy 版不存在这个问题 —— 每次 `backward()` 都用新值覆盖 `dW`。但 PyTorch 的 `.grad` 是**累加**的：
+
+```python
+w = torch.tensor([1.0], requires_grad=True)
+
+for step in range(3):
+    loss = (w - 3) ** 2      # 真实梯度 = 2(w-3) = -4
+    loss.backward()
+    print(step, w.grad)
+```
+
+输出：
+
+```
+0 tensor([-4.])
+1 tensor([-8.])     ← 累加了！应该是 -4
+2 tensor([-12.])    ← 又累加了！
+```
+
+**正确写法**：
+
+```python
+for step in range(3):
+    optimizer.zero_grad()      # ★ 必须放在 backward 之前
+    loss = (w - 3) ** 2
+    loss.backward()
+    optimizer.step()
+```
+
+更严格的顺序（这是 Day4 训练循环的骨架）：
+
+```python
+for x, y in dataloader:
+    optimizer.zero_grad()      # ① 清空上一轮梯度
+    pred = model(x)            # ② 前向
+    loss = criterion(pred, y)  # ③ 算损失
+    loss.backward()            # ④ 反向（梯度累加到 .grad）
+    optimizer.step()           # ⑤ 更新参数
+```
+
+> **为什么 PyTorch 不自动清零？**
+> 因为是刻意设计的：有些任务（如超大 batch 显存装不下、RNN 的截断 BPTT、多任务联合训练）需要**故意累积**几步梯度再更新一次。框架不替你做决定，但代价是你必须记得 `zero_grad()`。
+>
+> 顺带一提，这也解释了为什么"梯度累积"是一种常见的显存优化手段 —— 它本来就是这个机制的正向用法。
+
+---
+
+## 1.8 切断梯度：detach 与 no_grad
+
+有些场景你**不想要梯度**：
+
+| 场景 | 用什么 |
+| --- | --- |
+| 模型评估 / 推理 | `with torch.no_grad():` |
+| 把中间结果当常量用 | `x.detach()` |
+| 日志记录 loss 数值 | `loss.item()` |
+| 从带梯度的张量建新张量 | `.detach().clone()` |
+
+```python
+# 评估时：不建图，省显存、速度快
+with torch.no_grad():
+    pred = model(x_val)
+    acc = (pred.argmax(1) == y_val).float().mean()
+
+# detach：切断这条分支的梯度流
+feature = encoder(x).detach()      # 后面对 feature 的运算不会反传到 encoder
+```
+
+**为什么验证集必须用 `no_grad()`？**
+不是"为了正确"，而是"为了不浪费"。不写也能跑对，但会白白构建一整张计算图、占用大量显存，还有可能因为图太大而 OOM。
+
+---
+
+## 1.9 梯度检查：用数值微分验证 autograd
+
+Week07 Day3 你写过这个。现在它有了新用途 —— **验证 PyTorch 的梯度是对的**（更重要的是，验证你自己写的自定义 `autograd.Function` 是对的）。
+
+中心差分公式：
+
+$$\frac{\partial f}{\partial x_i} \approx \frac{f(x_i + \epsilon) - f(x_i - \epsilon)}{2\epsilon}$$
+
+```python
+def numerical_grad(f, x, eps=1e-6):
+    grad = torch.zeros_like(x)
+    for i in range(x.numel()):
+        orig = x.flatten()[i].item()
+        x.flatten()[i] = orig + eps
+        fp = f(x).item()
+        x.flatten()[i] = orig - eps
+        fm = f(x).item()
+        x.flatten()[i] = orig
+        grad.flatten()[i] = (fp - fm) / (2 * eps)
+    return grad
+```
+
+要点：
+
+1. 必须用 `float64`，否则 $\epsilon = 10^{-6}$ 淹没在 `float32` 的精度里；
+2. 检查的是"解析梯度 vs 数值梯度"的相对误差，经验阈值 $10^{-6}$ 以内算通过；
+3. 只在调试时用，开销是前向传播的 $2n$ 倍。
+
+---
+
+## 1.10 动手：跑今天的案例
+
+```powershell
+cd "c:\Users\lusha\Desktop\教程\Week09_PyTorch框架与数据管线\code"
+python day1_tensor_autograd.py
+```
+
+案例包含 9 个小节：张量创建 → 形状操作 → 视图陷阱 → autograd 基础 → 叶子节点 → 梯度累积 → detach/no_grad → 梯度检查 → **与 Week07 手写反向传播逐项对照**。
+
+最后一节最关键：我们会用 autograd 求一个两层网络的梯度，再和 Week07 手写的公式结果对比，验证两者完全一致。
+
+---
+
+## 1.11 Week07 手写版 vs autograd 版（对照）
+
+以两层网络的第二层为例：
+
+**Week07 手写**：
+
+```python
+# Week07/code/day4_two_layer_net.py
+class Affine:
+    def backward(self, dout):
+        self.dW = self.x.T @ dout          # ← 你推出来的公式
+        self.db = dout.sum(axis=0)
+        return dout @ self.W.T
+```
+
+**Week09 autograd**：
+
+```python
+W = torch.randn(50, 10, requires_grad=True)
+b = torch.zeros(10, requires_grad=True)
+
+z = x @ W + b                              # 只写前向
+loss = criterion(z, y)
+loss.backward()                            # 反向自动完成
+
+print(W.grad.shape)                        # 与手写 dW 形状一致
+```
+
+**验证方法**：把 Week07 手算的 `dW` 和 PyTorch 的 `W.grad` 放在一起比 —— 应该完全一致（误差 $<10^{-6}$）。
+
+这份"我知道框架在背后干了什么"的底气，就是你前 8 周手写换来的。
+
+---
+
+## 1.12 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| `RuntimeError: a leaf Variable that requires grad is being used in an in-place operation` | 对需要梯度的叶子节点做原地修改 | 用 `with torch.no_grad():` 包住，或改写成非原地 |
+| `RuntimeError: Trying to backward through the graph a second time` | 图已释放 | 传 `retain_graph=True`，或重构逻辑 |
+| 梯度越来越大 / 训练发散 | 忘了 `optimizer.zero_grad()` | 在 `backward()` 前清零 |
+| `RuntimeError: view size is not compatible` | `transpose` 后内存不连续 | 先 `.contiguous()` 或用 `.reshape()` |
+| `Expected all tensors to be on the same device` | 模型和数据设备不同 | 数据和模型都 `.to(device)` |
+| 数值微分算出来的梯度全 0 | 用了 `float32` | 转 `float64` 并调大 $\epsilon$ |
+| `x.grad is None` | `x` 不是叶子节点 or 未参与计算 | 检查 `requires_grad` 与 `is_leaf` |
+| 改了张量后梯度不对 | `from_numpy` 共享内存被外部改动 | 用 `torch.tensor(...)` 或 `.clone()` |
+
+---
+
+## 1.13 今日自测
+
+1. 创建 `(2, 3, 4)` 的张量，用三种方法把它变成 `(6, 4)`，并验证哪些是视图、哪些是拷贝。
+2. 对 $y = \sum_i \sin(x_i)\cdot e^{x_i}$ 求导，用手推结果验证 `x.grad`。
+3. 复现"梯度累积"故障：连续三次 `backward()` 不清零，观察梯度是 3 倍。
+4. 写一个函数，输入模型和输入张量，返回"解析梯度与数值梯度的最大相对误差"，用于后续调试。
+5. 思考：为什么 `loss.item()` 比 `loss` 更适合打印日志？（提示：内存与计算图）
+
+---
+
+## 1.14 一句话总结
+
+**`requires_grad=True` 让 PyTorch 从这一行开始记录一切，`backward()` 沿记录反向走一遍算出所有梯度，而你必须手动清零 —— 这就是 autograd 的全部契约。**
+
+**明日预告**：Day2 学习 `nn.Module` —— 把 `W` 和 `b` 封装成层，把前向传播写成一个 `forward` 函数，从此定义网络就像搭积木。
+

@@ -1,0 +1,209 @@
+---
+slug: day-81
+kind: day
+day: 81
+week: 13
+weekTitle: 文档与协作
+weekBlurb: Markdown、API 文档、Storybook、图表与团队协作规范，把知识沉淀下来。
+title: 代码托管平台使用教程（GitHub / GitLab）
+sourcePath: 13-文档与协作/03-代码托管平台.md
+---
+
+## 一、平台对比
+
+| 维度 | GitHub | GitLab |
+| --- | --- | --- |
+| 定位 | 全球最大开源社区 | DevOps 全流程一体化 |
+| 免费私有仓库 | 无限 | 无限 |
+| CI/CD | GitHub Actions | GitLab CI（内置，无需额外配置） |
+| 代码评审 | Pull Request | Merge Request |
+| 问题跟踪 | Issues + Projects | Issues + Boards |
+| 包管理 | GitHub Packages（GHCR） | Container/Package Registry |
+| 自建版 | GitHub Enterprise | GitLab CE/EE（可自建） |
+| 特色 | Copilot、Codespaces、Discussions | 内置容器仓库、K8s 集成、安全扫描 |
+
+## 二、GitHub 核心用法
+
+### 仓库设置
+
+| 功能 | 位置 |
+| --- | --- |
+| 可见性 | Settings → General → Danger Zone |
+| 默认分支 | Settings → Branches |
+| 分支保护 | Settings → Rules → Rulesets（需 PR + 通过检查才能合并） |
+| Collaborators | Settings → Collaborators |
+| Pages | Settings → Pages（静态站点托管） |
+| Secrets | Settings → Secrets and variables → Actions |
+| Webhooks | Settings → Webhooks |
+
+### Pull Request 协作流
+
+```
+1. fork 或建分支：git switch -c feature/xxx
+2. 推送：git push -u origin feature/xxx
+3. 创建 PR（gh pr create 或网页）
+   - 描述：背景 / 改动 / 验证方式 / 影响范围
+   - 关联 Issue："Closes #123"
+   - 加 reviewer 与 labels
+4. Review：
+   - 评论（Comment）、建议（Suggestion）、批准（Approve）、请求修改（Request changes）
+   - 提交建议可直接「Apply suggestion」一键改
+5. CI 通过 + 批准数达标 → Squash and merge
+6. 删除分支（自动）
+```
+
+### Code Review 最佳实践
+
+| 做 | 不做 |
+| --- | --- |
+| 先看整体设计再看细节 | 纠结代码风格（交给 lint/format） |
+| 提问式评论（"这里考虑过 X 吗？"） | 命令式（"改成 X"） |
+| 指出问题时给出替代方案 | 只挑毛病 |
+| PR 控制在 400 行以内 | 一次提交几千行（无法认真 review） |
+| 区分「必须改」与「建议」 | 把个人偏好当硬性要求 |
+
+### Issue 与 Projects
+
+- **Issue**：用模板规范（bug_report.md / feature_request.md）；
+- **Labels**：`bug`、`enhancement`、`good first issue`、`priority: high`；
+- **Milestones**：版本规划；
+- **Projects（看板）**：`Todo / In Progress / Review / Done` 拖拽管理。
+
+### 常用技巧
+
+```powershell
+# 从 issue 直接创建分支（网页按钮 / gh）
+gh issue develop 123 --checkout
+
+# 关联关键词（PR 合并时自动关闭 issue）
+Closes #123
+Fixes #456
+
+# 在评论中引用
+- 引用 PR/Issue：#123
+- 引用代码行（复制行号链接）
+- 引用某次提交：SHA 短码
+```
+
+其他实用功能：
+- **Discussions**：社区讨论区（非 Bug 的交流）；
+- **Wiki**：简单文档（大项目建议直接用仓库内 markdown）；
+- **Pages**：托管静态站点（文档、演示）；
+- **Codespaces**：云端开发环境（浏览器内 VS Code）；
+- **Dependabot**：依赖与安全自动升级。
+
+## 三、GitLab 核心用法
+
+### 项目设置
+
+| 功能 | 位置 |
+| --- | --- |
+| 可见性 | Settings → General → Visibility |
+| 分支保护 | Settings → Repository → Protected branches |
+| 成员权限 | Settings → Members（Guest/Reporter/Developer/Maintainer/Owner） |
+| CI/CD 变量 | Settings → CI/CD → Variables |
+| Container Registry | 每个项目自带 |
+
+### Merge Request 流程
+
+```
+1. 从 Issue 创建分支（"Create merge request" 按钮）
+2. 提交 MR：标题 + 描述 + Assignee + Reviewer + Labels + Milestone
+3. Draft MR（WIP）：未完成时标记 Draft，避免误合并
+4. 流水线自动跑（.gitlab-ci.yml）
+5. Review：Discussion 逐条讨论，Resolve 后继续
+6. 合并选项：
+   - Merge commit / Squash / Fast-forward
+   - Delete source branch
+   - 流水线成功才可合并（Merge checks）
+```
+
+### 特有优势
+
+- **全流程一体**：代码、Issue、CI、容器仓库、Pages、监控（EE 版更多）；
+- **内置安全扫描**（SAST/DAST/依赖扫描，EE）；
+- **Environments**：直接看每个环境部署了哪个版本；
+- **Epics**（EE）：跨项目的大需求管理；
+- **自建部署**：内网、合规场景首选。
+
+## 四、高效协作规范（两平台通用）
+
+### 分支模型建议
+
+```
+main（生产，受保护）
+  └── develop（可选，集成）
+        ├── feature/order-export
+        ├── fix/login-timeout
+        └── chore/upgrade-vite
+```
+
+或更现代的 **Trunk-Based**：短生命周期分支（1-3 天）直接合入 main，靠特性开关控制发布。
+
+### PR/MR 描述模板
+
+```markdown
+## 背景
+关联 Issue: #123
+
+## 改动内容
+- 新增订单导出接口
+- 补充导出任务的单测
+
+## 验证方式
+- [x] 本地跑通导出 1 万条数据
+- [x] 新增 5 个单测，覆盖率 85%
+
+## 影响范围
+- 订单模块；需先执行 002_add_export_index.sql
+
+## 截图 / 录屏
+（UI 改动必附）
+```
+
+### 提交与合并规范
+
+1. 提交信息遵循 Conventional Commits（见 01-版本控制/06-提交钩子.md）；
+2. 合并策略统一（推荐 Squash merge，保持主干历史清晰）；
+3. 合并后删除源分支；
+4. 主干必须可部署（任何时候 main 都是可发布状态）。
+
+## 五、安全与合规
+
+| 项 | 建议 |
+| --- | --- |
+| 密钥 | 绝不提交；用 Secrets；开启 secret scanning（GitHub 内置） |
+| 依赖安全 | Dependabot / Renovate 定期升级；CI 跑 `npm audit` |
+| 分支保护 | main 禁止直推，必须 PR + 通过 CI + 至少 1 人批准 |
+| 权限最小化 | 只给必要权限；离职及时清理 |
+| 代码所有权 | CODEOWNERS 文件指定模块负责人自动 reviewer |
+| 审计 | 企业版审计日志；自建 GitLab 配 LDAP/SSO |
+
+`CODEOWNERS` 示例：
+
+```
+# .github/CODEOWNERS（GitLab 为 CODEOWNERS 或 .gitlab/CODEOWNERS）
+/src/api/          @backend-team
+/src/components/   @frontend-team
+/.github/          @devops
+*.sql              @dba
+```
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 推送被拒（protected branch） | 走 PR/MR；或检查当前账号权限 |
+| 无法合并（checks 未通过） | 看 CI 失败原因；检查 required status checks 配置 |
+| 大文件 push 失败 | 用 Git LFS（见 01-版本控制/05-Git-LFS.md） |
+| fork 后同步上游 | `git remote add upstream <原始仓库>; git fetch upstream; git rebase upstream/main` |
+| MR 冲突 | 本地 rebase/merge 目标分支解决后推送 |
+| 误提交密钥 | 立即吊销密钥；用 `git filter-repo` 清理历史；GitHub 开 secret scanning |
+
+## 七、参考
+
+- GitHub Docs：https://docs.github.com/zh
+- GitLab Docs：https://docs.gitlab.com/
+- Conventional Commits：https://www.conventionalcommits.org/zh-hans/
+- CODEOWNERS：https://docs.github.com/zh/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+

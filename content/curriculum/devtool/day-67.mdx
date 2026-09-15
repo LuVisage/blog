@@ -1,0 +1,157 @@
+---
+slug: day-67
+kind: day
+day: 67
+week: 11
+weekTitle: 数据库与中间件
+weekBlurb: 常用数据库与缓存、消息中间件的本地搭建与客户端使用，对应后端课的存储层。
+title: 通用数据库客户端教程（DBeaver / DataGrip / TablePlus）
+sourcePath: 11-数据库与中间件/01-通用数据库客户端.md
+---
+
+## 一、DBeaver（免费全能）
+
+支持几乎所有数据库（MySQL、PostgreSQL、Oracle、SQL Server、SQLite、ClickHouse、MongoDB...），社区版免费开源。
+
+### 安装
+
+```powershell
+winget install dbeaver.dbeaver
+# 或官网下载：https://dbeaver.io/download/
+```
+
+### 连接数据库
+
+1. `Database → New Database Connection`；
+2. 选数据库类型（首次会下载 JDBC 驱动）；
+3. 填 Host / Port / Database / 用户名密码；
+4. `Test Connection` 成功后 `Finish`；
+5. 左侧 Database Navigator 出现连接，展开即可浏览表。
+
+### 常用功能
+
+| 功能 | 操作 |
+| --- | --- |
+| 执行 SQL | `Ctrl+Enter` 执行当前语句；`Alt+X` 执行整个脚本 |
+| 格式化 SQL | `Ctrl+Shift+F` |
+| 补全 | `Ctrl+Space`（表名、字段、关键字） |
+| 查看表数据 | 双击表 → Data 标签 |
+| 编辑数据 | Data 标签直接改，`Save` 提交（需主键） |
+| 生成 DDL | 右键表 → Generate SQL → DDL |
+| ER 图 | 选多个表 → 右键 → View Diagram |
+| 导出数据 | 右键表 → Export Data（CSV/JSON/SQL/Excel） |
+| 导入数据 | 右键表 → Import Data |
+| 执行计划 | `Ctrl+Shift+E`（分析慢查询必备） |
+| 会话管理 | 右上角查看活动连接与事务 |
+
+### 实用设置
+
+- `Window → Preferences → Editors → SQL Editor → Formatting`：SQL 格式化风格；
+- 开启 `Auto-commit` 或关闭（需要事务时手动 commit）；
+- 大结果集分页：`Preferences → Editors → Data Editor → Fetch size`；
+- 自定义变量：SQL 中 `${var}` 运行时可输入。
+
+### 典型工作流
+
+```sql
+-- 1. 写查询（自动补全）
+SELECT u.id, u.name, COUNT(o.id) AS order_count
+FROM users u
+LEFT JOIN orders o ON o.user_id = u.id
+WHERE u.created_at >= '2026-01-01'
+GROUP BY u.id, u.name
+ORDER BY order_count DESC
+LIMIT 100;
+
+-- 2. Ctrl+Enter 执行，看结果网格
+-- 3. 右键结果 → Generate SQL → INSERT/UPDATE 快速构造数据
+```
+
+## 二、DataGrip（JetBrains，功能最强）
+
+### 特点
+
+- 智能补全、重构、跨库跳转业界最强；
+- 与 IntelliJ/WebStorm 等共生态，键位一致；
+- 支持数据编辑器、版本控制、数据库 diff；
+- 付费（含在 All Products Pack）。
+
+### 核心用法
+
+| 功能 | 操作 |
+| --- | --- |
+| 新建数据源 | `Database` 面板 → `+` → Data Source |
+| 执行 | `Ctrl+Enter`（当前语句）/ `Ctrl+Alt+Enter`（整个控制台） |
+| 跳转表 | `Ctrl+B`（从 SQL 里的表名跳到表定义） |
+| 重构重命名 | `Shift+F6` 改表名/列名（自动更新引用） |
+| 表格编辑 | 双击单元格直接改，`Ctrl+Enter` 提交 |
+| Diff 两个数据库 | 右键数据源 → Compare |
+| 迁移脚本生成 | 同上 → 生成 DDL 差异脚本 |
+
+### 效率技巧
+
+- **Live Templates**：`selw` 展开成 `SELECT * FROM ... WHERE ...`；
+- **多光标编辑**：批量改 SQL 中的字段名；
+- **本地历史**：找回误删的 SQL 文件；
+- **Explain Plan**：右键查询 → Explain Plan，图形化分析。
+
+## 三、TablePlus（轻快美观）
+
+### 特点
+
+- 启动快、界面现代（Mac/Win 原生）；
+- 支持 MySQL/PG/SQLite/SQL Server/Redis/MongoDB 等；
+- 免费版有限制（连接数/标签页），Pro 解锁全部。
+
+### 安装与使用
+
+```powershell
+winget install TablePlus.TablePlus
+# macOS
+brew install --cask tableplus
+```
+
+1. 新建连接 → 选数据库类型 → 填连接信息；
+2. `Cmd/Ctrl + K` 快速切换连接；
+3. 表数据可视化编辑，快捷键 `Cmd/Ctrl + R` 刷新；
+4. SQL 编辑器支持多标签、查询历史。
+
+适合：日常快速查数据、按需编辑几条记录；不适合复杂建模/迁移。
+
+## 四、三者对比
+
+| 维度 | DBeaver | DataGrip | TablePlus |
+| --- | --- | --- | --- |
+| 价格 | 免费（CE） | 付费 | 免费 + Pro |
+| 数据库覆盖 | 最广 | 很广 | 常见数据库 |
+| 智能补全 | 好 | 最好 | 一般 |
+| 启动速度 | 中等（Java） | 较慢 | 快 |
+| 数据编辑体验 | 好 | 好 | 很好 |
+| 迁移/对比 | 有 | 强 | 弱 |
+| 适合 | 通用/预算有限 | 专业/DBA/重度 | 轻量快速查询 |
+
+## 五、安全与规范
+
+1. **连接信息分级**：生产库用只读账号，开发库用开发账号；
+2. 不要勾选「保存密码」在共享电脑上；
+3. 生产环境执行前：`BEGIN;` 试跑 → 确认行数 → `COMMIT/ROLLBACK`；
+4. 大表加索引/改结构用 `ONLINE DDL` 或低峰期执行；
+5. 导出生产数据必须脱敏（手机号、身份证、email）。
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| DBeaver 连不上 MySQL 8 | 驱动版本问题：Driver properties 设 `allowPublicKeyRetrieval=true&useSSL=false`（仅测试） |
+| 中文乱码 | 连接参数加 `characterEncoding=utf8`；确认库表字符集 |
+| 连接超时 | 检查网络安全组/防火墙、SSH 隧道配置 |
+| 结果集太大卡死 | 加 `LIMIT`；调小 Fetch size |
+| 时区不对 | 连接参数设 `serverTimezone=Asia/Shanghai` |
+| 需要连内网数据库 | 配 SSH 隧道（各客户端都支持）或跳板机端口转发 |
+
+## 七、参考
+
+- DBeaver：https://dbeaver.io/docs/
+- DataGrip：https://www.jetbrains.com/help/datagrip/
+- TablePlus：https://docs.tableplus.com/
+

@@ -1,0 +1,444 @@
+---
+slug: day-20
+kind: day
+day: 20
+week: 3
+weekTitle: 线性模型
+weekBlurb: 线性回归、逻辑回归与线性判别分析，第一批可解释模型，公式开始密集。
+title: 多分类与类别不平衡
+lead: '本周最后一天，解决两个"从二分类走向真实世界"的问题：**怎么处理 3 类以上？** 和 **怎么处理 1:100 的极端不平衡？**'
+sourcePath: Week03_线性模型/Day5_多分类与类别不平衡.md
+---
+
+> 西瓜书第 3 章 3.5–3.6 节 · 南瓜书 3.36–3.42
+
+本周最后一天，解决两个"从二分类走向真实世界"的问题：**怎么处理 3 类以上？** 和 **怎么处理 1:100 的极端不平衡？**
+
+---
+
+## 今日目标
+
+1. 掌握 OvO、OvR、多对多（MvM/ECOC）三种多分类策略，并估算训练成本；
+2. 掌握 Softmax 回归（多分类逻辑回归）的完整推导；
+3. 独立推导 Softmax 的 Jacobian 与交叉熵梯度；
+4. 掌握类别不平衡的三大类方法：重采样、类别权重、阈值调整；
+5. 会计算并解读类别权重对损失的影响；
+6. 理解"再平衡"与"概率校准"的关系。
+
+---
+
+## 知识地图
+
+```
+Week03 收尾
+├── Day1 线性回归 ✅
+├── Day2 梯度下降 ✅
+├── Day3 逻辑回归 ✅（二分类）
+├── Day4 LDA ✅（天然多分类）
+└── Day5 多分类与不平衡  ← 你在这里
+```
+
+---
+
+## 一、OvO / OvR / MvM
+
+### 1.1 一对多（One-vs-Rest, OvR）
+
+**做法**：对 $k$ 个类别，训练 $k$ 个二分类器。第 $i$ 个分类器的任务是"是类别 $i$ 还是不是类别 $i$"。
+
+**预测**：
+
+$$\hat y = \arg\max_{i} f_i(\boldsymbol{x})$$
+
+**特点**：
+
+| 项 | 值 |
+| --- | --- |
+| 分类器数量 | $k$ |
+| 每个分类器训练样本数 | $m$（全部） |
+| 总训练代价 | $O(k \cdot m)$ |
+| 优点 | 分类器少、每个用全量数据 |
+| 缺点 | **类别不平衡**（正例仅占 $1/k$）；各类分数尺度不可比 |
+
+### 1.2 一对一（One-vs-One, OvO）
+
+**做法**：每两个类别训练一个分类器，共 $k(k-1)/2$ 个。
+
+**预测**：投票（每个分类器投一票，得票最多者胜）。
+
+**特点**：
+
+| 项 | 值 |
+| --- | --- |
+| 分类器数量 | $k(k-1)/2$ |
+| 每个分类器训练样本数 | 约 $2m/k$ |
+| 总训练代价 | $O(k^2 \cdot 2m/k) = O(km)$ — **与 OvR 同阶** |
+| 优点 | 每个分类器只处理两类的数据，**类别较均衡**、单次训练快 |
+| 缺点 | 分类器数量随 $k$ 平方增长；可能平票（需设计规则） |
+
+**为什么总代价同阶**：虽然分类器多，但每个分类器的数据量小，总计算量相当。
+
+| $k$ | OvO 分类器数 |
+| --- | --- |
+| 3 | 3 |
+| 10 | 45 |
+| 100 | 4950 |
+| 1000 | 499500 |
+
+### 1.3 多对多（MvM）与 ECOC
+
+**做法**：每个分类器只区分一部分类别的组合（编码），用编码矩阵组织。
+
+**纠错输出码（ECOC）**：设计一个 $k \times L$ 的编码矩阵 $\mathbf{M}\in\{-1,+1\}^{k\times L}$，训练 $L$ 个分类器；预测时找与输出码字**距离最近**的类别码。
+
+**优点**：具有一定的**纠错能力**（部分分类器出错不影响最终判断）。
+
+**注意**：OvR 与 OvO 都可以看作 ECOC 的特例。
+
+### 1.4 三种策略对比
+
+| 策略 | 分类器数 | 每分类器样本 | 不平衡程度 | 适用 |
+| --- | --- | --- | --- | --- |
+| OvR | $k$ | $m$ | 严重（$1:k$） | 类别少、样本多 |
+| OvO | $k(k-1)/2$ | $\approx 2m/k$ | 轻 | 类别多、SVM 类 |
+| MvM/ECOC | $L$（可设计） | 可变 | 可控 | 需要纠错时 |
+
+> **sklearn 的约定**：`LogisticRegression` 默认用 OvR（`multi_class='ovr'`），也可选 `'multinomial'`（软最大化）；`SVC` 默认 OvO。
+
+---
+
+## 二、Softmax 回归（多分类逻辑回归）
+
+### 2.1 模型
+
+对 $k$ 个类别，为每类学一个权重向量 $\boldsymbol{w}_j\in\mathbb{R}^n$。
+
+**线性得分（logits）**：
+
+$$z_j = \boldsymbol{w}_j^\top\boldsymbol{x}, \qquad j = 1,\dots,k$$
+
+**Softmax（归一化指数）**：
+
+$$\hat y_j = \text{softmax}(\boldsymbol{z})_j = \frac{e^{z_j}}{\sum_{l=1}^{k}e^{z_l}}$$
+
+**性质**：
+
+- $\hat y_j \in (0,1)$，$\sum_j \hat y_j = 1$ ⇒ 是合法的概率分布；
+- **平移不变性**：$\text{softmax}(\boldsymbol{z}+\boldsymbol{c}) = \text{softmax}(\boldsymbol{z})$ ⇒ 参数存在冗余（通常固定 $\boldsymbol{w}_k = \boldsymbol{0}$ 或加 $L_2$ 正则）。
+
+### 2.2 损失函数
+
+$$\hat y_{ij} = \text{softmax}(\mathbf{W}^\top\boldsymbol{x}_i)_j$$
+
+负对数似然：
+
+$$L(\mathbf{W}) = -\sum_{i=1}^m \sum_{j=1}^{k} \mathbb{1}[y_i = j]\log \hat y_{ij} = -\sum_{i=1}^m \log \hat y_{i,\,y_i}$$
+
+（因为 one-hot 只有一项非零 ⇒ **只对真实类别的预测概率取负对数**。）
+
+### 2.3 Softmax 的 Jacobian
+
+$$\frac{\partial \hat y_j}{\partial z_l} = \begin{cases}\hat y_j(1-\hat y_j), & j = l \\ -\hat y_j\hat y_l, & j \ne l\end{cases}$$
+
+统一写成：
+
+$$\boxed{\ \frac{\partial \hat y_j}{\partial z_l} = \hat y_j(\delta_{jl} - \hat y_l)\ }$$
+
+**推导**（$j = l$ 情形）：设 $S = \sum_l e^{z_l}$，
+
+$$\frac{\partial}{\partial z_j}\frac{e^{z_j}}{S} = \frac{e^{z_j}S - e^{z_j}e^{z_j}}{S^2} = \frac{e^{z_j}}{S}\left(1 - \frac{e^{z_j}}{S}\right) = \hat y_j(1-\hat y_j)\ \checkmark$$
+
+（$j\ne l$ 情形同理，注意分子对 $z_l$ 求导为 0。）
+
+### 2.4 梯度：极其简洁的结果
+
+对单个样本，记真实类别为 $c$，损失 $\ell = -\log\hat y_c$。
+
+$$\frac{\partial \ell}{\partial z_l} = -\frac{1}{\hat y_c}\cdot\frac{\partial \hat y_c}{\partial z_l} = -\frac{1}{\hat y_c}\cdot\hat y_c(\delta_{cl}-\hat y_l) = \hat y_l - \delta_{cl}$$
+
+即：
+
+$$\boxed{\ \frac{\partial \ell}{\partial \boldsymbol{z}} = \hat{\boldsymbol{y}} - \boldsymbol{y}_{\text{onehot}}\ }$$
+
+**这就是 Week01 Day3 练习 6 的结论**：梯度仍然是"预测概率 - 真实标签"，与二分类、线性回归的形式完全统一。
+
+**对权重的梯度**（$\boldsymbol{z}_i = \mathbf{W}^\top\boldsymbol{x}_i$）：
+
+$$\boxed{\ \nabla_{\mathbf{W}} L = \sum_{i=1}^m \boldsymbol{x}_i\left(\hat{\boldsymbol{y}}_i - \boldsymbol{y}_i\right)^\top = \mathbf{X}^\top(\hat{\mathbf{Y}} - \mathbf{Y})\ }$$
+
+维度检查：$(m\times n)^\top (m\times k) = n\times k$ 与 $\mathbf{W}$ 同形。
+
+> **三兄弟的统一形式**：
+>
+> | 模型 | 梯度 |
+> | --- | --- |
+> | 线性回归 | $\mathbf{X}^\top(\hat{\boldsymbol{y}}-\boldsymbol{y})$ |
+> | 逻辑回归 | $\mathbf{X}^\top(\hat{\boldsymbol{y}}-\boldsymbol{y})$ |
+> | Softmax 回归 | $\mathbf{X}^\top(\hat{\mathbf{Y}}-\mathbf{Y})$ |
+>
+> **残差左乘输入矩阵转置**——这就是广义线性模型的统一梯度形式。
+
+### 2.5 Softmax 的数值稳定性
+
+$$\hat y_j = \frac{e^{z_j}}{\sum_l e^{z_l}} = \frac{e^{z_j - \max_l z_l}}{\sum_l e^{z_l - \max_l z_l}}$$
+
+**必须先减最大值**，否则 $z_j$ 稍大就溢出（Week01 Day5 已详述）。
+
+---
+
+## 三、类别不平衡
+
+### 3.1 问题表现
+
+数据正负比 1:99 时：
+
+- 模型学到的"最优"策略是**全部预测为多数类**（准确率 99%）；
+- 少数类样本对总损失的贡献被淹没；
+- 梯度被多数类主导。
+
+### 3.2 方法一：重采样（Resampling）
+
+| 方法 | 做法 | 优点 | 缺点 |
+| --- | --- | --- | --- |
+| **欠采样** | 随机丢弃多数类样本 | 训练快、平衡 | 丢失信息 |
+| **过采样** | 复制少数类样本 | 不丢信息 | 易过拟合（重复样本） |
+| **SMOTE** | 在少数类近邻间线性插值生成 | 增加多样性 | 可能生成噪声样本 |
+| **ADASYN** | 自适应地在难分类区域生成 | 更关注困难样本 | 同样有噪声风险 |
+| **Tomek Links** | 删除边界附近的多数类样本 | 清理重叠区域 | 改变分布 |
+
+**SMOTE 的核心步骤**：
+
+1. 对每个少数类样本 $\boldsymbol{x}_i$，找它的 $k$ 个最近邻（也是少数类）；
+2. 随机选一个邻居 $\boldsymbol{x}_{nn}$；
+3. 生成新样本：
+
+$$\boldsymbol{x}_{\text{new}} = \boldsymbol{x}_i + \delta\cdot(\boldsymbol{x}_{nn}-\boldsymbol{x}_i), \quad \delta\sim U(0,1)$$
+
+> **重要**：**重采样只能在训练集上做！** 验证集/测试集必须保持原始分布，否则评估结果完全没有意义。
+
+### 3.3 方法二：类别权重（推荐）
+
+**做法**：在损失函数中给各类加权。
+
+$$L = -\sum_{i=1}^m w_{y_i}\left[y_i\log\hat y_i + (1-y_i)\log(1-\hat y_i)\right]$$
+
+**常用的逆频率权重**：
+
+$$w_c = \frac{m}{k \cdot m_c}$$
+
+其中 $m_c$ 是类别 $c$ 的样本数。这样每类的总权重相等。
+
+**优点**：
+
+- 不丢失信息、不引入合成样本；
+- 实现简单（sklearn 的 `class_weight='balanced'`）；
+- 梯度尺度自动平衡。
+
+**理论解释**：等价于**改变类别先验**。加权后模型学到的后验为：
+
+$$P_{\text{weighted}}(y=c|\boldsymbol{x}) = \frac{w_c P(y=c|\boldsymbol{x})}{\sum_{c'} w_{c'}P(y=c'|\boldsymbol{x})}$$
+
+因此**加权训练后需要"去权重"才能得到校准的概率**（见 3.5）。
+
+### 3.4 方法三：阈值调整与代价敏感
+
+**最直接**：训练时不动，预测时改阈值。
+
+**理论最优阈值**（Week02 Day3 已推导）：
+
+$$\text{预测为正} \iff P(y=1|\boldsymbol{x}) > \frac{c_{10}\,P(y=0)}{c_{01}\,P(y=1)}$$
+
+其中 $c_{01}$ 是"漏报"代价，$c_{10}$ 是"误报"代价。
+
+**特例**：代价相等时，阈值应为 $\frac{P(y=0)}{P(y=1)} = 99$（当正负比 1:99 时），即**预测为正的分数要求非常低**——等价于把阈值从 0.5 降到约 0.01。
+
+### 3.5 概率校准（Calibration）
+
+**问题**：经过重采样或类别加权的模型，输出的概率**不再反映真实频率**。例如模型说"有 70% 概率是欺诈"，但实际频率可能只有 5%。
+
+**校准方法**：
+
+| 方法 | 做法 |
+| --- | --- |
+| Platt Scaling | 在验证集上拟合 $P(y=1\verts) = \sigma(as+b)$ |
+| Isotonic Regression | 单调回归，非参方法，样本多时更好 |
+| Temperature Scaling | 神经网络常用，只调一个温度参数 |
+
+**评估指标**：
+
+- **可靠性图（Reliability Diagram）**：把预测概率分桶，比较"预测均值"与"实际正例率"；
+- **ECE（Expected Calibration Error）**：
+
+$$\text{ECE} = \sum_{b=1}^{B}\frac{n_b}{m}\left|\text{acc}(b) - \text{conf}(b)\right|$$
+
+> **实践建议**：**若最终只需要排序（如推荐、风控打分），不需要校准；若需要概率做决策（如定价、期望损失），必须校准。**
+
+### 3.6 三种方法对比与选择建议
+
+| 方法 | 实现难度 | 信息损失 | 是否改变概率含义 | 推荐场景 |
+| --- | --- | --- | --- | --- |
+| 重采样 | 低 | 有（欠采样）/ 有风险（过采样） | 是 | 数据量小、需要快速试验 |
+| **类别权重** | 低 | **无** | 是 | **默认首选** |
+| 阈值/代价调整 | 低 | 无 | 否 | 有明确业务代价时 |
+| 组合使用 | 中 | — | 是 | 极端不平衡（1:1000+） |
+
+---
+
+## 四、评估不平衡模型的正确姿势
+
+| 做法 | 是否正确 |
+| --- | --- |
+| 在重采样后的数据集上评估 | 分布被改变 |
+| 用准确率评估 | 无意义 |
+| 用分层交叉验证 | |
+| 用 PR-AUC / F1 / 平衡准确率 / MCC | |
+| 固定阈值 0.5 并报告 | 应同时报告阈值扫描结果 |
+| 报告"每个类别的召回率" | |
+| 在验证集上选阈值，测试集报告 | |
+
+---
+
+## 五、代码实践
+
+```python
+import numpy as np
+
+def balanced_class_weight(y):
+    """sklearn 风格的 balanced 权重: n_samples / (n_classes * bincount)"""
+    classes, counts = np.unique(y, return_counts=True)
+    w = len(y) / (len(classes) * counts)
+    return dict(zip(classes.tolist(), w.tolist()))
+
+def softmax_stable(Z):
+    Z = Z - Z.max(axis=1, keepdims=True)
+    E = np.exp(Z)
+    return E / E.sum(axis=1, keepdims=True)
+
+class SoftmaxRegression:
+    """多分类逻辑回归（Softmax 回归），支持类别权重"""
+    def __init__(self, lr=0.5, epochs=500, lam=1e-4, class_weight=None):
+        self.lr, self.epochs, self.lam = lr, epochs, lam
+        self.class_weight = class_weight
+
+    def fit(self, X, y):
+        m, n = X.shape
+        self.classes_ = np.unique(y)
+        k = len(self.classes_)
+        Y = np.eye(k)[np.searchsorted(self.classes_, y)]     # one-hot
+        w = np.array([self.class_weight.get(c, 1.0) for c in self.classes_]) \
+            if self.class_weight else np.ones(k)
+
+        self.W = np.zeros((n, k))
+        for _ in range(self.epochs):
+            P = softmax_stable(X @ self.W)
+            # 加权残差: (m, k) 每列乘上该类的样本权重
+            R = (P - Y) * w[None, :]
+            grad = X.T @ R / m + self.lam * self.W
+            self.W -= self.lr * grad
+        return self
+
+    def predict_proba(self, X):
+        return softmax_stable(X @ self.W)
+
+    def predict(self, X):
+        return self.classes_[self.predict_proba(X).argmax(axis=1)]
+```
+
+完整版本见 `code/day5_multiclass_imbalance.py`，包含：
+
+1. 从零实现 Softmax 回归 + 在 3 类合成数据上与 sklearn 对比；
+2. OvR 与 OvO 的手写实现与训练成本统计；
+3. 在不平衡数据上对比：**无权重 / 类别权重 / 随机过采样 / 随机欠采样** 四种方案；
+4. 阈值扫描：画出 F1、召回率、精确率随阈值的变化；
+5. 校准演示：加权训练后概率偏高，用 Platt Scaling 修正。
+
+---
+
+## 六、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 在重采样后划分训练/测试 | 测试集分布被污染，指标虚高 |
+| 先重采样再交叉验证 | 同上，正确做法是**在每折内部重采样** |
+| 用准确率评估不平衡模型 | 无意义 |
+| 加权训练后直接报告概率 | 概率被系统性偏移，需校准 |
+| OvR 中各分类器分数直接比大小 | 不同分类器的分数尺度不可比，需归一化或校准 |
+| Softmax 不减最大值 | 数值溢出 |
+| 忘记固定一个 $\boldsymbol{w}_j=\boldsymbol{0}$ | 参数不唯一，梯度下降会在等价解之间游走 |
+| 认为 OvO 一定慢 | $k$ 大时 OvO 反而有优势（每次训练数据少） |
+
+---
+
+## 七、练习题
+
+**基础**
+
+1. 10 个类别，OvR 与 OvO 各需训练多少个分类器？
+2. 写出 Softmax 函数，并证明它对 $\boldsymbol{z}$ 的平移不变性。
+3. 数据集 1000 个样本，正例 20 个。计算 `class_weight='balanced'` 给出的两类权重。
+
+**进阶**
+
+4. 推导 Softmax 的 Jacobian $\frac{\partial \hat y_j}{\partial z_l} = \hat y_j(\delta_{jl}-\hat y_l)$。
+5. 推导 $\frac{\partial \ell}{\partial \boldsymbol{z}} = \hat{\boldsymbol{y}}-\boldsymbol{y}$（$\ell$ 为交叉熵）。
+6. 推导最优分类阈值 $\frac{c_{10}P(y=0)}{c_{01}P(y=1)}$。
+7. 证明逆频率权重（$w_c = m/(k m_c)$）能让各类对总损失的贡献相等。
+
+**思考题**
+
+8. 为什么 OvR 中"每个二分类器只需比较分数大小"这个做法在高维不平衡数据上可能有问题？
+9. 一个模型在原始数据上输出概率 0.3，但经过 10 倍过采样后输出 0.8。请说明如何从 0.8 恢复出"真实"概率 0.3。
+10. 为什么"重采样 → 训练 → 评估"这个流程会被认为是数据泄漏？请指出泄漏发生的确切位置。
+
+<details>
+<summary>第 1 题答案</summary>
+
+OvR：$k = 10$ 个分类器。
+
+OvO：$k(k-1)/2 = 10\times 9/2 = 45$ 个分类器。
+</details>
+
+<details>
+<summary>第 3 题答案</summary>
+
+$$w_{\text{正}} = \frac{1000}{2\times 20} = 25, \qquad w_{\text{负}} = \frac{1000}{2\times 980} \approx 0.5102$$
+
+两类总权重：$20\times 25 = 500$，$980\times 0.5102 \approx 500$ 相等。
+</details>
+
+<details>
+<summary>第 9 题提示</summary>
+
+设过采样把正例比例从 $\pi$ 提到 $\pi'$。由贝叶斯公式：
+
+$$\frac{p'}{1-p'} = \frac{p}{1-p}\cdot\frac{\pi'/(1-\pi')}{\pi/(1-\pi)}$$
+
+反解得：
+
+$$p = \frac{p'\cdot r}{1 - p' + p'\cdot r}, \quad r = \frac{\pi/(1-\pi)}{\pi'/(1-\pi')}$$
+
+**例**：原始正例率 1%（odds 1:99），过采样到 50%（odds 1:1），则 $r = 1/99$。
+
+$$p = \frac{0.8/99}{1-0.8+0.8/99} = \frac{0.00808}{0.20808} \approx 0.0388$$
+
+（近似恢复出低概率——与"过采样会让概率虚高"的结论一致。）
+</details>
+
+---
+
+## 八、Week03 总结
+
+| 天 | 核心收获 |
+| --- | --- |
+| Day1 | 最小二乘的闭式解与投影几何；岭回归为什么一定可逆 |
+| Day2 | BGD / SGD / MBGD 的取舍；SGD 噪声的隐式正则化 |
+| Day3 | 逻辑回归的完整推导；梯度 $\mathbf{X}^\top(\hat{\boldsymbol{y}}-\boldsymbol{y})$；凸性证明 |
+| Day4 | LDA 的广义特征值问题；与 PCA 的本质差异 |
+| Day5 | OvO / OvR / Softmax；不平衡处理的三大手段与校准 |
+
+**主线回顾**：线性模型的三种形态（回归 / 二分类 / 多分类）共享同一个梯度形式，只是链接函数不同。这个"统一性"在 Week07 会被推广成**广义线性模型**的框架。
+
+---
+
+**下周预告**：Week04 进入树模型与集成学习。你会看到一棵树如何"自动做特征选择"，以及为什么"1000 棵弱树加起来"能打败一个强模型。
+

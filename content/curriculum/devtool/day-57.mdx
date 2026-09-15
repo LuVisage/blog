@@ -1,0 +1,186 @@
+---
+slug: day-57
+kind: day
+day: 57
+week: 9
+weekTitle: 容器与部署运维
+weekBlurb: Docker 镜像与 compose、常见部署形态与基础运维，为后端课的模型服务化打底。
+title: Podman 使用教程
+sourcePath: 09-容器与部署运维/03-Podman.md
+---
+
+## 一、Podman 是什么
+
+Podman（Pod Manager）是 Red Hat 主导的**无守护进程容器引擎**，与 Docker 高度兼容：
+
+| 特性 | Docker | Podman |
+| --- | --- | --- |
+| 架构 | 客户端 + 常驻 daemon | 无守护进程（fork/exec） |
+| root 权限 | daemon 以 root 跑 | 支持 **rootless**（普通用户运行） |
+| 命令 | `docker ...` | `podman ...`（几乎一致） |
+| compose | docker compose | podman-compose / `podman compose` |
+| Pod 概念 | 无（K8s 才有） | 原生支持 Pod（多容器共享网络） |
+| systemd 集成 | 需额外配置 | `podman generate systemd` 原生 |
+| 授权 | Apache 2.0 | Apache 2.0 |
+
+**适合**：不想装 Docker Desktop 的 Windows 用户（WSL 后端）、服务器上想 rootless 运行、K8s 开发者（podman 可直接生成 K8s YAML）。
+
+## 二、安装
+
+```powershell
+# Windows（提供 WSL2 后端）
+winget install RedHat.Podman
+winget install RedHat.Podman-Desktop    # 可选图形界面
+
+# macOS
+brew install podman
+podman machine init && podman machine start
+
+# Linux (Fedora/RHEL 自带)
+sudo dnf install podman
+# Ubuntu
+sudo apt install podman
+```
+
+验证：
+
+```powershell
+podman --version
+podman run --rm hello-world
+```
+
+Windows/macOS 上需先启动虚拟机：
+
+```powershell
+podman machine init --cpus 4 --memory 4096
+podman machine start
+podman machine list
+```
+
+## 三、基本用法（与 Docker 几乎相同）
+
+```powershell
+podman pull nginx:alpine
+podman images
+podman run -d --name web -p 8080:80 nginx:alpine
+podman ps
+podman logs -f web
+podman exec -it web sh
+podman stop web && podman rm web
+podman build -t myapp:1.0 .
+podman push myapp:1.0
+podman volume create data
+podman network create mynet
+podman system prune -a
+```
+
+**省事技巧**：设置别名，让 docker 命令直接走 podman：
+
+```powershell
+Set-Alias docker podman
+# Linux/macOS: alias docker=podman
+```
+
+（Podman 官方也提供 `podman-docker` 包，安装后自动提供 docker 命令兼容层。）
+
+## 四、Podman 独有功能
+
+### 1. Pod（多容器共享网络命名空间）
+
+```powershell
+podman pod create --name mypod -p 8080:80
+podman run -d --pod mypod --name web nginx
+podman run -d --pod mypod --name redis redis
+podman pod ps
+podman pod stop mypod && podman pod rm mypod
+```
+
+Pod 内容器共享 localhost，与 K8s 的 Pod 概念一致。
+
+### 2. 生成 systemd 服务（服务器自启）
+
+```bash
+podman generate systemd --new --name web > ~/.config/systemd/user/web.service
+systemctl --user enable --now web
+# 或新命令
+podman quadlet ...
+```
+
+### 3. 生成 Kubernetes YAML
+
+```powershell
+podman generate kube web > web.yaml
+podman play kube web.yaml
+```
+
+本地容器直接转成 K8s 资源，非常适合 K8s 开发。
+
+### 4. rootless 模式（安全优势）
+
+普通用户即可运行容器，无需 sudo，容器逃逸风险显著降低：
+
+```bash
+podman run --rm -p 8080:80 nginx    # 普通用户直接跑
+```
+
+## 五、compose 支持
+
+```powershell
+# 方式一：podman-compose（Python 实现）
+pip install podman-compose
+podman-compose up -d
+
+# 方式二：podman compose（调用 docker compose 或 podman-compose）
+podman compose up -d
+
+# 方式三：直接用 docker compose 对接 podman socket
+systemctl --user enable --now podman.socket
+export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock
+docker compose up -d
+```
+
+## 六、Podman Desktop
+
+图形界面工具，功能类似 Docker Desktop：
+
+- 查看镜像/容器/卷/网络；
+- 一键安装 podman machine；
+- 支持 Kubernetes 本地集群（kind/minikube 集成）；
+- 免费开源，无商业授权限制（对比 Docker Desktop 大企业需付费）。
+
+## 七、Docker 用户迁移注意点
+
+| 事项 | 说明 |
+| --- | --- |
+| 命令 | 基本一一对应，脚本改个命令名即可 |
+| 网络 | rootless 下端口 &lt; 1024 需配置 `net.ipv4.ip_unprivileged_port_start` |
+| 卷权限 | rootless 下 UID 映射（userns）可能导致挂载目录权限问题，加 `:U` 或 `--userns=keep-id` |
+| BuildKit | Podman 默认用 Buildah 构建，`--format docker` 可输出兼容格式 |
+| Docker Desktop 特性 | 如 Dev Environments、K8s 单机面板，Podman 需替代方案 |
+| socket 路径 | `DOCKER_HOST` 需指向 podman socket |
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| Windows 上启动失败 | 先 `podman machine start`；确认 WSL2 可用 |
+| 拉镜像慢 | 配置 registries.conf 镜像加速 |
+| rootless 端口被拒 | 用 >=1024 端口，或调整 `ip_unprivileged_port_start` |
+| 挂载目录权限错误 | 加 `:Z` / `:U` 选项；或 `--userns=keep-id` |
+| 与 Docker Desktop 冲突 | 二者可共存，但 socket/端口可能冲突，按需切换 |
+| compose 兼容性 | 复杂 compose 文件（如 profiles、extends）支持不完整，优先用 docker compose 对接 podman socket |
+
+## 九、选型建议
+
+- **个人/小团队 + Windows** → Podman Desktop（免授权费、够用）
+- **公司需要成熟生态与工具支持** → Docker
+- **服务器 rootless 安全要求高** → Podman
+- **K8s 开发者想本地快速验证** → Podman（generate kube 很方便）
+
+## 十、参考
+
+- 官网：https://podman.io/
+- 文档：https://docs.podman.io/
+- Podman Desktop：https://podman-desktop.io/
+- Docker 到 Podman 迁移指南：https://podman.io/blogs/2019/09/25/migrating-from-docker.html
+

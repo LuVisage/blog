@@ -1,0 +1,243 @@
+---
+slug: day-37
+kind: day
+day: 37
+week: 5
+weekTitle: 测试
+weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
+title: JUnit 5 使用教程
+sourcePath: 05-测试/08-JUnit.md
+---
+
+## 一、JUnit 5 是什么
+
+Java 生态标准测试框架。JUnit 5 = JUnit Platform（运行平台） + JUnit Jupiter（新编程模型） + JUnit Vintage（兼容 JUnit 3/4）。
+
+配合 **Mockito**（Mock）、**AssertJ**（流式断言）使用体验最佳。
+
+## 二、依赖配置
+
+**Maven**（`pom.xml`）：
+
+```xml
+<dependencies>
+  <dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <version>5.10.2</version>
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.mockito</groupId>
+    <artifactId>mockito-core</artifactId>
+    <version>5.12.0</version>
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.assertj</groupId>
+    <artifactId>assertj-core</artifactId>
+    <version>3.25.3</version>
+    <scope>test</scope>
+  </dependency>
+</dependencies>
+```
+
+**Gradle**（`build.gradle.kts`）：
+
+```kotlin
+dependencies {
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("org.assertj:assertj-core:3.25.3")
+}
+
+tasks.test { useJUnitPlatform() }
+```
+
+## 三、编写测试
+
+```java
+import org.junit.jupiter.api.*;
+import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+class CalculatorTest {
+
+    private Calculator calculator;
+
+    @BeforeEach
+    void setUp() {
+        calculator = new Calculator();
+    }
+
+    @AfterEach
+    void tearDown() {
+        calculator = null;
+    }
+
+    @Test
+    @DisplayName("两数相加返回正确结果")
+    void add_shouldReturnSum() {
+        assertEquals(3, calculator.add(1, 2));
+    }
+
+    @Test
+    void divide_byZero_throws() {
+        assertThrows(ArithmeticException.class, () -> calculator.divide(1, 0));
+    }
+
+    @Test
+    void user_hasExpectedFields() {
+        User user = new User("Ada", 36);
+        assertThat(user)
+            .extracting(User::name, User::age)
+            .containsExactly("Ada", 36);
+    }
+
+    // 参数化测试
+    @ParameterizedTest
+    @CsvSource({"1,1,2", "2,3,5", "-1,1,0"})
+    void add_param(int a, int b, int expected) {
+        assertEquals(expected, calculator.add(a, b));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "\t"})
+    void blankNames_rejected(String name) {
+        assertThrows(IllegalArgumentException.class, () -> new User(name, 1));
+    }
+
+    // 分组与嵌套
+    @Nested
+    class WhenEmpty {
+        @Test
+        void size_isZero() { assertEquals(0, calculator.history().size()); }
+    }
+
+    @Test
+    @Disabled("等待需求确认")
+    void pendingFeature() { }
+
+    @Test
+    @Timeout(2)   // 秒；超时即失败
+    void shouldNotHang() { }
+}
+```
+
+## 四、常用注解速查
+
+| 注解 | 作用 |
+| --- | --- |
+| `@Test` | 测试方法 |
+| `@BeforeEach` / `@AfterEach` | 每个测试前后 |
+| `@BeforeAll` / `@AfterAll` | 全部测试前后（静态方法） |
+| `@DisplayName` | 可读名（支持中文/emoji） |
+| `@ParameterizedTest` | 参数化 |
+| `@Nested` | 嵌套分组 |
+| `@Disabled` | 跳过 |
+| `@Timeout` | 超时限制 |
+| `@Tag("slow")` | 标签（用于分组执行） |
+| `@ExtendWith` | 挂扩展（如 MockitoExtension） |
+
+## 五、Mockito 使用
+
+```java
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
+
+@ExtendWith(MockitoExtension.class)
+class UserServiceTest {
+
+    @Mock
+    UserRepository repository;
+
+    @InjectMocks
+    UserService service;
+
+    @Test
+    void findById_returnsUser() {
+        when(repository.findById(1L)).thenReturn(Optional.of(new User("Ada", 36)));
+
+        User user = service.findById(1L).orElseThrow();
+
+        assertThat(user.name()).isEqualTo("Ada");
+        verify(repository).findById(1L);
+    }
+
+    @Test
+    void findById_throwsWhenMissing() {
+        when(repository.findById(anyLong())).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.findById(9L))
+            .isInstanceOf(NoSuchElementException.class);
+    }
+}
+```
+
+## 六、执行命令
+
+```powershell
+# Maven
+mvn test                              # 全部
+mvn test -Dtest=CalculatorTest        # 指定类
+mvn test -Dtest=CalculatorTest#add_shouldReturnSum
+mvn test -Dgroups=fast                # 按 Tag 过滤
+
+# Gradle
+./gradlew test
+./gradlew test --tests "com.demo.CalculatorTest"
+./gradlew test --tests "*CalculatorTest.add*"
+./gradlew test -Dgroups=fast
+```
+
+## 七、Spring Boot 中的测试
+
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+class UserApiTest {
+
+    @Autowired MockMvc mockMvc;
+
+    @Test
+    void getUsers_returnsOk() throws Exception {
+        mockMvc.perform(get("/api/users"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].name").value("Ada"));
+    }
+}
+
+@WebMvcTest(UserController.class)
+class UserControllerTest { /* 只加载 Web 层，更快 */ }
+
+@DataJpaTest
+class UserRepositoryTest { /* 只加载 JPA 层，默认内存库 */ }
+```
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `No tests found` | Gradle 忘记 `useJUnitPlatform()`；测试类命名需匹配 `*Test` 模式 |
+| Mockito 报 `Cannot mock final class` | 用 `mockito-inline` / 新版本已默认支持 |
+| `@BeforeAll` 报非静态方法 | 方法必须 static（除非用 `@TestInstance(PER_CLASS)`） |
+| 测试依赖顺序 | 不要用 `@Order` 强行排序，测试应互相独立 |
+| 中文乱码 | 配置 `-Dfile.encoding=UTF-8`；`@DisplayName` 本身不受影响 |
+| 测试太慢（Spring 全上下文） | 用切片测试（@WebMvcTest/@DataJpaTest），减少 @SpringBootTest |
+
+## 九、最佳实践
+
+1. 目录镜像源码包结构：`src/test/java/com/demo/xxx`。
+2. 断言优先 AssertJ 流式风格（可读性高），JUnit 原生断言用于简单场景。
+3. Mock 只隔离外部边界（DB、HTTP、第三方 SDK），不要 mock 被测类自身逻辑。
+4. 参数化覆盖边界值，避免复制粘贴多份相似测试。
+5. CI 中 `mvn -B test` / `gradlew test -i`，并上传 surefire/jacoco 报告。
+
+## 十、参考
+
+- JUnit 5 用户指南：https://junit.org/junit5/docs/current/user-guide/
+- Mockito：https://site.mockito.org/
+- AssertJ：https://assertj.github.io/doc/
+

@@ -1,0 +1,140 @@
+---
+slug: day-02
+kind: day
+day: 2
+week: 1
+weekTitle: 版本控制
+weekBlurb: 从 Git 四区模型起步，延伸到 gh / glab、图形客户端、LFS 与提交钩子——后面每门课的作业都从 git init 开始。
+title: GitHub CLI（gh）使用教程
+sourcePath: 01-版本控制/02-GitHub-CLI.md
+---
+
+## 一、是什么
+
+`gh` 是 GitHub 官方命令行工具，让你**不打开浏览器**就能完成：创建仓库、管理 Issue / PR、触发 Actions、管理 Release / Gist / Codespaces 等操作。
+
+## 二、安装与登录
+
+```powershell
+# Windows
+winget install --id GitHub.cli
+# macOS
+brew install gh
+# Linux (Debian/Ubuntu)
+(type -p wget >/dev/null || sudo apt install wget -y) && sudo apt install gh -y
+```
+
+```powershell
+gh --version
+gh auth login          # 按提示选择 GitHub.com → HTTPS/SSH → 浏览器授权
+gh auth status         # 查看登录状态
+gh auth token          # 打印 token（谨慎使用）
+```
+
+## 三、核心命令速查
+
+### 仓库操作
+
+```powershell
+gh repo create myapp --public --source=. --push   # 用当前目录创建远程仓库并推送
+gh repo clone user/repo
+gh repo view --web                                # 浏览器打开当前仓库
+gh repo fork user/repo --clone                    # fork 并克隆
+gh repo list                                      # 列出我的仓库
+gh repo delete user/repo                          # 删除仓库（需确认）
+```
+
+### Pull Request
+
+```powershell
+gh pr create --title "feat: 登录接口" --body "变更说明" --base main
+gh pr list                     # 列出打开的 PR
+gh pr status                   # 与我相关的 PR 状态
+gh pr checkout 123             # 拉取 PR #123 到本地
+gh pr view 123 --web           # 浏览器查看
+gh pr diff 123
+gh pr review 123 --approve     # 批准
+gh pr review 123 --comment -b "建议xx"
+gh pr merge 123 --squash --delete-branch
+```
+
+### Issue
+
+```powershell
+gh issue create --title "登录超时" --body "复现步骤..." --label bug
+gh issue list --state open --label bug
+gh issue view 42
+gh issue close 42
+gh issue comment 42 --body "已修复，见 #45"
+```
+
+### GitHub Actions
+
+```powershell
+gh run list                     # 查看最近的 workflow 运行
+gh run watch                    # 实时跟踪当前运行
+gh run view 123456 --log-failed # 只看失败步骤日志
+gh run rerun 123456             # 重跑
+gh workflow list
+gh workflow run deploy.yml --ref main
+```
+
+### Release 与其他
+
+```powershell
+gh release create v1.0.0 --generate-notes ./dist/app.zip
+gh release list
+gh gist create notes.md --public
+gh api /user                     # 直接调用 REST API
+gh copilot suggest "怎么解压 tar.gz"   # 需安装 Copilot 扩展
+```
+
+## 四、实用工作流示例
+
+**场景：本地写完代码，一条命令提 PR**
+
+```powershell
+git switch -c feature/search
+git add . && git commit -m "feat: 搜索接口"
+git push -u origin feature/search
+gh pr create --fill --web      # 用提交信息自动填充并打开浏览器确认
+```
+
+**场景：一键清理已合并的本地分支**
+
+```powershell
+gh pr list --state merged --limit 50 --json headRefName -q '.[].headRefName' |
+  ForEach-Object { git branch -D $_ }
+```
+
+**场景：查看失败的 CI 日志**
+
+```powershell
+gh run list --status failure --limit 5
+gh run view <run-id> --log-failed
+```
+
+## 五、配置别名与扩展
+
+```powershell
+gh alias set pv "pr view --web"
+gh alias set co "pr checkout"
+gh extension install github/gh-copilot
+gh config set editor "code --wait"
+gh config set git_protocol ssh
+```
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `gh auth login` 浏览器打不开 | 选择 "Paste an authentication token"，用 PAT 登录 |
+| 公司自建 GitHub Enterprise | `gh auth login --hostname github.company.com` |
+| 代理问题 | `$env:HTTPS_PROXY="http://127.0.0.1:7890"` 后重试 |
+| token 权限不足 | `gh auth refresh -s repo,workflow,read:org` |
+
+## 七、参考
+
+- 官方手册：https://cli.github.com/manual/
+- 官方仓库：https://github.com/cli/cli
+

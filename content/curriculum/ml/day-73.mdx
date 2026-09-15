@@ -1,0 +1,280 @@
+---
+slug: day-73
+kind: day
+day: 73
+week: 14
+weekTitle: Transformer 与 ViT
+weekBlurb: 自注意力、多头注意力与位置编码，亲手实现 Transformer 并走向 ViT。
+title: Transformer 完整架构
+lead: 今日目标：把注意力、多头、位置编码、FFN、残差、LayerNorm 组装成完整模型；说清每个组件的必要性；理解编码器与解码器的差异；掌握 Pre-LN 与 Post-LN 的取舍。
+sourcePath: Week14_Transformer与ViT/Day3_Transformer架构.md
+---
+
+> 今日目标：把注意力、多头、位置编码、FFN、残差、LayerNorm 组装成完整模型；说清每个组件的必要性；理解编码器与解码器的差异；掌握 Pre-LN 与 Post-LN 的取舍。
+> 配套案例：`code/day3_transformer.py`
+
+---
+
+## 3.1 知识地图
+
+```
+Day1  自注意力 + sqrt(d_k)
+Day2  多头注意力 + 位置编码
+        │
+        ▼
+Day3（今天）★ 组装完整架构
+  ├─ 编码器块: MHA + FFN + 残差 + LN
+  ├─ 解码器块: 加掩码 + 交叉注意力
+  ├─ Pre-LN vs Post-LN
+  ├─ FFN 的维度设计（为什么是 4 倍）
+  └─ 参数量分析
+        │
+        ▼
+Day4  从零训练一个 Transformer
+Day5  ViT
+```
+
+---
+
+## 3.2 整体结构
+
+原论文《Attention Is All You Need》的结构：
+
+```
+        编码器 (Encoder)                    解码器 (Decoder)
+    ┌──────────────────────┐          ┌──────────────────────┐
+    │  输入嵌入 + 位置编码   │          │  输出嵌入 + 位置编码   │
+    ├──────────────────────┤          ├──────────────────────┤
+    │  ┌────────────────┐  │          │  ┌────────────────┐  │
+    │  │ 多头自注意力     │  │          │  │ 掩码多头自注意力 │  │
+    │  │ + 残差 + LN    │  │          │  │ + 残差 + LN    │  │
+    │  ├────────────────┤  │          │  ├────────────────┤  │
+    │  │ 前馈网络 FFN    │  │          │  │ 交叉注意力       │  │
+    │  │ + 残差 + LN    │  │  ──────► │  │ (Q来自解码器,   │  │
+    │  └────────────────┘  │          │  │  K,V来自编码器) │  │
+    │       × N 层         │          │  │ + 残差 + LN    │  │
+    └──────────────────────┘          │  ├────────────────┤  │
+                                      │  │ 前馈网络 FFN    │  │
+                                      │  │ + 残差 + LN    │  │
+                                      │  └────────────────┘  │
+                                      │       × N 层         │
+                                      ├──────────────────────┤
+                                      │  线性层 + Softmax    │
+                                      └──────────────────────┘
+```
+
+**三种用法**：
+
+| 用法 | 用哪些部分 | 例子 |
+| --- | --- | --- |
+| **只用编码器** | Encoder | BERT、ViT（分类/理解任务） |
+| **只用解码器** | Decoder（去掉交叉注意力） | GPT 系列（生成任务） |
+| **编码器-解码器** | 全部 | 原版翻译模型、T5 |
+
+> **这是最重要的一个认识**：**BERT 和 GPT 是同一个架构的不同用法**，不是两个不同的东西。
+
+---
+
+## 3.3 编码器块
+
+```python
+class EncoderBlock(nn.Module):
+    def __init__(self, d_model, num_heads, d_ff, dropout=0.1):
+        super().__init__()
+        self.attn = MultiHeadAttention(d_model, num_heads)
+        self.ffn = nn.Sequential(
+            nn.Linear(d_model, d_ff), nn.ReLU(),
+            nn.Linear(d_ff, d_model),
+        )
+        self.ln1 = nn.LayerNorm(d_model)
+        self.ln2 = nn.LayerNorm(d_model)
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x, mask=None):
+        # ① 自注意力 + 残差（Pre-LN 结构）
+        x = x + self.drop(self.attn(self.ln1(x), mask))
+        # ② 前馈网络 + 残差
+        x = x + self.drop(self.ffn(self.ln2(x)))
+        return x
+```
+
+### 三个组件的作用
+
+| 组件 | 作用 | 呼应前面哪一周 |
+| --- | --- | --- |
+| **残差连接** | 提供梯度通路，让深层可训练 | Week10 Day4 |
+| **LayerNorm** | 稳定激活分布，且不依赖 batch | Week10 Day2 |
+| **FFN** | 提供"逐位置的非线性变换" | Week07（MLP） |
+
+### 为什么用 LayerNorm 而不是 BatchNorm
+
+| 维度 | LayerNorm | BatchNorm |
+| --- | --- | --- |
+| 统计维度 | 每个样本独立（在特征维上统计） | 跨 batch |
+| 变长序列 | **天然支持** | 需要处理 padding |
+| 训练/推理 | **完全一致** | 两套统计量 |
+| 小 batch | **不受影响** | 统计不准 |
+
+**Week10 Day2 已经讲过**：Transformer 用 LN 是因为它不依赖 batch、没有 running 统计量、对变长序列天然友好。
+
+### FFN 的维度设计：为什么是 4 倍
+
+$$\text{FFN}(x) = \max(0, x\mathbf{W}_1 + b_1)\mathbf{W}_2 + b_2$$
+
+其中 $\mathbf{W}_1\in\mathbb{R}^{d\times d_{ff}}$，通常 $d_{ff} = 4d$。
+
+**为什么先升维再降维**：与 Week12 Day1 的瓶颈结构**相反** —— 这里是"反瓶颈"：
+
+- 注意力层负责"在位置之间**交换**信息"；
+- FFN 负责"在每个位置上**加工**信息"。
+
+**加工需要更大的中间空间**（升维 4 倍），让 ReLU 有足够的空间做非线性变换，然后再压回原维度。
+
+**参数量占比**（这个很重要）：
+
+$$\text{Params}_{\text{attn}} = 4d^2, \qquad \text{Params}_{\text{FFN}} = 2\cdot 4d^2 = 8d^2$$
+
+**FFN 的参数量是注意力的 2 倍！**
+
+| 组件 | 参数量 | 占比 |
+| --- | --- | --- |
+| 多头注意力（Q/K/V/O） | $4d^2$ | 33% |
+| FFN（$d\to4d\to d$） | $8d^2$ | **67%** |
+
+> **一个常被忽略的事实**：Transformer 里**大部分参数在 FFN 里**，而不是注意力。这也是为什么后来的 MoE（Mixture of Experts）改造的是 FFN 层（Week16 会讲）。
+
+### 顺序陷阱：LN 放在哪
+
+```python
+# 错误（Post-LN 的残差写错）
+x = self.ln1(x + self.attn(x))     # LN 在残差之后 -> 破坏了恒等通路
+
+# 正确（Pre-LN）
+x = x + self.attn(self.ln1(x))     # LN 在子层输入上，残差保持纯粹
+```
+
+**Week10 Day4 讲过**：残差的价值在于"恒等通路"。如果在残差之后做 LN，那条通路就被"重新归一化"了，梯度无法原样传回。
+
+**所以 LN 必须放在子层的输入端（Pre-LN）或输出端但残差相加之前。**
+
+---
+
+## 3.4 解码器块
+
+```python
+class DecoderBlock(nn.Module):
+    def __init__(self, d_model, num_heads, d_ff, dropout=0.1):
+        super().__init__()
+        self.self_attn = MultiHeadAttention(d_model, num_heads)    # 掩码自注意力
+        self.cross_attn = MultiHeadAttention(d_model, num_heads)   # 交叉注意力
+        self.ffn = nn.Sequential(...)
+        self.ln1, self.ln2, self.ln3 = ...
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x, enc_out, self_mask=None, cross_mask=None):
+        # ① 掩码自注意力（只能看左边）
+        x = x + self.drop(self.self_attn(self.ln1(x), self_mask))
+        # ② 交叉注意力：Q 来自解码器，K/V 来自编码器
+        x = x + self.drop(self.cross_attn(self.ln2(x), enc_out, cross_mask))
+        # ③ FFN
+        x = x + self.drop(self.ffn(self.ln3(x)))
+        return x
+```
+
+**两个关键区别**：
+
+| 区别 | 说明 |
+| --- | --- |
+| **掩码自注意力** | 因果掩码，位置 $i$ 只能看到 $\le i$ 的位置（生成时不能看未来） |
+| **交叉注意力** | Q 来自解码器，**K/V 来自编码器输出** —— 这是"看源语言"的机制 |
+
+**交叉注意力是编码器-解码器架构的核心**：解码器每生成一个词，都去"查询"源语言的所有位置。
+
+---
+
+## 3.5 Pre-LN 与 Post-LN
+
+| | Post-LN（原论文） | **Pre-LN（现代默认）** |
+| --- | --- | --- |
+| 公式 | $x = \text{LN}(x + \text{Sublayer}(x))$ | $x = x + \text{Sublayer}(\text{LN}(x))$ |
+| 残差通路 | 被 LN 打断 | **纯净** |
+| 训练稳定性 | 需要 warmup 才能收敛 | **可以直接训练** |
+| 最终性能 | 略好（调好后） | 相当 |
+| 使用者 | 原版 Transformer | **GPT-2/3、LLaMA、ViT** |
+
+**为什么 Pre-LN 更稳**：
+
+1. **残差通路纯净**：梯度可以从最后一层直接传回第一层，不经过任何 LN（Week10 Day4 的"恒等通路"）；
+2. **LN 的输入分布稳定**：每一层的 LN 输入来自上一层输出，而输出是"残差 + 子层"，分布相对可控；
+3. **不需要精心设计的 warmup**。
+
+**为什么原论文用 Post-LN 也没问题**：因为有 warmup（学习率从 0 线性升上去）来避免最初的剧烈震荡。但后来大家发现 Pre-LN 更省事。
+
+> **实践结论**：**新项目一律用 Pre-LN。** 除非你在复现原论文。
+
+---
+
+## 3.6 参数量分析
+
+设 $d = d_{model}$，$L$ = 层数，$V$ = 词表大小。
+
+| 组件 | 参数量（每层） |
+| --- | --- |
+| 多头注意力 | $4d^2 + 4d$ |
+| FFN | $2\cdot d\cdot d_{ff} + d + d_{ff} = 8d^2 + 5d$（$d_{ff}=4d$） |
+| 两个 LayerNorm | $4d$ |
+| **每层合计** | $\approx 12d^2$ |
+
+**整个编码器**：$L\cdot 12d^2 + T_{max}\cdot d$（后者是位置编码，如果可学习）
+
+**实例：GPT-2 Small**
+
+| 参数 | 值 |
+| --- | --- |
+| $d_{model}$ | 768 |
+| $L$ | 12 |
+| $h$ | 12 |
+| $d_{ff}$ | 3072 |
+| $V$ | 50257 |
+
+计算：
+
+- 每层：$12\times768^2 \approx 7.08\text{M}$
+- 12 层：$\approx 85\text{M}$
+- 词嵌入：$50257\times768\approx 38.6\text{M}$
+- **合计约 124M**（与实际的 117M 接近，差异来自 tie weight 和 LN 细节）
+
+> **注意词嵌入占了很大比例**（这里 31%）。在更大的模型里这个比例会下降（因为 $V$ 固定而 $d^2 L$ 增长更快）。
+
+---
+
+## 3.7 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 训练不稳定/loss 爆炸 | 用了 Post-LN 但没 warmup | 改 Pre-LN 或加 warmup |
+| 形状对不上 | 交叉注意力的 Q 和 K/V 维度混淆 | Q 来自解码器，K/V 来自编码器 |
+| 生成时能看到未来 | 掩码写错或没加 | 检查 `triu(diagonal=1)` |
+| `view` 报错 | transpose 后没 contiguous | 加 `.contiguous()` |
+| 参数量比预期大很多 | 词表嵌入占大头 | 正常，可以共享输入输出嵌入 |
+| 推理慢 | 每生成一个 token 都要重算全部注意力 | 用 KV Cache |
+| 显存爆 | $T$ 太大 | 减小 batch 或序列长度 |
+
+---
+
+## 3.8 今日自测
+
+1. 画出 Transformer 编码器块的结构，标注每个张量的形状。
+2. 计算 $d=512, L=6, d_{ff}=2048$ 的编码器参数量，并指出 FFN 占比。
+3. 验证：把 FFN 的 $d_{ff}$ 从 $4d$ 改成 $d$，参数量减少多少？会有什么影响？
+4. 实现 Pre-LN 与 Post-LN 两个版本，在同一个任务上对比训练曲线的稳定性。
+5. 说清交叉注意力中 Q、K、V 各来自哪里，以及它为什么必需。
+
+---
+
+## 3.9 一句话总结
+
+**Transformer 的每一层就是"注意力交换信息 + FFN 加工信息"，再用残差和 LayerNorm 保证能训得动；FFN 占了三分之二的参数，而 Pre-LN 让训练不再依赖精心的 warmup。**
+
+**明日预告**：Day4 从零把整个模型搭出来，在 MNIST 上训练，并与 CNN、RNN 做完整的横向对比。
+

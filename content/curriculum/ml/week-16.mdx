@@ -1,0 +1,148 @@
+---
+slug: week-16
+kind: reference
+day: 17
+week: 16
+weekTitle: 生成模型与大语言模型
+weekBlurb: AE / VAE、GAN、扩散模型到大语言模型——通往 Agent 课程与后端实战的最后一段。
+title: 生成模型与大语言模型
+lead: '前 15 周学的都是**判别模型**：给定输入 $x$，预测标签 $y$。这一周学**生成模型**：学习数据本身的分布 $P(x)$，然后**造出新的样本**。'
+sourcePath: Week16_生成模型与大语言模型/README.md
+---
+
+> 花书第 20 章（深度生成模型）· CYC 课件 · GPT / Diffusion 原论文
+
+前 15 周学的都是**判别模型**：给定输入 $x$，预测标签 $y$。这一周学**生成模型**：学习数据本身的分布 $P(x)$，然后**造出新的样本**。
+
+这是近五年最活跃的方向 —— 图像生成（Stable Diffusion / Midjourney）、文本生成（GPT / Claude）都建立在这一周的内容上。
+
+---
+
+## 本周目标
+
+学完本周，你应该能够：
+
+1. 说清自编码器的"编码-瓶颈-解码"结构与它的三个实际用途；
+2. 手写 VAE 的重参数化技巧，并解释为什么不能直接反向传播采样操作；
+3. 说清 GAN 的对抗博弈本质，以及它为什么难训练（模式崩塌、训练不稳定）；
+4. 说清扩散模型的前向加噪与反向去噪流程，理解它为什么比 GAN 稳定；
+5. 说清 GPT 的"自回归语言模型"本质与三大组成部分（Decoder + 预训练 + 微调）；
+6. 建立"生成模型评估"的认知：为什么它比分类任务难评估得多。
+
+---
+
+## 本周路线
+
+```
+判别模型（前 15 周）          生成模型（本周）
+  P(y | x)          →          P(x)
+  「这张图是猫吗」              「画一只猫」
+```
+
+| 天 | 主题 | 核心思想 |
+| --- | --- | --- |
+| Day1 | 自编码器 | 用瓶颈层强迫网络学习压缩表示 |
+| Day2 | VAE | 把潜空间变成概率分布，可采样生成 |
+| Day3 | GAN | 生成器与判别器的对抗博弈 |
+| Day4 | 扩散模型 | 逐步加噪再逐步去噪 |
+| Day5 | 大语言模型 | 自回归预测下一个 token |
+
+---
+
+## 时间安排
+
+| 天 | 内容 | 文档 | 代码 | 建议时长 |
+| --- | --- | --- | --- | --- |
+| Day1 | 自编码器 | [Day1_自编码器.md](/learn/ml/day-81) | `code/day1_autoencoder.py` | 3.5h |
+| Day2 | 变分自编码器 | [Day2_变分自编码器.md](/learn/ml/day-82) | `code/day2_vae.py` | 4h |
+| Day3 | 生成对抗网络 | [Day3_GAN.md](/learn/ml/day-83) | `code/day3_gan.py` | 4h |
+| Day4 | 扩散模型 | [Day4_扩散模型.md](/learn/ml/day-84) | `code/day4_diffusion.py` | 4h |
+| Day5 | 大语言模型 | [Day5_大语言模型.md](/learn/ml/day-85) | `code/day5_gpt.py` | 4h |
+
+---
+
+## 本周核心公式
+
+**自编码器**：
+
+$$\min_{\theta,\phi}\ \mathbb{E}_{x}\left[\left\|x - D_\phi(E_\theta(x))\right\|^2\right]$$
+
+**VAE 的 ELBO**（证据下界）：
+
+$$\log P(x) \ge \mathbb{E}_{q(z|x)}\left[\log P(x|z)\right] - \text{KL}\left(q(z|x)\,\|\,P(z)\right)$$
+
+$$\underbrace{\text{重构项}}_{\text{重建得像不像}} - \underbrace{\text{KL 项}}_{\text{潜分布是否规整}}$$
+
+**VAE 的重参数化**：
+
+$$z = \mu + \sigma\odot\epsilon, \qquad \epsilon\sim\mathcal{N}(0,\mathbf{I})$$
+
+（把随机性从"采样"转移到"噪声 $\epsilon$"，使梯度可传）
+
+**GAN 的极小极大博弈**：
+
+$$\min_G\max_D\ \mathbb{E}_{x\sim p_{data}}[\log D(x)] + \mathbb{E}_{z\sim p_z}[\log(1-D(G(z)))]$$
+
+**扩散模型的前向加噪**（闭式解，可以一步到位）：
+
+$$x_t = \sqrt{\bar\alpha_t}\,x_0 + \sqrt{1-\bar\alpha_t}\,\epsilon, \qquad \epsilon\sim\mathcal{N}(0,\mathbf{I})$$
+
+**扩散模型的训练目标**（简化到极致）：
+
+$$\mathcal{L} = \mathbb{E}_{t,x_0,\epsilon}\left[\left\|\epsilon - \epsilon_\theta(x_t, t)\right\|^2\right]$$
+
+> 就是"让网络预测加进去的噪声"。
+
+**GPT 的训练目标**（下一 token 预测）：
+
+$$\mathcal{L} = -\sum_{t}\log P(x_t \mid x_1,\dots,x_{t-1};\theta)$$
+
+---
+
+## 本周检查清单
+
+- [ ] 我能说清自编码器的瓶颈层为什么能学到"有意义的表示"
+- [ ] 我能用自编码器做**去噪**和**异常检测**两个实际任务
+- [ ] 我能手写 VAE 的采样与重参数化，并说清 ELBO 两项的作用
+- [ ] 我能说清 VAE 生成的图像为什么比 GAN **模糊**
+- [ ] 我能手写 GAN 的两个损失，并说清为什么需要"交替训练"
+- [ ] 我能说清 GAN 的**模式崩塌**现象与成因
+- [ ] 我能手写扩散模型的前向加噪（含闭式解）与一步去噪
+- [ ] 我能说清为什么扩散模型比 GAN 稳定
+- [ ] 我能说清 GPT 的 Decoder-only 结构与自回归生成流程
+- [ ] 我能说清"预训练 + 微调 + RLHF"三段式流程
+- [ ] 我知道为什么生成模型的评估比分类难得多（FID / IS 的局限）
+
+---
+
+## 为什么这一周是"终点"也是"起点"
+
+**终点**：它把前 15 周的知识全用上了。
+
+| 前 15 周的哪个知识点 | 在本周用在哪里 |
+| --- | --- |
+| Week07 反向传播 | 所有生成模型的训练 |
+| Week10 BN / 优化器 | 训练稳定性（GAN 尤其敏感） |
+| Week11 CNN | 图像生成器的骨干 |
+| Week14 Transformer | GPT 的骨架 |
+| Week15 数据处理与评估 | 生成质量评估 |
+
+**起点**：今天绝大多数 AI 应用（对话、绘画、编程助手）都建立在这一周的内容上。
+
+---
+
+## 环境准备
+
+```bash
+pip install torch torchvision numpy matplotlib
+```
+
+**数据说明**：继续使用现成的 MNIST / Fashion-MNIST，不依赖额外下载。
+
+**算力提醒**：本周的模型（尤其 Diffusion 与 GPT）在 CPU 上会很慢。
+所有脚本都**刻意缩小了规模**（小模型、少数据、少步数），保证在 CPU 上几分钟内能跑完并看到效果。
+
+---
+
+**下一篇**：[Day1_自编码器.md](/learn/ml/day-81)
+

@@ -1,0 +1,464 @@
+---
+slug: day-41
+kind: day
+day: 41
+week: 8
+weekTitle: 工具链与数据预处理
+weekBlurb: Pandas / Matplotlib、七种预处理方法、jieba / NLTK 文本处理与特征工程 Pipeline。
+title: Pandas 数据处理
+lead: '`pandas` 是 Python 数据分析的"Excel + SQL"：它提供了带标签的二维表结构，让筛选、分组、聚合、连接这些操作变成一行代码。'
+sourcePath: Week08_工具链与数据预处理/Day1_Pandas数据处理.md
+---
+
+> CYC 工具课件 04Pandas.pdf（53 页）
+
+`pandas` 是 Python 数据分析的"Excel + SQL"：它提供了带标签的二维表结构，让筛选、分组、聚合、连接这些操作变成一行代码。
+
+---
+
+## 今日目标
+
+1. 掌握 `Series` 与 `DataFrame` 两种核心数据结构及其索引机制；
+2. 熟练读写 CSV / Excel / JSON；
+3. 掌握选取数据的三套工具：`[]`、`loc`、`iloc`；
+4. 掌握筛选、排序、新增/删除列、`apply` 映射；
+5. 掌握 `groupby` + `agg` 的分组聚合；
+6. 掌握缺失值的诊断与处理；
+7. 掌握 `merge` / `concat` 的数据合并。
+
+---
+
+## 知识地图
+
+```
+Week08 工具链与数据预处理
+├── Day1 Pandas 数据处理  ← 你在这里
+├── Day2 Matplotlib 可视化
+├── Day3 数据预处理全流程
+├── Day4 文本预处理
+└── Day5 特征工程 Pipeline
+
+依赖: Week01 Day1（NumPy 基础）
+```
+
+---
+
+## 一、两种核心数据结构
+
+### 1.1 Series（带标签的一维数组）
+
+```python
+import pandas as pd
+
+s = pd.Series([10, 20, 30], index=["a", "b", "c"], name="score")
+# a    10
+# b    20
+# c    30
+```
+
+| 概念 | 说明 |
+| --- | --- |
+| `values` | 底层 NumPy 数组 |
+| `index` | 标签（默认 0,1,2…） |
+| `name` | 名称，转成列名时有用 |
+
+**与 NumPy 的关键差别**：索引可以是任意标签，且运算时**按标签对齐**。
+
+```python
+a = pd.Series([1, 2, 3], index=["x", "y", "z"])
+b = pd.Series([10, 20], index=["y", "z"])
+print(a + b)
+# x     NaN   <- 标签不匹配 -> NaN
+# y    12.0
+# z    23.0
+```
+
+> **这是 Pandas 最容易踩的坑**：`+` 是**按索引对齐**的，不是按位置。要按位置运算得先 `.values` 或 `.reset_index(drop=True)`。
+
+### 1.2 DataFrame（二维表）
+
+```python
+df = pd.DataFrame({
+    "name": ["盖伦", "提莫", "亚索"],
+    "age":  [25, 21, 25],
+    "height": [175, 169, 155],
+    "gender": ["男", "女", "男"],
+    "label": [1, 0, 1],
+})
+```
+
+```
+   name  age  height gender  label
+0  盖伦   25     175      男      1
+1  提莫   21     169      女      0
+2  亚索   25     155      男      1
+```
+
+**核心约定**：**一行一样本，一列一特征**（这正是机器学习的 `X` 与 `y` 的形态）。
+
+| 属性 | 含义 |
+| --- | --- |
+| `df.shape` | (行数, 列数) |
+| `df.columns` | 列名 |
+| `df.index` | 行索引 |
+| `df.dtypes` | 每列的数据类型 |
+| `df.info()` | 概览：类型 + 缺失情况 |
+| `df.describe()` | 数值列的统计量 |
+
+---
+
+## 二、读写数据
+
+```python
+# 读
+df = pd.read_csv("data.csv", encoding="utf-8")
+df = pd.read_excel("data.xlsx", sheet_name="Sheet1")
+df = pd.read_json("data.json")
+df = pd.read_csv("data.txt", sep="\t")          # 制表符分隔
+
+# 写
+df.to_csv("out.csv", index=False, encoding="utf-8-sig")   # 中文 Excel 友好
+df.to_excel("out.xlsx", index=False)
+```
+
+**常用参数**：
+
+| 参数 | 作用 |
+| --- | --- |
+| `header=0` / `None` | 是否有表头 |
+| `names=[...]` | 自定义列名 |
+| `usecols=[...]` | 只读部分列 |
+| `nrows=1000` | 只读前 N 行（快速预览） |
+| `dtype={"id": str}` | 指定列类型 |
+| `na_values=["", "NULL", "-"]` | 把哪些值当作缺失 |
+| `encoding="utf-8-sig"` | 解决中文 Excel 乱码 |
+
+---
+
+## 三、选取数据的三种方式
+
+| 方式 | 语法 | 特点 |
+| --- | --- | --- |
+| 方括号 | `df["col"]` / `df[["c1","c2"]]` | 只能选**列** |
+| `loc` | `df.loc[行标签, 列标签]` | **按标签**，**左闭右闭** |
+| `iloc` | `df.iloc[行位置, 列位置]` | **按位置**，**左闭右开**（同 Python） |
+
+```python
+df["age"]                     # Series
+df[["name", "age"]]           # DataFrame
+df.loc[0]                     # 第 0 行（标签 0）
+df.loc[0:1, "name":"height"]  # 标签切片，含 1 与 height
+df.iloc[0:2, 0:2]             # 位置切片，不含 2
+df.loc[df["age"] > 22, ["name", "age"]]    # 布尔索引 + 列选择
+```
+
+> **记忆**：**标签用 loc，位置用 iloc**；`loc` 切片两端都含，`iloc` 不含右端。
+
+**布尔索引**（最常用）：
+
+```python
+mask = (df["age"] >= 22) & (df["gender"] == "男")   # 用 & | ~，不要用 and/or
+df[mask]
+df.query("age >= 22 and gender == '男'")            # 更可读的写法
+```
+
+---
+
+## 四、增删改与映射
+
+```python
+df["bmi"] = df["weight"] / (df["height"] / 100) ** 2      # 新增列
+df["is_adult"] = df["age"] >= 18                          # 布尔列
+df = df.drop(columns=["label"])                           # 删列
+df = df.rename(columns={"name": "昵称"})                   # 改列名
+
+df["gender_code"] = df["gender"].map({"男": 1, "女": 0})    # 字典映射
+df["age_group"] = df["age"].apply(lambda v: "青年" if v < 30 else "中年")
+df["log_height"] = np.log(df["height"])                   # 向量化运算更快
+```
+
+**`apply` vs 向量化**：
+
+- `apply` 是对每行/每列调用 Python 函数，**慢**；
+- 能用 NumPy 向量化运算（加减乘除、`np.where`、`np.log`）就别用 `apply`。
+
+```python
+# ❌ 慢
+df["age_group"] = df["age"].apply(lambda v: "青年" if v < 30 else "中年")
+# ✅ 快（数据量大时差异明显）
+df["age_group"] = np.where(df["age"] < 30, "青年", "中年")
+```
+
+---
+
+## 五、排序与排名
+
+```python
+df.sort_values("age")                              # 升序
+df.sort_values(["age", "height"], ascending=[False, True])   # 多列
+df["age_rank"] = df["age"].rank(method="dense")    # 排名
+df.nlargest(3, "height")                           # 取最大的 3 行
+```
+
+| `rank` 方法 | 并列时的处理 |
+| --- | --- |
+| `average`（默认） | 取平均排名 |
+| `min` | 都取最小排名 |
+| `max` | 都取最大排名 |
+| `first` | 按出现顺序 |
+| `dense` | 密集排名（1,2,2,3） |
+
+---
+
+## 六、分组聚合（`groupby`）—— Pandas 的灵魂
+
+**"split → apply → combine"** 三步：
+
+```python
+# 按性别分组，统计人数、平均年龄、最大身高
+df.groupby("gender").agg({
+    "name": "count",
+    "age": "mean",
+    "height": "max",
+})
+
+# 一次算多个统计量
+df.groupby("gender")["height"].agg(["count", "mean", "std", "min", "max"])
+
+# 不同列用不同的函数 + 自定义函数
+df.groupby("gender").agg(
+    n=("name", "count"),
+    avg_age=("age", "mean"),
+    height_range=("height", lambda s: s.max() - s.min()),
+)
+```
+
+**多级分组**：
+
+```python
+df.groupby(["gender", "age"]).size()          # 每个 (性别, 年龄) 组合的样本数
+df.groupby("gender")["age"].transform("mean") # 把组均值广播回原表（用于填充）
+```
+
+**`transform` vs `agg`**：
+
+| 方法 | 返回 | 用途 |
+| --- | --- | --- |
+| `agg` | 每个组一行 | 汇总表 |
+| `transform` | 与原表同样长度 | 组内标准化、用组均值填充缺失 |
+
+```python
+# 用"同性别组的均值"填充缺失的年龄（比全局均值更合理）
+df["age"] = df["age"].fillna(df.groupby("gender")["age"].transform("mean"))
+```
+
+---
+
+## 七、缺失值处理
+
+### 7.1 诊断
+
+```python
+df.isna().sum()                        # 每列缺失数量
+df.isna().mean()                       # 每列缺失比例
+df.isna().sum(axis=1)                  # 每行缺失数量
+```
+
+### 7.2 处理策略
+
+| 策略 | 代码 | 适用 |
+| --- | --- | --- |
+| 删除行 | `df.dropna()` | 缺失比例很低（&lt;5%） |
+| 删除列 | `df.dropna(axis=1)` | 该列缺失比例过高（>50%） |
+| 常数填充 | `df["x"].fillna(0)` | 缺失本身有含义（如"未购买"） |
+| 均值/中位数填充 | `df["x"].fillna(df["x"].median())` | 数值列，分布偏斜时用中位数 |
+| 众数填充 | `df["x"].fillna(df["x"].mode()[0])` | 类别列 |
+| 前向/后向填充 | `df["x"].ffill()` / `.bfill()` | **时间序列** |
+| 分组填充 | `df["x"].fillna(df.groupby("g")["x"].transform("mean"))` | 组内分布不同 |
+| 模型填充 | `IterativeImputer` | 追求精度、有预算 |
+
+> **铁律**：填充值必须在**训练集**上统计，再应用到验证/测试集。否则数据泄漏。
+
+### 7.3 类别列的缺失
+
+```python
+# 把缺失单独作为一类（有时缺失本身就是信息）
+df["gender"] = df["gender"].fillna("未知")
+```
+
+---
+
+## 八、合并数据
+
+### 8.1 `merge`（类似 SQL JOIN）
+
+```python
+pd.merge(left, right, on="id", how="inner")   # 内连接
+pd.merge(left, right, on="id", how="left")    # 左连接
+pd.merge(left, right, how="outer")            # 外连接
+pd.merge(left, right, left_on="uid", right_on="user_id")
+```
+
+| `how` | 结果 |
+| --- | --- |
+| `inner` | 两边都有的键 |
+| `left` | 保留左表全部 |
+| `right` | 保留右表全部 |
+| `outer` | 两边全部 |
+
+**校验合并质量**：
+
+```python
+pd.merge(a, b, on="id", how="left", validate="one_to_one")   # 检查键是否唯一
+```
+
+> **常见坑**：右表键重复会让结果**行数爆炸**。合并后一定要检查 `len(df)`。
+
+### 8.2 `concat`（拼接）
+
+```python
+pd.concat([df1, df2], axis=0)                 # 上下拼（加行）
+pd.concat([df1, df2], axis=1)                 # 左右拼（加列）
+pd.concat([df1, df2], axis=0, ignore_index=True)   # 重置索引
+```
+
+---
+
+## 九、代码实践
+
+```python
+import numpy as np
+import pandas as pd
+
+# 1. 构造数据
+df = pd.DataFrame({
+    "name":   ["盖伦", "提莫", "亚索", "艾希", "锐雯"],
+    "age":    [25, 21, 25, np.nan, 30],
+    "height": [175, 169, 155, 172, 168],
+    "weight": [79, 72, 79, 60, np.nan],
+    "gender": ["男", "女", "男", "女", "女"],
+    "label":  [1, 0, 1, 0, 1],
+})
+
+# 2. 概览
+print(df.info())
+print(df.describe())
+
+# 3. 筛选
+print(df[(df["age"] > 22) & (df["gender"] == "男")])
+
+# 4. 分组聚合
+print(df.groupby("gender").agg(n=("name", "count"),
+                               avg_age=("age", "mean"),
+                               max_h=("height", "max")))
+
+# 5. 缺失值
+df["age"] = df["age"].fillna(df.groupby("gender")["age"].transform("mean"))
+df["weight"] = df["weight"].fillna(df["weight"].median())
+```
+
+完整版本见 `code/day1_pandas.py`，包含：
+
+1. 从 CSV / Excel / 字典构造 DataFrame 并做概览；
+2. **索引对齐陷阱**的实验（Series 相加、`loc` 与 `iloc` 的边界差异）；
+3. 完整的筛选、排序、排名、映射、`apply` 与向量化的性能对比；
+4. `groupby` 的 `agg` / `transform` / `filter` / `apply` 四种用法；
+5. 缺失值的 8 种处理策略对比（含"分组填充"）；
+6. `merge` 的四种连接方式与**行数爆炸**的复现；
+7. 时间序列基础：`to_datetime`、按月重采样 `resample("M")`、滑动窗口 `rolling(7)`。
+
+---
+
+## 十、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 用 `and` / `or` 做条件 | Pandas 需要 `&` / `\|`，且**每个条件必须加括号** |
+| 修改切片时出现 `SettingWithCopyWarning` | 用 `df.loc[mask, "col"] = value` 或先 `.copy()` |
+| `+` 运算结果出现 NaN | 索引没对齐，先 `.reset_index(drop=True)` |
+| 忘记 `index=False` 就 `to_csv` | 多出一列无用索引 |
+| 中文写 Excel 乱码 | 用 `encoding="utf-8-sig"` |
+| `merge` 后行数变多 | 右表键重复，用 `validate=` 校验 |
+| 用 `apply` 做本可以向量化的运算 | 大数据下慢几十倍 |
+| 用全局均值填充缺失 | 应分组填充，且只用训练集统计量 |
+| `df["x"]` 与 `df[["x"]]` 混用 | 前者是 Series，后者是 DataFrame |
+| 链式赋值 `df[df.a>1]["b"] = 0` | 不生效且报警告，应用 `.loc` |
+
+---
+
+## 十一、练习题
+
+**基础**
+
+1. 读取一个 CSV，输出它的形状、每列类型、前 5 行与后 5 行。
+2. 从 DataFrame 中选出"年龄大于 25 且性别为女"的行，只要姓名和身高三列。
+3. 计算每个性别的平均身高、最高身高、人数。
+
+**进阶**
+
+4. 解释 `loc` 与 `iloc` 的三点区别（索引类型、切片边界、是否支持布尔）。
+5. 给定含缺失的年龄列，分别用"全局中位数""性别组中位数"填充，说明哪种更合理及为什么。
+6. 用 `groupby` + `transform` 实现"组内标准化"（每个值减去组均值再除以组标准差）。
+7. 有两张表 A（用户表）与 B（订单表）。请说明如何统计"每个用户的订单数"，并指出可能的行数爆炸风险。
+
+**思考题**
+
+8. 为什么 Pandas 的 `+` 是按索引对齐而不是按位置？这个设计带来什么好处与风险？
+9. 在"训练集 / 测试集"场景下，如果先用全量数据算均值再填充缺失，会带来什么后果？请构造一个具体的数值例子。
+10. `agg` 与 `transform` 都能做分组计算，什么场景必须用 `transform`？
+
+<details>
+<summary>第 4 题答案</summary>
+
+| 对比项 | `loc` | `iloc` |
+| --- | --- | --- |
+| 索引类型 | **标签**（可以是字符串、时间） | **整数位置**（只能是 0..n-1） |
+| 切片边界 | **左闭右闭** `[0:2]` 含 2 | **左闭右开** `[0:2]` 不含 2 |
+| 布尔索引 | 支持 | 不直接支持（需 `.values`） |
+
+**记忆口诀**：**loc 认人（标签），iloc 认位置**。
+</details>
+
+<details>
+<summary>第 9 题答案要点</summary>
+
+**后果**：测试集的统计信息"渗入"了训练流程，人为抬高了效果。
+
+**具体例子**：
+
+设训练集身高为 $\{170, 172, 174\}$（均值 172），测试集身高为 $\{200, 210, 220\}$（均值 210）。
+
+- 只用训练集算均值：$\mu=172$，测试集标准化后是 $\frac{200-172}{2}=14$ 等，**极端值被正确暴露**；
+- 用全量算均值：$\mu=191$，测试集标准化后是 $\frac{200-191}{25}=0.36$，**异常被"平滑"掉了**。
+
+**后果**：模型在离线评估时看起来稳健，上线后遇到真实分布偏移就崩溃。
+
+**铁律**：**任何统计量（均值、方差、分位数、词表、类别集合）都只能在训练集上 fit，然后 transform 到验证/测试集。**
+</details>
+
+<details>
+<summary>第 10 题答案</summary>
+
+需要**返回与原表同样长度**的结果时，必须用 `transform`。典型场景：
+
+1. **用组均值填充缺失**：
+   ```python
+   df["x"] = df["x"].fillna(df.groupby("g")["x"].transform("mean"))
+   ```
+2. **组内标准化**：`(x - group_mean) / group_std`，需要广播回每一行；
+3. **构造组内特征**：如"该样本值 / 组均值"、"该行在本组的排名"；
+4. **组内差值**：`x - group_max`。
+
+`agg` 每组只返回一行，无法与原表对齐，因此上述场景都用不了。
+</details>
+
+---
+
+## 十二、一句话总结
+
+**Pandas 把"表格操作"变成了链式调用：`df.pipe(...)` 一路下去 —— 记住"一行一样本、一列一特征"这条约定，你就永远知道该往哪个方向做聚合。**
+
+---
+
+**明日预告**：Day2 讲 Matplotlib。你会掌握"画布 / 坐标系 / 辅助层 / 图像层"的四层结构，从此画出能放进报告的图。
+

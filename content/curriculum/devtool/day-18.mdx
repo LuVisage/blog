@@ -1,0 +1,172 @@
+---
+slug: day-18
+kind: day
+day: 18
+week: 3
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: Babel 使用教程
+sourcePath: 03-构建打包/05-Babel.md
+---
+
+## 一、Babel 是什么
+
+Babel 是 **JavaScript 编译器**，主要职责：
+
+1. **语法降级**：把新语法（可选链、装饰器、JSX、TS）转成老环境能跑的代码；
+2. **Polyfill**：按需注入缺失的 API（Promise、Array.prototype.at...）；
+3. **插件生态**：海量语法/转换插件（如 module-resolver、import）。
+
+> 注意：Babel **不做类型检查、不做打包、不做压缩**。它是「翻译官」，不是「打包机」。
+
+## 二、安装与最小配置
+
+```powershell
+pnpm add -D @babel/core @babel/cli @babel/preset-env
+```
+
+`babel.config.json`（项目级，推荐）：
+
+```json
+{
+  "presets": [
+    ["@babel/preset-env", {
+      "targets": "> 0.5%, last 2 versions, not dead",
+      "useBuiltIns": "usage",
+      "corejs": "3.37"
+    }]
+  ]
+}
+```
+
+命令行：
+
+```powershell
+npx babel src --out-dir dist
+npx babel src --out-dir dist --watch
+```
+
+## 三、Presets（预设）与常用组合
+
+| Preset | 作用 |
+| --- | --- |
+| `@babel/preset-env` | 按目标环境自动决定需要哪些语法转换 |
+| `@babel/preset-typescript` | 剥离 TS 类型 |
+| `@babel/preset-react` | 转换 JSX |
+| `@babel/preset-flow` | Flow 类型剥离 |
+
+React + TS 项目常见配置：
+
+```json
+{
+  "presets": [
+    ["@babel/preset-env", { "targets": "defaults" }],
+    ["@babel/preset-react", { "runtime": "automatic" }],
+    "@babel/preset-typescript"
+  ]
+}
+```
+
+## 四、Polyfill 与 browserslist
+
+Babel 通过 **browserslist** 判断目标环境：
+
+```json
+// package.json
+{
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "not dead",
+    "not op_mini all"
+  ]
+}
+```
+
+Polyfill 方案（三选一）：
+
+| 方案 | 说明 |
+| --- | --- |
+| `useBuiltIns: "usage"` + `corejs` | 按代码用量自动注入（推荐） |
+| `useBuiltIns: "entry"` | 在入口 import 'core-js' 全量注入（体积大） |
+| `@babel/plugin-transform-runtime` | 复用 helper、避免污染全局，库开发推荐 |
+
+库开发配置：
+
+```json
+{
+  "presets": [["@babel/preset-env", { "targets": "defaults" }]],
+  "plugins": [
+    ["@babel/plugin-transform-runtime", { "corejs": 3, "helpers": true }]
+  ]
+}
+```
+
+## 五、在构建工具中使用
+
+**Webpack**（babel-loader）：
+
+```js
+{
+  test: /\.(js|jsx|ts|tsx)$/,
+  exclude: /node_modules/,
+  use: {
+    loader: 'babel-loader',
+    options: { cacheDirectory: true }   // 开启缓存，显著提速
+  }
+}
+```
+
+**Jest**（babel-jest 默认支持）；**Rollup**（@rollup/plugin-babel）。
+
+## 六、自定义插件（了解原理）
+
+```js
+// 一个把 console.log 替换为 debug.log 的插件
+module.exports = function () {
+  return {
+    name: 'rewrite-console',
+    visitor: {
+      MemberExpression(path) {
+        if (path.node.object.name === 'console' && path.node.property.name === 'log') {
+          path.node.object.name = 'debug';
+        }
+      },
+    },
+  };
+};
+```
+
+Babel 工作流：`解析（parse）→ 转换（transform，插件在 AST 上操作）→ 生成（generate）`。
+
+## 七、性能优化
+
+| 手段 | 说明 |
+| --- | --- |
+| `cacheDirectory: true` | babel-loader 缓存编译结果 |
+| 精确 `include/exclude` | 避免编译 node_modules |
+| 用 SWC/esbuild 替代 | 纯降级场景可完全替换 Babel，快 20x |
+| 减少 preset | 去掉不需要的转换 |
+| `@babel/plugin-transform-runtime` | 减少重复 helper 代码 |
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `SyntaxError: Cannot use import statement outside a module` | 加 `@babel/preset-env`，或配置 `sourceType: "module"` |
+| 装饰器语法报错 | 装 `@babel/plugin-proposal-decorators`（`legacy: true` 需配 class properties） |
+| Polyfill 没生效 | 检查 `useBuiltIns` + `corejs` 版本（需安装 `core-js@3`） |
+| 打包变慢 | 开 cacheDirectory，排除 node_modules |
+| 与 TypeScript 冲突 | 用 Babel 转译 + `tsc --noEmit` 单独检查类型 |
+
+## 九、现状与建议
+
+- 纯 JS 降级：**优先考虑 SWC / esbuild**，性能好得多；
+- Babel 仍有价值：复杂插件生态（module-resolver、istanbul 覆盖率、i18n 提取）；
+- 新项目一般通过 Vite / Next.js 间接使用 Babel，很少手写配置。
+
+## 十、参考
+
+- 官方文档（中文）：https://www.babeljs.cn/docs/
+- browserslist：https://browsersl.ist/
+

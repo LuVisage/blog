@@ -1,0 +1,497 @@
+---
+slug: day-08
+kind: day
+day: 8
+week: 2
+weekTitle: FastAPI 后端开发
+weekBlurb: HTTP 与 FastAPI、依赖注入与中间件、JWT 鉴权、SSE 流式输出、错误处理与可观测性。
+title: 鉴权与安全
+lead: 今日目标：说清 JWT 的结构与签名原理；理解为什么密码必须用 bcrypt 而不是 md5；掌握扫码/密码登录的完整流程；分清 401 与 403；知道 API Key 该怎么管。
+sourcePath: Python工程化与后端实战/Week2_FastAPI后端开发/Day3_鉴权与安全.md
+---
+
+> 今日目标：说清 JWT 的结构与签名原理；理解为什么密码必须用 bcrypt 而不是 md5；掌握扫码/密码登录的完整流程；分清 401 与 403；知道 API Key 该怎么管。
+> 配套案例：`code/demo_api/src/demo_service/security.py`、`api/deps.py`
+
+---
+
+## 3.1 知识地图
+
+```
+Day1  路由       Day2  依赖注入
+        │              │
+        └──────┬───────┘
+               ▼
+Day3（今天）★ 鉴权与安全
+  ├─ 密码为什么不能明文存
+  ├─ bcrypt / scrypt 的原理
+  ├─ JWT 的结构与签名
+  ├─ 完整登录流程
+  ├─ 401 vs 403
+  ├─ 安全红线清单
+  └─ 密钥管理
+        │
+        ▼
+Day4  SSE 流式输出
+Day5  错误处理与可观测性
+```
+
+---
+
+## 3.2 第一条红线：密码绝不能明文存储
+
+**先说清楚为什么 md5/sha256 也不行。**
+
+| 算法 | 特点 | 能否用于存密码 |
+| --- | --- | --- |
+| **明文** | —— | 数据库一泄漏全完 |
+| **md5** | 极快（每秒几十亿次） | **能被暴力破解** |
+| **sha256** | 快 | 同样能被暴力破解 |
+| **sha256 + 盐** | 挡住彩虹表 | 但 GPU 每秒仍能算几十亿次 |
+| **bcrypt / scrypt / argon2** | **故意设计得慢** + 加盐 | **正确答案** |
+
+**为什么"快"是缺点**：
+
+```
+md5 的速度: 一块 RTX 4090 每秒约 1000 亿次
+一个 8 位含大小写数字的密码: 约 2×10^14 种
+暴力枚举时间: 2000 秒（约 33 分钟）
+
+bcrypt (cost=12) 的速度: 每秒约 50 次（在同样的卡上）
+暴力枚举时间: 约 12 万年
+```
+
+**bcrypt/scrypt/argon2 的两个核心设计**：
+
+| 设计 | 作用 |
+| --- | --- |
+| **加盐（salt）** | 每个用户一个随机盐，**相同密码的哈希也不同** → 挡住彩虹表；且无法批量破解 |
+| **慢（可调 cost）** | 让暴力枚举的代价高到不可行 |
+
+**案例代码用的是标准库的 scrypt**（原理与 bcrypt 一致，避免引入额外依赖）：
+
+```python
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)                    # ① 随机盐
+    dk = hashlib.scrypt(password.encode(), salt=salt,
+                        n=2**14, r=8, p=1, dklen=32)  # ② 故意慢
+    return f"scrypt$16384$8$1${salt.hex()}${dk.hex()}"
+
+def verify_password(password: str, stored: str) -> bool:
+    scheme, n, r, p, salt_hex, hash_hex = stored.split("$")
+    dk = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt_hex),
+                        n=int(n), r=int(r), p=int(p), dklen=32)
+    # ★ 恒定时间比较 —— 防止通过响应时间逐字节猜测
+    return hmac.compare_digest(dk.hex(), hash_hex)
+```
+
+**存储格式包含算法参数**（`scrypt$16384$8$1$...`），这样将来提升 cost 时，老用户的密码仍能验证。
+
+> **为什么用 `hmac.compare_digest` 而不是 `==`**：
+> `==` 在第一个不同的字节就返回 False，**耗时随匹配长度变化**。攻击者可以通过测量响应时间逐字节猜出哈希。
+> `compare_digest` 是恒定时间的。
+
+**真实项目直接用**：
+
+```bash
+pip install "passlib[bcrypt]"
+```
+
+```python
+from passlib.context import CryptContext
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+hashed = pwd_context.hash(password)
+ok = pwd_context.verify(password, hashed)
+```
+
+---
+
+## 3.3 JWT：结构完全透明
+
+**JWT 没那么神秘。它就是一个字符串，由三段用 `.` 连接**：
+
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 . eyJzdWIiOiJhbGljZSIsImV4cCI6MTc2ODQ4MjIwMH0 . 3f8a9c...
+└──────────── header ─────────────────┘ └──────────── payload ─────────────────────┘ └─ signature ─┘
+```
+
+**三段分别是**：
+
+| 段 | 内容 | 编码方式 |
+| --- | --- | --- |
+| **header** | `{"alg":"HS256","typ":"JWT"}` | base64url |
+| **payload** | `{"sub":"alice","exp":1768482200,"scope":"user"}` | base64url |
+| **signature** | HMAC-SHA256(header.payload, secret) | base64url |
+
+**关键认知：前两段只是 base64 编码，不是加密。**
+
+```python
+# 任何人都能解出 payload —— 所以绝不能在 JWT 里放敏感信息
+import base64, json
+payload = "eyJzdWIiOiJhbGljZSIsImV4cCI6MTc2ODQ4MjIwMH0"
+print(json.loads(base64.urlsafe_b64decode(payload + "==")))
+# {'sub': 'alice', 'exp': 1768482200, 'scope': 'user'}
+```
+
+**签名的作用**：**防篡改**。
+
+```
+攻击者想把自己改成 admin:
+  ① 改 payload: {"sub":"alice","scope":"admin"}
+  ② 重新 base64 编码
+  ③ 但他算不出新的签名（没有 secret）
+  ④ 服务端校验签名 -> 失败 -> 拒绝
+```
+
+**案例代码里的实现**（手写 HS256，让原理完全透明）：
+
+```python
+def create_access_token(subject: str, settings: Settings, scope="user"):
+    payload = {
+        "sub": subject,
+        "iat": int(time.time()),
+        "exp": int(time.time()) + expires_in,
+        "scope": scope,
+        "jti": secrets.token_hex(8),        # 唯一 ID，便于吊销
+    }
+    h = b64url(json.dumps(header))          # ① header
+    p = b64url(json.dumps(payload))         # ② payload
+    sig = hmac.new(secret, f"{h}.{p}".encode(), sha256).digest()   # ③ 签名
+    return f"{h}.{p}.{b64url(sig)}"
+
+def decode_access_token(token: str, settings: Settings) -> dict:
+    h, p, sig = token.split(".")            # ① 拆三段
+    expected = hmac.new(secret, f"{h}.{p}".encode(), sha256).digest()
+    if not hmac.compare_digest(expected, b64url_decode(sig)):
+        raise ValueError("签名校验失败")     # ② 校验签名（恒定时间比较）
+    payload = json.loads(b64url_decode(p))
+    if payload["exp"] < time.time():
+        raise ValueError("token 已过期")     # ③ 校验过期
+    return payload
+```
+
+> **生产环境用 `PyJWT` 或 `python-jose`** —— 它们处理了各种边界情况。
+> 手写的目的是理解原理，**不是让你在生产环境手写加密**。
+
+### JWT 的两个重要限制
+
+| 限制 | 后果 | 缓解 |
+| --- | --- | --- |
+| **无法主动吊销** | 签发后到过期前一直有效 | 短过期时间（15~30 分钟）+ refresh token |
+| **payload 是明文** | 不能放密码、身份证号 | 只放 `sub` / `scope` / 过期时间 |
+
+**"无法吊销"是面试常问的**：用户改了密码或被盗号，你希望立即让所有 token 失效，但 JWT 是无状态的 —— 服务端不存任何东西。
+
+**常见的缓解方案**：
+
+| 方案 | 做法 |
+| --- | --- |
+| **短过期 + refresh token** | access token 15 分钟过期，用 refresh token 换新的 |
+| **Redis 黑名单** | 把吊销的 `jti` 存 Redis，校验时查一次（Week3 会讲） |
+| **版本号** | 用户表存一个 `token_version`，改密码时 +1，校验时比对 |
+
+### access token 与 refresh token
+
+| | access token | refresh token |
+| --- | --- | --- |
+| 过期时间 | **短**（15~30 分钟） | **长**（7~30 天） |
+| 用途 | 访问 API | 换取新的 access token |
+| 存储位置 | 内存 / sessionStorage | **httpOnly cookie** |
+| 泄漏后果 | 影响小（很快过期） | 影响大（能一直换新） |
+
+**为什么要两个**：access token 频繁在网络传输，泄漏风险高，所以设短过期；但每次都让用户重新登录体验差，所以用 refresh token 来续期。
+
+---
+
+## 3.4 完整登录流程
+
+```
+注册:
+  POST /auth/register {"username":"alice","password":"secret123"}
+    -> 校验密码强度（至少 8 位、含字母和数字）
+    -> hash_password() 存储
+    -> 返回 UserPublic（★ 不含密码字段）
+
+登录:
+  POST /auth/login {"username":"alice","password":"secret123"}
+    -> 查用户
+    -> verify_password()
+    -> create_access_token()
+    -> 返回 {"access_token":"...","expires_in":1800}
+
+访问受保护接口:
+  GET /auth/me
+  Authorization: Bearer <token>
+    -> HTTPBearer 提取 token
+    -> decode_access_token() 校验签名与过期
+    -> 按 sub 查用户
+    -> 返回用户信息
+```
+
+**案例代码里的依赖**：
+
+```python
+def get_current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None,
+                           Depends(bearer_scheme)],
+    store: Annotated[MemoryUserStore, Depends(get_store)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> UserInDB:
+    if credentials is None:
+        raise HTTPException(401, "缺少认证信息",
+                            headers={"WWW-Authenticate": "Bearer"})
+    try:
+        payload = decode_access_token(credentials.credentials, settings)
+    except ValueError as e:
+        raise HTTPException(401, f"token 无效: {e}") from e
+    user = store.get_by_username(payload.get("sub", ""))
+    if user is None:
+        raise HTTPException(401, "用户不存在")
+    if user.disabled:
+        raise HTTPException(403, "账号已被禁用")
+    return user
+```
+
+**两个安全细节**：
+
+**① `WWW-Authenticate: Bearer` 响应头**
+
+```python
+headers={"WWW-Authenticate": "Bearer"}
+```
+
+这是 HTTP 标准要求的。浏览器和客户端库据此知道"该用 Bearer 方式认证"，Swagger 也能弹出登录框。
+
+**② "用户名不存在"与"密码错误"必须返回【相同】的信息**
+
+```python
+if user is None or not verify_password(password, user.hashed_password):
+    raise HTTPException(401, "用户名或密码错误")     # ★ 同一句话
+```
+
+**为什么**：如果分别返回"用户不存在"和"密码错误"，攻击者就能**枚举出哪些用户名存在**：
+
+```
+尝试 admin    -> "用户不存在"   -> 这个用户名没被注册
+尝试 alice    -> "密码错误"     -> ✓ alice 存在！接下来只爆破这一个
+```
+
+**案例测试验证了这一点**：
+
+```python
+def test_login_unknown_user_same_error_as_wrong_password(client) -> None:
+    r1 = client.post("/auth/login", json={"username": "nobody", ...})
+    r2 = client.post("/auth/login", json={"username": "alice", ...})
+    assert r1.json()["message"] == r2.json()["message"]
+```
+
+---
+
+## 3.5 401 vs 403（面试高频）
+
+| 状态码 | 含义 | 什么时候用 |
+| --- | --- | --- |
+| **401 Unauthorized** | **你没登录**（或凭据无效） | 没带 token / token 过期 / 签名错 |
+| **403 Forbidden** | **你登录了，但没权限** | 普通用户访问管理接口 / 账号被禁用 |
+
+**名字其实有误导性**：401 叫 "Unauthorized" 但实际意思是 "Unauthenticated"（未认证）。
+
+**案例代码里的对应**：
+
+```python
+# 没带 token -> 401
+if credentials is None:
+    raise HTTPException(401, "缺少认证信息")
+
+# token 无效 -> 401
+try:
+    payload = decode_access_token(...)
+except ValueError as e:
+    raise HTTPException(401, f"token 无效: {e}")
+
+# 账号禁用 -> 403
+if user.disabled:
+    raise HTTPException(403, "账号已被禁用")
+```
+
+**权限分级（scope）**：
+
+```python
+def require_scope(scope: str):
+    def checker(credentials, settings):
+        payload = decode_access_token(credentials.credentials, settings)
+        if payload.get("scope") != scope:
+            raise HTTPException(403, f"需要 {scope} 权限")
+        return payload
+    return checker
+
+AdminOnly = Annotated[dict, Depends(require_scope("admin"))]
+
+@admin.get("/stats")
+async def stats(_: AdminOnly) -> dict:
+    ...
+```
+
+**案例测试验证**：
+
+```python
+def test_admin_endpoint_requires_admin_scope(client, auth_headers) -> None:
+    r = client.get("/api/v1/admin/stats", headers=auth_headers)
+    assert r.status_code == 403        # 不是 401 —— 因为已经登录了
+```
+
+---
+
+## 3.6 安全红线清单
+
+**这 10 条是面试与代码审查的重点。**
+
+| # | 红线 | 为什么 |
+| --- | --- | --- |
+| 1 | **密码不明文存** | 数据库泄漏 = 全用户密码泄漏 |
+| 2 | **密码不用 md5/sha256** | 能被暴力破解 |
+| 3 | **敏感信息不放 JWT payload** | payload 只是 base64，不是加密 |
+| 4 | **密钥从环境变量来** | 硬编码会被提交到 git |
+| 5 | **`.env` 在 `.gitignore` 里** | 见第 4 条 |
+| 6 | **日志不记录密码/token/Key** | 日志会被收集、导出、查看 |
+| 7 | **不泄漏内部错误细节** | 堆栈会暴露框架版本、文件路径 |
+| 8 | **SQL 用参数化查询** | f-string 拼接 = SQL 注入（Week3） |
+| 9 | **CORS 用白名单** | `["*"]` + credentials 会被浏览器拒绝，且不安全 |
+| 10 | **登录失败信息统一** | 否则能枚举用户名 |
+
+**第 8 条提前说一下**（Week3 会展开）：
+
+```python
+# ✗ 灾难：SQL 注入
+cursor.execute(f"SELECT * FROM users WHERE name = '{name}'")
+# 传 name = "' OR '1'='1" 就能拿到所有用户
+# 传 name = "'; DROP TABLE users; --" 就删库了
+
+# ✓ 参数化查询
+cursor.execute("SELECT * FROM users WHERE name = %s", (name,))
+```
+
+**第 7 条的实现**（案例代码里的统一异常处理）：
+
+```python
+@app.exception_handler(Exception)
+async def unhandled_handler(request, exc):
+    logger.exception("未处理的异常", extra={"path": request.url.path})   # 日志记完整堆栈
+    return JSONResponse(
+        status_code=500,
+        content={"error": "internal_error", "message": "服务内部错误，请联系管理员"},
+        # ★ 对外不暴露任何内部细节
+    )
+```
+
+**测试验证**：
+
+```python
+def test_unhandled_exception_returns_500_without_leaking(app) -> None:
+    r = c.get("/api/v1/demo/error/boom")
+    assert r.status_code == 500
+    assert "故意抛出" not in r.json()["message"]      # 内部信息没泄漏
+    assert "Traceback" not in json.dumps(r.json())
+```
+
+---
+
+## 3.7 密钥管理
+
+**三个层级（从差到好）**：
+
+| 做法 | 评价 |
+| --- | --- |
+| 硬编码在代码里 | 提交到 git 就是泄漏 |
+| 环境变量 / `.env` | 本地开发与简单部署的标准做法 |
+| **密钥管理服务**（Vault / AWS Secrets Manager / K8s Secret） | 生产环境的做法 |
+
+**`.env` 的正确用法**：
+
+```bash
+# .env.example（提交到 git，只有字段名）
+JWT_SECRET=generate-a-random-string-at-least-32-chars
+OPENAI_API_KEY=sk-your-key-here
+```
+
+```bash
+# .env（不提交）
+JWT_SECRET=aB3xK9mP2qL7vN4wR8tY6uJ5hG1fD0sZ
+OPENAI_API_KEY=sk-real-key-here
+```
+
+**生成一个安全的密钥**：
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+** 如果密钥已经被提交过**：
+
+```bash
+# 1. 立刻【轮换密钥】—— 这是最重要的，清理历史不能挽回
+# 2. 加入 .gitignore
+echo ".env" >> .gitignore
+
+# 3. 从 git 跟踪中移除（保留本地文件）
+git rm --cached .env
+git commit -m "chore: stop tracking .env"
+
+# 4. 如果确实需要清理历史
+git filter-repo --path .env --invert-paths
+```
+
+> **红线**：**密钥一旦提交过，就必须视为已泄漏并立即轮换。**
+> 「我删了提交记录」**不能**作为补救 —— 攻击者可能已经拿到了。
+
+**关于 JWT secret 的长度**：HS256 用 HMAC-SHA256，**secret 至少 32 字节**。
+短 secret 会被暴力破解（攻击者可以离线伪造任意 token）。
+
+---
+
+## 3.8 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 密码哈希每次不同，验证却通过 | 这是正常的（加盐） | 用 `verify_password` 比对 |
+| 用 `==` 比较哈希 | 时序攻击 | 用 `hmac.compare_digest` |
+| 用户能改自己的 scope | 从请求体里读 scope | **scope 只能来自服务端签发的 token** |
+| token 过期后无法刷新 | 没实现 refresh token | 加 refresh 流程 |
+| 改密码后旧 token 还能用 | JWT 无状态 | 短过期 + Redis 黑名单 |
+| 生产环境 secret 是默认值 | 忘了配环境变量 | **启动时校验**（见下） |
+| 401 返回了 200 | 手写响应忘了设状态码 | 用 `HTTPException` |
+| 认证接口被限流 | 上线前没排除 | 按 key 区分，或单独放宽 |
+
+**"启动时校验配置"的实现**：
+
+```python
+class Settings(BaseSettings):
+    jwt_secret: str = Field(min_length=16)
+
+    @model_validator(mode="after")
+    def check_production_secret(self):
+        if not self.debug and self.jwt_secret.startswith("dev-"):
+            raise ValueError("生产环境必须设置真实的 JWT_SECRET")
+        return self
+```
+
+**这叫 fail fast** —— 宁可启动失败，也不要带着默认密钥上线。
+
+---
+
+## 3.9 今日自测
+
+1. 用 `/docs` 走一遍：注册 → 登录 → 用 token 访问 `/auth/me`。
+2. 手工改掉 JWT 的 payload（不改签名），验证请求被拒绝。
+3. 写测试验证：同一个密码哈希两次，结果不同，但 `verify_password` 都返回 True。
+4. 实现 `token_version` 机制：用户表加一列，改密码时 +1，校验时比对。
+5. 把 `debug=True` 临时打开，访问 `/demo/error/boom`，对比返回内容与 `debug=False` 时的差异。
+
+---
+
+## 3.10 一句话总结
+
+**密码必须用 bcrypt/scrypt 这类"故意慢"的算法加盐存储；JWT 的前两段只是 base64（明文），安全性完全依赖第三段的签名，所以绝不能放敏感信息，也正因无状态而无法主动吊销；401 是"没登录"、403 是"没权限"，而"登录失败信息必须统一"和"密钥一旦提交就要轮换"是两条不能破的红线。**
+
+**明日预告**：Day4 讲 SSE —— LLM 应用最重要的接口形式。
+

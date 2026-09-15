@@ -1,0 +1,197 @@
+---
+slug: day-50
+kind: day
+day: 50
+week: 8
+weekTitle: 终端与命令行
+weekBlurb: Shell、常用命令行工具与终端复用，把日常操作脚本化。
+title: tmux 使用教程
+sourcePath: 08-终端与命令行/02-tmux.md
+---
+
+## 一、tmux 是什么
+
+tmux（Terminal Multiplexer）是终端复用器，解决三个核心问题：
+
+1. **会话保持**：SSH 断线后任务继续运行，重连即恢复现场；
+2. **窗口与分屏**：一个终端窗口管理多个会话/窗格；
+3. **协作共享**：多人同时连接同一会话（结对编程）。
+
+## 二、安装
+
+```powershell
+# Windows 需要 WSL 或 Git Bash 环境
+# WSL Ubuntu
+sudo apt install tmux
+# macOS
+brew install tmux
+```
+
+Windows Terminal 用户可直接用 WSL2 里的 tmux。
+
+## 三、核心概念
+
+```
+Session（会话）       ← 最大单位，如 "work"、"blog"
+ └── Window（窗口）   ← 类似标签页，编号 0,1,2...
+      └── Pane（窗格）← 窗口内的分屏
+```
+
+**前缀键（Prefix）**：默认 `Ctrl+b`，所有快捷键都先按它再按功能键。
+
+## 四、会话管理（最常用）
+
+```bash
+tmux                    # 新建会话（无名）
+tmux new -s work        # 新建名为 work 的会话
+tmux ls                 # 列出所有会话
+tmux attach -t work     # 连接到 work
+tmux a                  # 连接最近的会话
+tmux kill-session -t work
+tmux kill-server        # 关闭全部
+```
+
+前缀键 + 会话操作：
+
+```
+Ctrl+b d        detach（脱离），会话在后台继续跑
+Ctrl+b $        重命名会话
+Ctrl+b s        会话列表（可切换）
+Ctrl+b ( / )    上一个/下一个会话
+```
+
+> **最重要的操作**：`Ctrl+b d` 脱离 → 关掉终端 → 下次 `tmux a` 恢复，所有东西原样还在。
+
+## 五、窗口（Window）
+
+```
+Ctrl+b c        新建窗口
+Ctrl+b ,        重命名窗口
+Ctrl+b n / p    下一个 / 上一个窗口
+Ctrl+b 0-9      跳到编号窗口
+Ctrl+b w        窗口列表
+Ctrl+b &        关闭窗口（需确认）
+```
+
+## 六、窗格（Pane）
+
+```
+Ctrl+b %        垂直分屏（左右）
+Ctrl+b "        水平分屏（上下）
+Ctrl+b 方向键   切换到相邻窗格
+Ctrl+b o        循环切换窗格
+Ctrl+b z        当前窗格全屏 / 恢复（很实用！）
+Ctrl+b x        关闭当前窗格
+Ctrl+b { / }    与相邻窗格交换位置
+Ctrl+b Ctrl+方向键   调整窗格大小
+Ctrl+b !        把当前窗格拆成独立窗口
+Ctrl+b q        显示窗格编号
+```
+
+## 七、复制模式（滚动与复制）
+
+```
+Ctrl+b [        进入复制模式（可用方向键/PgUp 滚动）
+  空格          开始选择
+  Enter         复制并退出
+Ctrl+b ]        粘贴
+```
+
+> 新版 tmux 支持鼠标：`set -g mouse on` 后可直接拖拽选择与滚轮滚动。
+
+## 八、配置文件 `~/.tmux.conf`
+
+```bash
+# 前缀键改为 Ctrl+a（更顺手，screen 习惯）
+set -g prefix C-a
+unbind C-b
+bind C-a send-prefix
+
+# 从 1 开始编号窗口
+set -g base-index 1
+setw -g pane-base-index 1
+set -g renumber-windows on
+
+# 开启鼠标支持
+set -g mouse on
+
+# 更快的前缀响应
+set -sg escape-time 0
+
+# 用 | 和 - 分屏（更直观）
+bind | split-window -h -c "#{pane_current_path}"
+bind - split-window -v -c "#{pane_current_path}"
+
+# 用 vim 键位切换窗格
+bind h select-pane -L
+bind j select-pane -D
+bind k select-pane -U
+bind l select-pane -R
+
+# 增大历史缓冲
+set -g history-limit 50000
+
+# 关闭时保留 pane 当前目录
+```
+
+重载配置：
+
+```
+Ctrl+b :source-file ~/.tmux.conf
+```
+
+## 九、实用场景
+
+### 场景 1：长时间任务（编译/训练/部署）
+
+```bash
+tmux new -s build
+npm run build          # 或训练脚本
+Ctrl+b d               # 脱离，去干别的
+tmux a -t build        # 回来看进度
+```
+
+### 场景 2：开发工作区
+
+```
+Session: dev
+├── Window 0: 编辑器/CLI
+├── Window 1: 前端 dev server
+├── Window 2: 后端日志
+└── Window 3: 数据库客户端
+```
+
+配合工具 [tmuxinator](https://github.com/tmuxinator/tmuxinator) 或 [sesh](https://github.com/joshmedeski/sesh) 可一条命令重建整个布局。
+
+### 场景 3：SSH 断线恢复
+
+不需 tmux 的话，SSH 断开后正在跑的命令会被终止。用 tmux 后：
+
+```bash
+ssh server
+tmux a                  # 一切原样恢复
+```
+
+## 十、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 滚轮不能滚动 | `set -g mouse on` 或进复制模式 `Ctrl+b [` |
+| 复制内容带换行 | 复制模式选择时用 `Enter`；或按住 Shift 鼠标选择（绕过 tmux） |
+| 中文乱码 | 确认 locale 为 UTF-8；配置 `set -gq utf8 on` |
+| 前缀键和浏览器冲突 | 改前缀为 `Ctrl+a` 或 `Ctrl+Space` |
+| 配置不生效 | 重新 source 或重启 tmux server：`tmux kill-server` |
+| 想知道自己是不是在 tmux 里 | `echo $TMUX` 有值即在内 |
+| 颜色显示不对 | 配置 `set -g default-terminal "tmux-256color"` |
+
+## 十一、替代品
+
+- **Zellij**：Rust 编写，自带状态栏提示快捷键，对新手更友好；
+- **screen**：老牌，功能少但无处不在（服务器可能只装了它）。
+
+## 十二、参考
+
+- 官方 Wiki：https://github.com/tmux/tmux/wiki
+- 速查表：https://tmuxcheatsheet.com/
+- 配置文件示例：https://github.com/tony/tmux-config
+

@@ -4,6 +4,9 @@
  * pulling `lessonHref` from there drags `fs` into the browser.
  */
 export const COURSES = {
+  devtool: { directory: 'devtool', path: '/learn/devtool' },
+  ml: { directory: 'ml', path: '/learn/ml' },
+  backend: { directory: 'backend', path: '/learn/backend' },
   agent: { directory: 'agent', path: '/learn/agent' },
   csp: { directory: 'csp', path: '/learn/csp' },
 } as const

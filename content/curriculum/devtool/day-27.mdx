@@ -1,0 +1,186 @@
+---
+slug: day-27
+kind: day
+day: 27
+week: 4
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: Python 代码检查与格式化教程（Ruff / Black / isort）
+sourcePath: 04-代码检查与格式化/04-Python代码检查.md
+---
+
+## 一、工具定位
+
+| 工具 | 类型 | 说明 |
+| --- | --- | --- |
+| **Ruff** | Lint + Format 一体 | Rust 编写，替代 Flake8/isort/pyupgrade/Black 等一大票工具，速度极快 |
+| Black | Formatter | 经典「不妥协」格式化器，Ruff format 兼容其风格 |
+| isort | import 排序 | Ruff 内置 `I` 规则集，现已基本不需要单独用 |
+
+**2024 年后的主流选择：一个 Ruff 搞定 lint + format + import 排序。**
+
+## 二、Ruff 使用
+
+### 安装
+
+```powershell
+# 推荐用 uv
+uv tool install ruff
+# 或 pip
+pip install ruff
+```
+
+### 配置 `pyproject.toml`
+
+```toml
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle 错误
+  "W",    # pycodestyle 警告
+  "F",    # pyflakes（未使用变量等）
+  "I",    # isort（import 排序）
+  "B",    # flake8-bugbear（常见 Bug）
+  "UP",   # pyupgrade（语法现代化）
+  "SIM",  # flake8-simplify
+  "S",    # bandit（安全检查）
+]
+ignore = ["E501"]     # 行太长（由 formatter 处理）
+fixable = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]  # 测试里允许 assert
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+```
+
+### 常用命令
+
+```powershell
+ruff check .                  # 检查
+ruff check . --fix            # 自动修复
+ruff check --watch .          # 监听模式
+ruff format .                 # 格式化（兼容 Black 风格）
+ruff format --check .         # CI 校验
+ruff rule E501                # 查看某规则说明
+ruff linter                   # 列出所有可用规则集
+```
+
+编辑器集成（VS Code）：安装 **Ruff 扩展**，设置：
+
+```json
+{
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": { "source.fixAll": "explicit" }
+  }
+}
+```
+
+## 三、Black（仍被广泛使用）
+
+```powershell
+pip install black
+black .                    # 格式化当前目录
+black --check .            # CI 模式（不写文件）
+black --diff .             # 只看差异
+```
+
+`pyproject.toml`：
+
+```toml
+[tool.black]
+line-length = 100
+target-version = ['py311']
+```
+
+集成：
+
+- **pre-commit**：
+
+```yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+```
+
+- VS Code：`editor.defaultFormatter` 设为 `ms-python.black-formatter`（若用 Black 而非 Ruff）。
+
+## 四、isort
+
+```powershell
+pip install isort
+isort .                # 排序所有 import
+isort --check .        # CI 校验
+isort --diff .         # 查看差异
+```
+
+`pyproject.toml`（与 Black 兼容的经典配置）：
+
+```toml
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["myapp"]
+```
+
+> 如果已用 Ruff，`select = ["I"]` 即覆盖 isort 能力，无需单独安装。
+
+## 五、三者关系与迁移路径
+
+```
+传统组合：  Flake8 + isort + Black + pyupgrade + bandit  （5 个工具）
+现代组合：  Ruff（一个工具全覆盖，快 10-100 倍）
+```
+
+迁移步骤：
+
+1. `pyproject.toml` 中配置 Ruff `select` 规则（可参考原有 setup.cfg / .flake8）；
+2. 删除 Flake8/isort/Black 依赖与配置；
+3. 全量 `ruff check --fix . && ruff format .`，作为独立提交；
+4. CI 改为 `ruff check . && ruff format --check .`。
+
+## 六、CI 集成示例
+
+```yaml
+- name: Lint
+  run: |
+    ruff check .
+    ruff format --check .
+```
+
+## 七、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| Ruff 与 Black 格式不一致 | `ruff format` 与最新 Black 基本一致；迁移时全量重格式化并单独提交 |
+| 规则太多报错刷屏 | 先 `select` 最小集合（E/F/I），逐步加；用 `# noqa: E501` 单行豁免 |
+| 虚拟环境里的文件被检查 | `exclude` 中加入 `.venv` |
+| 与编辑器格式化冲突 | 只保留一个 formatter（Ruff 或 Black），禁用另一个 |
+| 类型检查呢？ | 那是 mypy / pyright 的工作，与 lint/format 分开配置 |
+| 导入顺序老是被改 | 统一 `I` 规则 + 保存时自动 fix，避免手动维护 |
+
+## 八、最佳实践
+
+1. **新项目直接上 Ruff**，一个工具解决 lint + format + import 排序。
+2. 结合 **pre-commit** 在提交前自动修复。
+3. CI 必须跑 `--check` 模式，防止未格式化代码合入。
+4. 行长度统一（88 或 100），写进 Ruff/Black 配置，不要靠人工。
+
+## 九、参考
+
+- Ruff：https://docs.astral.sh/ruff/
+- Black：https://black.readthedocs.io/
+- isort：https://pycqa.github.io/isort/
+

@@ -1,0 +1,259 @@
+---
+slug: day-76
+kind: day
+day: 76
+week: 12
+weekTitle: 日志与监控
+weekBlurb: 日志规范、指标与告警的可观测性入门，服务上线后靠它定位问题。
+title: Loki 使用教程
+sourcePath: 12-日志与监控/05-Loki.md
+---
+
+## 一、Loki 是什么
+
+Grafana Labs 出品的**日志聚合系统**，口号：「像 Prometheus 一样，但是用于日志」。
+
+设计理念：
+- **只索引标签，不索引日志内容**（内容压缩存储）→ 成本远低于 ELK；
+- 与 Grafana 无缝集成（指标与日志同一界面互跳）；
+- 查询语言 **LogQL**（与 PromQL 风格一致）。
+
+| 维度 | Loki | ELK |
+| --- | --- | --- |
+| 索引 | 仅标签 | 全文索引 |
+| 存储成本 | 低 | 高 |
+| 查询能力 | 标签 + 过滤 + 管道 | 全文检索最强 |
+| 上手难度 | 低（会用 Grafana 就基本会） | 中高 |
+| 适合 | 结合 Grafana 的常规日志排查 | 大规模全文检索、审计 |
+
+## 二、核心概念
+
+| 概念 | 说明 |
+| --- | --- |
+| Log Stream | 一组带相同标签的日志流 |
+| Label | 标签（`app`、`env`、`level`）——**基数必须低** |
+| Promtail / Alloy | 采集代理（收集日志推送 Loki） |
+| Chunk | 压缩存储的日志块 |
+| LogQL | 查询语言 |
+
+## 三、快速体验
+
+`docker-compose.yml`：
+
+```yaml
+services:
+  loki:
+    image: grafana/loki:3.0.0
+    ports: ["3100:3100"]
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    volumes:
+      - /var/log:/var/log:ro
+      - ./promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+```
+
+`promtail-config.yml`：
+
+```yaml
+server:
+  http_listen_port: 9080
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: varlogs
+          env: dev
+          __path__: /var/log/*.log
+
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: container
+```
+
+Grafana 添加 Loki 数据源：`http://loki:3100`。
+
+## 四、LogQL 查询
+
+### 基础
+
+```logql
+{app="my-api"}                        # 选择流（必须有标签选择器）
+{app="my-api", env="prod"}
+{app=~"my-.*"}                        # 正则标签
+```
+
+### 过滤（管道）
+
+```logql
+# 包含 / 不包含
+{app="my-api"} |= "error"
+{app="my-api"} != "healthcheck"
+
+# 正则
+{app="my-api"} |~ "(?i)timeout|refused"
+
+# JSON 解析后按字段过滤
+{app="my-api"} | json | level="error"
+{app="my-api"} | json | status >= 500
+{app="my-api"} | json | duration > 1000
+
+# 日志行格式解析
+{app="nginx"} | pattern `<ip> - - [<_>] "<method> <path> <_>" <status> <size>`
+
+# 提取字段展示
+{app="my-api"} | json | line_format "{{.method}} {{.path}} {{.status}}"
+
+# 正则提取命名组
+{app="my-api"} | regexp `user=(?P<user>\w+)`
+```
+
+### 指标查询（日志转指标）
+
+```logql
+# 每秒错误日志条数
+sum by (app) (rate({app="my-api"} |= "error" [5m]))
+
+# 按状态码分组统计
+sum by (status) (count_over_time({app="my-api"} | json | __error__="" [5m]))
+
+# P95 延迟（从日志中提取）
+quantile_over_time(0.95,
+  {app="my-api"} | json | unwrap duration [5m]
+) by (route)
+
+# Top 5 报错最多的接口
+topk(5, sum by (path) (count_over_time({app="my-api"} | json | status >= 500 [1h])))
+```
+
+常用函数：`rate`、`count_over_time`、`sum by`、`quantile_over_time`、`topk`、`bytes_rate`。
+
+## 五、应用端日志规范（很重要）
+
+Loki 查询效率取决于**日志结构化**。推荐输出 JSON 日志：
+
+```json
+{"level":"error","time":"2026-09-14T10:00:00Z","msg":"支付失败","orderId":123,"provider":"alipay","duration":1523,"traceId":"abc123"}
+```
+
+Node.js（pino）：
+
+```ts
+import pino from 'pino';
+
+const logger = pino({
+  level: 'info',
+  base: { app: 'my-api', env: process.env.NODE_ENV },
+});
+
+logger.error({ orderId: 123, provider: 'alipay', traceId }, '支付失败');
+```
+
+Python（structlog / logging + json）：
+
+```python
+import structlog
+
+logger = structlog.get_logger()
+logger.error("payment_failed", order_id=123, provider="alipay", duration=1523)
+```
+
+Go（slog）：
+
+```go
+slog.Error("payment failed", "orderId", 123, "provider", "alipay", "duration", 1523)
+```
+
+**关键**：把可查询的字段（level、status、traceId、router）作为独立字段输出，而不是拼在字符串里。
+
+## 六、标签设计原则
+
+| 应该做标签 | 不应该做标签 |
+| --- | --- |
+| app / service | user_id |
+| env / namespace | request_id / trace_id |
+| level（基数小） | 订单号 |
+| instance（数量可控） | 路径参数（/users/123） |
+
+> **高基数标签是 Loki 性能杀手**：每个唯一组合会创建独立流。traceId、userId 这类字段应放在日志内容里，用 `|=` 过滤。
+
+## 七、与 Trace 联动（Grafana 中互跳）
+
+1. Grafana 中配 Loki 数据源的 **Derived fields**：
+
+```
+Name: TraceID
+Regex: "traceId":"(\w+)"
+Internal link: Jaeger / Tempo
+```
+
+2. 点日志行的 TraceID 直接跳到链路详情（需配合 07-Jaeger与Zipkin.md）。
+
+同样可配 Prometheus 的 Exemplars 实现「指标 → 链路」。
+
+## 八、日志采集方案对比
+
+| 方案 | 特点 |
+| --- | --- |
+| Promtail | 经典采集器（现推荐迁移到 Alloy） |
+| Grafana Alloy | 新一代统一采集（替代 Promtail/Agent） |
+| Fluent Bit / Fluentd | Kubernetes 环境常用 |
+| Docker logging driver | 直接用 loki driver 输出 |
+
+Docker compose 中让应用直接写 Loki：
+
+```yaml
+services:
+  api:
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://loki:3100/loki/api/v1/push"
+        loki-batch-size: "100"
+        labels: "app,env"
+```
+
+## 九、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| Grafana 中查不到日志 | 检查 Promtail 是否采集到（Promtail 日志）、标签选择器是否匹配 |
+| 查询超时 | 缩小时间范围；减少标签匹配范围；避免对超大范围做正则 |
+| 标签爆炸导致 OOM | 清理高基数标签，重设 label 设计 |
+| 时间不对 | 日志与主机时间同步（NTP）；Promtail timestamp 配置 |
+| 中文乱码 | 确保 UTF-8 输出（Node/Python 默认；Java 注意 file.encoding） |
+| 存储增长快 | 配置 retention（`limits_config.retention_period`）与压缩 |
+
+## 十、最佳实践
+
+1. **日志结构化（JSON）+ 稳定字段名**，是 Loki 高效的前提；
+2. 标签只放低基数维度；
+3. 应用日志分级：错误必带上下文（orderId、traceId），禁止只打「出错了」；
+4. 保留策略：热数据 7-14 天，归档按需；
+5. 结合 Grafana 告警：`rate({app="api"} |= "error" [5m]) > 10` 直接变成告警规则。
+
+## 十一、参考
+
+- 官方文档：https://grafana.com/docs/loki/latest/
+- LogQL：https://grafana.com/docs/loki/latest/query/
+- Alloy：https://grafana.com/docs/alloy/latest/
+- 最佳实践：https://grafana.com/docs/loki/latest/best-practices/
+

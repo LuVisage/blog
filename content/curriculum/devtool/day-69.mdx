@@ -1,0 +1,239 @@
+---
+slug: day-69
+kind: day
+day: 69
+week: 11
+weekTitle: 数据库与中间件
+weekBlurb: 常用数据库与缓存、消息中间件的本地搭建与客户端使用，对应后端课的存储层。
+title: Redis 与 RedisInsight 使用教程
+sourcePath: 11-数据库与中间件/03-Redis管理.md
+---
+
+## 一、RedisInsight 是什么
+
+Redis 官方可视化管理工具，功能：
+
+- 浏览 Key（按类型、TTL、大小过滤）；
+- 查看/编辑各种数据结构（String/List/Hash/Set/ZSet/Stream/JSON）；
+- **内置 CLI**（和 redis-cli 一致）；
+- **慢查询与命令分析**（Profiler）；
+- 内存分析（哪些 Key 占内存）；
+- 支持连接 Redis 集群、哨兵、Redis Cloud。
+
+## 二、安装与连接
+
+```powershell
+winget install Redis.RedisInsight
+# macOS
+brew install --cask redisinsight
+# 或 Docker
+docker run -d -p 8001:8001 -v redisinsight:/db redislabs/redisinsight
+```
+
+连接：
+1. `Add Redis Database`；
+2. 填 Host `localhost`、Port `6379`，有密码填密码；
+3. 生产环境 TLS 勾选 `Use TLS`。
+
+## 三、Redis 核心操作（CLI）
+
+### 连接
+
+```bash
+redis-cli -h 127.0.0.1 -p 6379
+redis-cli -h host -p 6379 -a password
+redis-cli -u redis://user:password@host:6379/0
+```
+
+### 通用 Key 操作
+
+```bash
+KEYS *                    # 生产禁用！O(N) 阻塞
+SCAN 0 MATCH user:* COUNT 100    # 用 SCAN 代替 KEYS
+TYPE mykey                # 类型
+TTL mykey                 # 剩余过期时间（-1 永不过期，-2 不存在）
+EXPIRE mykey 3600         # 设置过期
+PERSIST mykey             # 移除过期
+EXISTS mykey
+DEL mykey
+UNLINK mykey              # 异步删除（大 Key 用它，不阻塞）
+RENAME old new
+```
+
+### 五种基础数据结构
+
+```bash
+# String（缓存、计数器）
+SET user:1:name "Ada"
+SET token:abc "1" EX 3600 NX        # 带过期 + 不存在才设置（分布式锁）
+GET user:1:name
+INCR page:view:2026-09-14           # 原子自增
+INCRBY counter 10
+MSET k1 v1 k2 v2
+MGET k1 k2
+
+# Hash（对象存储）
+HSET user:1 name Ada age 36
+HGET user:1 name
+HGETALL user:1
+HINCRBY user:1 age 1
+HDEL user:1 age
+
+# List（队列、最新列表）
+LPUSH queue task1 task2
+RPOP queue
+LRANGE queue 0 -1
+BLPOP queue 5               # 阻塞弹出（消费队列）
+LTRIM queue 0 99            # 只保留 100 个（消息列表）
+
+# Set（去重、标签、共同好友）
+SADD article:1:tags redis db cache
+SMEMBERS article:1:tags
+SISMEMBER article:1:tags redis
+SINTER set1 set2            # 交集
+SUNION set1 set2
+
+# ZSet（排行榜、延时队列）
+ZADD rank 100 alice 95 bob
+ZRANGE rank 0 -1 WITHSCORES
+ZREVRANGE rank 0 9 WITHSCORES     # Top 10
+ZINCRBY rank 5 alice
+ZRANGEBYSCORE rank 90 100
+```
+
+### 其他常用
+
+```bash
+PING
+INFO                      # 服务器信息（版本、内存、连接数）
+INFO memory
+DBSIZE                    # 当前库 Key 数量
+SELECT 1                  # 切库（集群不支持）
+FLUSHDB                   # 清空当前库（危险！）
+CLIENT LIST
+SLOWLOG GET 10            # 慢查询日志
+MEMORY USAGE mykey        # 单个 Key 内存占用
+```
+
+## 四、实战场景
+
+### 1. 缓存（Cache Aside 模式）
+
+```python
+def get_user(user_id):
+    key = f"user:{user_id}"
+    cached = redis.get(key)             # ① 查缓存
+    if cached:
+        return json.loads(cached)
+
+    user = db.query_user(user_id)       # ② 未命中查库
+    if user:
+        redis.set(key, json.dumps(user), ex=3600)   # ③ 写回缓存（带随机过期防雪崩）
+    return user
+
+def update_user(user_id, data):
+    db.update(user_id, data)
+    redis.delete(f"user:{user_id}")     # ④ 更新时删除缓存（而非更新，避免并发脏数据）
+```
+
+要点：
+- 过期时间加随机抖动（避免同一时刻集体失效 — 缓存雪崩）；
+- 热点 Key 空值也缓存短 TTL（防穿透）；
+- 设置 `maxmemory-policy allkeys-lru`。
+
+### 2. 分布式锁
+
+```bash
+# 加锁（NX 保证互斥，EX 防死锁）
+SET lock:order:123 <unique-token> NX EX 30
+# 释放（Lua 保证「判断是自己的锁再删」的原子性）
+```
+
+```lua
+-- unlock.lua
+if redis.call("GET", KEYS[1]) == ARGV[1] then
+  return redis.call("DEL", KEYS[1])
+else
+  return 0
+end
+```
+
+生产建议用 Redisson 等成熟库，或 Redlock 算法。
+
+### 3. 排行榜
+
+```bash
+ZINCRBY leaderboard 10 player:1
+ZREVRANGE leaderboard 0 9 WITHSCORES
+ZRANK leaderboard player:1         # 我的排名
+```
+
+### 4. 限流（滑动窗口）
+
+```bash
+INCR rate:user:1:2026091412
+EXPIRE rate:user:1:2026091412 60
+# 超过阈值即拒绝
+```
+
+### 5. 消息队列（Stream）
+
+```bash
+XADD orders * userId 1 amount 99
+XLEN orders
+XREAD COUNT 10 STREAMS orders 0
+XGROUP CREATE orders group1 0
+XREADGROUP GROUP group1 consumer1 COUNT 10 STREAMS orders >
+XACK orders group1 <id>
+```
+
+## 五、持久化与高可用
+
+| 机制 | 说明 |
+| --- | --- |
+| RDB | 定时快照，文件小、恢复快，可能丢最后几分钟数据 |
+| AOF | 追加命令日志，`everysec` 最多丢 1 秒 |
+| 混合 | RDB + AOF 兼顾（推荐） |
+| 主从复制 | `replicaof host port` |
+| 哨兵（Sentinel） | 自动故障转移，主从切换 |
+| Cluster | 分片集群（16384 槽），水平扩容 |
+
+生产配置建议：
+
+```
+appendonly yes
+appendfsync everysec
+maxmemory 4gb
+maxmemory-policy allkeys-lru
+save 900 1
+save 300 10
+```
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `KEYS *` 卡死服务 | 用 `SCAN` 迭代；生产配置 `rename-command KEYS ""` 禁用 |
+| 大 Key 导致超时 | `MEMORY USAGE` 排查；用 `UNLINK` 异步删；拆分大 Hash/List |
+| 内存持续增长 | 检查无 TTL 的 Key；配置淘汰策略；分析 `INFO memory` |
+| 主从延迟 | 检查网络与 `repl-backlog-size`；读从库注意一致性 |
+| 连接数打满 | 用连接池；`maxclients` 调优 |
+| 缓存与 DB 不一致 | 更新 DB 后删缓存；设置合理 TTL 兜底 |
+| 集群模式报 `MOVED` | 客户端需支持集群（Cluster 客户端自动重定向） |
+
+## 七、RedisInsight 常用技巧
+
+1. **Browser 面板**：按 Key 前缀过滤、按类型筛选、查看 TTL；
+2. **CLI 面板**：写命令时自动补全，比本地 redis-cli 更方便；
+3. **Profiler**：实时看命令流（排查谁在打 Redis）；
+4. **Slowlog**：定位慢命令；
+5. **Memory Analysis**：找出内存占用 Top Key；
+6. **Workbench**：保存常用查询与内置教程。
+
+## 八、参考
+
+- Redis 官方文档：https://redis.io/docs/
+- 命令参考：https://redis.io/commands/
+- RedisInsight：https://redis.io/insight/
+- Try Redis（在线练习）：https://try.redis.io/
+

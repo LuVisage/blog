@@ -1,0 +1,371 @@
+---
+slug: day-06
+kind: day
+day: 6
+week: 1
+weekTitle: 数学地基与环境
+weekBlurb: 开发环境收尾后补齐线性代数、概率、梯度与信息论——后面所有公式都建立在这上面。
+title: 开发环境与工具链
+lead: '本周唯一一天"不学数学"的日子。目标只有一个：**让后面 59 篇教程的代码都能在你机器上跑起来。**'
+sourcePath: Week01_数学地基与环境/Day1_开发环境与工具链.md
+---
+
+> 本周唯一一天"不学数学"的日子。目标只有一个：**让后面 59 篇教程的代码都能在你机器上跑起来。**
+
+---
+
+## 今日目标
+
+1. 理解为什么要用虚拟环境，并会用 `venv` / `conda` 创建隔离环境；
+2. 安装并验证 5 个核心库：`numpy`、`matplotlib`、`pandas`、`scikit-learn`、`torch`；
+3. 掌握 NumPy 的 `ndarray`：创建、形状、索引、切片、变形、广播、轴归约；
+4. 熟悉 Jupyter Notebook / VS Code Notebook 的交互式开发流程；
+5. 能解释 CPU 版与 CUDA 版 PyTorch 的区别，并按自己机器选择安装方式。
+
+---
+
+## 知识地图
+
+```
+Week01 数学地基与环境
+├── Day1 开发环境与工具链  ← 你在这里
+├── Day2 线性代数
+├── Day3 概率论
+├── Day4 微积分与梯度
+└── Day5 信息论与数值计算
+```
+
+Day1 是纯粹的"工程准备"。它本身没有理论含量，但它决定你后面能不能顺利动手。
+
+---
+
+## 一、为什么需要虚拟环境
+
+Python 生态最大的痛点是**依赖冲突**。假设：
+
+- 项目 A 需要 `numpy==1.24`
+- 项目 B 需要 `numpy==2.0`
+
+如果所有包都装在全局 Python 里，两者不能共存。虚拟环境的作用就是给每个项目一套独立的 `site-packages`。
+
+| 工具 | 特点 | 适用场景 |
+| --- | --- | --- |
+| `venv` | Python 内置、轻量 | 本课程推荐，够用 |
+| `conda` | 能管理非 Python 依赖（如 CUDA 库） | 需要装 GPU 环境时更省心 |
+| `uv` | 极快、Rust 实现 | 追求速度的老手 |
+
+### 用 venv 创建环境
+
+```bash
+# 在项目根目录（教程/）下
+python -m venv .venv
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+# Windows CMD
+.venv\Scripts\activate.bat
+# macOS / Linux
+source .venv/bin/activate
+
+# 验证：命令行前应出现 (.venv)
+python -c "import sys; print(sys.executable)"
+```
+
+> **Windows PowerShell 报错 `无法加载文件 ... Activate.ps1`？**
+> 这是执行策略限制，用管理员 PowerShell 执行一次：
+> `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+### 导出与复现环境
+
+```bash
+pip freeze > requirements.txt     # 导出
+pip install -r requirements.txt   # 复现
+```
+
+---
+
+## 二、核心库一览
+
+| 库 | 作用 | 本课程用在哪 |
+| --- | --- | --- |
+| `numpy` | N 维数组与线性代数 | 全课程 |
+| `matplotlib` | 绘图 | 可视化损失曲线、决策边界 |
+| `pandas` | 表格数据处理 | Week02 数据集加载与清洗 |
+| `scikit-learn` | 经典 ML 算法 | Week02–06 的对照实现 |
+| `torch` | 深度学习框架 | Week07–12 |
+
+### 安装（国内加速）
+
+```bash
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple numpy pandas matplotlib scikit-learn jupyterlab
+```
+
+永久配置镜像源：
+
+```bash
+pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+### PyTorch 安装
+
+**先判断需求**：
+
+```bash
+nvidia-smi   # 有输出 → 说明有 NVIDIA 显卡，可装 CUDA 版
+             # 报错/无输出 → 装 CPU 版
+```
+
+```bash
+# CPU 版（本课程默认，任何机器都能跑）
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# CUDA 12.1 版
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+> **常见坑**：`nvidia-smi` 右上角显示的 `CUDA Version: 12.4` 是**驱动支持的最高版本**，不是你已安装的版本。装 torch 时选一个 ≤ 它的版本即可。
+>
+> **本课程所有代码都保证 CPU 可运行**，没有显卡不影响学习。
+
+---
+
+## 三、NumPy 快速上手
+
+NumPy 是后面一切的基石。PyTorch 的 `Tensor` 就是"能在 GPU 上跑、能自动求导的 ndarray"。
+
+### 3.1 创建数组
+
+```python
+import numpy as np
+
+a = np.array([1, 2, 3])                  # 从列表创建
+b = np.zeros((2, 3))                     # 全 0，2 行 3 列
+c = np.ones((2, 3))                      # 全 1
+d = np.full((2, 3), 7.0)                 # 全 7
+e = np.eye(3)                            # 3x3 单位阵
+f = np.arange(0, 10, 2)                  # [0 2 4 6 8]
+g = np.linspace(0, 1, 5)                 # 0 到 1 等距 5 个点
+h = np.random.randn(2, 3)                # 标准正态
+```
+
+### 3.2 形状与数据类型
+
+```python
+x = np.random.randn(4, 3)
+x.shape      # (4, 3)  元组
+x.ndim       # 2         维度数
+x.size       # 12        元素总数
+x.dtype      # float64   数据类型
+x.T.shape    # (3, 4)    转置
+```
+
+**重要概念：视图 vs 拷贝**
+
+```python
+a = np.arange(10)
+v = a[2:5]        # 切片 → 视图，修改 v 会影响 a
+v[0] = 999        # a[2] 变成 999
+
+c = a[2:5].copy() # 拷贝，互不影响
+```
+
+---
+
+### 3.3 轴（axis）语义 —— 最容易出错的地方
+
+**记忆法则**：`axis=k` 表示"**沿着第 k 个维度方向进行压缩**"，结果是该维度消失。
+
+```python
+X = np.array([[1, 2, 3],
+              [4, 5, 6]])        # shape (2, 3)
+
+X.sum()           # 21      全部求和，无 axis
+X.sum(axis=0)     # [5 7 9] 沿行方向压缩 → 每列求和，shape (3,)
+X.sum(axis=1)     # [6 15]  沿列方向压缩 → 每行求和，shape (2,)
+
+X.mean(axis=0)    # [2.5 3.5 4.5]
+X.max(axis=1)     # [3 6]
+```
+
+> 一句话：`axis=0` 是"跨样本"（对每个特征统计），`axis=1` 是"跨特征"（对每个样本统计）。
+> 在深度学习里，`X.shape = (batch, features)`，所以 `X.mean(axis=0)` 得到的是特征均值（用于标准化），`X.mean(axis=1)` 得到的是每个样本的均值。
+
+---
+
+### 3.4 广播（Broadcasting）—— NumPy 的灵魂
+
+当两个数组形状不同时，NumPy 会尝试"广播"它们。规则有三条，**从右向左**逐个维度比较：
+
+1. 若两者的维度数不同，在**前面**补 1，直到维度数相同；
+2. 对每一维：若大小相等，或其中一个是 1，则可以广播；
+3. 否则报错。
+
+**示例**
+
+```python
+A = np.random.randn(4, 3)
+b = np.array([1., 2., 3.])       # shape (3,)
+
+A + b      # b 被广播成 (4,3)，每行都加 [1,2,3]
+```
+
+形状对齐过程：
+
+```
+A:  (4, 3)
+b:  (3,)  →  (1, 3)  →  (4, 3)
+```
+
+**再一个例子**
+
+```python
+X = np.random.randn(32, 10)      # 32 个样本，10 个特征
+mu = X.mean(axis=0)              # (10,)  特征均值
+std = X.std(axis=0)              # (10,)
+X_norm = (X - mu) / std          # (32,10) - (10,) → 广播成功
+```
+
+**会失败的例子**
+
+```python
+A = np.random.randn(4, 3)
+c = np.array([1., 2., 3., 4.])   # (4,)  → (1,4)，与 (4,3) 最后一维 4 vs 3 不等
+A + c    # ValueError!
+```
+
+因为 `(4,)` 会被补成 `(1, 4)`，最后一维 4 和 3 冲突。正确写法是 `c[:, None]` 得到 `(4, 1)`。
+
+**`None` 的新轴技巧**
+
+```python
+x = np.arange(3)         # (3,)
+x[:, None].shape         # (3, 1)  转成列向量
+x[None, :].shape         # (1, 3)  转成行向量
+```
+
+---
+
+### 3.5 矩阵乘法
+
+```python
+A = np.random.randn(2, 3)
+B = np.random.randn(3, 4)
+
+A @ B            # (2, 4)  矩阵乘法，推荐写法
+np.dot(A, B)     # 等价
+
+A * A            # 逐元素相乘，要求形状可广播
+```
+
+**区分三种乘法**：
+
+| 写法 | 名称 | 要求 |
+| --- | --- | --- |
+| `A * B` | 逐元素（Hadamard） | 形状可广播 |
+| `A @ B` | 矩阵乘法 | `A` 的列数 = `B` 的行数 |
+| `np.outer(a, b)` | 外积 | 向量 → 矩阵 |
+
+---
+
+### 3.6 变形与拼接
+
+```python
+x = np.arange(12)                  # (12,)
+x.reshape(3, 4)                    # (3,4)
+x.reshape(3, -1)                   # -1 表示自动推断 → (3,4)
+x.reshape(-1, 1)                   # (12,1) 列向量
+
+np.concatenate([a1, a2], axis=0)   # 沿轴 0 拼接
+np.stack([a1, a2], axis=0)         # 堆叠成新维度
+np.split(x, 3)                     # 均分
+```
+
+> `reshape` 返回视图（能用就行），`flatten()` 返回拷贝，`ravel()` 尽量返回视图。
+
+---
+
+## 四、Jupyter / VS Code Notebook
+
+交互式开发的优势：**边写边看结果**，非常适合做数据探索与教学。
+
+```bash
+jupyter lab          # 启动 Jupyter Lab，浏览器自动打开
+```
+
+在 VS Code 中：新建 `.ipynb` 文件，右上角选择解释器为 `.venv` 里的 Python，即可用 `Shift+Enter` 逐单元格执行。
+
+**Notebook 使用建议**：
+
+- 单元格按"逻辑块"划分，不要一个格子里写 200 行；
+- 用 Markdown 单元格给每个实验写小标题，方便日后复盘；
+- 养成 `Kernel → Restart & Run All` 的习惯，确保结果可复现（避免变量残留导致的"假成功"）。
+
+---
+
+## 五、动手：运行验证脚本
+
+```bash
+python Week01_数学地基与环境/code/day1_env_check.py
+```
+
+`code/day1_env_check.py` 会：
+
+1. 打印 Python 与各库版本；
+2. 检查 PyTorch 是否可用、是否有 GPU；
+3. 跑一组 NumPy 广播/轴操作的断言；
+4. 全部通过则输出 `全部环境检查通过`。
+
+---
+
+## 六、常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| `ModuleNotFoundError: No module named 'numpy'` | 装到了别的环境 / 没激活 venv | 检查 `sys.executable` 是否指向 `.venv` |
+| `pip install` 极慢 | 默认走 PyPI 官网 | 换清华源 |
+| PowerShell 无法激活环境 | 执行策略限制 | `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` |
+| torch 装了却 `torch.cuda.is_available()` 为 False | 装的是 CPU 版 | 重装对应 CUDA 版本 |
+| 广播报 `operands could not be broadcast` | 维度从右对齐后冲突 | 用 `[:, None]` 显式加轴 |
+| `X.sum(axis=0)` 结果和预期相反 | axis 理解成"沿着哪个轴移动" | 记成"压缩哪个轴" |
+| 改了切片原数组也变了 | 切片是视图不是拷贝 | 用 `.copy()` |
+
+---
+
+## 七、练习题
+
+**基础题**
+
+1. 创建一个形状为 `(5, 4, 3)` 的随机张量，分别求它在 `axis=0`、`axis=1`、`axis=2` 上的均值，写出结果形状。
+2. 给定 `X` 形状 `(100, 20)`，用一行代码完成 z-score 标准化：(X - μ) / σ。
+3. 用 `np.eye(4) * 3` 与 `np.full((4,4), 3)` 分别构造矩阵，说明两者差异。
+
+**进阶题**
+
+4. 不使用循环，实现两个形状 `(N, D)` 矩阵的**成对欧氏距离**矩阵（形状 `(N, N)`）。
+ 提示：$\|\boldsymbol{a}-\boldsymbol{b}\|^2 = \|\boldsymbol{a}\|^2 + \|\boldsymbol{b}\|^2 - 2\boldsymbol{a}^\top \boldsymbol{b}$。
+5. 给定数组 `x` 形状 `(3, 5)`，把它拼成形状 `(5, 3)`，有几种方式？（提示：至少 3 种）
+
+**思考题**
+
+6. 为什么 `axis=0` 常被用来做"特征维度的归一化"，而 `axis=1` 常被用来做"样本维度的归一化"？从 `(batch, features)` 的语义出发解释。
+
+<details>
+<summary>第 4 题提示</summary>
+
+```python
+sq = (X ** 2).sum(axis=1)                 # (N,)
+dist2 = sq[:, None] + sq[None, :] - 2 * X @ X.T
+dist = np.sqrt(np.maximum(dist2, 0))      # maximum 防负数浮点误差
+```
+</details>
+
+---
+
+## 八、一句话总结
+
+**环境不是障碍而是基础设施——今天多花 30 分钟配好虚拟环境和镜像源，后面 59 篇教程就能一路顺畅。**
+
+---
+
+**明日预告**：Day2 进入线性代数，我们会把"向量范数"与"特征分解"这两个概念拆开讲清楚，并说明为什么 PCA 本质上是"找协方差矩阵的特征向量"。
+

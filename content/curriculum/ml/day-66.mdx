@@ -1,0 +1,240 @@
+---
+slug: day-66
+kind: day
+day: 66
+week: 13
+weekTitle: 循环神经网络
+weekBlurb: RNN / BPTT、LSTM / GRU，序列建模与字符级文本生成。
+title: RNN 原理与 BPTT
+lead: '今日目标：手写 RNN 的前向传播与时间反向传播（BPTT）；理解"参数共享"的含义；用连乘公式分析梯度消失的成因，并在代码里量化它。'
+sourcePath: Week13_循环神经网络/Day1_RNN原理与BPTT.md
+---
+
+> 今日目标：手写 RNN 的前向传播与时间反向传播（BPTT）；理解"参数共享"的含义；用连乘公式分析梯度消失的成因，并在代码里量化它。
+> 配套案例：`code/day1_rnn_basics.py`
+
+---
+
+## 1.1 知识地图
+
+```
+Week07-12  空间数据（图像）      ← 样本独立
+        │
+        ▼
+Week13 Day1（今天）★ 引入"记忆"
+  ├─ 为什么普通网络处理不了序列
+  ├─ RNN：用隐藏状态传递历史
+  ├─ 参数共享：同一个 W 用在所有时间步
+  ├─ BPTT：把反向传播沿时间展开
+  └─ 梯度消失：连乘是根源
+        │
+        ▼
+Day2  LSTM/GRU：用门控解决长期依赖
+Day3  PyTorch 序列建模
+```
+
+---
+
+## 1.2 为什么普通网络处理不了序列
+
+**问题 1：长度不固定**
+
+"这个电影很好" 和 "这个电影非常非常好，但结局有点仓促" —— 长度差异巨大。全连接层要求固定输入维度。
+
+**问题 2：丢失顺序信息**
+
+把句子看作词袋（Bag of Words），"我爱你" 和 "你爱我" 的特征完全相同。
+
+**问题 3：无法共享统计强度**
+
+"猫"出现在句首和句尾是同一个概念，但全连接层需要用不同的权重去学。
+
+**RNN 的答案：引入一个"隐藏状态"作为记忆，并在所有时间步共享权重。**
+
+---
+
+## 1.3 RNN 的结构与计算
+
+### 1.3.1 前向传播
+
+$$\boldsymbol{a}_t = \mathbf{W}_{hh}\boldsymbol{h}_{t-1} + \mathbf{W}_{xh}\boldsymbol{x}_t + \boldsymbol{b}_h$$
+$$\boldsymbol{h}_t = \tanh(\boldsymbol{a}_t)$$
+$$\boldsymbol{y}_t = \mathbf{W}_{hy}\boldsymbol{h}_t + \boldsymbol{b}_y$$
+
+- $\boldsymbol{x}_t\in\mathbb{R}^{d}$：第 $t$ 步的输入
+- $\boldsymbol{h}_t\in\mathbb{R}^{h}$：第 $t$ 步的隐藏状态（"记忆"）
+- $\boldsymbol{y}_t\in\mathbb{R}^{o}$：第 $t$ 步的输出
+- $\boldsymbol{h}_0 = \mathbf{0}$：初始状态
+
+**展开成图**：
+
+```
+x_1        x_2        x_3        x_4
+ ↓          ↓          ↓          ↓
+┌────┐ →  ┌────┐ →  ┌────┐ →  ┌────┐
+│ h_1│    │ h_2│    │ h_3│    │ h_4│
+└────┘    └────┘    └────┘    └────┘
+ ↓          ↓          ↓          ↓
+y_1        y_2        y_3        y_4
+```
+
+**同一个方块被重复使用** —— 这就是"参数共享"。
+
+### 1.3.2 参数共享的三个含义
+
+| 共享对象 | 说明 |
+| --- | --- |
+| $\mathbf{W}_{xh}$ | 所有时间步用同一个"输入→隐藏"的变换 |
+| $\mathbf{W}_{hh}$ | 所有时间步用同一个"隐藏→隐藏"的变换 |
+| $\mathbf{W}_{hy}$ | 所有时间步用同一个"隐藏→输出"的变换 |
+
+**参数量与序列长度无关**：
+
+$$\text{Params} = \underbrace{d\cdot h}_{\mathbf{W}_{xh}} + \underbrace{h\cdot h}_{\mathbf{W}_{hh}} + \underbrace{h\cdot o}_{\mathbf{W}_{hy}} + \underbrace{h + o}_{\text{偏置}}$$
+
+**这是 RNN 最重要的性质**：不管句子多长，参数量都一样。代价是**信息必须挤过那个固定大小的 $\boldsymbol{h}$**（这成为后来的瓶颈，Week14 会讲）。
+
+### 1.3.3 三种常见的用法
+
+| 类型 | 结构 | 例子 |
+| --- | --- | --- |
+| **多对一** | 只在最后输出 | 文本分类（情感分析） |
+| **一对多** | 只在第一步输入 | 图像描述生成 |
+| **多对多** | 每步都输出 | 词性标注、机器翻译 |
+| **编码器-解码器** | 前段只吃、后段只吐 | 机器翻译、摘要 |
+
+---
+
+## 1.4 BPTT：时间反向传播
+
+**Backpropagation Through Time** —— 把 RNN 沿时间轴展开后，就变成了一个"深度等于序列长度"的前馈网络，然后正常做反向传播。
+
+### 1.4.1 关键梯度
+
+**输出层的梯度**（和普通网络一样）：
+
+$$\frac{\partial \mathcal{L}}{\partial \mathbf{W}_{hy}} = \sum_{t=1}^{T}\frac{\partial \mathcal{L}_t}{\partial \boldsymbol{y}_t}\boldsymbol{h}_t^\top$$
+
+**隐藏状态的梯度**（关键在这里）：
+
+$$\frac{\partial \mathcal{L}}{\partial \boldsymbol{h}_t} = \frac{\partial \mathcal{L}_t}{\partial \boldsymbol{h}_t} + \underbrace{\frac{\partial \mathcal{L}}{\partial \boldsymbol{h}_{t+1}}\cdot\frac{\partial \boldsymbol{h}_{t+1}}{\partial \boldsymbol{h}_t}}_{\text{来自未来的梯度}}$$
+
+其中：
+
+$$\frac{\partial \boldsymbol{h}_{t+1}}{\partial \boldsymbol{h}_t} = \text{diag}\left(1 - \boldsymbol{h}_{t+1}^2\right)\mathbf{W}_{hh}^\top$$
+
+（$\tanh$ 的导数是 $1-\tanh^2$）
+
+### 1.4.2 展开到第 1 步
+
+把递推式展开：
+
+$$\frac{\partial \mathcal{L}}{\partial \boldsymbol{h}_1} = \frac{\partial \mathcal{L}}{\partial \boldsymbol{h}_T}\prod_{t=2}^{T}\left[\text{diag}\left(1-\boldsymbol{h}_t^2\right)\mathbf{W}_{hh}^\top\right]$$
+
+**这是一个长度为 $T-1$ 的连乘。** 每一项的"尺度"决定梯度行为：
+
+| 连乘因子的尺度 | 结果 | 表现 |
+| --- | --- | --- |
+| $< 1$ | 指数衰减 | **梯度消失**：学不到长距离依赖 |
+| $= 1$ | 稳定 | 理想情况 |
+| $> 1$ | 指数增长 | **梯度爆炸**：loss 变 nan |
+
+**核心问题**：
+
+1. $\tanh$ 的导数 $1-h^2 \in (0,1]$，**最大值只有 1**，且大部分时候远小于 1（当 $|h|$ 接近 1 时趋近 0）；
+2. $\mathbf{W}_{hh}$ 的谱半径通常也小于 1（否则前向就会爆炸）。
+
+**两个因子都倾向于小于 1，所以梯度消失是 RNN 的默认状态，而不是例外。**
+
+> 呼应 Week10 Day4：这与深层前馈网络的梯度问题**是同一个数学现象**，只是"深度"来自时间而不是层数。
+
+---
+
+## 1.5 梯度裁剪：RNN 的必备品
+
+梯度爆炸在 RNN 上尤其常见（长序列），标准做法是**按范数裁剪**：
+
+```python
+loss.backward()
+torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+optimizer.step()
+```
+
+**为什么 RNN 必须裁剪**（而 CNN 通常不需要）：
+
+1. 序列长度可达几百上千步，连乘的长度远超 CNN 的层数；
+2. 每一步的 $\mathbf{W}_{hh}$ 是**共享**的，一旦谱半径略微大于 1，$T$ 步后就会放大 $T$ 次方倍；
+3. 一个 nan 梯度会瞬间毁掉所有参数。
+
+**`max_norm` 怎么选**：先打印未裁剪的梯度范数分布，取 95 分位数略大的值。常用 0.5~5.0。
+
+---
+
+## 1.6 实测：梯度随序列长度衰减
+
+案例代码会做这个实验：
+
+1. 构造一个 RNN，输入随机序列；
+2. 只在**最后一步**计算损失（这样梯度必须从 $t=T$ 一路传回 $t=1$）；
+3. 记录 $\left\|\frac{\partial \mathcal{L}}{\partial \boldsymbol{h}_t}\right\|$ 随 $t$ 的变化。
+
+**预期结果**：
+
+| 时间步 | 梯度范数 | 相对最后一步 |
+| --- | --- | --- |
+| $t=T$ | 基准 | 1.0 |
+| $t=T-5$ | 明显变小 | 约 $10^{-2}$ |
+| $t=T-10$ | 更小 | 约 $10^{-3}$ |
+| $t=T-20$ | 接近 0 | 约 $10^{-5}$ |
+
+**结论：20 步之前的输入，对最终损失几乎没有影响 —— 网络"记不住"。**
+
+这就解释了为什么普通 RNN 无法处理长距离依赖（如"这句话开头的主语决定了结尾该用单数还是复数"）。
+
+---
+
+## 1.7 与 Week10 Day4 的对照
+
+| 维度 | 深层前馈网络 | RNN |
+| --- | --- | --- |
+| "深度"来源 | 层数 $L$ | 时间步数 $T$ |
+| 连乘对象 | $\mathbf{W}^{(l)}\text{diag}(\sigma')$ | $\mathbf{W}_{hh}\text{diag}(1-h^2)$ |
+| 权重是否共享 | 否（每层独立） | **是（同一个 $\mathbf{W}_{hh}$）** |
+| 缓解手段 | ReLU / BN / 残差 | LSTM 门控 / 梯度裁剪 |
+| 残差能否用 | 可以（$+x$） | 可以用（但结构上不如门控自然） |
+
+**注意最后一点**：RNN 里也可以加"跳连"，但 LSTM 的**细胞状态**提供了一条更好的通路（Day2 详述）。
+
+---
+
+## 1.8 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| loss 变 nan | 梯度爆炸 | `clip_grad_norm_(max_norm=1.0)` |
+| 学不到长距离依赖 | 梯度消失 | 换 LSTM/GRU |
+| 训练极慢 | RNN 是串行的，无法并行 | 换 Transformer（Week14） |
+| 忘记 `detach()` 隐藏状态 | 跨 batch 累积计算图 → OOM | 每个 batch 重置 $h_0$ |
+| 输出维度不对 | `nn.RNN` 默认 `batch_first=False` | 显式设 `batch_first=True` |
+| 梯度检查不准 | 用了 float32 | 用 float64 |
+
+> **"忘记 detach 隐藏状态"是最隐蔽的坑**：如果 $h_t$ 在 batch 之间传递而没有 detach，计算图会跨越所有 batch 累积，显存持续增长直到 OOM。每个 batch 必须从零初始化 $h_0$（或显式 detach）。
+
+---
+
+## 1.9 今日自测
+
+1. 手推：$T=3$ 时，$\frac{\partial \mathcal{L}}{\partial \boldsymbol{h}_1}$ 的完整表达式。
+2. 手写 RNN 前向与 BPTT，用梯度检查验证（误差应 $<10^{-6}$）。
+3. 画出 $\left\|\partial \mathcal{L}/\partial \boldsymbol{h}_t\right\|$ 随 $t$ 的变化曲线，观察衰减指数。
+4. 把 $\mathbf{W}_{hh}$ 的初始化尺度调大 10 倍，观察是否出现爆炸。
+5. 用 RNN 做一个"记忆第一个输入"的任务（序列末尾输出第一个元素），观察它能否学会，以及能记多长。
+
+---
+
+## 1.10 一句话总结
+
+**RNN 用"隐藏状态 + 时间维度的参数共享"把序列变成了可学习的对象；但 BPTT 的连乘结构让梯度随距离指数衰减，这让它天然记不住长距离依赖 —— Day2 的 LSTM 就是为打破这个连乘而设计的。**
+
+**明日预告**：LSTM 用三个门 + 一条"细胞状态"的高速公路，把连乘变成加法，从而记住几百步之前的信息。
+

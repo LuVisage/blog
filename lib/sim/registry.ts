@@ -39,6 +39,10 @@ export type SimSpec =
     }
 
 const SIMS: Record<CourseId, Record<string, SimSpec[]>> = {
+  // 工具链、ML 与后端三门课暂无浏览器实验台；键位保留，后续按课补。
+  devtool: {},
+  ml: {},
+  backend: {},
   agent: {
     'day-01': [{ kind: 'playground', label: '接上你的模型', hint: '发一条真实消息，看返回的元数据里都有什么。', mode: 'chat' }],
     'day-02': [{ kind: 'playground', label: '改提示词，立刻重发', hint: '同一条用户消息，换 system 提示词各跑一次，对比输出。', mode: 'chat' }],

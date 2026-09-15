@@ -1,0 +1,465 @@
+---
+slug: day-25
+kind: day
+day: 25
+week: 4
+weekTitle: 决策树与集成学习
+weekBlurb: ID3 / C4.5 / CART 与剪枝，再到 Bagging、随机森林与 Boosting。
+title: Boosting：AdaBoost 与 GBDT
+lead: 'Boosting 与 Bagging 思路完全相反：**串行地把弱学习器"叠加"起来，每一个都在修正前面所有模型的错误。** 这是 GBDT、XGBoost、LightGBM 的理论基础。'
+sourcePath: Week04_决策树与集成学习/Day5_Boosting.md
+---
+
+> 西瓜书第 8 章 8.3–8.5 节 · 南瓜书 8.10–8.25
+
+Boosting 与 Bagging 思路完全相反：**串行地把弱学习器"叠加"起来，每一个都在修正前面所有模型的错误。** 这是 GBDT、XGBoost、LightGBM 的理论基础。
+
+---
+
+## 今日目标
+
+1. 理解 Boosting 的"串行纠错"思想与加性模型（additive model）；
+2. 独立推导 AdaBoost 的权重更新公式；
+3. 掌握 AdaBoost 的指数损失视角与"前向分步算法"；
+4. 从零实现 AdaBoost；
+5. 掌握 GBDT 的"拟合负梯度 / 残差"原理，并推导回归情形的残差形式；
+6. 理解 GBDT 如何用牛顿法（二阶导）改进，即 XGBoost 的核心；
+7. 会用 `sklearn` 的 `GradientBoostingClassifier` 与对比。
+
+---
+
+## 知识地图
+
+```
+Week04 收尾
+├── Day1 ID3 ✅
+├── Day2 C4.5 / CART ✅
+├── Day3 剪枝 ✅
+├── Day4 Bagging / 随机森林 ✅
+└── Day5 Boosting  ← 你在这里
+
+        ↓ 衔接
+Week03 Day2（梯度下降）
+Week01 Day4（函数空间中的梯度）
+```
+
+---
+
+## 一、加性模型与串行纠错
+
+### 1.1 加性模型
+
+$$H(\boldsymbol{x}) = \sum_{t=1}^{T}\alpha_t h_t(\boldsymbol{x})$$
+
+- $h_t$：第 $t$ 个**弱学习器**（通常是深度为 1 的决策树，即"决策树桩"）；
+- $\alpha_t$：该弱学习器的权重。
+
+### 1.2 前向分步算法
+
+**核心思想**：不一次性优化所有 $(\alpha_t, h_t)$，而是**逐步地、每步只优化当前这一项**。
+
+```
+H_0 = 0
+for t = 1 to T:
+    (α_t, h_t) = argmin Σ_i L(y_i, H_{t-1}(x_i) + α h(x_i))
+    H_t = H_{t-1} + α_t h_t
+```
+
+**关键洞察**：每一步都在解一个"**在已有模型基础上，再加一个弱学习器能否降低损失**"的问题。
+
+### 1.3 Bagging vs Boosting
+
+| 对比 | Bagging | Boosting |
+| --- | --- | --- |
+| 训练方式 | 并行、独立 | **串行、依赖** |
+| 样本权重 | 均等 | **动态调整**（错分样本权重变大） |
+| 基学习器 | 强学习器（深树） | **弱学习器（浅树/树桩）** |
+| 主要效果 | **降方差** | **降偏差** |
+| 过拟合风险 | 低（不易过拟合） | 较高（需正则化、早停） |
+| 代表 | 随机森林 | AdaBoost、GBDT、XGBoost |
+
+> **重要区别**：Bagging 的每棵树是"强的但各不相同"；Boosting 的每棵树是"弱的但逐步变强"。
+
+---
+
+## 二、AdaBoost
+
+### 2.1 算法流程（二分类，$y\in\{-1,+1\}$）
+
+```
+输入: D = {(x_i, y_i)}, 基学习器 h, 轮数 T
+
+1. 初始化样本权重: w_i^(1) = 1/m, i = 1..m
+
+2. for t = 1 to T:
+     a) 用带权重的 D 训练 h_t        # 权重影响基学习器的训练
+     b) 计算加权错误率:
+            ε_t = Σ_i w_i^(t) · 1[h_t(x_i) ≠ y_i] / Σ_i w_i^(t)
+     c) 若 ε_t > 0.5 → 停止（比随机还差）
+     d) 计算基学习器权重:
+            α_t = (1/2) ln( (1-ε_t) / ε_t )
+     e) 更新样本权重:
+            w_i^(t+1) = w_i^(t) · exp(-α_t y_i h_t(x_i))
+       并归一化
+
+3. 输出: H(x) = sign( Σ_t α_t h_t(x) )
+```
+
+### 2.2 三个公式的直觉
+
+**（1）基学习器权重 $\alpha_t$**
+
+$$\alpha_t = \frac{1}{2}\ln\frac{1-\varepsilon_t}{\varepsilon_t}$$
+
+| $\varepsilon_t$ | $\alpha_t$ | 含义 |
+| --- | --- | --- |
+| 0.5（随机） | 0 | 完全没用 |
+| 0.3 | 0.424 | 有一定用 |
+| 0.1 | 1.098 | 很有用 |
+| 0.01 | 2.298 | 非常有用 |
+| > 0.5 | **负** | 比随机还差，应"反着用" |
+
+**（2）样本权重更新**
+
+$$w_i^{(t+1)} \propto w_i^{(t)}\cdot\exp(-\alpha_t y_i h_t(\boldsymbol{x}_i))$$
+
+分析指数项：
+
+| 情形 | $y_ih_t$ | $\exp(-\alpha_t y_ih_t)$ | 权重变化 |
+| --- | --- | --- | --- |
+| 分类**正确** | $+1$ | $e^{-\alpha_t} < 1$ | **下降** |
+| 分类**错误** | $-1$ | $e^{+\alpha_t} > 1$ | **上升** |
+
+**含义**：**被分错的样本，下一轮权重变大** ⇒ 下一个基学习器会更关注它们。
+
+**权重变化比**：
+
+$$\frac{w_{\text{错}}^{(t+1)}}{w_{\text{正}}^{(t+1)}} = e^{2\alpha_t} = \frac{1-\varepsilon_t}{\varepsilon_t}$$
+
+### 2.3 完整手算示例
+
+设 $m = 3$，初始权重均为 $1/3$。
+
+**第 1 轮**：假设 $h_1$ 分对 2 个、分错 1 个。
+
+$$\varepsilon_1 = \frac{1}{3}, \qquad \alpha_1 = \frac{1}{2}\ln\frac{2/3}{1/3} = \frac{1}{2}\ln 2 = 0.3466$$
+
+权重更新：
+
+- 分对的两个：$\frac{1}{3}e^{-0.3466} = \frac{1}{3}\times 0.7071 = 0.2357$
+- 分错的一个：$\frac{1}{3}e^{+0.3466} = \frac{1}{3}\times 1.4142 = 0.4714$
+
+归一化（总和 $= 0.9428$）：
+
+$$w = (0.25,\ 0.25,\ 0.5)$$
+
+**第 2 轮**：分错的样本权重从 0.333 升到 0.5 ⇒ 新学习器会更努力修正它。
+
+### 2.4 指数损失视角
+
+AdaBoost 等价于在优化**指数损失**：
+
+$$L_{\exp}(H) = \mathbb{E}_{\boldsymbol{x},y}\left[e^{-yH(\boldsymbol{x})}\right]$$
+
+**这说明**：AdaBoost 的"权重更新"不是启发式，而是指数损失下前向分步优化的**精确结果**。
+
+**推导要点**：第 $t$ 步要优化
+
+$$(\alpha_t, h_t) = \arg\min_{\alpha,h}\sum_i w_i^{(t)}\exp\left(-y_i\alpha h(\boldsymbol{x}_i)\right)$$
+
+其中 $w_i^{(t)} = \exp(-y_iH_{t-1}(\boldsymbol{x}_i))$ 正好是上一轮的"累积指数损失"。对 $h$ 求最优得"加权错误率最小"，对 $\alpha$ 求导置零得 $\alpha_t = \frac{1}{2}\ln\frac{1-\varepsilon_t}{\varepsilon_t}$。
+
+### 2.5 对噪声敏感
+
+指数损失 $e^{-yH}$ 对**负间隔（错分）样本的惩罚是无界的指数级**。因此：
+
+- 少数严重错分的**噪声点**会获得极大权重，主导后续训练；
+- AdaBoost **对标签噪声和离群点非常敏感**。
+
+**缓解**：限制轮数、使用"软"损失（如 LogitBoost 用对数损失）、数据清洗。
+
+---
+
+## 三、GBDT（Gradient Boosting Decision Tree）
+
+### 3.1 从"函数空间梯度下降"出发
+
+**关键思想**：把"模型函数 $H$"看作参数，在**函数空间**里做梯度下降。
+
+设当前模型 $H_{t-1}$，损失 $L(y, H(\boldsymbol{x}))$。我们希望找一个"更新方向" $h_t$ 使损失下降。
+
+回忆 Week01 Day4：在参数空间，负梯度是下降最快的方向。推广到函数空间，对每个样本 $\boldsymbol{x}_i$，**负梯度方向**是：
+
+$$r_{ti} = -\left[\frac{\partial L(y_i, H(\boldsymbol{x}_i))}{\partial H(\boldsymbol{x}_i)}\right]_{H = H_{t-1}}$$
+
+**所以**：用一棵回归树去**拟合负梯度** $r_{ti}$，就相当于在函数空间走了一步梯度下降。
+
+$$\boxed{\ H_t(\boldsymbol{x}) = H_{t-1}(\boldsymbol{x}) + \nu \cdot h_t(\boldsymbol{x})\ }$$
+
+$\nu \in (0,1]$ 是**学习率（收缩系数）**，常取 0.01–0.1。
+
+### 3.2 回归任务：负梯度 = 残差
+
+取平方损失：
+
+$$L(y, H) = \frac{1}{2}(y - H)^2$$
+
+$$\frac{\partial L}{\partial H} = -(y - H) \quad\Rightarrow\quad r_{ti} = y_i - H_{t-1}(\boldsymbol{x}_i)$$
+
+**正好是残差！**
+
+所以对平方损失的 GBDT，**"拟合负梯度" = "拟合残差"**。这是 GBDT 最直观的解读。
+
+**流程**：
+
+```
+H_0(x) = mean(y)
+for t = 1 to T:
+    1. 计算残差: r_i = y_i - H_{t-1}(x_i)
+    2. 用回归树 h_t 拟合 (x_i, r_i)
+    3. H_t(x) = H_{t-1}(x) + ν · h_t(x)
+```
+
+### 3.3 完整手算示例
+
+设数据：$(x, y) = (1, 10),\ (2, 20),\ (3, 30)$，学习率 $\nu = 0.5$，树深 1。
+
+**第 0 步**：
+
+$$H_0 = \bar y = 20$$
+
+残差：$r = (10-20,\ 20-20,\ 30-20) = (-10,\ 0,\ 10)$
+
+**第 1 轮**：用深度 1 的树拟合残差。假设分裂点 $x \le 1.5$ vs $x > 1.5$：
+
+- 左叶（$x=1$）：均值 $-10$
+- 右叶（$x=2,3$）：均值 $\frac{0+10}{2} = 5$
+
+$$h_1(x) = \begin{cases}-10, & x\le1.5\\ 5, & x>1.5\end{cases}$$
+
+$$H_1(x) = 20 + 0.5\,h_1(x) = \begin{cases}15, & x\le1.5\\ 22.5, & x>1.5\end{cases}$$
+
+新残差：$(10-15,\ 20-22.5,\ 30-22.5) = (-5,\ -2.5,\ 7.5)$ —— **残差变小了**
+
+**第 2 轮**：继续拟合新残差……
+
+**若干轮后**：预测值逐步逼近真实值，这正是"Boosting 降偏差"的过程。
+
+### 3.4 分类任务
+
+对对数损失（逻辑回归的损失）：
+
+$$L(y, H) = -y\log\sigma(H) - (1-y)\log(1-\sigma(H))$$
+
+$$\frac{\partial L}{\partial H} = \sigma(H) - y$$
+
+所以**负梯度**为：
+
+$$r_{ti} = y_i - \hat y_i$$
+
+即"真实标签 - 预测概率"，与逻辑回归的梯度形式一致。
+
+> **统一的优雅结论**：GBDT 每一轮拟合的都是"**残差**"——对平方损失是数值残差，对对数损失是概率残差。
+
+---
+
+## 四、XGBoost 的三大改进
+
+| 改进 | 内容 | 好处 |
+| --- | --- | --- |
+| **二阶泰勒展开** | 用 $g_i$（一阶导）与 $h_i$（二阶导）代替梯度 | 收敛更快、更准 |
+| **正则化目标** | 目标函数加 $\gamma T + \frac{\lambda}{2}\sum w_j^2$ | 显式控制复杂度 |
+| **支持列采样 & 缺失值** | 类似随机森林 + 缺失默认方向 | 更强的正则与易用性 |
+
+### 4.1 目标函数
+
+$$\mathcal{L}^{(t)} = \sum_{i=1}^m\left[g_i f_t(\boldsymbol{x}_i) + \frac{1}{2}h_i f_t^2(\boldsymbol{x}_i)\right] + \gamma T + \frac{\lambda}{2}\sum_{j=1}^{T}w_j^2$$
+
+其中：
+
+$$g_i = \frac{\partial L(y_i, \hat y_i^{(t-1)})}{\partial \hat y_i^{(t-1)}}, \qquad h_i = \frac{\partial^2 L(y_i, \hat y_i^{(t-1)})}{\partial (\hat y_i^{(t-1)})^2}$$
+
+### 4.2 最优叶子权重与增益
+
+设某个叶子 $j$ 上的样本集合为 $I_j$，令目标函数对 $w_j$ 求导置零：
+
+$$w_j^* = -\frac{\sum_{i\in I_j}g_i}{\sum_{i\in I_j}h_i + \lambda}$$
+
+**分裂增益**：
+
+$$Gain = \frac{1}{2}\left[\frac{G_L^2}{H_L+\lambda} + \frac{G_R^2}{H_R+\lambda} - \frac{(G_L+G_R)^2}{H_L+H_R+\lambda}\right] - \gamma$$
+
+其中 $G = \sum g_i$，$H = \sum h_i$。
+
+**关键**：只有当 $Gain > 0$ 才分裂 ⇒ $\gamma$ 起到**预剪枝**作用。
+
+> **这就是 XGBoost 的全部核心。** 它把"树分裂"变成了一个"有解析解的、带正则的优化问题"。
+
+### 4.3 LightGBM 的两大加速
+
+| 技术 | 原理 | 收益 |
+| --- | --- | --- |
+| **直方图算法** | 把连续特征分桶（默认 255 个），分裂时只扫桶边界 | 内存 ↓，速度 ↑↑ |
+| **Leaf-wise 生长** | 每次分裂"增益最大的叶子"，而非按层 | 同样叶子数下精度更高（但易过拟合，需 `num_leaves` 限制） |
+| **GOSS** | 保留大梯度样本，随机采样小梯度样本 | 数据量 ↓ |
+| **EFB** | 合并互斥的稀疏特征 | 特征数 ↓ |
+
+---
+
+## 五、Boosting 的工程实践
+
+### 5.1 关键超参数
+
+| 参数 | 作用 | 经验取值 |
+| --- | --- | --- |
+| `n_estimators` | 树的数量 | 100–2000（配合早停） |
+| `learning_rate` | 收缩系数 $\nu$ | 0.01–0.2（越小需要越多树） |
+| `max_depth` | 树深 | 3–8（GBDT 常用浅树） |
+| `subsample` | 样本采样比例 | 0.7–1.0 |
+| `colsample_bytree` | 特征采样比例 | 0.7–1.0 |
+| `reg_lambda` | L2 正则 | 1–10 |
+| `early_stopping_rounds` | 早停 | 20–100 |
+
+### 5.2 学习率与树数的权衡
+
+```
+learning_rate 小 → 每步走得稳 → 需要更多树 → 效果好但慢
+learning_rate 大 → 每步走得猛 → 树少 → 快但可能震荡/过拟合
+```
+
+**经验**：固定计算预算时，**小学习率 + 多树**通常略优，但收益递减。
+
+### 5.3 早停（Early Stopping）
+
+```
+在验证集上监控损失：
+  若连续 N 轮没有改善 → 停止训练，回滚到最优轮次
+```
+
+**这是 Boosting 最有效的防过拟合手段之一。**
+
+---
+
+## 六、代码实践
+
+```python
+import numpy as np
+
+class DecisionStump:
+    """决策树桩: 深度为 1 的二叉树，用于 AdaBoost"""
+    def fit(self, X, y, sample_weight):
+        best = (np.inf, None, None, None)
+        for j in range(X.shape[1]):
+            for t in np.unique(X[:, j]):
+                for sign in (1, -1):
+                    pred = np.where(X[:, j] <= t, sign, -sign)
+                    err = sample_weight[pred != y].sum() / sample_weight.sum()
+                    if err < best[0]:
+                        best = (err, j, t, sign)
+        self.err_, self.j_, self.t_, self.sign_ = best
+        return self
+
+    def predict(self, X):
+        return np.where(X[:, self.j_] <= self.t_, self.sign_, -self.sign_)
+```
+
+完整版本见 `code/day5_boosting.py`，包含：
+
+1. 从零实现 AdaBoost（含决策树桩）；
+2. 打印每轮的**加权错误率、基学习器权重、被错分样本的权重变化**；
+3. 从零实现 **GBDT 回归**（拟合残差 + 学习率收缩）；
+4. 手算示例的代码验证（3 个样本那个例子）；
+5. 展示"树数量 vs 训练/验证损失"曲线，观察过拟合与早停点；
+6. 与 `sklearn.ensemble.AdaBoostClassifier` / `GradientBoostingRegressor` 对照。
+
+---
+
+## 七、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 用深树做 Boosting | Boosting 需要**弱学习器**；深树会立刻过拟合 |
+| 学习率设得很大 | 震荡、过拟合；应从 0.1 开始 |
+| 不做早停 | 树过多必然过拟合 |
+| AdaBoost 用于含噪声数据 | 指数损失对噪声极敏感 |
+| 认为 GBDT 只能回归 | 改成对数损失即可分类（`loss='log_loss'`） |
+| 混淆"残差"与"负梯度" | 只有平方损失时二者相等；一般情形是负梯度 |
+| 忘记样本权重会影响基学习器 | AdaBoost 中必须让 `h_t` 感知样本权重 |
+| 用 OOB 评估 Boosting | Boosting 无 OOB（模型相互依赖） |
+
+---
+
+## 八、练习题
+
+**基础**
+
+1. 某轮 AdaBoost 的加权错误率 $\varepsilon = 0.25$，求 $\alpha$。
+2. 说明 AdaBoost 中"错分样本权重上升"的数学原因。
+3. 写出 GBDT 在平方损失下每轮拟合的目标值。
+
+**进阶**
+
+4. 推导 $\alpha_t = \frac{1}{2}\ln\frac{1-\varepsilon_t}{\varepsilon_t}$。（提示：对指数损失求 $\alpha$ 的导数）
+5. 证明 AdaBoost 的权重更新等价于 $w_i^{(t)} = \exp(-y_iH_{t-1}(\boldsymbol{x}_i))$（未归一化）。
+6. 对对数损失推导 GBDT 的负梯度 $r_{ti} = y_i - \sigma(H(\boldsymbol{x}_i))$。
+
+**思考题**
+
+7. 为什么 Boosting 主要降偏差，而 Bagging 主要降方差？请从"基学习器的强度"角度解释。
+8. 为什么 AdaBoost 对噪声敏感，而随机森林相对鲁棒？
+9. XGBoost 的 $\gamma$ 参数为什么等价于预剪枝？请从 $Gain > 0$ 的条件说明。
+
+<details>
+<summary>第 1 题答案</summary>
+
+$$\alpha = \frac{1}{2}\ln\frac{1-0.25}{0.25} = \frac{1}{2}\ln 3 = 0.5493$$
+</details>
+
+<details>
+<summary>第 4 题答案</summary>
+
+第 $t$ 步要优化（固定 $h_t$，只优化 $\alpha$）：
+
+$$L(\alpha) = \sum_i w_i^{(t)}\exp\left(-y_i\alpha h_t(\boldsymbol{x}_i)\right)$$
+
+把样本分成两类：$h_t$ 分对的（$y_ih_t = +1$）与分错的（$y_ih_t = -1$）。记正确样本权重之和为 $W_{\text{ok}} = 1 - \varepsilon$（归一化后），错误为 $W_{\text{bad}} = \varepsilon$：
+
+$$L(\alpha) = (1-\varepsilon)e^{-\alpha} + \varepsilon e^{+\alpha}$$
+
+求导：
+
+$$\frac{dL}{d\alpha} = -(1-\varepsilon)e^{-\alpha} + \varepsilon e^{\alpha} = 0$$
+
+$$\Rightarrow e^{2\alpha} = \frac{1-\varepsilon}{\varepsilon} \Rightarrow \alpha = \frac{1}{2}\ln\frac{1-\varepsilon}{\varepsilon}$$
+
+（二阶导 $>0$，确为极小值。）
+</details>
+
+<details>
+<summary>第 8 题答案要点</summary>
+
+**AdaBoost**：指数损失 $e^{-yH}$ 对错分样本的惩罚随 $|H|$ 指数增长。噪声点通常"无论怎么加树都分不对"，于是每轮都被分错 ⇒ 权重不断累积膨胀 ⇒ 后续的弱学习器被迫全力去拟合噪声 ⇒ 模型被污染。
+
+**随机森林**：每棵树独立训练、只在自己 63% 的采样上拟合，且最后取平均。个别树被噪声带偏，对平均值影响有限。同时 bootstrap 采样本身就会"稀释"异常点的影响。
+
+**结论**：噪声环境下优先随机森林 / GBDT + 早停，慎用 AdaBoost。
+</details>
+
+---
+
+## 九、Week04 总结
+
+| 天 | 核心收获 |
+| --- | --- |
+| Day1 | 信息熵与信息增益；ID3 的"取值多"缺陷 |
+| Day2 | 增益率的修正；CART 的基尼指数与二叉树 |
+| Day3 | 预剪枝的视界受限；后剪枝与 CCP；连续值与缺失值处理 |
+| Day4 | Bagging 降方差；随机森林的两次随机；OOB 估计 |
+| Day5 | AdaBoost 的权重更新；GBDT 的负梯度；XGBoost 的二阶改进 |
+
+**你现在已经掌握了工业界最常用的表格数据建模工具链。**
+
+---
+
+**下周预告**：Week05 回到"理论之美"——支持向量机。你会看到拉格朗日对偶、KKT 条件、核技巧如何组合成一个几乎完美的凸优化模型。
+

@@ -9,12 +9,31 @@ import { Ledger, LedgerRow } from '@/components/ledger-row'
 
 export const metadata: Metadata = {
   title: '交互教程',
-  description: '两份跟着做完的教程：从零到生产级 Agent 的 41 天学习笔记，和 CCF CSP 认证的 20 天冲刺计划。课次、周次与进度都在页面上，进度只存在你自己的浏览器里。',
+  description: '五门成体系的交互教程：开发工具链、机器学习与深度学习 17 周、Python 工程化与后端实战、从零到生产级 Agent，以及 CCF CSP 认证冲刺。课次、周次与进度都在页面上，进度只存在你自己的浏览器里。',
   alternates: { canonical: siteUrl('learn') },
 }
 
-/** Short shelf copy; the course pages carry the long version. */
+/**
+ * Shelf order is the recommended learning path: tools first, then the model
+ * theory, then turning models into services, then the Agent capstone. CSP is
+ * the independent exam track and rides at the end.
+ */
 const CARDS: { course: CourseId; name: string; tagline: string }[] = [
+  {
+    course: 'devtool',
+    name: '开发工具链：从 Git 到 CI/CD',
+    tagline: '13 章把写代码绕不开的工具一次讲透：版本控制、包管理、构建、检查、测试、调试、容器与流水线。ML 课开课前建议先过第 1–2 章。',
+  },
+  {
+    course: 'ml',
+    name: '机器学习与深度学习 17 周',
+    tagline: '零基础到 Transformer 与大语言模型的完整主线：Week00 补编程与数学直觉，Week01–06 传统机器学习，Week07 起手写神经网络，一路到 CV 实战与生成模型。',
+  },
+  {
+    course: 'backend',
+    name: 'Python 工程化与后端实战',
+    tagline: '把模型变成服务的那段路：类型注解与测试、FastAPI 与 SSE 流式输出、PostgreSQL 与 Redis、Docker 部署，最后是向量检索与 RAG 工程化。',
+  },
   {
     course: 'agent',
     name: '从零到生产级 Agent',
@@ -47,6 +66,21 @@ export default function LearnPage() {
         lead="这里放的是我自己按天推进过的学习计划，改成了可以打卡的网页版：一课一天，读完做勾选，进度留在你自己的浏览器里。"
         counter={`${courses.length} 门课 · ${totalLessons} 课 · ${totalMinutes} 分钟`}
       />
+
+      <section className="mb-14 rounded-xl p-5" style={{ border: '1px solid var(--line)', background: 'var(--surface-2)' }}>
+        <h2 className="section-title mb-3">推荐学习路径</h2>
+        <p className="body-sm max-w-3xl">
+          想走「AI 应用工程师」这条路，按下面的顺序推进，知识点是一条线接一条线的：
+          <strong>工具链</strong>的第 1–2 章解决代码与依赖，是所有课程的前置；
+          <strong>机器学习与深度学习 17 周</strong>补齐模型原理，Week16 的大语言模型正好讲到 Agent 课的门口；
+          <strong>Python 工程化与后端实战</strong>把模型装进服务，其 Week1–2 可与基础课并行；
+          最后<strong>Agent 课</strong>把前两块拼成生产级项目。
+          <strong>CSP 冲刺</strong>是独立的备考线，随时可以插进来。
+        </p>
+        <p className="meta mt-3">
+          devtool Week01–02 → ml Week00–16 → backend Week1–5 → agent 40 天（CSP 随时）
+        </p>
+      </section>
 
       <div className="space-y-16">
         {courses.map((course, index) => (
@@ -108,7 +142,7 @@ export default function LearnPage() {
         <div>
           <h3 className="section-title mb-4">进度是怎么存的</h3>
           <ul className="space-y-3 body-sm">
-            <li>勾选、完成标记全部写在这台设备的浏览器里，两门课各存各的，互不覆盖；不上传，也不需要账号。</li>
+            <li>勾选、完成标记全部写在这台设备的浏览器里，各门课各存各的，互不覆盖；不上传，也不需要账号。</li>
             <li>换设备或清缓存会归零，每门课页面上的重置按钮随时可以手动清空。</li>
           </ul>
         </div>

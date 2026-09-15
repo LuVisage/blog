@@ -1,0 +1,141 @@
+---
+slug: day-46
+kind: day
+day: 46
+week: 7
+weekTitle: 编辑器与 IDE
+weekBlurb: 以 VSCode 为主的配置、快捷键、调试与远程开发，把编辑器用到顺手。
+title: Cursor 使用教程
+sourcePath: 07-编辑器与IDE/02-Cursor.md
+---
+
+## 一、Cursor 是什么
+
+Cursor 是基于 VS Code 二次开发的 **AI 原生编辑器**，核心卖点：
+
+- 把 AI 深度嵌入编辑流程（不只是侧边栏聊天）；
+- **代码库级理解**（index 整个仓库，回答带上下文）；
+- 支持多文件编辑（Composer / Agent 模式）；
+- 兼容 VS Code 扩展、快捷键、配置（可一键导入）。
+
+> 定位：VS Code 的体验 + AI 编码工作流。适合把 AI 作为主要生产力工具的开发者。
+
+## 二、安装与迁移
+
+1. 下载：https://cursor.com/
+2. 首次启动可选择「Import VS Code Settings」导入：
+ - 扩展、主题、快捷键、settings.json 全部继承；
+3. 登录账号（免费额度有限，Pro 订阅解锁更多模型与请求）。
+
+## 三、核心功能
+
+### 1. Tab 智能补全
+
+- 不只是补全当前行，还能**预测下一处编辑位置**；
+- 修改函数签名后，`Tab` 可跨行批量更新相关调用；
+- 建议接受：`Tab`；拒绝：继续输入或 `Esc`。
+
+### 2. 行内编辑（Cmd/Ctrl + K）
+
+选中代码 → 按 `Ctrl+K` → 输入指令：
+
+```
+把这段改成 async/await 写法
+给这个函数加错误处理和日志
+为这个组件添加 loading 状态
+优化这个查询的性能
+```
+
+AI 直接在原位置生成 diff，`Accept` / `Reject` 决定是否应用。
+
+### 3. 聊天（Cmd/Ctrl + L）
+
+右侧聊天面板，可：
+
+- `@文件名` 引用具体文件；
+- `@Codebase` 全库检索相关代码；
+- `@Docs` 引用官方文档；
+- `@Web` 联网搜索；
+- 选中代码后提问，上下文自动附带。
+
+常用问法：
+
+```
+@Codebase 这个项目的鉴权是怎么实现的？
+@src/api/user.ts 这个接口的错误处理有什么问题？
+解释这段代码的逻辑，并指出潜在 bug
+```
+
+### 4. Composer / Agent 模式（Cmd/Ctrl + I）
+
+多文件编写模式，适合做整个功能：
+
+```
+在 src/features/comment 下实现评论功能：
+1. 创建 CommentList、CommentForm 组件
+2. 用 TanStack Query 封装 useComments hook
+3. 接入 MSW mock 数据
+4. 补充 Vitest 组件测试
+```
+
+Agent 会自主读文件、建文件、改文件，你可以逐条 review 差异后接受。
+
+### 5. 规则文件（.cursorrules）
+
+项目根目录 `.cursorrules` 让 AI 遵循团队规范：
+
+```markdown
+# 项目规范
+- 技术栈：React 18 + TypeScript 5 + Vite + Tailwind
+- 组件用函数式 + hooks，不用 class
+- 样式一律 Tailwind，不写独立 CSS 文件
+- 状态管理用 Zustand，不用 Redux
+- API 请求统一走 src/api/client.ts 封装
+- 所有新组件必须写 Vitest 测试
+- 注释用中文，变量名用英文
+```
+
+Cursor 也支持新版 `.cursor/rules/*.mdc` 分文件管理规则。
+
+## 四、实用技巧
+
+| 技巧 | 说明 |
+| --- | --- |
+| 选中代码再按 Ctrl+K | 只对该片段操作，精确可控 |
+| diff 逐条 review | 不要盲目 Accept All，尤其涉及配置/依赖 |
+| 用 `@` 精确指路 | 上下文越准，结果越好 |
+| 长任务拆小 | 一次让它做一件事，避免大范围乱改 |
+| 让它先给方案 | "先列实现步骤，我确认后再改代码" |
+| 报错粘贴给 AI | 完整错误堆栈 + 相关代码，定位快 |
+| 每步提交 Git | AI 改动大，用 git 兜底随时回退 |
+| 隐私注意 | 敏感代码/密钥不要发给云端模型；企业版有隐私模式 |
+
+## 五、与 VS Code 的关系
+
+| 维度 | Cursor | VS Code |
+| --- | --- | --- |
+| 基础体验 | 兼容 VS Code | 原生 |
+| AI 能力 | 深度集成（Tab/Chat/Agent） | Copilot 扩展（较弱） |
+| 扩展兼容 | 支持大部分 | 全部 |
+| 快捷键 | 基本一致 | — |
+| 试用方式 | 免费额度 | 免费 |
+
+可以**两个都装**：Cursor 用于 AI 密集开发，VS Code 处理需要特殊扩展的场景。
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 导入 VS Code 配置失败 | 手动复制 `%APPDATA%\Code\User\settings.json` 到 Cursor 对应目录 |
+| Tab 补全与 ESLint 冲突 | 检查格式化扩展优先级；Cursor 也支持 format on save |
+| AI 改错了文件 | `Ctrl+Z` 撤销；或 Git 回滚（务必勤提交） |
+| 请求次数用尽 | 切换更便宜的模型（如 Composer 自研模型），或升级 Pro |
+| 上下文太长导致回答变差 | 用 `@` 精确引用，避免一次性塞太多文件 |
+| 企业代码合规 | 开启隐私模式（Privacy Mode），代码不用于训练 |
+
+## 七、参考
+
+- 官网：https://cursor.com/
+- 官方文档：https://docs.cursor.com/
+- 规则文件示例：https://cursor.directory/
+

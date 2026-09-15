@@ -1,0 +1,162 @@
+---
+slug: day-20
+kind: day
+day: 20
+week: 3
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: tsup 使用教程
+sourcePath: 03-构建打包/07-tsup.md
+---
+
+## 一、tsup 是什么
+
+tsup 是**基于 esbuild 的零配置打包器**，专为「打包 TypeScript/JavaScript 库」而生：
+
+- 一行命令产出 ESM + CJS；
+- 自动生成 `.d.ts` 类型声明；
+- 内置 watch、压缩、多入口、tree-shaking；
+- 配置极简（比 Rollup 少写 80% 配置）。
+
+## 二、安装与快速开始
+
+```powershell
+pnpm add -D tsup typescript
+```
+
+`package.json`：
+
+```json
+{
+  "name": "my-lib",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  }
+}
+```
+
+```powershell
+pnpm build
+```
+
+默认输出 `dist/index.js`（ESM）与 `dist/index.cjs`（CJS）。
+
+## 三、配置文件
+
+`tsup.config.ts`：
+
+```ts
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: ['src/index.ts'],
+  format: ['esm', 'cjs'],        // 双格式
+  dts: true,                     // 生成类型声明
+  sourcemap: true,
+  clean: true,                   // 构建前清空 dist
+  minify: false,                 // 库通常不压缩
+  splitting: false,
+  treeshake: true,
+  target: 'es2020',
+  external: ['react', 'react-dom'],
+  outDir: 'dist',
+  banner: { js: "'use client';" },   // Next.js RSC 场景需要
+});
+```
+
+多入口：
+
+```ts
+export default defineConfig({
+  entry: {
+    index: 'src/index.ts',
+    utils: 'src/utils/index.ts',
+    cli: 'src/cli.ts',
+  },
+});
+```
+
+CLI 工具（带 shebang）：
+
+```ts
+export default defineConfig({
+  entry: ['src/cli.ts'],
+  format: ['esm'],
+  banner: { js: '#!/usr/bin/env node' },
+});
+```
+
+## 四、常用 CLI 参数
+
+```powershell
+tsup src/index.ts --format esm,cjs --dts --sourcemap
+tsup --watch                 # 开发监听
+tsup --minify                # 压缩
+tsup --clean                 # 清空输出目录
+tsup --env.NODE_ENV production
+tsup --onSuccess "node dist/cli.js"   # 构建后执行命令
+```
+
+## 五、常见配置项说明
+
+| 选项 | 说明 |
+| --- | --- |
+| entry | 入口（数组或对象） |
+| format | `esm` / `cjs` / `iife` |
+| dts | 是否生成类型（也支持 `dts: { resolve: true }` 打包第三方类型） |
+| external | 外部化依赖（**库必须把 react 等 peer 依赖 external**） |
+| noExternal | 强制打进产物（与 external 相反） |
+| splitting | 是否拆分公共 chunk（ESM 默认开启） |
+| target | 输出语法目标 |
+| platform | `node` / `browser` / `neutral` |
+| shims | 为 CJS/ESM 互操作注入 shim（`__dirname` 等） |
+
+## 六、与 Rollup / unbuild 对比
+
+| 维度 | tsup | Rollup | unbuild |
+| --- | --- | --- | --- |
+| 配置量 | 极少 | 中等 | 少 |
+| 底层 | esbuild | 自身 | Rollup |
+| 速度 | 快 | 中 | 中 |
+| 类型声明 | 内置 | 需插件 | 内置 |
+| 复杂定制 | 有限 | 极强 | 中 |
+| 适合 | 大多数库 | 需要精细控制 | Vue/Nuxt 生态 |
+
+## 七、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 产物里出现了 react | 配 `external: ['react', 'react-dom', ...]`，并把它们写进 `peerDependencies` |
+| `.d.ts` 生成失败 | 确保 `typescript` 已安装；处理类型错误（dts 构建会报 TS 错） |
+| ESM 里 `__dirname` 报错 | 加 `shims: true` |
+| CJS 引入报错 | 检查 `exports` 字段是否同时提供 `require` 与 `import` |
+| 装饰器/metadata 不支持 | esbuild 能力有限，改用 Rollup + 插件 |
+| 类型跨包引用爆错 | `dts: { resolve: true }` 或调整 tsconfig types |
+
+## 八、最佳实践
+
+1. `package.json` 的 `exports` 字段要写全（types → import → require 顺序）。
+2. peer 依赖一律 external + 写入 `peerDependencies`。
+3. 库**不压缩**（交给使用方的构建器处理）。
+4. 保留 sourcemap 便于使用者调试。
+5. CI 加一步 `publint` 或 `arethetypeswrong` 校验包结构。
+
+## 九、参考
+
+- 官方文档：https://tsup.egoist.dev/
+- 仓库：https://github.com/egoist/tsup
+

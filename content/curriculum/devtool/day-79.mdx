@@ -1,0 +1,342 @@
+---
+slug: day-79
+kind: day
+day: 79
+week: 13
+weekTitle: 文档与协作
+weekBlurb: Markdown、API 文档、Storybook、图表与团队协作规范，把知识沉淀下来。
+title: API 文档工具教程（Swagger / OpenAPI / Redoc）
+sourcePath: 13-文档与协作/01-API文档.md
+---
+
+## 一、三者关系
+
+| 名称 | 是什么 |
+| --- | --- |
+| **OpenAPI** | 规范标准（描述 REST API 的 JSON/YAML 格式，OpenAPI 3.x） |
+| **Swagger** | 早期规范名 + 工具集（Swagger UI、Swagger Editor、Codegen） |
+| **Redoc** | 优雅的文档渲染器（基于 OpenAPI 文件生成三栏文档） |
+
+一句话：**用 OpenAPI 规范定义接口，用 Swagger UI 或 Redoc 渲染展示。**
+
+## 二、OpenAPI 规范基础
+
+```yaml
+openapi: 3.0.3
+
+info:
+  title: 订单服务 API
+  version: 1.2.0
+  description: 订单创建、查询与取消
+
+servers:
+  - url: https://api.example.com/v1
+    description: 生产环境
+  - url: http://localhost:8080/v1
+    description: 本地开发
+
+tags:
+  - name: orders
+    description: 订单相关接口
+
+paths:
+  /orders:
+    get:
+      tags: [orders]
+      summary: 查询订单列表
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: size
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, paid, shipped, done, cancelled]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [orders]
+      summary: 创建订单
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrder'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /orders/{id}:
+    get:
+      tags: [orders]
+      summary: 订单详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: 订单不存在
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Order:
+      type: object
+      required: [id, status, amount, createdAt]
+      properties:
+        id: { type: integer, example: 1001 }
+        status:
+          type: string
+          enum: [pending, paid, shipped, done, cancelled]
+        amount: { type: number, format: double, example: 99.5 }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sku: { type: string }
+              qty: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    OrderList:
+      type: object
+      properties:
+        total: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Order' }
+
+    CreateOrder:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [sku, qty]
+            properties:
+              sku: { type: string }
+              qty: { type: integer, minimum: 1 }
+
+    Error:
+      type: object
+      properties:
+        code: { type: integer }
+        message: { type: string }
+
+  responses:
+    Unauthorized:
+      description: 未认证
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+security:
+  - bearerAuth: []
+```
+
+## 三、各语言自动生成
+
+### Python（FastAPI，最省心）
+
+FastAPI 内置 OpenAPI 生成：
+
+```python
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
+
+app = FastAPI(title="订单服务 API", version="1.2.0")
+
+class CreateOrder(BaseModel):
+    sku: str
+    qty: int = Field(ge=1, description="数量，至少 1")
+
+class Order(CreateOrder):
+    id: int
+    status: str
+
+@app.post("/orders", response_model=Order, tags=["orders"], summary="创建订单")
+def create_order(payload: CreateOrder):
+    return Order(id=1, status="pending", **payload.model_dump())
+```
+
+自动获得：
+- Swagger UI：`http://localhost:8000/docs`
+- ReDoc：`http://localhost:8000/redoc`
+- OpenAPI JSON：`http://localhost:8000/openapi.json`
+
+### Node.js（tsoa / NestJS / zod-to-openapi）
+
+NestJS：
+
+```ts
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+
+@ApiTags('orders')
+@Controller('orders')
+export class OrdersController {
+  @Post()
+  @ApiOperation({ summary: '创建订单' })
+  @ApiResponse({ status: 201, type: OrderDto })
+  create(@Body() dto: CreateOrderDto) { ... }
+}
+```
+
+或轻量方案（zod + @asteasolutions/zod-to-openapi）从 zod schema 生成。
+
+### Go（swaggo）
+
+```go
+// @Summary 创建订单
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param order body CreateOrder true "订单参数"
+// @Success 201 {object} Order
+// @Router /orders [post]
+func CreateOrder(c *gin.Context) { ... }
+```
+
+```bash
+swag init -g main.go
+```
+
+### Java（SpringDoc）
+
+```java
+@Operation(summary = "创建订单")
+@PostMapping("/orders")
+public Order create(@RequestBody @Valid CreateOrder req) { ... }
+```
+
+依赖 `springdoc-openapi-starter-webmvc-ui` 后访问 `/swagger-ui.html`。
+
+## 四、Swagger UI 与 Redoc 部署
+
+### Swagger UI（可交互测试）
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>API 文档</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/openapi.yaml',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      tryItOutEnabled: true,
+    });
+  </script>
+</body>
+</html>
+```
+
+特点：**能直接发请求**（Try it out），适合联调。
+
+### Redoc（漂亮的只读文档）
+
+```html
+<!DOCTYPE html>
+<html>
+<head><title>API 文档</title></head>
+<body>
+  <redoc spec-url="/openapi.yaml"></redoc>
+  <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+</body>
+</html>
+```
+
+特点：三栏布局、响应式、生成静态 HTML（适合对外文档站）：
+
+```bash
+npx @redocly/cli build-docs openapi.yaml -o docs/index.html
+```
+
+### 在 CI 中校验与发布
+
+```yaml
+- run: npx @redocly/cli lint openapi.yaml       # 规范校验
+- run: npx @redocly/cli build-docs openapi.yaml -o dist/api.html
+```
+
+## 五、契约驱动开发（推荐流程）
+
+```
+1. 设计：先用 OpenAPI 写接口定义（或用 Swagger Editor / Apifox）
+2. Review：前后端一起评审接口契约
+3. Mock：用 OpenAPI 生成 Mock 服务（Prism / Apifox）
+   - npx @stoplight/prism-cli mock openapi.yaml
+4. 并行开发：
+   - 前端对着 Mock 开发
+   - 后端按契约实现并用测试验证
+5. 校验：CI 中 diff 实现与契约（Dredd / schemathesis）
+6. 发布：构建文档站，随版本部署
+```
+
+好处：把「联调期发现字段不一致」提前到设计阶段解决。
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `$ref` 跨文件引用失败 | 用 bundler 合并：`redocly bundle openapi.yaml -o bundled.yaml` |
+| Swagger UI 显示旧版定义 | 清缓存 / 确认 spec URL；CI 部署后加版本号查询参数 |
+| 枚举、示例不显示 | 补 `example` / `examples` 字段 |
+| 与实现不一致 | 从代码自动生成（FastAPI/NestJS）而非手写；或加契约测试 |
+| 中文显示乱码 | 确保 yaml/json 是 UTF-8 |
+| 生产暴露文档 | 生产可关闭 Swagger（FastAPI `docs_url=None`），或加鉴权 |
+
+## 七、最佳实践
+
+1. **单一来源**：从代码生成（注解/DTO），避免手写文档漂移；
+2. **文件进仓库**：OpenAPI 文件随代码提交，CI 校验 + 生成文档站；
+3. **写全示例**：`example` 是最有价值的部分，前端靠它理解；
+4. **版本管理**：`info.version` 与发布流程绑定；
+5. 对外文档用 **Redoc**（好看、稳定），内部联调用 **Swagger UI**（可测试）。
+
+## 八、参考
+
+- OpenAPI 规范：https://spec.openapis.org/oas/v3.0.3
+- Swagger：https://swagger.io/tools/swagger-ui/
+- Redoc：https://github.com/Redocly/redoc
+- Redocly CLI：https://redocly.com/docs/cli/
+- Swagger Editor（在线编写）：https://editor.swagger.io/
+- Prism（Mock 服务）：https://github.com/stoplightio/prism
+

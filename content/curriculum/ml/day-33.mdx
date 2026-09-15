@@ -1,0 +1,324 @@
+---
+slug: day-33
+kind: day
+day: 33
+week: 6
+weekTitle: 无监督学习
+weekBlurb: K-Means、层次聚类、GMM 与降维，从无标注数据里找结构。
+title: 高斯混合聚类与模型选择
+lead: 'K-Means 是"硬"的（每个样本只属于一个簇），而且假设球形。**高斯混合模型（GMM）** 是概率版的聚类：它给出软分配，并允许每个簇有自己的形状与大小。'
+sourcePath: Week06_无监督学习/Day3_高斯混合聚类.md
+---
+
+> 西瓜书第 9 章 9.4 节 + 第 7 章 · 南瓜书 9.36–9.45
+
+K-Means 是"硬"的（每个样本只属于一个簇），而且假设球形。**高斯混合模型（GMM）** 是概率版的聚类：它给出软分配，并允许每个簇有自己的形状与大小。
+
+---
+
+## 今日目标
+
+1. 写出 GMM 的概率模型与似然函数；
+2. 复习并应用 EM 算法求解 GMM（Week05 Day4 已推导）；
+3. 掌握用 **BIC / AIC** 选成分数 $K$，并与 K-Means 的肘部法对比；
+4. 理解 GMM 的"软聚类"输出在下游任务中的价值；
+5. 认识 GMM 的局限：需要预设 $K$、对初始化敏感、只能拟合椭圆。
+
+---
+
+## 知识地图
+
+```
+Week06
+├── Day1 K-Means ✅                （GMM 的硬分配极限）
+├── Day2 层次/密度聚类 ✅
+├── Day3 高斯混合聚类  ← 你在这里   （EM 的概率版聚类）
+├── Day4 PCA
+└── Day5 流形学习与自编码器
+
+依赖: Week05 Day4（EM 推导）
+```
+
+---
+
+## 一、模型
+
+### 1.1 生成过程
+
+$$z_i \sim \text{Categorical}(\boldsymbol{\pi}), \qquad \boldsymbol{x}_i \mid z_i = k \sim \mathcal{N}(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)$$
+
+**边缘分布**：
+
+$$p(\boldsymbol{x}) = \sum_{k=1}^{K}\pi_k\,\mathcal{N}(\boldsymbol{x};\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k)$$
+
+### 1.2 参数与约束
+
+$$\boldsymbol{\theta} = \{\boldsymbol{\pi}, \{\boldsymbol{\mu}_k\}, \{\boldsymbol{\Sigma}_k\}\}, \qquad \sum_{k=1}^{K}\pi_k = 1$$
+
+参数个数（$d$ 维）：
+
+$$|\boldsymbol{\theta}| = (K-1) + Kd + K\frac{d(d+1)}{2}$$
+
+（协方差矩阵是对称的，所以每类有 $d(d+1)/2$ 个自由参数。）
+
+### 1.3 与 K-Means 的关系
+
+| 对比 | K-Means | GMM |
+| --- | --- | --- |
+| 隐变量 | 硬分配 $\mathbb{1}[z_i=k]$ | 软分配 $\gamma_{ik}$ |
+| 簇形状 | 球形、等大小 | **任意椭球、任意大小** |
+| 参数 | 只有中心 | 中心 + 协方差 + 权重 |
+| 目标 | 最小化 SSE | 最大化似然 |
+| 输出 | 标签 | 标签 + 概率 |
+| 与 EM | 特殊情形 | 一般情形 |
+
+**极限关系**：固定 $\boldsymbol{\Sigma}_k = \sigma^2\mathbf{I}$、$\pi_k = 1/K$，令 $\sigma\to0$，GMM 退化为 K-Means。
+
+---
+
+## 二、EM 求解（复习与扩展）
+
+### 2.1 E 步
+
+$$\gamma_{ik} = \frac{\pi_k\mathcal{N}(\boldsymbol{x}_i;\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k)}{\sum_{j=1}^{K}\pi_j\mathcal{N}(\boldsymbol{x}_i;\boldsymbol{\mu}_j,\boldsymbol{\Sigma}_j)}$$
+
+**数值稳定实现**（必须用 log-sum-exp）：
+
+```python
+logp[i, k] = log(pi_k) + log_gaussian(x_i, mu_k, Sigma_k)
+gamma = exp(logp - logsumexp(logp, axis=1, keepdims=True))
+```
+
+### 2.2 M 步
+
+$$\boldsymbol{\mu}_k^{\text{new}} = \frac{\sum_i\gamma_{ik}\boldsymbol{x}_i}{N_k}, \quad N_k = \sum_i\gamma_{ik}$$
+
+$$\boldsymbol{\Sigma}_k^{\text{new}} = \frac{\sum_i\gamma_{ik}(\boldsymbol{x}_i-\boldsymbol{\mu}_k)(\boldsymbol{x}_i-\boldsymbol{\mu}_k)^\top}{N_k}$$
+
+$$\pi_k^{\text{new}} = \frac{N_k}{m}$$
+
+### 2.3 对数似然（用于监控收敛）
+
+$$\ell(\boldsymbol{\theta}) = \sum_{i=1}^{m}\log\sum_{k=1}^{K}\pi_k\mathcal{N}(\boldsymbol{x}_i;\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k)$$
+
+**EM 保证 $\ell$ 单调不增（Week05 Day4 已证明）。**
+
+---
+
+## 三、协方差类型：GMM 的"旋钮"
+
+`sklearn.mixture.GaussianMixture` 提供四种 `covariance_type`：
+
+| 类型 | 协方差形式 | 参数数/类 | 能力 |
+| --- | --- | --- | --- |
+| `spherical` | $\sigma_k^2\mathbf{I}$ | 1 | 球形、等大小 —— 接近 K-Means |
+| `diag` | $\text{diag}(\sigma_{k1}^2,\dots,\sigma_{kd}^2)$ | $d$ | 轴对齐椭球 |
+| `tied` | $\boldsymbol{\Sigma}$（所有类共享） | $d(d+1)/2$ | 相同形状，不同位置 |
+| `full` | $\boldsymbol{\Sigma}_k$（各自独立） | $d(d+1)/2$ / 类 | **任意椭球**（最灵活、最易过拟合）|
+
+**选择建议**：
+
+- 样本多、维度低 → `full`（最灵活）；
+- 样本少 → `diag` 或 `spherical`（参数少，不易过拟合）；
+- 已知各类形状相似 → `tied`。
+
+---
+
+## 四、模型选择：BIC 与 AIC
+
+### 4.1 定义
+
+$$\text{BIC} = -2\ln\hat{L} + p\ln m$$
+
+$$\text{AIC} = -2\ln\hat{L} + 2p$$
+
+其中 $\hat{L}$ 是最大化的似然，$p$ 是参数个数，$m$ 是样本数。
+
+**选择使 BIC / AIC 最小的模型。**
+
+**BIC 与 AIC 的区别**：
+
+| 准则 | 惩罚项 | 特点 |
+| --- | --- | --- |
+| AIC | $2p$ | 偏向选复杂模型（渐近等价于最小化预测误差） |
+| **BIC** | $p\ln m$ | 惩罚更重，$m$ 大时偏向简单模型（一致估计） |
+
+**实践**：分类/聚类模型选择常用 BIC，因为它对大样本的复杂度惩罚更合理。
+
+### 4.2 为什么不能用纯似然选 $K$
+
+似然随 $K$ 单调增加：$K$ 越大，模型越灵活，越能拟合数据。$K = m$（每个样本一个高斯、方差趋 0）时似然趋于无穷（**奇异解**）。
+
+**必须加复杂度惩罚**。
+
+### 4.3 与 K-Means 的肘部法对比
+
+| 方法 | 依据 | 优点 |
+| --- | --- | --- |
+| 肘部法（K-Means） | SSE 的拐点 | 简单、快 |
+| 轮廓系数 | 簇内紧/簇间远 | 无需拟合多个模型 |
+| **BIC / AIC（GMM）** | 似然 + 复杂度惩罚 | **有统计学依据**，可比较不同协方差类型 |
+| Gap Statistic | 与随机数据对比 | 更客观 |
+
+> **实践建议**：多个指标交叉验证。如果 BIC 与轮廓系数给出相同的 $K$，可以比较放心。
+
+---
+
+## 五、GMM 的三个陷阱
+
+### 5.1 奇异解
+
+**现象**：某个成分的 $\boldsymbol{\Sigma}_k \to \mathbf{0}$，似然 $\to\infty$，EM "发散"。
+
+**原因**：该成分恰好"捕获"了少数几个共线/相同的点，用一个无限窄的高斯去拟合它们，密度趋于无穷。
+
+**修复**：
+
+- 给协方差加正则：$\boldsymbol{\Sigma}_k \leftarrow \boldsymbol{\Sigma}_k + \epsilon\mathbf{I}$（sklearn 的 `reg_covar`）；
+- 限制最小特征值；
+- 减少 $K$。
+
+### 5.2 局部最优
+
+**对策**：`n_init` 多次重启（sklearn 默认 1，建议至少 5–10）。
+
+### 5.3 标签交换（Label Switching）
+
+不同初始化可能给出"列的次序不同"的解，参数不可直接比较。
+
+**对策**：比较时对所有置换取最优（聚类准确率评估时常见做法）。
+
+---
+
+## 六、GMM 的输出怎么用
+
+### 6.1 软聚类
+
+$$\gamma_{ik} = P(z_i=k \mid \boldsymbol{x}_i)$$
+
+**用途**：
+
+| 场景 | 用法 |
+| --- | --- |
+| 用户分群 | 一个用户可以同时属于多个群体（按权重） |
+| 异常检测 | 用 $-\log p(\boldsymbol{x}_i)$ 作为异常分（低密度 = 异常） |
+| 半监督学习 | 高置信度样本可"伪标注" |
+| 密度估计 | 直接给出 $p(\boldsymbol{x})$ |
+| 生成模型 | 从各成分采样并混合，生成新样本 |
+
+### 6.2 异常检测的具体做法
+
+$$\text{anomaly score}(\boldsymbol{x}) = -\log\sum_k\pi_k\mathcal{N}(\boldsymbol{x};\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k)$$
+
+**阈值**：可以取分位数（如 99% 分位），或由业务决定。
+
+**注意**：GMM 假设正常数据由高斯混合生成。若数据严重非高斯，可改用 KDE（核密度估计）或 One-Class SVM / Isolation Forest。
+
+---
+
+## 七、代码实践
+
+```python
+def gmm_bic(X, K, **kwargs):
+    """训练 GMM 并返回 BIC（用 sklearn 时可直接用 .bic(X)）"""
+    from sklearn.mixture import GaussianMixture
+    gm = GaussianMixture(n_components=K, covariance_type="full",
+                         n_init=5, random_state=0, **kwargs).fit(X)
+    return gm, gm.bic(X), gm.aic(X)
+```
+
+完整版本见 `code/day3_gmm_cluster.py`，包含：
+
+1. 从零实现 GMM 的 EM（复用 Week05 思路，增加 BIC 计算）；
+2. **椭球数据**上对比 K-Means 与 GMM（K-Means 切错，GMM 正确）；
+3. **BIC / AIC / 轮廓系数** 三条曲线选 $K$ 的对比；
+4. 四种 `covariance_type` 的效果与参数量对比；
+5. **异常检测应用**：把测试点按 $-\log p(\boldsymbol{x})$ 排序，展示异常样本；
+6. **奇异解**演示与 `reg_covar` 修复；
+7. 与 `sklearn.mixture.GaussianMixture` 的结果对照。
+
+---
+
+## 八、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 用纯似然选 $K$ | 必然选最大的 $K$，甚至出现奇异解 |
+| 不做多次重启 | 容易陷局部最优 |
+| `covariance_type='full'` + 样本少 | 参数量 $O(Kd^2)$，严重过拟合 |
+| 忘记 `reg_covar` | 奇异解导致 nan |
+| 直接比较不同初始化的参数 | 存在标签交换，需对齐 |
+| 把 $\gamma_{ik}$ 当校准概率 | 它是模型内的后验，模型假设不对时不可信 |
+| 高维数据用 GMM | 参数量爆炸；先降维 |
+
+---
+
+## 九、练习题
+
+**基础**
+
+1. 写出 GMM 的边缘分布与责任度公式。
+2. 写出 BIC 与 AIC 的公式。
+3. 说明 `covariance_type` 四种取值的参数量差异。
+
+**进阶**
+
+4. 推导 $\pi_k$ 的更新公式（用拉格朗日乘子）。
+5. 计算 $d=2$、$K=3$、`covariance_type='full'` 时的总参数个数。
+6. 证明当 $\boldsymbol{\Sigma}_k = \sigma^2\mathbf{I}$ 且 $\sigma\to0$ 时，责任度 $\gamma_{ik}$ 趋于硬分配。
+
+**思考题**
+
+7. 为什么 GMM 的似然随 $K$ 单调增加？请从"模型嵌套"的角度解释。
+8. GMM 能否拟合"环形"簇？为什么？（提示：考虑高斯分布的等高线形状）
+9. 如果要用 GMM 做异常检测，如何设定阈值？请给出两种方案并比较。
+
+<details>
+<summary>第 6 题答案要点</summary>
+
+设 $\boldsymbol{\Sigma}_k = \sigma^2\mathbf{I}$，$\pi_k$ 相同。则
+
+$$\log\gamma_{ik} \propto -\frac{\|\boldsymbol{x}_i - \boldsymbol{\mu}_k\|^2}{2\sigma^2}$$
+
+当 $\sigma\to0$，指数项对距离的差异极其敏感：
+
+- 距离**最小**的成分：指数 $\to e^0 = 1$
+- 其他成分：指数 $\to e^{-\infty} = 0$
+
+**所以 $\gamma_{ik}\to\mathbb{1}[k = \arg\min_j\|\boldsymbol{x}_i-\boldsymbol{\mu}_j\|]$，即硬分配。** ∎
+
+**这正说明了 K-Means 是 GMM 的极限特例。**
+</details>
+
+<details>
+<summary>第 9 题答案要点</summary>
+
+**方案一：分位数阈值**
+
+取异常分的 99% 分位（或 95%）为阈值。优点：无需标签、自动适应数据分布。缺点：异常比例被强行固定。
+
+**方案二：业务代价驱动**
+
+已知误报/漏报代价时，选使期望损失最小的阈值（Week02 Day3 的方法）。
+
+**方案三：验证集调优**
+
+若有少量标注异常样本，在验证集上选使 $F_1$ 或 PR-AUC 最优的阈值。
+
+**对比**：
+
+- 无标签 → 分位数法；
+- 明确代价 → 期望损失法；
+- 有少量标签 → 验证集调优（最可靠）。
+</details>
+
+---
+
+## 十、一句话总结
+
+**GMM 用"几个高斯加权叠加"描述数据分布，训练用 EM，选 $K$ 用 BIC；它比 K-Means 多出的那点复杂度，换来了椭球形状建模、软概率输出与密度估计三项能力。**
+
+---
+
+**明日预告**：Day4 讲 PCA——降维里最经典、最常用、也最容易被误用的方法。
+

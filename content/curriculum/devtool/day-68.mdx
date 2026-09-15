@@ -1,0 +1,214 @@
+---
+slug: day-68
+kind: day
+day: 68
+week: 11
+weekTitle: 数据库与中间件
+weekBlurb: 常用数据库与缓存、消息中间件的本地搭建与客户端使用，对应后端课的存储层。
+title: PostgreSQL 与 MySQL 管理工具教程（pgAdmin / MySQL Workbench）
+sourcePath: 11-数据库与中间件/02-PostgreSQL与MySQL管理.md
+---
+
+## 一、pgAdmin（PostgreSQL 官方）
+
+### 安装与连接
+
+1. 下载：https://www.pgadmin.org/download/
+2. `Add New Server`：
+ - General → Name：`本地开发`
+ - Connection → Host：`localhost`，Port `5432`，Database `postgres`，Username `postgres`；
+3. 保存后可展开 Databases → Schemas → Tables。
+
+> Docker 里跑 PG 时用 pgAdmin 容器可免安装：
+> ```powershell
+> docker run -d -p 5050:80 -e PGADMIN_DEFAULT_EMAIL=a@b.com -e PGADMIN_DEFAULT_PASSWORD=admin dpage/pgadmin4
+> ```
+
+### 核心功能
+
+| 功能 | 位置 |
+| --- | --- |
+| Query Tool | 右键库 → Query Tool（写 SQL） |
+| 执行计划 | Query Tool → Explain（`F7` 生成计划不执行） |
+| 表数据编辑 | 右键表 → View/Edit Data → All Rows |
+| 备份/恢复 | 右键库 → Backup / Restore（生成 .backup） |
+| 导出查询结果 | 结果网格 → 下载图标 → CSV |
+| 服务器状态 | Dashboard（连接数、事务、锁） |
+| ERD | 右键 Schema → ERD For Database |
+
+### PostgreSQL 常用运维命令（psql）
+
+```sql
+-- 查看当前连接与活动
+SELECT pid, usename, state, query_start, left(query, 50)
+FROM pg_stat_activity
+WHERE state <> 'idle'
+ORDER BY query_start;
+
+-- 查看表大小（Top 20）
+SELECT relname,
+       pg_size_pretty(pg_total_relation_size(relid)) AS total
+FROM pg_catalog.pg_statio_user_tables
+ORDER BY pg_total_relation_size(relid) DESC
+LIMIT 20;
+
+-- 查看慢查询（需开启 pg_stat_statements）
+SELECT query, calls, mean_exec_time, total_exec_time
+FROM pg_stat_statements
+ORDER BY total_exec_time DESC
+LIMIT 10;
+
+-- 索引使用情况（找无用索引）
+SELECT indexrelname, idx_scan
+FROM pg_stat_user_indexes
+ORDER BY idx_scan
+LIMIT 20;
+
+-- 终止慢查询
+SELECT pg_terminate_backend(12345);
+
+-- 逻辑备份（命令行）
+-- pg_dump -h localhost -U postgres -d mydb -F c -f mydb.backup
+-- pg_restore -h localhost -U postgres -d mydb_new mydb.backup
+```
+
+### 常见调优参数（postgresql.conf）
+
+| 参数 | 建议 |
+| --- | --- |
+| shared_buffers | 内存的 25% |
+| work_mem | 复杂排序/哈希操作，按连接分配（别设太大） |
+| maintenance_work_mem | VACUUM/建索引使用 |
+| max_connections | 过高反而伤性能，配合连接池 |
+| effective_cache_size | 内存的 50-75% |
+
+## 二、MySQL Workbench（MySQL 官方）
+
+### 安装与连接
+
+1. 下载：https://dev.mysql.com/downloads/workbench/
+2. `+` 新建连接 → 填 Hostname/Port/User；
+3. `Test Connection`（首次需下载驱动）→ OK。
+
+### 核心功能
+
+| 功能 | 说明 |
+| --- | --- |
+| SQL Editor | 写查询、执行（`Ctrl+Enter`）、查看结果 |
+| Visual Explain | 图形化执行计划（慢查询分析利器） |
+| Schema 设计 | 可视化建表、外键、ER 图 |
+| Data Export/Import | 导出 SQL/CSV，导入数据 |
+| Performance Dashboard | 性能仪表盘（需开启 performance_schema） |
+| Server Status | 连接数、QPS、InnoDB 状态 |
+
+### MySQL 常用运维命令
+
+```sql
+-- 当前进程与慢查询
+SHOW FULL PROCESSLIST;
+SELECT * FROM information_schema.processlist WHERE time > 5;
+
+-- 终止连接
+KILL 12345;
+
+-- 表大小（Top 20）
+SELECT table_schema, table_name,
+       ROUND((data_length + index_length) / 1024 / 1024, 2) AS size_mb
+FROM information_schema.tables
+ORDER BY (data_length + index_length) DESC
+LIMIT 20;
+
+-- 索引使用情况（MySQL 8）
+SELECT * FROM sys.schema_unused_indexes;
+
+-- 查看执行计划
+EXPLAIN ANALYZE SELECT * FROM orders WHERE user_id = 1;
+
+-- 开启慢查询日志
+SET GLOBAL slow_query_log = 'ON';
+SET GLOBAL long_query_time = 1;
+SET GLOBAL slow_query_log_file = '/var/log/mysql/slow.log';
+```
+
+### 备份与恢复（mysqldump）
+
+```powershell
+# 备份（含存储过程、触发器）
+mysqldump -h localhost -u root -p --single-transaction --routines --triggers mydb > mydb.sql
+
+# 恢复
+mysql -h localhost -u root -p mydb_new < mydb.sql
+
+# 只备份结构
+mysqldump -u root -p --no-data mydb > schema.sql
+```
+
+> 大库用 `--single-transaction`（InnoDB 一致性快照，不锁表）；生产大库考虑 XtraBackup 物理备份。
+
+## 三、查询优化通用方法
+
+### 1. 看执行计划
+
+**PostgreSQL**：
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT ...;
+```
+
+**MySQL**：
+
+```sql
+EXPLAIN ANALYZE SELECT ...;
+-- 或 EXPLAIN FORMAT=JSON
+```
+
+关注点：
+
+| 关键词 | 含义 |
+| --- | --- |
+| Seq Scan / type: ALL | 全表扫描（大表即需优化） |
+| Index Scan | 走索引，正常 |
+| rows 估算 vs 实际 | 偏差过大说明统计信息过期（ANALYZE 表） |
+| Using filesort / Using temporary | 排序/临时表开销大 |
+| cost 高 | 需要改写或加索引 |
+
+### 2. 索引设计原则
+
+- WHERE / JOIN / ORDER BY 的列考虑建索引；
+- **联合索引最左前缀**：`(a,b,c)` 能用于 `a`、`a,b`、`a,b,c`；
+- **区分度高的列在前**（性别这种低区分度不适合单独建）；
+- 覆盖索引（查询列都在索引里）避免回表；
+- 写多读少的表少建索引（每个索引都拖慢写入）；
+- 定期清理无用索引。
+
+### 3. 慢查询定位流程
+
+```
+发现接口慢
+  → 开启慢查询日志（long_query_time = 1s）
+  → 找出 TOP SQL
+  → EXPLAIN 分析
+  → 加索引 / 改写 SQL（减少回表、避免 SELECT *）
+  → 再验证（EXPLAIN 对比 + 压测）
+  → 上线后持续观察
+```
+
+## 四、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| Workbench 连接报 1251 | MySQL 8 认证插件问题：改用户为 `mysql_native_password`（旧客户端） |
+| pgAdmin 保存密码失败 | 设置 master password；或 Docker 版权限问题 |
+| 时区/编码错误 | 连接参数与服务器配置统一 UTF-8、Asia/Shanghai |
+| 导入大 SQL 超时 | 命令行导入（`mysql < file.sql`）；调整 `max_allowed_packet` |
+| 执行计划与生产差异大 | 数据量不同；用生产数据量的影子库验证 |
+| 锁等待超时 | 查 `pg_locks` / `information_schema.innodb_trx`，定位阻塞事务 |
+
+## 五、参考
+
+- pgAdmin 文档：https://www.pgadmin.org/docs/
+- PostgreSQL 文档：https://www.postgresql.org/docs/
+- MySQL Workbench：https://dev.mysql.com/doc/workbench/en/
+- MySQL 手册：https://dev.mysql.com/doc/refman/8.4/en/
+- 索引原理（Use The Index, Luke）：https://use-the-index-luke.com/
+

@@ -1,0 +1,158 @@
+---
+slug: day-13
+kind: day
+day: 13
+week: 2
+weekTitle: 包管理与运行时
+weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
+title: Go Modules（go mod）使用教程
+sourcePath: 02-包管理与运行时/07-Go模块.md
+---
+
+## 一、Go Modules 是什么
+
+Go 1.11 引入的官方依赖管理机制，取代 GOPATH 模式：
+
+- `go.mod`：声明模块路径、Go 版本、依赖及版本
+- `go.sum`：记录依赖内容的校验和，防篡改
+- **无需额外工具**（不需要 dep/glide），`go` 命令原生支持
+
+## 二、环境准备
+
+```powershell
+# Windows
+winget install GoLang.Go
+# macOS
+brew install go
+
+go version
+go env
+```
+
+国内代理配置（必做，否则拉依赖极慢）：
+
+```powershell
+go env -w GOPROXY=https://goproxy.cn,direct
+go env -w GOSUMDB=sum.golang.google.cn   # 或直接 GOSUMDB=off（内网）
+go env -w GO111MODULE=on
+```
+
+## 三、新建项目
+
+```powershell
+mkdir myapp && cd myapp
+go mod init github.com/yourname/myapp     # 初始化模块
+```
+
+`go.mod` 示例：
+
+```
+module github.com/yourname/myapp
+
+go 1.22
+
+require (
+    github.com/gin-gonic/gin v1.10.0
+    github.com/google/uuid v1.6.0
+)
+
+require (
+    // 间接依赖
+    golang.org/x/net v0.25.0 // indirect
+)
+```
+
+## 四、依赖管理核心命令
+
+```powershell
+go get github.com/gin-gonic/gin@latest    # 添加/升级依赖
+go get github.com/gin-gonic/gin@v1.9.0    # 指定版本
+go get -u ./...                            # 升级所有直接依赖
+go get -u=patch ./...                      # 只升级补丁版本
+go mod tidy                                # 增删依赖，使其与代码一致（最常用）
+go mod download                            # 下载依赖到本地缓存
+go mod verify                              # 校验依赖完整性
+go mod graph                               # 打印依赖图
+go mod why github.com/xxx                  # 为什么需要这个依赖
+go list -m all                             # 列出所有依赖版本
+go mod vendor                              # 把依赖复制到 vendor/ 目录
+go clean -modcache                         # 清理模块缓存
+```
+
+## 五、构建与运行
+
+```powershell
+go build                    # 编译当前包，生成可执行文件
+go build -o app.exe ./cmd/app
+go run main.go              # 直接运行
+go run ./cmd/server
+go install ./cmd/tool       # 安装到 $GOPATH/bin
+
+# 交叉编译（无需目标平台 SDK）
+$env:GOOS="linux"; $env:GOARCH="amd64"; go build -o app-linux
+$env:GOOS="windows"; $env:GOARCH="amd64"; go build -o app.exe
+```
+
+## 六、版本选择规则（MVS）
+
+Go 采用**最小版本选择**：所有依赖要求中选**最高的最小版本**，保证构建可复现。
+
+替换与排除（`go.mod`）：
+
+```
+replace github.com/old/pkg => github.com/fork/pkg v1.0.0
+replace example.com/local => ../local           # 本地开发调试
+exclude github.com/bad/pkg v1.2.3
+```
+
+## 七、多模块工作区（go work）
+
+Go 1.18+ 支持工作区，同时开发多个相关模块：
+
+```powershell
+go work init ./service ./lib
+go work use ./cli
+```
+
+`go.work`：
+
+```
+go 1.22
+
+use (
+    ./service
+    ./lib
+    ./cli
+)
+```
+
+> `go.work` 仅本地开发用，**不要提交**（或提交 `go.work.sum` 但要团队约定）；CI 用各模块自身构建。
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 拉依赖超时 | 设置 `GOPROXY=https://goproxy.cn,direct` |
+| `missing go.sum entry` | 执行 `go mod tidy` 或 `go mod download` |
+| 版本冲突/回退 | `go get pkg@vX` 显式指定，或 `go mod tidy` |
+| CI 构建慢 | 缓存 `$GOPATH/pkg/mod` 与 `go build` cache |
+| 私有仓库拉不下来 | `GOPRIVATE=git.company.com` + 配置 SSH / `GONOSUMDB` |
+| 误用 vendor 模式 | `go mod vendor` 后 go 命令自动用 vendor；删除 vendor 目录恢复 |
+
+## 九、最佳实践
+
+1. 提交 `go.mod` 与 `go.sum`，**同一时间只由一个人执行 `go mod tidy`** 减少冲突。
+2. 提交前固定执行：`gofmt -l .`（或 `go fmt ./...`）、`go vet ./...`、`go test ./...`。
+3. 依赖选型优先标准库和成熟库，避免引入重量级框架。
+4. CI 中加 `go mod verify` 与 `-mod=readonly` 检测 go.mod 是否干净：
+
+```powershell
+go build -mod=readonly ./...
+```
+
+## 十、参考
+
+- 官方 Modules 文档：https://go.dev/ref/mod
+- Go 代理：https://goproxy.cn/
+- 官方 Wiki：https://github.com/golang/go/wiki/Modules
+

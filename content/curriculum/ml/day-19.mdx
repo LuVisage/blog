@@ -1,0 +1,424 @@
+---
+slug: day-19
+kind: day
+day: 19
+week: 3
+weekTitle: 线性模型
+weekBlurb: 线性回归、逻辑回归与线性判别分析，第一批可解释模型，公式开始密集。
+title: 线性判别分析 LDA
+lead: 'LDA 换了一个完全不同的思路：**不做概率建模，而是找一条投影方向，让"同类挤在一起、异类离得远"。** 这个思想到今天依然是特征提取与度量学习的核心。'
+sourcePath: Week03_线性模型/Day4_线性判别分析LDA.md
+---
+
+> 西瓜书第 3 章 3.4 节 · 南瓜书 3.28–3.35
+
+LDA 换了一个完全不同的思路：**不做概率建模，而是找一条投影方向，让"同类挤在一起、异类离得远"。** 这个思想到今天依然是特征提取与度量学习的核心。
+
+---
+
+## 今日目标
+
+1. 理解 LDA 的降维与分类双重身份；
+2. 掌握类内散度矩阵 $\mathbf{S}_w$ 与类间散度矩阵 $\mathbf{S}_b$ 的定义；
+3. 独立推导 LDA 的广义特征值问题 $\mathbf{S}_w^{-1}\mathbf{S}_b\boldsymbol{w} = \lambda\boldsymbol{w}$；
+4. 说清二分类 LDA 与多分类 LDA 的解法差异；
+5. 理解 LDA 与 PCA 的本质区别（有监督 vs 无监督）；
+6. 从零实现 LDA 并可视化投影效果。
+
+---
+
+## 知识地图
+
+```
+Week03
+├── Day1 线性回归 ✅
+├── Day2 梯度下降 ✅
+├── Day3 逻辑回归 ✅
+├── Day4 LDA  ← 你在这里
+└── Day5 多分类与不平衡
+
+        ↓ 关联
+Week01 Day2 特征分解（广义特征值问题）
+Week06 PCA（无监督降维，与 LDA 对比）
+Week09 CNN 特征提取（可看作学出来的判别投影）
+```
+
+---
+
+## 一、核心思想
+
+### 1.1 一句话概括
+
+**LDA 寻找一个投影方向 $\boldsymbol{w}$，使投影后：**
+
+- **类内方差最小**（同类样本挤在一起）
+- **类间均值差最大**（异类中心分开）
+
+### 1.2 为什么需要"两者兼顾"
+
+只优化其中一个都不行：
+
+```
+只看类间距离大:                只看类内方差小:
+    ●         ○
+     ●       ○                    ●●  ○○      ← 类内紧但有重叠
+      ●     ○                     ●●  ○○
+       ●   ○
+    投影后分开但内部散乱            投影后很紧但浓缩成一团
+```
+
+**LDA 的目标是两个目标的比值最大化。**
+
+---
+
+## 二、二分类 LDA
+
+### 2.1 记号
+
+| 符号 | 含义 | 维度 |
+| --- | --- | --- |
+| $\boldsymbol{\mu}_0, \boldsymbol{\mu}_1$ | 两类样本在原始空间的均值 | $\mathbb{R}^n$ |
+| $\mathbf{X}_0, \mathbf{X}_1$ | 两类样本矩阵 | $m_i\times n$ |
+| $m_0, m_1$ | 两类样本数 | 标量 |
+| $\boldsymbol{w}$ | 投影方向 | $\mathbb{R}^n$ |
+
+### 2.2 投影后的统计量
+
+**投影后的均值**：
+
+$$\tilde\mu_i = \boldsymbol{w}^\top\boldsymbol{\mu}_i$$
+
+**投影后的类内方差**（协方差）——只考虑一个方向，所以是标量：
+
+$$\tilde s_i^2 = \sum_{\boldsymbol{x}\in \mathbf{X}_i}\left(\boldsymbol{w}^\top\boldsymbol{x} - \boldsymbol{w}^\top\boldsymbol{\mu}_i\right)^2 = \boldsymbol{w}^\top\mathbf{S}_i\boldsymbol{w}$$
+
+其中
+
+$$\mathbf{S}_i = \sum_{\boldsymbol{x}\in\mathbf{X}_i}(\boldsymbol{x}-\boldsymbol{\mu}_i)(\boldsymbol{x}-\boldsymbol{\mu}_i)^\top \in \mathbb{R}^{n\times n}$$
+
+**类内散度矩阵**：
+
+$$\boxed{\ \mathbf{S}_w = \mathbf{S}_0 + \mathbf{S}_1\ }$$
+
+**类间散度矩阵**：
+
+$$\boxed{\ \mathbf{S}_b = (\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)^\top\ }$$
+
+> 注意 $\mathbf{S}_w$ 是"总散度"（未除以样本数），而 $\mathbf{S}_b$ 在二分类时只有**秩 1**（它是一个外积）。这一点在多分类时会不同。
+
+### 2.3 目标函数
+
+**广义瑞利商**：
+
+$$J(\boldsymbol{w}) = \frac{\boldsymbol{w}^\top\mathbf{S}_b\boldsymbol{w}}{\boldsymbol{w}^\top\mathbf{S}_w\boldsymbol{w}} = \frac{\|\text{类间差}\|^2}{\text{类内方差}}$$
+
+**分子**展开：
+
+$$\boldsymbol{w}^\top\mathbf{S}_b\boldsymbol{w} = \boldsymbol{w}^\top(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)^\top\boldsymbol{w} = \left[\boldsymbol{w}^\top(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)\right]^2 = (\tilde\mu_0-\tilde\mu_1)^2$$
+
+正好是投影后两类中心的距离平方 。
+
+**分母**：
+
+$$\boldsymbol{w}^\top\mathbf{S}_w\boldsymbol{w} = \tilde s_0^2 + \tilde s_1^2$$
+
+正好是投影后的类内总方差 。
+
+---
+
+## 三、求解：广义特征值问题
+
+### 3.1 缩放不变性
+
+注意 $J(\boldsymbol{w})$ 对 $\boldsymbol{w}$ 的**尺度不变**：
+
+$$J(c\boldsymbol{w}) = \frac{c^2\boldsymbol{w}^\top\mathbf{S}_b\boldsymbol{w}}{c^2\boldsymbol{w}^\top\mathbf{S}_w\boldsymbol{w}} = J(\boldsymbol{w})$$
+
+所以**可以固定分母为常数**，只最大化分子。常用的规范化条件是：
+
+$$\boldsymbol{w}^\top\mathbf{S}_w\boldsymbol{w} = 1$$
+
+### 3.2 拉格朗日乘子法
+
+构造：
+
+$$\mathcal{L}(\boldsymbol{w}, \lambda) = \boldsymbol{w}^\top\mathbf{S}_b\boldsymbol{w} - \lambda\left(\boldsymbol{w}^\top\mathbf{S}_w\boldsymbol{w} - 1\right)$$
+
+对 $\boldsymbol{w}$ 求导置零：
+
+$$2\mathbf{S}_b\boldsymbol{w} - 2\lambda\mathbf{S}_w\boldsymbol{w} = \boldsymbol{0}$$
+
+$$\boxed{\ \mathbf{S}_b\boldsymbol{w} = \lambda \mathbf{S}_w\boldsymbol{w} \quad\text{（广义特征值问题）}\ }$$
+
+若 $\mathbf{S}_w$ 可逆：
+
+$$\mathbf{S}_w^{-1}\mathbf{S}_b\boldsymbol{w} = \lambda\boldsymbol{w}$$
+
+即**普通特征值问题**。
+
+### 3.3 二分类的显式解
+
+二分类时 $\mathbf{S}_b = (\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)^\top$。代入 $\mathbf{S}_b\boldsymbol{w} = \lambda\mathbf{S}_w\boldsymbol{w}$：
+
+$$(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)\underbrace{\left[(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)^\top\boldsymbol{w}\right]}_{\text{标量}} = \lambda\,\mathbf{S}_w\boldsymbol{w}$$
+
+括号内是标量，记作 $c$。于是：
+
+$$\boldsymbol{w} = \frac{c}{\lambda}\mathbf{S}_w^{-1}(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)$$
+
+由于尺度无关，取 $c/\lambda = 1$：
+
+$$\boxed{\ \boldsymbol{w}^* = \mathbf{S}_w^{-1}(\boldsymbol{\mu}_0 - \boldsymbol{\mu}_1)\ }$$
+
+**极其优雅的闭式解**：方向 = 类内散度矩阵的逆 × 类均值差。
+
+> **直观解释**：$\mathbf{S}_w^{-1}$ 的作用是"**把类内扩散大的方向压缩、把类内紧的方向放大**"，再对齐到类均值差方向。
+
+### 3.4 几何理解
+
+```
+原始空间:                       投影后:
+    ○  ○
+   ○   ○  ●  ●                 ○○○  |  ●●●
+    ○     ●  ●                     ↑
+                                  分得很开
+类内散乱、异类纠缠              类内紧、类间远
+```
+
+$\mathbf{S}_w^{-1}$ 相当于对特征空间做了一个"白化"，让各类变成各向同性的球，然后取中心连线方向。
+
+---
+
+## 四、多分类 LDA
+
+### 4.1 定义推广
+
+设 $k$ 个类别，全局均值 $\boldsymbol{\mu}$，各类均值 $\boldsymbol{\mu}_i$：
+
+**类内散度矩阵**（不变）：
+
+$$\mathbf{S}_w = \sum_{i=1}^{k}\sum_{\boldsymbol{x}\in \mathbf{X}_i}(\boldsymbol{x}-\boldsymbol{\mu}_i)(\boldsymbol{x}-\boldsymbol{\mu}_i)^\top$$
+
+**类间散度矩阵**（推广为加权形式）：
+
+$$\mathbf{S}_b = \sum_{i=1}^{k}m_i(\boldsymbol{\mu}_i - \boldsymbol{\mu})(\boldsymbol{\mu}_i-\boldsymbol{\mu})^\top$$
+
+$m_i$ 是第 $i$ 类样本数（也可去掉权重，西瓜书用加权形式）。
+
+**总散度矩阵**（恒等式）：
+
+$$\mathbf{S}_t = \mathbf{S}_b + \mathbf{S}_w$$
+
+> **验证**：$\mathbf{S}_t = \mathbf{S}_b + \mathbf{S}_w$ 是"总平方和 = 组间平方和 + 组内平方和"的矩阵版本，可类比 ANOVA。
+
+### 4.2 求解：取最大的若干特征值
+
+$$\mathbf{S}_w^{-1}\mathbf{S}_b\boldsymbol{w} = \lambda\boldsymbol{w}$$
+
+取前 $d$ 个最大特征值对应的特征向量组成投影矩阵 $\mathbf{W}\in\mathbb{R}^{n\times d}$。
+
+**关键性质**：
+
+$$\operatorname{rank}(\mathbf{S}_b) \le \min(k-1, n)$$
+
+- 因为 $\sum_i m_i(\boldsymbol{\mu}_i-\boldsymbol{\mu}) = \boldsymbol{0}$（加权均值为零），所以 $k$ 个向量线性相关，秩最多 $k-1$；
+- **因此 LDA 最多把数据降到 $k-1$ 维**（这是使用 LDA 降维时的重要约束）。
+
+| 类别数 $k$ | LDA 最大降维数 |
+| --- | --- |
+| 2 | 1 |
+| 3 | 2 |
+| 10 | 9 |
+| 100 | 99 |
+
+### 4.3 数值稳定：改用 $\mathbf{S}_b$ 的特征分解
+
+由于 $\mathbf{S}_b$ 秩低，$\mathbf{S}_w^{-1}\mathbf{S}_b$ 特征值大量为 0，直接求解可能有数值问题。更稳的做法：
+
+1. 对 $\mathbf{S}_w$ 做 Cholesky 分解：$\mathbf{S}_w = \mathbf{L}\mathbf{L}^\top$；
+2. 求 $\mathbf{L}^{-1}\mathbf{S}_b\mathbf{L}^{-\top}$ 的特征向量 $\boldsymbol{v}$；
+3. 原方向 $\boldsymbol{w} = \mathbf{L}^{-\top}\boldsymbol{v}$。
+
+> 这是 scikit-learn `LinearDiscriminantAnalysis(solver='eigen')` 的做法。
+
+### 4.4 正则化 LDA
+
+若 $\mathbf{S}_w$ 奇异（样本数少于特征数），加岭：
+
+$$\mathbf{S}_w' = \mathbf{S}_w + \gamma\mathbf{I}$$
+
+对应 sklearn 的 `shrinkage` 参数。
+
+---
+
+## 五、LDA vs PCA
+
+| 对比项 | LDA | PCA |
+| --- | --- | --- |
+| 监督信息 | **有监督**（用标签） | **无监督** |
+| 优化目标 | 类间/类内比最大 | 方差最大 |
+| 是否需要中心化 | 是 | 是 |
+| 是否需要标准化 | 常需要 | 常需要 |
+| 最大降维数 | $k-1$ | $\min(m,n)$ |
+| 对异常值 | 敏感（均值敏感） | 敏感 |
+| 典型用途 | 分类前的特征提取 | 可视化、去噪、压缩 |
+
+**图示对比**：
+
+```
+        ● ●
+    ●  ● ●            PCA 找方差最大的方向 (↗)
+   ●      ○ ○         LDA 找类间/类内比最大的方向 (→)
+    ●   ○ ○
+        ○
+```
+
+**关键反例**：若数据的最大方差方向正好是"类内扩散"方向，PCA 会选错方向，而 LDA 不会。
+
+> **实践建议**：有标签且目标是分类 ⇒ 优先 LDA；无标签或目标是压缩/可视化 ⇒ PCA。
+
+---
+
+## 六、LDA 与逻辑回归、高斯贝叶斯的关系
+
+假设两类数据都服从**同协方差**的高斯分布：$P(\boldsymbol{x}|y=i) = \mathcal{N}(\boldsymbol{\mu}_i, \boldsymbol{\Sigma})$。
+
+则对数几率是 $\boldsymbol{x}$ 的线性函数（Week03 Day3 练习 8），因此**决策边界是线性的**。可以证明：
+
+$$\boldsymbol{w} \propto \boldsymbol{\Sigma}^{-1}(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)$$
+
+而 LDA 的解是 $\mathbf{S}_w^{-1}(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)$，由于 $\mathbf{S}_w$ 是 $\boldsymbol{\Sigma}$ 的（加权）极大似然估计，**两者本质相同**。
+
+**三种模型的关系总结**：
+
+| 模型 | 类型 | 建模对象 |
+| --- | --- | --- |
+| 高斯贝叶斯（等协方差） | 生成式 | $P(\boldsymbol{x},y) = P(\boldsymbol{x}\verty)P(y)$ |
+| **LDA** | 判别式/降维 | 类间类内散度比 |
+| 逻辑回归 | 判别式 | 直接建模 $P(y\vert\boldsymbol{x})$ |
+
+- 数据**符合高斯假设**时，生成式（贝叶斯）更高效（样本少也能学好）；
+- 假设**不成立**时，判别式（逻辑回归）更鲁棒。
+
+---
+
+## 七、代码实践
+
+```python
+import numpy as np
+
+def lda_fit(X, y, n_components=None):
+    """
+    多分类 LDA（用 S_w^{-1} S_b 的广义特征分解）
+    返回: W (n_features, n_components), 以及投影后的类均值
+    """
+    classes = np.unique(y)
+    k, n = len(classes), X.shape[1]
+    mu_all = X.mean(axis=0)
+
+    S_w = np.zeros((n, n))
+    S_b = np.zeros((n, n))
+    for c in classes:
+        Xc = X[y == c]
+        mu_c = Xc.mean(axis=0)
+        d = Xc - mu_c
+        S_w += d.T @ d                                   # 类内散度
+        diff = (mu_c - mu_all).reshape(-1, 1)
+        S_b += len(Xc) * (diff @ diff.T)                 # 类间散度
+
+    # 加一点岭保证可逆
+    S_w_reg = S_w + 1e-6 * np.eye(n)
+    M = np.linalg.solve(S_w_reg, S_b)
+    vals, vecs = np.linalg.eig(M)
+    order = np.argsort(vals.real)[::-1]                  # 按特征值降序
+    if n_components is None:
+        n_components = min(k - 1, n)
+    W = vecs[:, order[:n_components]].real
+    return W, S_w, S_b
+```
+
+完整版本见 `code/day4_lda.py`，包含：
+
+1. 二分类 LDA 的显式解 $\mathbf{S}_w^{-1}(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)$ 与广义特征值解的一致性验证；
+2. 多分类 LDA 在鸢尾花（或合成 3 类数据）上的降维与分类效果；
+3. LDA vs PCA 在同一份数据上的投影方向对比；
+4. 演示"最大方差方向 = 类内方向"时 PCA 失败、LDA 成功的反例；
+5. 与 `sklearn.discriminant_analysis.LinearDiscriminantAnalysis` 的系数对照。
+
+---
+
+## 八、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 忘记中心化 | 散度矩阵计算错误 |
+| $\mathbf{S}_w$ 奇异时直接求逆 | 用伪逆或加 $\gamma\mathbf{I}$（shrinkage） |
+| 期望 LDA 降维超过 $k-1$ 维 | 数学上不可能 |
+| 特征量纲不统一 | 散度矩阵被大量纲特征主导，需标准化 |
+| 混淆 LDA 与"线性判别**函数**" | 前者是降维/分类器，后者泛指线性打分函数 |
+| 认为 LDA 一定优于 PCA | 无监督场景下 LDA 无法使用 |
+| 忽略 LDA 的高斯假设 | 数据严重非高斯时效果可能很差（可用 QDA 或核 LDA） |
+
+---
+
+## 九、练习题
+
+**基础**
+
+1. 写出 $\mathbf{S}_w$、$\mathbf{S}_b$ 的定义，并说明各自的含义。
+2. 二分类时 $\mathbf{S}_b$ 的秩是多少？为什么？
+3. 说明 $J(\boldsymbol{w})$ 为什么对 $\boldsymbol{w}$ 的尺度不变。
+
+**进阶**
+
+4. 用拉格朗日乘子法推导 $\mathbf{S}_b\boldsymbol{w} = \lambda\mathbf{S}_w\boldsymbol{w}$。
+5. 证明 $\mathbf{S}_t = \mathbf{S}_b + \mathbf{S}_w$。
+6. 推导二分类 LDA 的显式解 $\boldsymbol{w}^* = \mathbf{S}_w^{-1}(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)$。
+7. 对 $k$ 类问题，证明 $\operatorname{rank}(\mathbf{S}_b)\le k-1$。
+
+**思考题**
+
+8. 若数据的最大方差方向恰好与类内差异方向一致，PCA 会把两类压在一起，而 LDA 不会。请构造一个具体的二维数据例子说明这点。
+9. LDA 假设各类协方差相同。若各类协方差差异很大，应该用什么方法？（提示：QDA 或二次判别）
+
+<details>
+<summary>第 3 题答案</summary>
+
+$$J(c\boldsymbol{w}) = \frac{(c\boldsymbol{w})^\top\mathbf{S}_b(c\boldsymbol{w})}{(c\boldsymbol{w})^\top\mathbf{S}_w(c\boldsymbol{w})} = \frac{c^2\boldsymbol{w}^\top\mathbf{S}_b\boldsymbol{w}}{c^2\boldsymbol{w}^\top\mathbf{S}_w\boldsymbol{w}} = J(\boldsymbol{w})$$
+
+所以可任意固定尺度，例如令 $\boldsymbol{w}^\top\mathbf{S}_w\boldsymbol{w} = 1$。
+</details>
+
+<details>
+<summary>第 7 题答案</summary>
+
+$\mathbf{S}_b = \sum_{i=1}^k m_i(\boldsymbol{\mu}_i-\boldsymbol{\mu})(\boldsymbol{\mu}_i-\boldsymbol{\mu})^\top$
+
+注意到 $\sum_i m_i(\boldsymbol{\mu}_i-\boldsymbol{\mu}) = \boldsymbol{0}$（加权均值定义）。
+
+即 $k$ 个向量 $\sqrt{m_i}(\boldsymbol{\mu}_i-\boldsymbol{\mu})$ 线性相关（存在非平凡线性组合为零），因此它们张成的空间维数至多 $k-1$。
+
+$\mathbf{S}_b$ 是这些向量的外积之和，秩不超过张成空间维数，故 $\operatorname{rank}(\mathbf{S}_b)\le k-1$。
+
+**推论**：$\mathbf{S}_w^{-1}\mathbf{S}_b$ 也至多 $k-1$ 个非零特征值 ⇒ **LDA 最多降到 $k-1$ 维**。
+</details>
+
+<details>
+<summary>第 8 题提示</summary>
+
+构造：两类的中心分别在 $(0,0)$ 与 $(0,\epsilon)$（几乎重合），但每类在 $x$ 方向方差极大（例如 $\pm 10$）。
+
+- **PCA**：最大方差方向是 $x$ 轴，投影后两类完全混在一起
+- **LDA**：$\mathbf{S}_w^{-1}(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)$ 会给出 $y$ 方向（因为 $y$ 方向类内方差小，被 $\mathbf{S}_w^{-1}$ 放大），投影后两类可分
+</details>
+
+---
+
+## 十、一句话总结
+
+**LDA = 找到一个方向，让 $\frac{\text{类间距离}^2}{\text{类内方差}}$ 最大；解是 $\mathbf{S}_w^{-1}(\boldsymbol{\mu}_0-\boldsymbol{\mu}_1)$，本质是"先白化再连中心"。**
+
+---
+
+**明日预告**：Day5 收尾本周——多分类的三种策略，以及如何应对类别不平衡。
+

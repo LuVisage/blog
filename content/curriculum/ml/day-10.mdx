@@ -1,0 +1,458 @@
+---
+slug: day-10
+kind: day
+day: 10
+week: 1
+weekTitle: 数学地基与环境
+weekBlurb: 开发环境收尾后补齐线性代数、概率、梯度与信息论——后面所有公式都建立在这上面。
+title: 信息论与数值计算
+lead: '交叉熵、KL 散度、互信息——这些词在深度学习里反复出现。今天把这些概念一次讲清，并解决一个"看起来不起眼但会让你的模型直接输出 NaN"的问题：**数值稳定性**。'
+sourcePath: Week01_数学地基与环境/Day5_信息论与数值计算.md
+---
+
+> 花书第 3 章 3.13 节、第 4 章 4.4 节 · 南瓜书附录 D
+
+交叉熵、KL 散度、互信息——这些词在深度学习里反复出现。今天把这些概念一次讲清，并解决一个"看起来不起眼但会让你的模型直接输出 NaN"的问题：**数值稳定性**。
+
+---
+
+## 今日目标
+
+1. 理解自信息、熵、交叉熵、KL 散度、JS 散度、互信息的定义与相互关系；
+2. 掌握"**最大似然 ⟺ 最小化交叉熵 ⟺ 最小化 KL 散度**"这一核心等价链；
+3. 理解交叉熵作为损失函数为什么比 MSE 更适合分类任务；
+4. 掌握数值稳定技巧：log-sum-exp、softmax 减最大值、logsigmoid；
+5. 理解上溢、下溢、病态条件如何导致训练崩溃；
+6. 会手写一个数值稳定的 softmax 与对数似然实现。
+
+---
+
+## 知识地图
+
+```
+Week01 Day5 信息论
+├─ 熵 / 交叉熵   → Week02 决策树信息增益、Week07 分类损失
+├─ KL 散度       → Week06 变分推断、Week08 正则、Week12 VAE
+├─ 互信息        → 特征选择、Week11 表示学习
+└─ 数值稳定      → 全课程（softmax、log-sum-exp 到处都在用）
+```
+
+---
+
+## 一、自信息与熵
+
+### 1.1 自信息（Self-information）
+
+一个概率为 $p$ 的事件发生，携带多少信息？
+
+$$I(x) = -\log p(x)$$
+
+**为什么会这样定义**：需要满足三条公理——
+
+1. 概率越小的事件，信息量越大（$p \downarrow \Rightarrow I \uparrow$）；
+2. 必然事件（$p=1$）信息量为 0；
+3. 独立事件的信息量可加：$I(x,y) = I(x) + I(y)$（因为 $-\log(p_xp_y) = -\log p_x - \log p_y$）。
+
+只有对数函数同时满足这三条（香农 1948）。
+
+**单位**：底为 2 → 比特（bit）；底为 $e$ → 奈特（nat）。深度学习一般用自然对数。
+
+### 1.2 熵（Entropy）
+
+熵是自信息的期望：
+
+$$H(P) = \mathbb{E}_{x\sim P}\left[-\log P(x)\right] = -\sum_x P(x)\log P(x)$$
+
+**含义**：描述分布 $P$ 的**不确定性**或**平均信息量**。
+
+| 情形 | 熵 |
+| --- | --- |
+| 必然事件（$p=1$） | $H = 0$，毫无不确定性 |
+| 均匀分布（$p=1/k$） | $H = \log k$，**最大**不确定性 |
+
+**性质**：
+
+- $H(P) \ge 0$；
+- 离散分布最大熵为 $\log k$（$k$ 为取值个数），在均匀分布取得；
+- 连续性分布中，给定均值和方差，**高斯分布的熵最大**（Week01 Day3 提过）。
+
+### 1.3 联合熵与条件熵
+
+$$H(X,Y) = -\sum_{x,y} P(x,y)\log P(x,y)$$
+
+$$H(Y|X) = -\sum_{x,y}P(x,y)\log P(y|x) = H(X,Y) - H(X)$$
+
+**链式法则**：$H(X,Y) = H(X) + H(Y|X) = H(Y) + H(X|Y)$
+
+---
+
+## 二、交叉熵（Cross-Entropy）
+
+### 2.1 定义
+
+用分布 $Q$ 去编码真实分布 $P$ 的数据时，平均所需的编码长度：
+
+$$H(P, Q) = -\sum_x P(x)\log Q(x) = \mathbb{E}_{x\sim P}[-\log Q(x)]$$
+
+**关键点**：**期望在 $P$ 下取，取对数的却是 $Q$**。这是交叉熵与熵的唯一区别。
+
+- 若 $Q = P$，则 $H(P,Q) = H(P)$；
+- 若 $Q \ne P$，则 $H(P,Q) > H(P)$，多出来的部分就是 KL 散度。
+
+### 2.2 分解
+
+$$H(P,Q) = H(P) + D_{KL}(P\|Q)$$
+
+**推导**：
+
+$$H(P,Q) - H(P) = -\sum_x P\log Q + \sum_x P\log P = \sum_x P \log\frac{P(x)}{Q(x)} = D_{KL}(P\|Q) \ge 0$$
+
+**为什么训练时只优化交叉熵而不减 $H(P)$**：
+真实分布 $P$ 是数据决定的**常数**，$H(P)$ 与模型参数 $\boldsymbol{\theta}$ 无关。所以：
+
+$$\min_{\boldsymbol{\theta}} H(P, Q_{\boldsymbol{\theta}}) \iff \min_{\boldsymbol{\theta}} D_{KL}(P\|Q_{\boldsymbol{\theta}})$$
+
+### 2.3 作为损失函数的两种常见形式
+
+**二分类**（$y\in\{0,1\}$，$\hat{y} = P(y=1)$）：
+
+$$L = -\left[y\log\hat{y} + (1-y)\log(1-\hat{y})\right]$$
+
+**多分类**（$y$ 为 one-hot，$\hat{\boldsymbol{y}} = \text{softmax}(\boldsymbol{z})$）：
+
+$$L = -\sum_{j=1}^{k} y_j \log \hat{y}_j = -\log \hat{y}_{c} \quad (c = \text{真实类别})$$
+
+> 因为 $y$ 是 one-hot，求和里只有一项非零。所以多分类交叉熵等价于"**对真实类别的预测概率取负对数**"——一张图看懂：预测对类别的概率 0.9 → 损失 0.105；0.1 → 损失 2.303。
+
+### 2.4 为什么分类不用 MSE
+
+1. **梯度消失**：若用 MSE + sigmoid，梯度为 $\sigma'(\cdot)$，在饱和区（输出接近 0 或 1）梯度趋于 0，学习停滞；
+2. **非凸**：交叉熵 + sigmoid/softmax 对 logits 是**凸**的（Week01 Day4），MSE 则不是；
+3. **概率解释**：交叉熵是伯努利/分类分布的对数似然，有明确的概率基础；MSE 对应高斯噪声假设，不适合 0/1 标签。
+
+---
+
+## 三、KL 散度与 JS 散度
+
+### 3.1 KL 散度（相对熵）
+
+$$D_{KL}(P\|Q) = \sum_x P(x)\log\frac{P(x)}{Q(x)} = \mathbb{E}_{x\sim P}\left[\log\frac{P(x)}{Q(x)}\right]$$
+
+**性质**：
+
+| 性质 | 说明 |
+| --- | --- |
+| 非负性 | $D_{KL} \ge 0$（由 Jensen 不等式，等式当且仅当 $P=Q$） |
+| 不对称 | $D_{KL}(P\|Q) \ne D_{KL}(Q\|P)$，**不是距离** |
+| 期望在 $P$ 下 | 前向 KL：$P$ 为 0 处无惩罚；反向 KL 则不同 |
+
+**正反 KL 的行为差异**（对生成模型极重要，Week12 会用）：
+
+- **前向 KL** $D_{KL}(P\|Q)$：$Q$ 必须覆盖 $P$ 的支撑集，倾向于**过度覆盖**（mode-covering，模糊）；
+- **反向 KL** $D_{KL}(Q\|P)$：$Q$ 只要找到一个 mode 就满足，倾向于**坍塌到单一模式**（mode-seeking）。
+
+**由 Jensen 不等式证明非负性**（$-\log$ 是凸函数）：
+
+$$D_{KL}(P\|Q) = -\mathbb{E}_{x\sim P}\left[\log\frac{Q(x)}{P(x)}\right] \ge -\log\mathbb{E}_{x\sim P}\left[\frac{Q(x)}{P(x)}\right] = -\log 1 = 0$$
+
+### 3.2 JS 散度（Jensen–Shannon）
+
+$$D_{JS}(P\|Q) = \frac{1}{2}D_{KL}\!\left(P\middle\|\frac{P+Q}{2}\right) + \frac{1}{2}D_{KL}\!\left(Q\middle\|\frac{P+Q}{2}\right)$$
+
+- **对称**：$D_{JS}(P\|Q) = D_{JS}(Q\|P)$；
+- **有界**：$0 \le D_{JS} \le \log 2$（自然对数）；
+- 缺点：当 $P,Q$ 支撑集不重叠时，$D_{JS}$ **恒为 $\log 2$，梯度为 0** → 这是原始 GAN 训练不稳定的原因（Week12 会讲 WGAN 怎么解决）。
+
+### 3.3 互信息（Mutual Information）
+
+$$I(X;Y) = H(X) - H(X|Y) = H(Y) - H(Y|X) = \sum_{x,y}P(x,y)\log\frac{P(x,y)}{P(x)P(y)} = D_{KL}(P(X,Y)\|P(X)P(Y))$$
+
+**含义**：知道 $Y$ 之后，$X$ 的不确定性减少了多少。
+
+**性质**：$I(X;Y) \ge 0$，且 $I(X;Y)=0 \iff X \perp Y$。
+
+**应用**：特征选择（选与标签互信息大的特征）、表征学习（InfoNCE、对比学习）。
+
+### 概念关系总图
+
+```
+                    H(X,Y)
+                   /      \
+        H(X)  ──互信息──  H(Y)
+          \    I(X;Y)    /
+           \            /
+        H(X|Y)      H(Y|X)
+
+H(P,Q) = H(P) + D_KL(P‖Q)
+H(X|Y) = H(X) - I(X;Y)
+```
+
+---
+
+## 四、最大似然 ⟺ 最小化交叉熵（核心推导）
+
+设数据集 $\mathcal{D} = \{\boldsymbol{x}_1,\dots,\boldsymbol{x}_m\}$ 来自真实分布 $P_{\text{data}}$，模型分布为 $P_{\boldsymbol{\theta}}$。
+
+**最大似然**：
+
+$$\hat{\boldsymbol{\theta}} = \arg\max_{\boldsymbol{\theta}} \prod_{i=1}^m P_{\boldsymbol{\theta}}(\boldsymbol{x}_i) = \arg\max_{\boldsymbol{\theta}} \sum_{i=1}^m \log P_{\boldsymbol{\theta}}(\boldsymbol{x}_i)$$
+
+**加上一个与 $\boldsymbol{\theta}$ 无关的常数项**（关键步骤）：
+
+$$\sum_{i=1}^m \log P_{\boldsymbol{\theta}}(\boldsymbol{x}_i) = m \cdot \frac{1}{m}\sum_{i=1}^m \log P_{\boldsymbol{\theta}}(\boldsymbol{x}_i) \approx m\,\mathbb{E}_{\boldsymbol{x}\sim P_{\text{data}}}\left[\log P_{\boldsymbol{\theta}}(\boldsymbol{x})\right]$$
+
+**引入 $P_{\text{data}}$**：
+
+$$\mathbb{E}_{P_{\text{data}}}[\log P_{\boldsymbol{\theta}}] = \mathbb{E}_{P_{\text{data}}}[\log P_{\text{data}}] + \mathbb{E}_{P_{\text{data}}}\left[\log\frac{P_{\boldsymbol{\theta}}}{P_{\text{data}}}\right] = -H(P_{\text{data}}) - D_{KL}(P_{\text{data}}\|P_{\boldsymbol{\theta}})$$
+
+第一项与 $\boldsymbol{\theta}$ 无关。所以：
+
+$$\boxed{\ \arg\max_{\boldsymbol{\theta}} \frac{1}{m}\sum_i \log P_{\boldsymbol{\theta}}(\boldsymbol{x}_i) = \arg\min_{\boldsymbol{\theta}} D_{KL}(P_{\text{data}}\|P_{\boldsymbol{\theta}}) = \arg\min_{\boldsymbol{\theta}} H(P_{\text{data}}, P_{\boldsymbol{\theta}})\ }$$
+
+**三条结论**：
+
+1. 极大化似然 = 极小化模型分布与数据分布的 KL 散度；
+2. 由于 $H(P_{\text{data}})$ 是常数，等价于**最小化交叉熵**；
+3. 这就是"训练分类器时用交叉熵损失"的**全部理由**——它是一个有概率意义的、可微的、凸（对 logits）的目标。
+
+---
+
+## 五、数值计算问题
+
+深度学习训练崩溃的元凶，多半不是数学错，而是**浮点数**。
+
+### 5.1 上溢与下溢
+
+IEEE 754 双精度浮点数的范围约为 $[1.8\times10^{-308},\ 1.8\times10^{308}]$。
+
+| 问题 | 场景 | 后果 |
+| --- | --- | --- |
+| **上溢 overflow** | $e^{1000}$ | `inf`，后续变 `nan` |
+| **下溢 underflow** | $\prod_{i=1}^{1000} 0.1 = 10^{-1000}$ | 变成 0，log(0) = `-inf` |
+
+**典型例子**：直接计算 softmax
+
+$$\text{softmax}(z_i) = \frac{e^{z_i}}{\sum_j e^{z_j}}$$
+
+若 $z = (1000, 1001, 1002)$，则 $e^{z_i} = \text{inf}$，结果全是 `nan`。
+
+### 5.2 解决方法一：softmax 减去最大值
+
+利用**平移不变性**：
+
+$$\text{softmax}(\boldsymbol{z}) = \text{softmax}(\boldsymbol{z} - c) \quad (\text{任意常数 } c)$$
+
+取 $c = \max_i z_i$，则指数最大为 $e^0 = 1$，不会上溢；至少有一个分母项为 1，不会全为 0。
+
+```python
+def softmax(z):
+    z = z - np.max(z, axis=-1, keepdims=True)   # 减最大值
+    exp_z = np.exp(z)
+    return exp_z / exp_z.sum(axis=-1, keepdims=True)
+```
+
+### 5.3 解决方法二：log-sum-exp 技巧
+
+$$\log\sum_{i} e^{z_i} = c + \log\sum_i e^{z_i - c}, \quad c = \max_i z_i$$
+
+这个函数在深度学习中无处不在：softmax 的 log、CRF、变分推断、对数域概率乘法。
+
+```python
+def logsumexp(z, axis=None, keepdims=False):
+    z_max = np.max(z, axis=axis, keepdims=True)
+    z_max = np.where(np.isfinite(z_max), z_max, 0.0)      # 处理全 -inf
+    out = z_max + np.log(np.sum(np.exp(z - z_max), axis=axis, keepdims=True))
+    return out if keepdims else np.squeeze(out, axis=axis)
+```
+
+### 5.4 解决方法三：用 log-softmax + NLL 代替 softmax + log
+
+多分类交叉熵需要 $\log(\text{softmax}(z))$。如果先算 softmax 再取 log，会在概率极小时出现 $\log(0) = -\infty$。
+
+**正确做法**（用一个函数一次性完成）：
+
+$$\log\text{softmax}(z_i) = z_i - \log\sum_j e^{z_j} = z_i - \text{logsumexp}(\boldsymbol{z})$$
+
+PyTorch 中对应：
+
+```python
+# ❌ 不稳定
+loss = F.nll_loss(torch.log(F.softmax(logits, dim=1)), target)
+
+# ✅ 稳定（内部使用 log_softmax）
+loss = F.cross_entropy(logits, target)
+
+# ✅ 也稳定
+loss = F.nll_loss(F.log_softmax(logits, dim=1), target)
+```
+
+> **记住这条规则**：**任何"先 softmax 再 log"的写法都应该被替换为 log_softmax。** 这是深度学习工程中最重要的数值习惯之一。
+
+### 5.5 logsigmoid 与二分类
+
+sigmoid 在 $|x|$ 很大时会饱和，$\log\sigma(x)$ 会变成 $-\infty$（当 $x$ 很负）。
+
+$$\log\sigma(x) = -\log(1 + e^{-x}) = x - \log(1+e^{x})$$
+
+根据 $x$ 的符号选择不同分支，可避免上溢。PyTorch 提供 `F.logsigmoid`，对应 `binary_cross_entropy_with_logits`。
+
+### 5.6 病态条件（Ill-conditioning）
+
+条件数 $\kappa = \lambda_{\max}/\lambda_{\min}$ 很大时，输入微小的扰动会被放大 $\kappa$ 倍。
+
+**在 ML 中的体现**：
+
+- 矩阵求逆不稳定 → 用 `lstsq` / 伪逆 / 加 $\lambda\mathbf{I}$；
+- 梯度下降在狭长山谷震荡 → 用标准化 / 自适应学习率（Week08）；
+- 深层网络的梯度连乘导致爆炸或消失 → 用归一化层与残差连接（Week08/09）。
+
+---
+
+## 六、代码实践
+
+```python
+import numpy as np
+
+# 1. 熵与交叉熵
+def entropy(p):
+    p = np.asarray(p, dtype=float)
+    p = p[p > 0]
+    return -(p * np.log(p)).sum()
+
+def cross_entropy(p, q):
+    p, q = np.asarray(p, float), np.asarray(q, float)
+    mask = p > 0
+    return -(p[mask] * np.log(q[mask])).sum()
+
+p = np.array([0.7, 0.2, 0.1])
+q = np.array([0.6, 0.3, 0.1])
+print(f"H(P)     = {entropy(p):.4f}")
+print(f"H(P,Q)   = {cross_entropy(p, q):.4f}")
+print(f"KL(P‖Q)  = {cross_entropy(p,q) - entropy(p):.4f}")
+print(f"KL 非负检查: {cross_entropy(p,q) >= entropy(p)}")
+
+# 2. 数值不稳定：朴素 softmax 在 logits 很大时会炸
+big = np.array([1000., 1001., 1002.])
+with np.errstate(over='ignore'):
+    naive = np.exp(big) / np.exp(big).sum()
+print("朴素 softmax:", naive)          # [nan nan nan]
+
+def stable_softmax(z):
+    z = z - np.max(z)
+    e = np.exp(z)
+    return e / e.sum()
+
+print("稳定 softmax:", stable_softmax(big))   # [0.09 0.244 0.665]
+
+# 3. log-sum-exp
+def logsumexp(z):
+    m = np.max(z)
+    return m + np.log(np.sum(np.exp(z - m)))
+
+print("logsumexp:", logsumexp(big))    # 1002.4076...
+print("直接计算会溢出:", np.log(np.exp(big).sum()) if big.max() < 700 else "inf")
+
+# 4. log_softmax 与交叉熵（稳定实现）
+def log_softmax(z):
+    return z - logsumexp(z)
+
+def nll_loss(logits, target):
+    """target 是类别索引"""
+    return -log_softmax(logits)[target]
+
+logits = np.array([2.0, 1.0, 0.1])
+print("log_softmax:", log_softmax(logits))
+print("NLL loss (target=0):", nll_loss(logits, 0))
+
+# 5. 校验：交叉熵 = NLL
+probs = stable_softmax(logits)
+manual_ce = -np.log(probs[0])
+print(f"手动交叉熵: {manual_ce:.6f}, NLL: {nll_loss(logits, 0):.6f}")
+```
+
+完整版本见 `code/day5_information.py`。
+
+---
+
+## 七、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 先 `softmax` 再 `log` | 概率很小时 $\log 0 = -\infty$，**必须用 `log_softmax`** |
+| 直接 `np.exp` 大数 | 上溢成 inf，softmax 前先减最大值 |
+| 用 MSE 做分类 | 梯度消失 + 非凸，**分类用交叉熵** |
+| 把 KL 当距离用 | 不对称，不满足三角不等式 |
+| 混淆熵与交叉熵 | $H(P) = H(P,P)$，交叉熵是两分布之间 |
+| 交叉熵里期望取错分布 | 期望在**真实分布** $P$ 下取，不是模型分布 |
+| 用 `-inf` 参与后续运算 | $-inf + inf = nan$，注意 mask 后再计算 |
+| 用 `float32` 算大数据的求和 | 累加误差，必要时用 `float64` 或 Kahan 求和 |
+
+---
+
+## 八、练习题
+
+**基础**
+
+1. 计算分布 $P=(0.5, 0.25, 0.25)$ 的熵。
+2. 证明 $H(X,Y) = H(X) + H(Y|X)$。
+3. 计算 $D_{KL}(P\|Q)$ 与 $D_{KL}(Q\|P)$，其中 $P=(0.9,0.1)$，$Q=(0.5,0.5)$，验证两者不等。
+
+**进阶**
+
+4. 用 Jensen 不等式证明 $D_{KL}(P\|Q) \ge 0$。
+5. 证明 softmax 的平移不变性：对任意常数 $c$，$\text{softmax}(\boldsymbol{z}) = \text{softmax}(\boldsymbol{z}+c\boldsymbol{1})$。
+6. 【核心】设三分类 logits $\boldsymbol{z} = (1.0, 2.0, 3.0)$，真实类别为 2（索引从 0 开始）。分别用"朴素 softmax + log"和"log_softmax"计算交叉熵，并说明 $\log\text{softmax}(z_i) = z_i - \text{logsumexp}(\boldsymbol{z})$ 的推导过程。
+
+**思考题**
+
+7. 为什么 JS 散度在 $P$ 与 $Q$ 支撑集不重叠时梯度为 0？请画出 $D_{JS}$ 随两者距离变化的曲线，并解释这为什么导致原始 GAN 训练困难。
+8. 分类任务用交叉熵、回归任务用 MSE，本质上分别对数据做了什么样的分布假设？如果回归任务的噪声是拉普拉斯分布，应该用什么损失？
+
+<details>
+<summary>第 6 题答案</summary>
+
+`log_softmax`：
+
+$$\text{logsumexp}(1,2,3) = 3 + \log(e^{-2}+e^{-1}+e^{0}) = 3 + \log(0.1353+0.3679+1) = 3 + \log(1.5032) = 3 + 0.4076 = 3.4076$$
+
+$$\log\text{softmax}(z_2) = 3.0 - 3.4076 = -0.4076$$
+
+交叉熵 $= 0.4076$。
+
+**推导**：
+
+$$\log\text{softmax}(z_i) = \log\frac{e^{z_i}}{\sum_j e^{z_j}} = z_i - \log\sum_j e^{z_j} = z_i - \text{logsumexp}(\boldsymbol{z})$$
+</details>
+
+<details>
+<summary>第 8 题答案要点</summary>
+
+- 交叉熵 ⟹ 标签服从 **Bernoulli / Categorical** 分布；
+- MSE ⟹ 噪声服从 **高斯** 分布（$-\log p \propto (y-\hat y)^2$）；
+- 若噪声是 **Laplace** 分布，$-\log p \propto |y - \hat y|$，应使用 **MAE（$L_1$ 损失）**。
+
+**通用原则**：损失函数 = 负对数似然，由"数据生成分布"决定。
+</details>
+
+---
+
+## 九、一句话总结
+
+**交叉熵不是一个凭空发明的损失函数，而是"最大似然估计"在分类分布下的自然结果；而数值稳定性不是工程细节，而是让这个损失能被真正算出来的前提。**
+
+---
+
+## Week01 收尾
+
+恭喜完成数学地基！你现在已经具备了学习机器学习的全部数学工具：
+
+| 已完成 | 掌握的工具 |
+| --- | --- |
+| Day1 | NumPy、张量操作、广播、轴 |
+| Day2 | 范数、矩阵运算、特征分解、SVD |
+| Day3 | 分布、贝叶斯、MLE/MAP |
+| Day4 | 梯度、链式法则、Jacobian/Hessian、凸性、KKT |
+| Day5 | 熵、交叉熵、KL、数值稳定 |
+
+**下一周预告**：Week02 进入机器学习正题——什么是"学习"？模型如何评估？什么是偏差-方差权衡？我们会从西瓜书第 1–2 章出发，并亲手实现第一个分类器 kNN。
+

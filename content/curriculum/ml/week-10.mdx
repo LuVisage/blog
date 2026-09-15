@@ -1,0 +1,131 @@
+---
+slug: week-10
+kind: reference
+day: 11
+week: 10
+weekTitle: 深度学习进阶
+weekBlurb: 过拟合与正则化、批归一化、优化算法与训练曲线诊断。
+title: 深度学习进阶
+lead: 'Week09 你学会了开汽车 —— 知道油门在哪、刹车在哪。这一周回答"**为什么这样开**"：为什么 Dropout 能防过拟合？为什么 BatchNorm 让训练变快？为什么 Adam 前期快而 SGD 后期稳？为什……'
+sourcePath: Week10_深度学习进阶/README.md
+---
+
+> 花书第 6–8 章（深度前馈网络 / 正则化 / 优化）· 苹果书第 4–6 讲
+
+Week09 你学会了开汽车 —— 知道油门在哪、刹车在哪。这一周回答"**为什么这样开**"：为什么 Dropout 能防过拟合？为什么 BatchNorm 让训练变快？为什么 Adam 前期快而 SGD 后期稳？为什么梯度会消失？
+
+**这一周是全课程理论密度最高的一周。** 前面 9 周建立的直觉，在这里被组织成完整的原理体系。
+
+---
+
+## 本周目标
+
+学完本周，你应该能够：
+
+1. 从偏差-方差角度解释过拟合，并说清 5 种正则化手段各自的作用机制；
+2. 推导 L2 正则为什么等价于权重衰减，并解释 Dropout 为什么是"隐式集成"；
+3. 完整推导 BatchNorm 的前向与反向，说清它为什么需要两个 `running` 统计量；
+4. 对比 SGD / Momentum / Nesterov / AdaGrad / RMSProp / Adam 的更新公式与适用场景；
+5. 分析梯度消失与爆炸的数学成因，掌握梯度裁剪与残差连接两种对策；
+6. 建立一套**训练诊断流程**：看到 loss 曲线就能定位问题所在。
+
+---
+
+## 书籍对照
+
+| 天 | 主题 | 花书 | 苹果书 | 其他 |
+| --- | --- | --- | --- | --- |
+| Day1 | 过拟合与正则化 | 第 7 章（7.1–7.4） | 第 4 讲 | Week02 Day4 偏差方差 |
+| Day2 | 批归一化与归一化技术 | 8.7 节 | 第 5 讲 | BN/LN/GN 原论文 |
+| Day3 | 优化算法深入 | 第 8 章（8.3–8.5） | 第 6 讲 | Week03 Day2 |
+| Day4 | 梯度问题与训练诊断 | 8.2、11.4–11.5 | — | 工程经验合集 |
+| Day5 | 综合实战：消融实验 | — | — | 复现 Week09 的模型 |
+
+---
+
+## 时间安排
+
+| 天 | 内容 | 文档 | 代码 | 建议时长 |
+| --- | --- | --- | --- | --- |
+| Day1 | 过拟合与正则化 | [Day1_过拟合与正则化.md](/learn/ml/day-51) | `code/day1_regularization.py` | 3.5h |
+| Day2 | 批归一化与归一化技术 | [Day2_批归一化.md](/learn/ml/day-52) | `code/day2_batchnorm.py` | 4h |
+| Day3 | 优化算法深入 | [Day3_优化算法深入.md](/learn/ml/day-53) | `code/day3_optimizers.py` | 3.5h |
+| Day4 | 梯度问题与训练诊断 | [Day4_梯度问题与训练诊断.md](/learn/ml/day-54) | `code/day4_diagnostics.py` | 3h |
+| Day5 | 综合实战：消融实验 | [Day5_实战正则化消融.md](/learn/ml/day-55) | `code/day5_ablation.py` | 3.5h |
+
+---
+
+## 本周核心公式速查
+
+**L2 正则与权重衰减的等价性**（Day1）：
+
+$$\mathcal{L}_{\text{total}} = \mathcal{L} + \frac{\lambda}{2}\lVert \mathbf{W} \rVert^2 \quad\Longrightarrow\quad \mathbf{W} \leftarrow \mathbf{W} - \eta\left(\nabla \mathcal{L} + \lambda \mathbf{W}\right) = (1 - \eta\lambda)\mathbf{W} - \eta\nabla\mathcal{L}$$
+
+每一步都先把权重"缩小一点"再沿梯度走 —— 这就是"权重衰减"这个名字的来源。
+
+**BatchNorm 前向**（Day2）：
+
+$$\hat{x} = \frac{x - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}, \qquad y = \gamma\hat{x} + \beta$$
+
+**优化器的递推关系**（Day3）：
+
+| 算法 | 核心更新 |
+| --- | --- |
+| Momentum | $v_t = \beta v_{t-1} + g_t$ |
+| Nesterov | 先在"预测位置"求梯度再更新 |
+| AdaGrad | $\theta \leftarrow \theta - \eta \frac{g_t}{\sqrt{\sum g^2 + \epsilon}}$ |
+| RMSProp | 分母换成梯度平方的**滑动平均** |
+| Adam | 一阶矩 + 二阶矩 + 偏差修正 |
+
+**梯度消失的成因**（Day4）：
+
+$$\frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(1)}} = \delta^{(L)}\prod_{l=2}^{L}\left(\mathbf{W}^{(l)\top} \cdot \sigma'(\mathbf{z}^{(l)})\right)$$
+
+连乘中每个因子的谱半径小于 1，梯度就指数衰减；大于 1 则爆炸。
+
+---
+
+## 本周检查清单
+
+- [ ] 我能画出"欠拟合 / 合适 / 过拟合"三种 loss 曲线的形状差异
+- [ ] 我能推导 L2 正则为什么等价于"每步先衰减权重"
+- [ ] 我能解释 Dropout 在训练与推理时的不同处理，以及 `1/(1-p)` 缩放的必要性
+- [ ] 我能说清 BatchNorm 训练时与推理时的行为差异，以及 `running_mean` 是怎么更新的
+- [ ] 我能手写 BatchNorm 的前向，并通过与 `nn.BatchNorm1d` 对比验证
+- [ ] 我能解释为什么 BN 允许用更大的学习率
+- [ ] 我能写出 Adam 的完整更新式并说明偏差修正的作用
+- [ ] 我能分析"梯度消失 vs 梯度爆炸"在梯度范数上的不同表现
+- [ ] 我会用梯度裁剪处理爆炸
+- [ ] 我能根据 loss 曲线判断是学习率过大、过小、过拟合还是数据问题
+
+---
+
+## 为什么这一周很关键
+
+```
+Week09  会用工具        「怎么跑」
+Week10  理解原理   →    「为什么这样跑、坏了怎么修」   ★ 分水岭
+Week11+ 应用结构        「换更强的模型」
+```
+
+面试中最常被问的三个深度学习问题，全部出自本周：
+
+1. BatchNorm 的原理？训练和推理有什么区别？
+2. Dropout 为什么能防过拟合？推理时怎么处理？
+3. Adam 和 SGD 的区别？为什么有时 SGD 更好？
+
+---
+
+## 环境准备
+
+```bash
+pip install torch torchvision matplotlib numpy
+# 本机已有 torch 2.8.0 + CUDA
+```
+
+本周代码全部支持 CPU 运行，训练部分使用 MNIST 子集控制耗时。
+
+---
+
+**下一篇**：[Day1_过拟合与正则化.md](/learn/ml/day-51)
+

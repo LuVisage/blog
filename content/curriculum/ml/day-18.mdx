@@ -1,0 +1,400 @@
+---
+slug: day-18
+kind: day
+day: 18
+week: 3
+weekTitle: 线性模型
+weekBlurb: 线性回归、逻辑回归与线性判别分析，第一批可解释模型，公式开始密集。
+title: 对数几率回归（逻辑回归）
+lead: '"对数几率回归"这个名字很别扭——它**是分类算法，不是回归**。名字来自它的数学形式：对**几率（odds）取对数**做线性建模。'
+sourcePath: Week03_线性模型/Day3_对数几率回归.md
+---
+
+> 西瓜书第 3 章 3.3 节 · 南瓜书 3.16–3.27
+
+"对数几率回归"这个名字很别扭——它**是分类算法，不是回归**。名字来自它的数学形式：对**几率（odds）取对数**做线性建模。
+
+---
+
+## 今日目标
+
+1. 理解从"阶跃函数不可导"到"sigmoid 替代"的动机；
+2. 掌握"几率（odds）"与"对数几率（log-odds）"的概念；
+3. 独立推导逻辑回归的最大似然 → 交叉熵损失；
+4. 推导梯度公式 $\nabla_{\boldsymbol{w}}L = \mathbf{X}^\top(\hat{\boldsymbol{y}}-\boldsymbol{y})$；
+5. 证明该损失函数是凸的；
+6. 掌握牛顿法与 IRLS 的关系；
+7. 从零实现逻辑回归并与 sklearn 对比。
+
+---
+
+## 知识地图
+
+```
+Week03
+├── Day1 线性回归 ✅
+├── Day2 梯度下降 ✅
+├── Day3 对数几率回归  ← 你在这里
+├── Day4 LDA
+└── Day5 多分类与不平衡
+
+        ↓ 关键衔接
+Week01 Day3（MLE）  →  交叉熵损失的来源
+Week01 Day5（信息论）→  交叉熵 = 负对数似然
+Week05 最大熵模型   →  逻辑回归就是最大熵的特例
+```
+
+---
+
+## 一、从回归到分类的动机
+
+### 1.1 直接用线性模型做分类为什么不行
+
+设 $y\in\{0,1\}$。若直接用 $f(\boldsymbol{x}) = \boldsymbol{w}^\top\boldsymbol{x}$ 做预测：
+
+- 输出范围是 $(-\infty, +\infty)$，而我们需要 $[0,1]$ 的概率；
+- 用阶跃函数 $\text{sign}(z)$ 判断会**不可导**，无法用梯度下降；
+- 离群点会把决策边界拉得很远（线性回归对离群点敏感）。
+
+### 1.2 理想函数：单位阶跃
+
+$$y = \begin{cases}1, & z \ge 0 \\ 0, & z < 0\end{cases}, \quad z = \boldsymbol{w}^\top\boldsymbol{x}+b$$
+
+**问题**：不连续、不可导 ⇒ 不能用于基于梯度的优化。
+
+### 1.3 替代方案：Sigmoid
+
+$$\sigma(z) = \frac{1}{1 + e^{-z}}$$
+
+**性质**：
+
+| 性质 | 表达式 |
+| --- | --- |
+| 值域 | $(0, 1)$ |
+| 单调递增 | $\sigma'(z) > 0$ |
+| **导数** | $\sigma'(z) = \sigma(z)(1-\sigma(z))$ |
+| 对称性 | $\sigma(-z) = 1 - \sigma(z)$ |
+| 在 0 处 | $\sigma(0) = 0.5$ |
+
+**导数推导**：
+
+$$\sigma'(z) = \frac{d}{dz}(1+e^{-z})^{-1} = -(1+e^{-z})^{-2}\cdot(-e^{-z}) = \frac{e^{-z}}{(1+e^{-z})^2}$$
+
+而
+
+$$\sigma(z)(1-\sigma(z)) = \frac{1}{1+e^{-z}}\cdot\frac{e^{-z}}{1+e^{-z}} = \frac{e^{-z}}{(1+e^{-z})^2} \quad\checkmark$$
+
+> **这个导数公式是反向传播中最重要的结果之一**，因为它让 sigmoid 的求导只涉及输出本身。
+
+---
+
+## 二、几率与对数几率
+
+### 2.1 几率（Odds）
+
+若事件发生概率为 $p$，则几率定义为：
+
+$$\text{odds} = \frac{p}{1-p}$$
+
+**含义**："发生与不发生的概率之比"。$p=0.8 \Rightarrow \text{odds} = 4$（发生是不发生的 4 倍）。
+
+### 2.2 对数几率（Log-odds / Logit）
+
+$$\text{logit}(p) = \log\frac{p}{1-p}$$
+
+**关键性质**：$\text{logit}(p)$ 把 $p\in(0,1)$ 映射到 $(-\infty,+\infty)$，正好与线性函数的输出范围匹配。
+
+### 2.3 对数几率回归模型
+
+**核心假设**：
+
+$$\log\frac{P(y=1|\boldsymbol{x})}{P(y=0|\boldsymbol{x})} = \boldsymbol{w}^\top\boldsymbol{x} + b$$
+
+解出 $P(y=1|\boldsymbol{x})$：
+
+$$\frac{p}{1-p} = e^{\boldsymbol{w}^\top\boldsymbol{x}+b} \;\Rightarrow\; p = \frac{e^{\boldsymbol{w}^\top\boldsymbol{x}+b}}{1+e^{\boldsymbol{w}^\top\boldsymbol{x}+b}} = \sigma(\boldsymbol{w}^\top\boldsymbol{x}+b)$$
+
+**所以"对数几率回归"这个名字是准确的——它对对数几率做线性建模。**
+
+### 2.4 Sigmoid 的另一个来源：伯努利分布的指数族形式
+
+伯努利分布可写成指数族：
+
+$$P(y;\phi) = \phi^y(1-\phi)^{1-y} = \exp\left(y\log\frac{\phi}{1-\phi} + \log(1-\phi)\right)$$
+
+其"自然参数"正是 $\log\frac{\phi}{1-\phi}$。广义线性模型（GLM）的结论是：**自然参数是输入的线性函数**，于是直接得到 sigmoid 形式。
+
+> 这就是为什么 GLM 框架下，回归用恒等函数、二分类用 sigmoid、多分类用 softmax——它们是同一个理论框架的不同实例。
+
+---
+
+## 三、损失函数：最大似然 → 交叉熵
+
+### 3.1 似然函数
+
+记 $\hat y_i = \sigma(\boldsymbol{w}^\top\boldsymbol{x}_i)$。对单个样本：
+
+$$P(y_i|\boldsymbol{x}_i;\boldsymbol{w}) = \hat y_i^{y_i}(1-\hat y_i)^{1-y_i}$$
+
+整个数据集（i.i.d. 假设）：
+
+$$L(\boldsymbol{w}) = \prod_{i=1}^m \hat y_i^{y_i}(1-\hat y_i)^{1-y_i}$$
+
+### 3.2 对数似然
+
+$$\ell(\boldsymbol{w}) = \sum_{i=1}^m \left[y_i\log\hat y_i + (1-y_i)\log(1-\hat y_i)\right]$$
+
+### 3.3 负对数似然 = 交叉熵损失
+
+$$\boxed{\ L(\boldsymbol{w}) = -\sum_{i=1}^m \left[y_i\log\hat y_i + (1-y_i)\log(1-\hat y_i)\right]\ }$$
+
+**这与 Week01 Day5 推导的交叉熵完全一致。**
+
+### 3.4 极大似然解的另一个视角：最小化 KL 散度
+
+由 Week01 Day5 的结论：
+
+$$\arg\min_{\boldsymbol{w}} H(P_{\text{data}}, P_{\boldsymbol{w}}) = \arg\min_{\boldsymbol{w}} D_{KL}(P_{\text{data}}\|P_{\boldsymbol{w}})$$
+
+即：**逻辑回归在最小化"模型分布与数据分布"的 KL 散度。**
+
+---
+
+## 四、梯度推导（重点）
+
+### 4.1 链式法则分解
+
+对单个样本：
+
+$$z_i = \boldsymbol{w}^\top\boldsymbol{x}_i \;\xrightarrow{\sigma}\; \hat y_i \;\xrightarrow{\ell}\; \ell_i$$
+
+三步导数：
+
+$$\frac{\partial \ell_i}{\partial \hat y_i} = -\frac{y_i}{\hat y_i} + \frac{1-y_i}{1-\hat y_i} = \frac{\hat y_i - y_i}{\hat y_i(1-\hat y_i)}$$
+
+$$\frac{\partial \hat y_i}{\partial z_i} = \hat y_i(1-\hat y_i)$$
+
+$$\frac{\partial z_i}{\partial \boldsymbol{w}} = \boldsymbol{x}_i$$
+
+### 4.2 相乘（关键抵消）
+
+$$\frac{\partial \ell_i}{\partial \boldsymbol{w}} = \frac{\hat y_i - y_i}{\hat y_i(1-\hat y_i)} \cdot \hat y_i(1-\hat y_i)\cdot \boldsymbol{x}_i = (\hat y_i - y_i)\,\boldsymbol{x}_i$$
+
+**分母优雅地抵消了！** 这就是 sigmoid + 交叉熵这对组合"天生一对"的原因。
+
+### 4.3 汇总
+
+$$\boxed{\ \nabla_{\boldsymbol{w}} L = \sum_{i=1}^m (\hat y_i - y_i)\boldsymbol{x}_i = \mathbf{X}^\top(\hat{\boldsymbol{y}} - \boldsymbol{y})\ }$$
+
+**形式与线性回归完全一致**（都是"残差 × 输入"），区别只在于 $\hat{\boldsymbol{y}}$ 是线性输出还是 sigmoid 输出。
+
+> 这个"形式统一"不是巧合——它们都是**广义线性模型**，只是链接函数不同。
+
+### 4.4 更新公式
+
+$$\boldsymbol{w}_{t+1} = \boldsymbol{w}_t - \eta \mathbf{X}^\top(\hat{\boldsymbol{y}} - \boldsymbol{y})$$
+
+注意：**没有闭式解**，必须迭代。
+
+---
+
+## 五、凸性证明
+
+**要证**：$L(\boldsymbol{w}) = \sum_i \ell_i(\boldsymbol{w})$ 是凸函数。
+
+单个样本损失：
+
+$$\ell_i = -y_i\log\hat y_i - (1-y_i)\log(1-\hat y_i)$$
+
+**方法一：直接求 Hessian**
+
+先算 $\nabla^2_{\boldsymbol{w}}\ell_i$。由 $\frac{\partial \ell_i}{\partial z_i} = \hat y_i - y_i$：
+
+$$\frac{\partial^2 \ell_i}{\partial z_i^2} = \frac{\partial \hat y_i}{\partial z_i} = \hat y_i(1-\hat y_i)$$
+
+于是：
+
+$$\mathbf{H}_i = \frac{\partial^2\ell_i}{\partial \boldsymbol{w}\partial\boldsymbol{w}^\top} = \frac{\partial}{\partial\boldsymbol{w}}\left[(\hat y_i-y_i)\boldsymbol{x}_i^\top\right] = \boldsymbol{x}_i\boldsymbol{x}_i^\top \cdot \hat y_i(1-\hat y_i)$$
+
+总 Hessian：
+
+$$\mathbf{H} = \sum_{i=1}^m \hat y_i(1-\hat y_i)\,\boldsymbol{x}_i\boldsymbol{x}_i^\top = \mathbf{X}^\top \mathbf{S}\,\mathbf{X}$$
+
+其中 $\mathbf{S} = \operatorname{diag}(\hat y_1(1-\hat y_1), \dots)$，且 $\hat y_i(1-\hat y_i) > 0$。
+
+**因为 $\mathbf{S}$ 是正对角阵**，对任意 $\boldsymbol{v}$：
+
+$$\boldsymbol{v}^\top\mathbf{X}^\top\mathbf{S}\mathbf{X}\boldsymbol{v} = \sum_i \hat y_i(1-\hat y_i)(\boldsymbol{x}_i^\top\boldsymbol{v})^2 \ge 0$$
+
+所以 $\mathbf{H} \succeq 0$，**$L$ 是凸函数**。
+
+**方法二：全局下界（更简洁）**
+
+利用不等式（对 $z\to\infty$ 取极限可得）：
+
+$$-\log\sigma(z) \ge \log 2 - \frac{z}{2}, \quad -\log(1-\sigma(z)) \ge \log 2 + \frac{z}{2}$$
+
+可将 $\ell_i$ 写成若干线性函数与 $\log 2$ 的组合，是凸函数的**上确界**形式，故为凸。
+
+> **凸性的实践意义**：**逻辑回归的梯度下降一定收敛到全局最优**，不需要担心局部极小。这是它在工业界被广泛信任的原因之一。
+
+---
+
+## 六、牛顿法与 IRLS
+
+### 6.1 牛顿法
+
+$$\boldsymbol{w}_{t+1} = \boldsymbol{w}_t - \mathbf{H}^{-1}\nabla L$$
+
+代入 $\nabla L = \mathbf{X}^\top(\hat{\boldsymbol{y}}-\boldsymbol{y})$、$\mathbf{H} = \mathbf{X}^\top\mathbf{S}\mathbf{X}$：
+
+$$\boldsymbol{w}_{t+1} = \boldsymbol{w}_t - (\mathbf{X}^\top\mathbf{S}\mathbf{X})^{-1}\mathbf{X}^\top(\hat{\boldsymbol{y}}-\boldsymbol{y})$$
+
+### 6.2 IRLS 视角（迭代重加权最小二乘）
+
+牛顿法也可以写成：
+
+$$\boldsymbol{w}_{t+1} = \arg\min_{\boldsymbol{w}}\sum_{i=1}^m s_i\left(z_i^{*} - \boldsymbol{w}^\top\boldsymbol{x}_i\right)^2$$
+
+其中 $s_i = \hat y_i(1-\hat y_i)$ 为权重，$z_i^* = z_i + \frac{y_i - \hat y_i}{s_i}$ 为"工作响应"。
+
+**含义**：每一步都在解一个**加权的线性回归**，权重由当前预测决定（预测越接近 0.5 的样本权重越大，因为它们"最不确定"）。
+
+### 6.3 对比
+
+| 方法 | 收敛速度 | 每次迭代代价 | 适用规模 |
+| --- | --- | --- | --- |
+| 梯度下降 | 线性 | $O(mn)$ | 大规模 |
+| 牛顿法 / IRLS | 二次 | $O(mn^2 + n^3)$ | 中小规模（$n < 10^4$） |
+
+---
+
+## 七、为什么实际中常用 $L_2$ 正则的逻辑回归
+
+$$L(\boldsymbol{w}) = -\sum_i\left[y_i\log\hat y_i + (1-y_i)\log(1-\hat y_i)\right] + \frac{\lambda}{2}\|\boldsymbol{w}\|_2^2$$
+
+**原因**：
+
+1. **完全可分数据下 MLE 不收敛**：若数据线性可分，$\|\boldsymbol{w}\|\to\infty$ 时损失趋近 0，但永远达不到，参数会无限增大 ⇒ 数值爆炸。正则化给出了有限的解；
+2. **防止过拟合**：高维稀疏特征（如文本）容易过拟合；
+3. **概率解释**：等价于高斯先验的 MAP 估计（Week01 Day3）。
+
+---
+
+## 八、代码实践
+
+```python
+import numpy as np
+
+class LogisticRegression:
+    def __init__(self, lr=0.1, epochs=1000, lam=0.0, fit_intercept=True):
+        self.lr, self.epochs, self.lam = lr, epochs, lam
+        self.fit_intercept = fit_intercept
+
+    @staticmethod
+    def _sigmoid(z):
+        # 数值稳定实现: 分段处理，避免 exp 溢出
+        out = np.empty_like(z, dtype=float)
+        pos = z >= 0
+        out[pos] = 1.0 / (1.0 + np.exp(-z[pos]))
+        ez = np.exp(z[~pos])
+        out[~pos] = ez / (1.0 + ez)
+        return out
+
+    def fit(self, X, y):
+        m, n = X.shape
+        self.w = np.zeros(n)
+        for _ in range(self.epochs):
+            p = self._sigmoid(X @ self.w)
+            grad = X.T @ (p - y) / m + self.lam * self.w      # 关键公式
+            self.w -= self.lr * grad
+        return self
+
+    def predict_proba(self, X):
+        return self._sigmoid(X @ self.w)
+
+    def predict(self, X, threshold=0.5):
+        return (self.predict_proba(X) >= threshold).astype(int)
+```
+
+完整版本见 `code/day3_logistic_regression.py`，包含：
+
+1. 从零实现（梯度下降 + 牛顿法两种优化）；
+2. 与 `sklearn.linear_model.LogisticRegression` 的系数对照；
+3. 凸性验证：从多个随机起点优化，确认收敛到同一个解；
+4. **完全可分数据 + 无正则化**时参数爆炸的实验，以及加 $L_2$ 后的修复；
+5. 决策边界可视化（以文本形式输出网格预测）。
+
+---
+
+## 九、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 用 `np.exp(-z)` 不防溢出 | $z$ 很负时溢出；采用分段实现 |
+| 认为逻辑回归只能做二分类 | 加 softmax 即多分类（Day5） |
+| 忘记标准化特征 | 梯度下降收敛慢（条件数问题） |
+| 完全可分数据不加正则 | 参数发散 |
+| 用 MSE 而不是交叉熵 | 非凸 + 梯度消失 |
+| 用 0.5 作为不平衡数据的阈值 | 应基于代价调整 |
+| 认为"逻辑回归是线性模型所以很弱" | 加多项式/RBF 特征后可以拟合复杂边界；它也是神经网络的基本单元 |
+| 忘记处理缺失值 | 逻辑回归不能直接吃 NaN |
+
+---
+
+## 十、练习题
+
+**基础**
+
+1. 证明 sigmoid 的导数 $\sigma'(z) = \sigma(z)(1-\sigma(z))$。
+2. 写出逻辑回归的似然函数、对数似然、负对数似然。
+3. 解释为什么 sigmoid 的输出可以解释为概率。
+
+**进阶**
+
+4. 完整推导 $\frac{\partial L}{\partial \boldsymbol{w}} = \mathbf{X}^\top(\hat{\boldsymbol{y}}-\boldsymbol{y})$。
+5. 证明 Hessian $\mathbf{H} = \mathbf{X}^\top\mathbf{S}\mathbf{X}$ 半正定。
+6. 写出牛顿法的迭代式，并计算单次迭代的时间复杂度。
+
+**思考题**
+
+7. 为什么"完全线性可分的数据 + 无正则化的逻辑回归"会导致参数发散？请从损失函数的下确界角度解释。
+8. 逻辑回归与朴素贝叶斯（Week05）在什么假设下等价？（提示：考虑朴素贝叶斯中特征条件独立的**高斯**假设，推导其对数几率形式）
+9. 逻辑回归的输出为什么不"校准"？如何用 Platt Scaling 做概率校准？
+
+<details>
+<summary>第 7 题要点</summary>
+
+若数据线性可分，存在 $\boldsymbol{w}$ 使所有样本分类正确。则对任意 $k>0$，$k\boldsymbol{w}$ 也分类正确，且
+
+$$P(y_i|\boldsymbol{x}_i; k\boldsymbol{w}) \to 1 \quad (k\to\infty)$$
+
+所以对数似然 $\to 0$（损失 $\to 0$）但**永远取不到**，最优解在无穷远处。
+
+**加 $L_2$ 正则后**，$\frac{\lambda}{2}\|\boldsymbol{w}\|^2$ 随着 $k$ 增大而增大，损失在有限 $\boldsymbol{w}$ 处达到最小。
+
+**验证**：加上正则后，$\|\boldsymbol{w}\| \approx \frac{C}{\lambda}$，$\lambda\to 0$ 时仍然发散。
+</details>
+
+<details>
+<summary>第 8 题提示</summary>
+
+设 $P(\boldsymbol{x}|y)$ 为高斯分布，且各类协方差矩阵相同（$\boldsymbol{\Sigma}_0 = \boldsymbol{\Sigma}_1$），则由贝叶斯公式
+
+$$\log\frac{P(y=1|\boldsymbol{x})}{P(y=0|\boldsymbol{x})} = \log\frac{P(\boldsymbol{x}|1)P(1)}{P(\boldsymbol{x}|0)P(0)}$$
+
+展开两个高斯的对数密度，二次项 $\boldsymbol{x}^\top\boldsymbol{\Sigma}^{-1}\boldsymbol{x}$ **相互抵消**，剩下关于 $\boldsymbol{x}$ 的线性函数。
+
+**结论**：高斯朴素贝叶斯（等协方差）与逻辑回归**形式等价**，只是参数估计方式不同（生成式 vs 判别式）。
+</details>
+
+---
+
+## 十一、一句话总结
+
+**逻辑回归 = 线性模型 + sigmoid 链接 + 交叉熵损失。它的损失凸、梯度简洁、概率意义明确，是工业界最值得信赖的基线分类器。**
+
+---
+
+**明日预告**：Day4 讲 LDA，你会看到另一种思路——不建模概率，而是"找一条让类间距离最大、类内距离最小的投影方向"。
+

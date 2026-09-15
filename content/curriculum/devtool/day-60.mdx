@@ -1,0 +1,283 @@
+---
+slug: day-60
+kind: day
+day: 60
+week: 9
+weekTitle: 容器与部署运维
+weekBlurb: Docker 镜像与 compose、常见部署形态与基础运维，为后端课的模型服务化打底。
+title: 前端与应用部署平台教程（Vercel / Netlify / Cloudflare Pages / Railway / Render / Fly.io）
+sourcePath: 09-容器与部署运维/06-前端部署平台.md
+---
+
+## 一、平台定位对比
+
+| 平台 | 定位 | 免费额度 | 特点 |
+| --- | --- | --- | --- |
+| **Vercel** | 前端/Next.js 首选 | 个人免费（100GB 带宽/月） | Git 推送即部署、Preview 环境、边缘函数 |
+| **Netlify** | 前端静态站 | 免费（100GB/月） | 表单、Identity、Functions、老牌 |
+| **Cloudflare Pages** | 静态站 + Workers | 免费额度大、不限带宽 | 全球 CDN 快、Workers 边缘计算 |
+| **Railway** | 全栈应用 | 试用额度 | 部署后端/数据库简单，用量计费 |
+| **Render** | 全栈应用 | 有免费实例（休眠） | 类似 Heroku 体验，支持 Cron/Redis/PG |
+| **Fly.io** | 全球容器部署 | 少量免费额度 | Docker 镜像直接跑，边缘就近部署 |
+
+## 二、Vercel
+
+### 快速部署（最常用）
+
+1. 代码推到 GitHub；
+2. 访问 https://vercel.com/ → `Add New Project` → 选仓库；
+3. 自动识别框架（Next/Vite/Nuxt），点击 Deploy。
+
+**之后每次 push 自动部署**：
+
+| 分支 | 行为 |
+| --- | --- |
+| main | 生产环境部署 |
+| 其他分支 / PR | 生成 **Preview URL**（可分享评审） |
+
+### CLI 方式
+
+```powershell
+npm i -g vercel
+vercel login
+vercel              # 预览部署
+vercel --prod       # 生产部署
+vercel env add API_KEY
+vercel logs <deployment-url>
+```
+
+### 配置 `vercel.json`
+
+```json
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://api.example.com/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    }
+  ]
+}
+```
+
+### 特点与注意
+
+- **Serverless / Edge Functions**：`api/` 目录下的文件自动成为接口；
+- 无状态，不能用本地文件系统存数据（用数据库/对象存储）；
+- 带宽超额会暂停（免费版）；
+- 适合前端 + BFF，不适合长驻服务（长连接、WebSocket 有超时限制）。
+
+## 三、Netlify
+
+### 部署
+
+1. 连接 Git 仓库，配置构建命令（`pnpm build`）与发布目录（`dist`）；
+2. 或拖拽 dist 文件夹到 https://app.netlify.com/drop（最快验证）。
+
+### 配置 `netlify.toml`
+
+```toml
+[build]
+  command = "pnpm build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://api.example.com/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200      # SPA 回退
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+```
+
+### CLI
+
+```powershell
+npm i -g netlify-cli
+netlify login
+netlify deploy            # 预览
+netlify deploy --prod
+netlify env:set API_KEY xxx
+netlify dev               # 本地模拟 Netlify 环境（含 functions）
+```
+
+特色：Netlify Functions、Forms（表单收集）、Identity（用户认证）、Split Testing。
+
+## 四、Cloudflare Pages
+
+### 部署
+
+1. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git；
+2. 构建命令 `pnpm build`，输出目录 `dist`；
+3. 全球 CDN 自动生效。
+
+### 特点
+
+- **不限带宽**（免费版最香）；
+- 与 Cloudflare 生态打通（DNS、Workers、KV、R2、D1）；
+- 国内访问速度相对较好（有中国节点需企业版）；
+- Functions：`/functions` 目录写 Workers 风格的边缘函数。
+
+### Wrangler CLI
+
+```powershell
+npm i -g wrangler
+wrangler login
+wrangler pages deploy dist --project-name my-site
+wrangler pages dev dist          # 本地预览
+```
+
+### 配置 `_redirects`（dist 目录内）
+
+```
+/api/*  https://api.example.com/:splat  200
+/*      /index.html                     200
+```
+
+## 五、Railway
+
+适合「后端 + 数据库」的快速上线。
+
+```powershell
+npm i -g @railway/cli
+railway login
+railway init
+railway up               # 部署当前目录（自动识别 Dockerfile / package.json）
+railway add              # 添加 PostgreSQL / Redis / MySQL
+railway variables set DATABASE_URL=...
+railway logs
+railway domain           # 生成公网域名
+```
+
+特点：
+- 从 GitHub 直接部署，自动检测语言；
+- 内置数据库一键添加，自动注入 `DATABASE_URL`；
+- 支持 Dockerfile；
+- 按用量计费（有试用额度）。
+
+## 六、Render
+
+Heroku 的现代替代。
+
+1. Dashboard → `New +` → 选 Web Service / Static Site / PostgreSQL / Cron Job / Redis；
+2. 连接 GitHub 仓库 → 配置启动命令（`node dist/server.js`）；
+3. 部署完成自动 HTTPS 域名。
+
+配置 `render.yaml`（基础设施即代码）：
+
+```yaml
+services:
+  - type: web
+    name: api
+    runtime: node
+    buildCommand: pnpm install && pnpm build
+    startCommand: node dist/server.js
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: app-db
+          property: connectionString
+
+databases:
+  - name: app-db
+    plan: free
+```
+
+免费实例会在无访问 15 分钟后休眠（首次访问冷启动慢）。
+
+## 七、Fly.io
+
+「把 Docker 镜像跑在全球边缘」。
+
+```powershell
+# 安装
+powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
+
+fly auth login
+fly launch                 # 扫描项目生成 fly.toml
+fly deploy                 # 部署
+fly status
+fly logs
+fly scale count 2          # 扩容
+fly secrets set DB_URL=...
+fly postgres create        # 创建托管 PG
+```
+
+`fly.toml` 示例：
+
+```toml
+app = "my-api"
+primary_region = "nrt"      # 东京，离国内较近
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+```
+
+特点：Docker 原生、可选择就近区域、支持持久卷与 WebSocket 长连接。
+
+## 八、选型决策树
+
+```
+纯前端静态站？
+├── 是 → 要免费无限带宽？ Cloudflare Pages
+│        要生态与函数？   Vercel / Netlify
+│        要国内快 → 考虑国内云（OSS+CDN）或 Cloudflare
+└── 否（有后端）
+     ├── 只想要简单后端 + 数据库 → Railway / Render
+     ├── 想用 Docker 精确控制 → Fly.io
+     └── 团队规模大、要 K8s → 云厂商 K8s（见 04-Kubernetes.md）
+```
+
+## 九、通用最佳实践
+
+1. **环境变量**放平台配置（不要写进代码仓库）；
+2. **区分 Preview / Production**：PR 用预览环境验证，合并才上生产；
+3. **构建产物才部署**：在 CI 或平台构建，不要在服务器上边跑边编；
+4. **SPA 路由回退**必配，否则刷新 404；
+5. **缓存策略**：带 hash 的静态资源长缓存，HTML 不缓存；
+6. **监控与告警**：接 Sentry（错误）+ 平台自带指标（见 12-日志与监控）。
+
+## 十、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 部署成功但白屏 | 检查 `base` 路径、路由模式（history 需回退）、环境变量是否注入 |
+| 刷新 404 | 配置 SPA 回退（vercel.json / netlify.toml / _redirects） |
+| 环境变量是 undefined | 变量名前缀（Vite 需 `VITE_`）；改后需重新部署 |
+| 构建内存不足 | 降低 Node 版本无关；检查依赖体积；用 `NODE_OPTIONS=--max-old-space-size=4096` |
+| 免费实例冷启动慢 | Render 免费版特性；换 Fly.io 或付费计划 |
+| 国内访问慢 | Cloudflare / 国内云；Vercel 默认节点在海外 |
+
+## 十一、参考
+
+- Vercel：https://vercel.com/docs
+- Netlify：https://docs.netlify.com/
+- Cloudflare Pages：https://developers.cloudflare.com/pages/
+- Railway：https://docs.railway.app/
+- Render：https://render.com/docs
+- Fly.io：https://fly.io/docs/
+

@@ -1,0 +1,517 @@
+---
+slug: day-05
+kind: day
+day: 5
+week: 1
+weekTitle: Python 工程化
+weekBlurb: 类型注解与数据校验、装饰器、async/await、pytest 与 logging、项目结构与打包——把能跑的脚本变成能维护的工程。
+title: 项目结构与打包
+lead: '今日目标：把前四天的代码组织成一个可安装、可测试、有 CLI 入口的 Python 包；理解 `src` 布局；掌握 `pyproject.toml`；说清依赖管理策略。'
+sourcePath: Python工程化与后端实战/Week1_Python工程化/Day5_项目结构与打包.md
+---
+
+> 今日目标：把前四天的代码组织成一个可安装、可测试、有 CLI 入口的 Python 包；理解 `src` 布局；掌握 `pyproject.toml`；说清依赖管理策略。
+> 配套案例：`code/day5_project/`（一个完整可运行的包）
+
+---
+
+## 5.1 知识地图
+
+```
+Day1  类型注解      ← models.py
+Day2  装饰器        ← decorators.py
+Day3  异步          ← client.py
+Day4  测试与日志    ← config.py / tests/
+        │
+        ▼
+Day5（今天）★ 把它们组织成一个包
+  ├─ 为什么需要项目结构
+  ├─ src 布局
+  ├─ pyproject.toml
+  ├─ 依赖管理
+  ├─ CLI 入口
+  └─ 完整项目模板
+        │
+        ▼
+Week2  FastAPI（直接复用这个包）
+```
+
+---
+
+## 5.2 为什么需要项目结构
+
+**看一个"能跑但无法维护"的常见结构**：
+
+```
+my_project/
+├── main.py              # 500 行，什么都有
+├── utils.py             # 又 300 行，什么都往里塞
+├── test.py              # 手写的一堆 print + assert
+├── requirement.txt      # 拼写错误，而且是手打的
+├── config.py            # 里面有硬编码的密码
+└── data.xlsx            # 数据文件混在代码里
+```
+
+**问题**：
+
+| 问题 | 后果 |
+| --- | --- |
+| 无法安装 | 同事要用，只能复制粘贴整个文件夹 |
+| 无法测试 | 没有测试目录结构，pytest 找不到 |
+| 循环导入 | 所有东西平铺，互相 import |
+| 依赖不明确 | 不知道需要哪些包、什么版本 |
+| 无法打版本 | 不知道现在的代码是 v1 还是 v2 |
+| 数据与代码混在一起 | 容易被误提交 / 误删除 |
+
+**目标的三个层次**：
+
+| 层次 | 标准 |
+| --- | --- |
+| **能跑** | `python main.py` 不报错 |
+| **能被别人用** | `pip install .` 后 `import mypackage` 能用 |
+| **能被团队维护** | 有测试、有文档、有 CI、版本可追踪 |
+
+---
+
+## 5.3 `src` 布局（推荐）
+
+```
+my-project/
+├── pyproject.toml           # 项目元数据 + 依赖 + 工具配置
+├── README.md
+├── .gitignore
+├── .env.example             # 环境变量模板（不含真实值）
+├── .env                     # 真实值（不提交）
+├── src/
+│   └── my_package/          # ★ 真正的包
+│       ├── __init__.py      # 导出公开 API
+│       ├── config.py
+│       ├── models.py
+│       ├── decorators.py
+│       ├── client.py
+│       ├── service.py
+│       └── cli.py
+├── tests/
+│   ├── conftest.py
+│   ├── test_client.py
+│   └── test_service.py
+├── scripts/                 # 一次性脚本（迁移数据、压测等）
+│   └── bench.py
+├── docs/
+└── data/                    # 数据（通常 .gitignore）
+```
+
+### 为什么用 `src/` 布局
+
+**对比两种布局**：
+
+```
+扁平布局                      src 布局
+my_project/                   my_project/
+├── my_package/               ├── src/
+│   └── __init__.py           │   └── my_package/
+├── tests/                    │       └── __init__.py
+└── pyproject.toml            ├── tests/
+                              └── pyproject.toml
+```
+
+| 布局 | 优点 | 缺点 |
+| --- | --- | --- |
+| **扁平** | 简单，`import` 直接可用 | **容易"假通过"** |
+| **src** | 强制安装后才能导入，暴露打包问题 | 需要 `pip install -e .` |
+
+**"假通过"是什么**：
+
+在扁平布局下，你从项目根目录运行 `pytest` 时，Python 会把当前目录加到 `sys.path`，于是 `import my_package` 能成功 —— **即使你的 `pyproject.toml` 写错了、包根本没被正确打包**。
+
+**结果**：本地测试全绿，但同事 `pip install` 后 import 失败。
+
+**src 布局强制解决这个问题**：源码不在 `sys.path` 里，你必须先 `pip install -e .`，这就等于**在开发阶段就验证了打包配置**。
+
+> **这是 src 布局唯一但足够重要的理由。** 对于要发布或长期维护的包，用 src 布局。
+
+---
+
+## 5.4 `pyproject.toml` 完整解读
+
+**这是现代 Python 项目的唯一配置中心**（取代了 `setup.py` / `setup.cfg` / `requirements.txt` / `pytest.ini` / `mypy.ini`……）。
+
+```toml
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "my-package"
+version = "0.1.0"
+description = "一个示例包"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Your Name", email = "you@example.com" }]
+
+# 运行时依赖
+dependencies = [
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+    "httpx>=0.26",
+]
+
+# 可选依赖（按用途分组）
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "mypy>=1.8",
+    "ruff>=0.2",
+]
+docs = ["mkdocs>=1.5"]
+
+# CLI 入口
+[project.scripts]
+my-cli = "my_package.cli:main"
+
+# 源码位置（src 布局）
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ---------------- 工具配置 ----------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.11"
+disallow_untyped_defs = true
+warn_return_any = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]   # 错误/风格/导入排序/升级/陷阱/简化
+ignore = ["E501"]                             # 行长度交给 formatter
+```
+
+### 三个关键段落
+
+**① `[build-system]`**：告诉 pip 用什么工具构建。
+
+**② `[project]`**：包的身份信息与依赖。
+
+**③ `[project.scripts]`**：让包安装后有一个命令行命令。
+
+```toml
+[project.scripts]
+my-cli = "my_package.cli:main"
+```
+
+安装后就能用：
+
+```bash
+my-cli --help
+```
+
+---
+
+## 5.5 依赖管理：三种策略
+
+| 策略 | 做法 | 适用 |
+| --- | --- | --- |
+| **只写 `pyproject.toml`** | 声明宽松范围（`pydantic>=2.5`） | 库（要被别人依赖） |
+| **加锁文件** | 用 `uv` / `poetry` / `pip-tools` 生成锁定版本 | **应用（要部署）** |
+| **requirements.txt** | 手动维护 | 简单项目，不推荐复杂项目 |
+
+**核心区分**：
+
+| | 库（library） | 应用（application） |
+| --- | --- | --- |
+| 谁用 | 别人 import 你的包 | 你部署自己跑 |
+| 依赖声明 | **宽松**（`>=2.5`） | **精确锁定**（`==2.5.3`） |
+| 理由 | 避免与用户的依赖冲突 | 保证每次部署环境一致 |
+
+**为什么应用要锁版本**：
+
+```
+今天: pip install fastapi        -> 装到 0.110.0，测试通过
+三个月后: pip install fastapi    -> 装到 0.115.0，某个行为变了 -> 线上挂了
+```
+
+**推荐工具（按现代程度）**：
+
+| 工具 | 说明 |
+| --- | --- |
+| **uv** | 极快，Rust 写的，现代首选 |
+| **poetry** | 成熟，生态好 |
+| pip-tools | 轻量，生成 `requirements.txt` |
+| 纯 pip + requirements.txt | 够用但需手动维护 |
+
+**本项目用最简方案**（便于教学）：
+
+```bash
+# 安装（开发模式，改代码立即生效）
+pip install -e ".[dev]"
+
+# 导出锁定版本（部署时用）
+pip freeze > requirements.lock.txt
+```
+
+---
+
+## 5.6 CLI 入口
+
+**`cli.py`**：
+
+```python
+import argparse
+import asyncio
+import sys
+
+from .config import Settings
+from .client import AsyncClient
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="my-cli",
+        description="示例命令行工具",
+    )
+    p.add_argument("prompt", help="要发送的提示词")
+    p.add_argument("-n", "--count", type=int, default=1,
+                   help="重复次数")
+    p.add_argument("--concurrency", type=int, default=4,
+                   help="并发数")
+    p.add_argument("--debug", action="store_true", help="调试模式")
+    return p
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI 入口。返回退出码（0 成功，非 0 失败）"""
+    args = build_parser().parse_args(argv)
+
+    settings = Settings()
+    asyncio.run(_run(args, settings))
+    return 0
+
+async def _run(args, settings):
+    ...
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+**三个工程细节**：
+
+| 细节 | 为什么 |
+| --- | --- |
+| `main(argv=None)` 接受参数 | **可测试**（测试时传 `["prompt"]` 而不是改 `sys.argv`） |
+| 返回 `int` 退出码 | shell 脚本 / CI 能判断成功失败 |
+| 业务逻辑放在 `_run` | `main` 只做参数解析，逻辑可单独测试 |
+
+**测试 CLI**：
+
+```python
+def test_cli_version(capsys):
+    with pytest.raises(SystemExit) as e:
+        main(["--help"])
+    assert e.value.code == 0
+```
+
+---
+
+## 5.7 `__init__.py` 的用法
+
+**两个作用**：
+
+**① 标记这是一个包**（空文件即可）。
+
+**② 控制对外暴露的 API**：
+
+```python
+"""my_package: 一个示例包"""
+
+from .client import AsyncClient
+from .config import Settings
+from .models import Request, Response
+
+__version__ = "0.1.0"
+__all__ = ["AsyncClient", "Settings", "Request", "Response"]
+```
+
+**好处**：
+
+```python
+# 使用方可以这样写（简洁）
+from my_package import AsyncClient, Settings
+
+# 而不必知道内部结构
+from my_package.client import AsyncClient      # ← 这是在暴露实现细节
+```
+
+> **原则**：`__init__.py` 里只导出**稳定的、你想让别人用的**东西。
+> 内部实现（如 `_internal.py`）不要导出 —— 否则将来重构会破坏用户代码。
+
+**关于 `__version__`**：定义在 `__init__.py` 里，方便运行时读取。
+
+```python
+from my_package import __version__
+print(__version__)
+```
+
+---
+
+## 5.8 `.gitignore` 标准模板
+
+```gitignore
+# 环境
+.venv/
+venv/
+env/
+
+# 敏感信息 ★ 最重要的一条
+.env
+.env.local
+*.key
+*.pem
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 构建产物
+build/
+dist/
+
+# 数据与日志
+data/
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# 操作系统
+.DS_Store
+Thumbs.db
+```
+
+** 如果 `.env` 已经被提交过**：
+
+```bash
+# 1. 加入 .gitignore
+echo ".env" >> .gitignore
+
+# 2. 从 git 跟踪中移除（保留本地文件）
+git rm --cached .env
+
+# 3. 提交
+git commit -m "chore: stop tracking .env"
+
+# ⚠️ 注意: 历史记录里还有！如果里面有真实密钥:
+#    - 立即【轮换所有密钥】（这是最重要的）
+#    - 用 git-filter-repo 清理历史
+```
+
+> **红线**：**密钥一旦提交过，就必须视为已泄漏并轮换。** 清理 git 历史不能挽回。
+
+---
+
+## 5.9 完整项目模板
+
+** 包名注意**：本包叫 `user_service`（`pip install -e .` 后 `import user_service`）。
+**不要**与 Week2 的 `demo_service` 重名 —— 两个项目如果用同一个包名，
+后安装的会覆盖前者，导致前者的测试 import 到错误的包。
+（这是真实会踩的坑，正好在这里记录下来。）
+
+```
+day5_project/
+├── pyproject.toml
+├── README.md
+├── .gitignore
+├── .env.example
+├── src/
+│   └── demo_service/
+│       ├── __init__.py          # 导出公开 API + __version__
+│       ├── config.py            # Day4: pydantic-settings
+│       ├── models.py            # Day1: Pydantic 模型
+│       ├── decorators.py        # Day2: retry / timer
+│       ├── client.py            # Day3: 异步客户端
+│       ├── service.py           # 业务逻辑
+│       └── cli.py               # Day5: 命令行入口
+└── tests/
+    ├── conftest.py
+    ├── test_client.py
+    └── test_cli.py
+```
+
+**这个结构在 Week2 会被直接扩展**：
+
+```
+Week2 加的东西:
+  api/
+    ├── routes.py        # FastAPI 路由
+    ├── deps.py          # 依赖注入
+    └── middleware.py    # 中间件
+```
+
+---
+
+## 5.10 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 本地 import 成功，同事失败 | 扁平布局的"假通过" | 改用 src 布局 + `pip install -e .` |
+| `pip install .` 后 import 失败 | `packages.find` 的 `where` 没配对 | 检查 `[tool.setuptools.packages.find]` |
+| 改了代码但安装版不生效 | 用的是 `pip install .`（复制） | 用 `pip install -e .`（可编辑） |
+| CLI 命令找不到 | 没装包，或 `[project.scripts]` 写错 | `pip install -e .` 后重试 |
+| 依赖冲突 | 没锁版本 | 应用用锁文件 |
+| `.env` 被提交 | 没加 `.gitignore` | 加入 + `git rm --cached` + **轮换密钥** |
+| `__init__.py` 循环导入 | 导出太多，互相依赖 | 只导出稳定 API；用 `TYPE_CHECKING` |
+| 测试跑到 `scripts/` 里 | testpaths 没配 | `testpaths = ["tests"]` |
+| 打包后缺文件 | 非 .py 文件没声明 | `[tool.setuptools.package-data]` |
+
+---
+
+## 5.11 今日自测
+
+1. 把 Day1-4 的代码组织成一个包，用 `pip install -e ".[dev]"` 安装成功。
+2. 写一个 CLI，支持 `--input` / `--concurrency` / `--debug` 参数，返回正确的退出码。
+3. 在 `tests/` 里写 CLI 的测试（测 `--help`、参数校验、正常执行）。
+4. 故意把 `pyproject.toml` 里 `packages.find` 的 `where` 写错，验证 `pip install -e .` 会报错（这就是 src 布局的价值）。
+5. 写一个 `.gitignore`，并演示「如果 `.env` 已经被提交，怎么处理」。
+
+---
+
+## 5.12 一句话总结
+
+**`src` 布局强制你先安装再导入，从而在开发阶段就暴露打包问题；`pyproject.toml` 是现代 Python 项目的唯一配置中心（依赖、CLI 入口、测试、类型检查、格式检查全在里面）；而 `.env` 必须进 `.gitignore`，密钥一旦提交过就必须轮换 —— 这是红线。**
+
+---
+
+## Week1 总结
+
+| 天 | 能力 | 对应文件 |
+| --- | --- | --- |
+| Day1 | 类型注解 + Pydantic 校验 | `models.py` |
+| Day2 | 装饰器（重试/计时/限流/日志） | `decorators.py` |
+| Day3 | **异步并发（本周最重要）** | `client.py` |
+| Day4 | 测试 + 结构化日志 + 配置 | `tests/`、`config.py` |
+| Day5 | 项目结构与打包 | `pyproject.toml` |
+
+**你现在具备的能力**：
+
+- 写出别人敢维护的代码
+- 用测试保证正确性
+- 用结构化日志排查问题
+- 用异步承载并发
+
+**下周预告**：Week2 用 FastAPI 把这些能力变成一个**真正的 HTTP 服务** —— 别人可以通过网络调用它。
+

@@ -1,0 +1,550 @@
+---
+slug: week-3-plan
+kind: reference
+day: 3
+week: 3
+weekTitle: PostgreSQL 与 Redis
+weekBlurb: 把 Week2 的内存存储换成真正的数据库：参数化查询 / 索引 / N+1，Redis 限流与缓存，事务。
+title: PostgreSQL 与 Redis
+lead: '**本周目标**：把 Week2 的内存存储换成真正的数据库 —— 解决"重启数据就没了"和"多实例限流失效"这两个致命问题。'
+sourcePath: Python工程化与后端实战/Week3_PostgreSQL与Redis/README.md
+---
+
+> **本周目标**：把 Week2 的内存存储换成真正的数据库 —— 解决"重启数据就没了"和"多实例限流失效"这两个致命问题。
+
+---
+
+## 为什么这周不可跳过
+
+**Week2 的服务有两个致命缺陷**：
+
+```python
+# 缺陷 1: 进程重启数据就没了
+class MemoryUserStore:
+    def __init__(self):
+        self._users = {}         # ← 内存里，重启即清空
+
+# 缺陷 2: 多实例部署时各自为政
+class RateLimitMiddleware:
+    def __init__(self):
+        self._hits = {}          # ← 每个实例一份计数
+```
+
+**缺陷 2 的具体后果**：
+
+```
+部署 3 个实例时:
+  用户请求 ① -> 实例A 计数 = 1
+  用户请求 ② -> 实例B 计数 = 1     ← 各算各的
+  用户请求 ③ -> 实例C 计数 = 1
+  ...
+  实际能发 3 倍于限制的请求 -> 限流形同虚设 -> 被打爆
+```
+
+**真实场景里这两个缺陷是必须修的**：
+- 用户表必须持久化；
+- 限流必须跨实例。
+
+---
+
+## 五天安排
+
+| 天 | 主题 | 关键内容 | 时长 |
+| --- | --- | --- | --- |
+| Day1 | SQL 基础与安全 | 建表 / CRUD / **参数化查询（防注入）** / psycopg3 | 3.5h |
+| Day2 | 索引与查询优化 | B-Tree / 复合索引 / `EXPLAIN ANALYZE` / **N+1 问题** | 4h |
+| Day3 | ORM 与迁移 | SQLAlchemy 2.0 async / Alembic / 关系建模 | 4h |
+| Day4 | Redis 与缓存 | 缓存策略 / 过期 / **跨实例限流** / 会话 | 3.5h |
+| Day5 | 事务与并发安全 | 隔离级别 / 乐观锁 / 连接池 / 死锁 | 4h |
+
+---
+
+## 为什么要学 SQL，不能只用 ORM
+
+**先看一个真实的教训**：
+
+```python
+# ORM 写得很优雅
+users = await session.execute(select(User).where(User.age > 18))
+```
+
+**这段代码在 10 万行数据时很快，在 1000 万行时可能慢 1000 倍** —— 因为：
+
+- 没有索引 → 全表扫描
+- 或者有索引但没被用上（类型不匹配、函数包裹）
+
+**ORM 隐藏了 SQL，但隐藏不了它的问题。**
+
+```sql
+-- 你必须能读懂这个
+EXPLAIN ANALYZE
+SELECT u.name, count(o.id)
+FROM users u
+LEFT JOIN orders o ON o.user_id = u.id
+WHERE u.created_at > '2026-01-01'
+GROUP BY u.id, u.name
+ORDER BY count(o.id) DESC
+LIMIT 10;
+```
+
+**这就是为什么 Day1-2 先讲纯 SQL，Day3 才讲 ORM。**
+
+> **面试高频**：「你遇到过慢查询吗？怎么排查的？」
+>
+> 只会 ORM 的人答不上来；会 `EXPLAIN ANALYZE` 的人能讲清"全表扫描 → 加索引 → 从 800ms 到 3ms"。
+
+---
+
+## Day1 核心：SQL 注入（最严重的安全问题）
+
+```python
+# ✗ 灾难 —— 这是史上被利用最多的漏洞之一
+name = request.query_params["name"]
+cursor.execute(f"SELECT * FROM users WHERE name = '{name}'")
+```
+
+**攻击者传这个**：
+
+```
+name = "' OR '1'='1"
+```
+
+**实际执行的 SQL**：
+
+```sql
+SELECT * FROM users WHERE name = '' OR '1'='1'
+--                                  ↑ 永远为真 -> 返回所有用户
+```
+
+**更狠的**：
+
+```
+name = "'; DROP TABLE users; --"
+```
+
+```sql
+SELECT * FROM users WHERE name = ''; DROP TABLE users; --'
+--                                  ↑ 删库
+```
+
+**正确做法**：
+
+```python
+# ✓ 参数化查询 —— 驱动会把参数当【数据】而不是【SQL 代码】
+cursor.execute("SELECT * FROM users WHERE name = %s", (name,))
+```
+
+** 注意一个常见的错误"防护"**：
+
+```python
+# ✗ 转义引号是不够的！
+name = name.replace("'", "''")
+```
+
+**为什么不够**：不同数据库的转义规则不同，而且攻击者还有其他注入向量（数字型注入、注释符、编码绕过）。**参数化查询是唯一可靠的方案。**
+
+**用 ORM 时的等价风险**：
+
+```python
+# ✗ SQLAlchemy 里的 text() 也会被注入
+await session.execute(text(f"SELECT * FROM users WHERE name = '{name}'"))
+
+# ✓ 用绑定参数
+await session.execute(text("SELECT * FROM users WHERE name = :name"),
+                      {"name": name})
+```
+
+> **记住这一条红线的判定方法**：**只要 SQL 字符串里出现了 f-string 或 `+` 拼接用户输入，就是注入漏洞。**
+
+---
+
+## Day2 核心：索引与 N+1
+
+### 索引：为什么加了就快 1000 倍
+
+| 数据量 | 无索引（全表扫描） | 有索引（B-Tree） |
+| --- | --- | --- |
+| 1 万行 | 5 ms | 0.5 ms |
+| 100 万行 | 500 ms | 0.6 ms |
+| 1000 万行 | **5 秒** | **0.7 ms** |
+
+**B-Tree 索引的代价**：
+
+| 代价 | 说明 |
+| --- | --- |
+| 占用磁盘 | 索引本身要存 |
+| **拖慢写入** | 每次 INSERT/UPDATE 都要更新索引 |
+| 可能不被使用 | 类型不匹配、函数包裹、选择性差 |
+
+**索引失效的四个常见原因**：
+
+```sql
+-- ① 类型不匹配（user_id 是 bigint，传了字符串）
+WHERE user_id = '123'                  -- 可能失效
+
+-- ② 函数包裹了索引列
+WHERE lower(email) = 'a@b.com'         -- 对 email 的索引失效
+-- 解决: CREATE INDEX ON users (lower(email))
+
+-- ③ 前导模糊匹配
+WHERE name LIKE '%alice'               -- 索引用不上
+WHERE name LIKE 'alice%'               -- 能用上
+
+-- ④ 复合索引的最左前缀原则
+CREATE INDEX ON orders (user_id, status);
+WHERE user_id = 1                      -- ✅ 用得上
+WHERE user_id = 1 AND status = 'paid'  -- ✅ 用得上
+WHERE status = 'paid'                  -- ❌ 用不上（跳过了最左列）
+```
+
+### N+1 问题：ORM 最常见的性能杀手
+
+```python
+# ✗ 看起来是 1 次查询，实际是 N+1 次
+users = await session.execute(select(User))          # 1 次
+for u in users:
+    print(u.orders)                                   # 每次 1 次，共 N 次
+# 1000 个用户 -> 1001 次查询 -> 3 秒
+```
+
+```python
+# ✓ 用 joinedload / selectinload 一次性取回
+from sqlalchemy.orm import selectinload
+
+users = await session.execute(
+    select(User).options(selectinload(User.orders))   # 2 次查询搞定
+)
+# 1000 个用户 -> 2 次查询 -> 30 毫秒
+```
+
+**怎么发现 N+1**：
+
+| 方法 | 说明 |
+| --- | --- |
+| **打开 SQL 日志** | 看到同一语句重复执行 |
+| **计数器** | 在中间件里统计每个请求的查询次数，超过阈值就告警 |
+| **`EXPLAIN ANALYZE`** | 看是否有大量重复扫描 |
+
+**案例代码里会实现一个"查询计数器中间件"** —— 这是很实用的实践。
+
+---
+
+## Day3 核心：SQLAlchemy 2.0 async + Alembic
+
+### 声明式模型
+
+```python
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+class Base(DeclarativeBase):
+    pass
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255))
+    disabled: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    orders: Mapped[list["Order"]] = relationship(back_populates="user")
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    status: Mapped[str] = mapped_column(String(16), index=True)
+
+    user: Mapped[User] = relationship(back_populates="orders")
+```
+
+**`Mapped[...]` 让类型检查器能工作** —— 这是 SQLAlchemy 2.0 相比 1.x 的最大改进。
+
+### 为什么要用 Alembic（迁移）
+
+```
+问题: 你改了模型，加了字段 -> 生产环境的表怎么改？
+
+✗ 手动登录数据库执行 ALTER TABLE
+  · 忘记执行 -> 代码报错
+  · 多个环境（开发/测试/生产）不一致
+  · 无法回滚
+  · 没有历史记录
+
+✓ Alembic:
+  · 生成迁移脚本（含 up/down）
+  · 版本化（像 git 提交）
+  · 可回滚
+  · 多人协作时能看出冲突
+```
+
+```bash
+alembic init migrations
+alembic revision --autogenerate -m "add user table"
+alembic upgrade head          # 应用到最新
+alembic downgrade -1          # 回滚一步
+alembic history               # 查看历史
+```
+
+> **红线**：**生产环境绝不能用 `Base.metadata.create_all()`** —— 它只能建表，不能改表，也无法回滚。
+
+---
+
+## Day4 核心：Redis 解决跨实例限流
+
+### 为什么内存限流在多实例下失效
+
+```
+实例A 的 _hits = {"user1": [t1, t2]}      <- 各自独立
+实例B 的 _hits = {"user1": [t3]}          <- 互相不知道
+实例C 的 _hits = {"user1": [t4]}
+
+用户的实际请求量 = A + B + C 的计数之和
+限制完全失效
+```
+
+### Redis 的解法：共享计数器
+
+```python
+import redis.asyncio as redis
+
+r = redis.from_url("redis://localhost:6379/0", decode_responses=True)
+
+async def check_rate_limit(user_key: str, limit: int, window: int = 60) -> bool:
+    """滑动窗口限流（基于 Redis 的 ZSET）"""
+    now = time.time()
+    key = f"ratelimit:{user_key}"
+
+    # ★ 用 pipeline 保证原子性 —— 否则并发下会多算
+    async with r.pipeline(transaction=True) as pipe:
+        pipe.zremrangebyscore(key, 0, now - window)     # 移除过期的
+        pipe.zadd(key, {str(now): now})                 # 记录本次
+        pipe.zcard(key)                                 # 统计窗口内数量
+        pipe.expire(key, window)                        # 自动清理
+        _, _, count, _ = await pipe.execute()
+
+    return count <= limit
+```
+
+**为什么用 `pipeline(transaction=True)`**：
+
+```
+不加锁的并发问题:
+  请求A: ZCARD -> 5   （以为没超限）
+  请求B: ZCARD -> 5   （也以为没超限）
+  请求A: ZADD
+  请求B: ZADD         -> 实际变成 7，超过了 6 的限制
+
+pipeline + transaction 让 4 条命令原子执行，杜绝这个竞态。
+```
+
+**Redis 的另外三个用途**：
+
+| 用途 | 数据结构 | 说明 |
+| --- | --- | --- |
+| **缓存** | String | `SETEX key 300 value` |
+| **限流** | ZSET | 上面的实现 |
+| **会话 / 黑名单** | String / SET | JWT 吊销列表 |
+| **分布式锁** | SET NX EX | 防止重复执行 |
+
+### 缓存策略
+
+```python
+async def get_user_cached(user_id: int) -> dict:
+    key = f"user:{user_id}"
+
+    # ① 先查缓存
+    cached = await r.get(key)
+    if cached:
+        return json.loads(cached)
+
+    # ② 缓存未命中 -> 查数据库
+    user = await db_fetch_user(user_id)
+
+    # ③ 写入缓存，设置过期（★ 必须设！）
+    await r.setex(key, 300, json.dumps(user))
+    return user
+```
+
+**缓存的三个坑**：
+
+| 坑 | 说明 | 解决 |
+| --- | --- | --- |
+| **缓存穿透** | 查不存在的数据，每次都打到数据库 | 缓存空值（短过期），或用布隆过滤器 |
+| **缓存击穿** | 热点 key 过期瞬间大量请求打到数据库 | 互斥锁，或逻辑过期 |
+| **缓存雪崩** | 大量 key 同时过期 | 过期时间加随机抖动 |
+| **数据不一致** | 数据库改了但缓存没更新 | 更新时**删除**缓存（而不是更新），下次读时重建 |
+
+> **"更新时删缓存而不是改缓存"** 是面试常问的细节：因为"删"是幂等的，而"改"在并发下可能写入旧值。
+
+---
+
+## Day5 核心：事务与并发安全
+
+### 事务的四个特性（ACID）
+
+| 特性 | 含义 |
+| --- | --- |
+| **A**tomicity 原子性 | 要么全成功，要么全回滚 |
+| **C**onsistency 一致性 | 约束始终满足 |
+| **I**solation 隔离性 | 并发事务互不干扰 |
+| **D**urability 持久性 | 提交后不会丢 |
+
+### 隔离级别与三种异常
+
+| 隔离级别 | 脏读 | 不可重复读 | 幻读 |
+| --- | --- | --- | --- |
+| Read Uncommitted | 可能 | 可能 | 可能 |
+| Read Committed | | 可能 | 可能 |
+| **Repeatable Read**（Postgres 默认） | | | 可能 |
+| Serializable | | | |
+
+**三种异常的意思**：
+
+| 异常 | 场景 |
+| --- | --- |
+| **脏读** | 读到别的事务**未提交**的数据 |
+| **不可重复读** | 同一事务内两次读同一行，值变了 |
+| **幻读** | 同一事务内两次查询，**行数**变了 |
+
+### 一个真实的并发 bug
+
+```python
+# ✗ 余额扣减的经典错误
+balance = await get_balance(user_id)      # 读到 100
+if balance >= 50:
+    await set_balance(user_id, balance - 50)   # 写回 50
+```
+
+**并发下**：
+
+```
+请求A: 读到 100
+请求B: 读到 100        <- A 还没写回
+请求A: 写入 50
+请求B: 写入 50         <- 应该扣两次共 100，实际只扣了 50
+```
+
+**两种正确解法**：
+
+```python
+# ① 在数据库层做原子操作（推荐）
+await session.execute(
+    update(Account)
+    .where(Account.id == user_id, Account.balance >= 50)   # ★ 条件在 SQL 里
+    .values(balance=Account.balance - 50)                  # ★ 原子自减
+)
+
+# ② 乐观锁（用版本号）
+result = await session.execute(
+    update(Account)
+    .where(Account.id == user_id, Account.version == old_version)  # 版本必须匹配
+    .values(balance=new_balance, version=old_version + 1)
+)
+if result.rowcount == 0:
+    raise ConcurrentUpdateError("数据已被修改，请重试")
+```
+
+> **"先读后写"在并发下永远是错的** —— 这是面试高频考点。
+> 正确思路是**把判断和写入合并成一个原子操作**。
+
+### 连接池
+
+```python
+engine = create_async_engine(
+    settings.database_url,
+    pool_size=10,          # 常驻连接数
+    max_overflow=20,       # 峰值可临时创建
+    pool_pre_ping=True,    # ★ 取连接前先探活（防"连接已被服务器关闭"）
+    pool_recycle=3600,     # 每小时回收（防因长时间空闲被断）
+    echo=False,
+)
+```
+
+**为什么要 `pool_pre_ping`**：数据库或中间网络设备会关闭长时间空闲的连接。不探活的话，第一个用这条连接的请求会报错。
+
+**`pool_size` 怎么定**：
+
+```
+经验: pool_size = CPU 核数 * 2 + 磁盘数（对数据库服务器而言）
+
+对你的服务: 不要设太大 —— 每个实例 10 个连接，
+           10 个实例就是 100 个连接，可能超过 Postgres 的 max_connections
+```
+
+---
+
+## 本周产出
+
+改造后的服务：
+
+```
+demo_api/src/demo_service/
+├── db/
+│   ├── __init__.py
+│   ├── base.py              # DeclarativeBase
+│   ├── models.py            # User / Order 表模型
+│   ├── session.py           # engine + sessionmaker + get_db 依赖
+│   └── repositories.py      # 数据访问层（取代 Week2 的 store.py）
+├── cache/
+│   ├── __init__.py
+│   ├── redis_client.py
+│   └── rate_limit.py        # ★ Redis 滑动窗口限流
+├── migrations/              # Alembic
+│   ├── env.py
+│   └── versions/
+└── api/
+    ├── routes.py            # 改动很小（依赖注入的回报）
+    └── middleware.py        # 限流改成查 Redis
+```
+
+**关键：`routes.py` 的改动很小** —— 因为 Week2 用了依赖注入，换存储层只需改 `deps.py` 里的工厂函数。
+
+> **这就是依赖注入的价值**：Week2 花的那些功夫，在这一周兑现了。
+
+---
+
+## 环境准备
+
+```bash
+# 方式一: Docker（推荐，Week4 会详细讲）
+docker run -d --name pg -e POSTGRES_PASSWORD=devpass -p 5432:5432 postgres:16
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# 方式二: 本地安装（不推荐，环境容易乱）
+```
+
+```bash
+pip install "sqlalchemy[asyncio]" asyncpg alembic redis
+```
+
+```bash
+# 连接串
+DATABASE_URL=postgresql+asyncpg://postgres:devpass@localhost:5432/demo
+REDIS_URL=redis://localhost:6379/0
+```
+
+---
+
+## 本周检查清单
+
+- [ ] 我能说清 SQL 注入的原理，并写出参数化查询
+- [ ] 我能用 `EXPLAIN ANALYZE` 判断一条 SQL 是否走了索引
+- [ ] 我能说清复合索引的"最左前缀原则"
+- [ ] 我能识别并修复 N+1 查询问题
+- [ ] 我能用 Alembic 生成并应用迁移，也能回滚
+- [ ] 我能用 Redis 实现跨实例的滑动窗口限流，并说清为什么需要 `pipeline`
+- [ ] 我能说清缓存穿透/击穿/雪崩的区别与对策
+- [ ] 我能说清"更新时删缓存"而不是"改缓存"的原因
+- [ ] 我能说出"先读后写"在并发下为什么是错的，并给出两种正确解法
+- [ ] 我知道 `pool_pre_ping` 解决什么问题
+
+---
+
+**下一篇**：进入本目录的 `code/` 查看完整实现，或继续 Week4 的部署。
+
+**同时建议**：如果你还没学 16 周 AI 基础教程里的 **Week02 Day3（评估指标）**，建议补一下 —— 本周的 SQL 优化效果要用"查询耗时"这类指标来衡量，思路是相通的。
+

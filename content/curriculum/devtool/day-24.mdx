@@ -1,0 +1,165 @@
+---
+slug: day-24
+kind: day
+day: 24
+week: 4
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: ESLint 使用教程
+sourcePath: 04-代码检查与格式化/01-ESLint.md
+---
+
+## 一、ESLint 是什么
+
+JavaScript / TypeScript 的**可插拔静态检查工具**：在不运行代码的情况下发现错误（未定义变量、未使用变量、错误的 API 用法）与风格问题。
+
+> ESLint v9 起使用 **flat config**（`eslint.config.js`），旧的 `.eslintrc` 已废弃。
+
+## 二、安装与初始化
+
+```powershell
+pnpm add -D eslint @eslint/js typescript-eslint
+npx eslint --init        # 交互式生成配置（v9 支持）
+```
+
+React / Vue 额外插件：
+
+```powershell
+pnpm add -D eslint-plugin-react-hooks eslint-plugin-react-refresh
+pnpm add -D eslint-plugin-vue vue-eslint-parser
+```
+
+## 三、配置文件（flat config）
+
+`eslint.config.js`：
+
+```js
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
+
+export default tseslint.config(
+  { ignores: ['dist/**', 'node_modules/**', 'coverage/**'] },
+
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+
+  {
+    files: ['**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      eqeqeq: ['error', 'always'],
+      'prefer-const': 'error',
+    },
+  },
+);
+```
+
+旧项目（`.eslintrc.json`）仍可用 `ESLINT_USE_FLAT_CONFIG=false` 过渡。
+
+## 四、常用命令
+
+```powershell
+npx eslint .                    # 检查当前目录
+npx eslint src --ext .ts,.tsx   # 指定扩展名（v9 默认已含）
+npx eslint . --fix              # 自动修复可修复的问题
+npx eslint . --max-warnings 0   # 有警告即失败（CI 常用）
+npx eslint . --format json -o report.json
+npx eslint --print-config src/index.ts   # 查看某文件的最终生效配置（排查利器）
+```
+
+`package.json`：
+
+```json
+{
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  }
+}
+```
+
+## 五、规则等级与常见规则
+
+- `"off"` / `0`：关闭
+- `"warn"` / `1`：警告
+- `"error"` / `2`：错误（退出码非 0）
+
+高频规则：
+
+| 规则 | 作用 |
+| --- | --- |
+| `no-unused-vars` | 未使用变量 |
+| `no-undef` | 未声明变量 |
+| `no-implicit-coercion` | 禁止隐式类型转换 |
+| `no-floating-promises`（TS） | 未处理的 Promise |
+| `@typescript-eslint/no-explicit-any` | 禁止 any |
+| `import/order` | import 排序 |
+| `react-hooks/exhaustive-deps` | hooks 依赖检查 |
+
+## 六、在编辑器中使用
+
+VS Code 安装 **ESLint 扩展**，并在 `.vscode/settings.json`：
+
+```json
+{
+  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
+  "eslint.validate": ["javascript", "typescript", "vue", "typescriptreact"]
+}
+```
+
+## 七、与 Prettier 协作
+
+**推荐方案：分工明确** —— ESLint 管代码质量，Prettier 管格式。
+
+```powershell
+pnpm add -D eslint-config-prettier
+```
+
+```js
+// eslint.config.js 最后一项加入
+import prettier from 'eslint-config-prettier';
+export default [ /* ... */, prettier ];
+```
+
+> `eslint-config-prettier` 关闭所有与 Prettier 冲突的格式规则，非常关键。
+> 不再推荐 `eslint-plugin-prettier`（把 Prettier 当 ESLint 规则跑，慢且报错难读）。
+
+## 八、CI 集成
+
+```yaml
+- run: pnpm lint        # eslint . --max-warnings 0
+```
+
+配合缓存：`actions/cache` 缓存 `.eslintcache`（需加 `--cache` 参数）。
+
+## 九、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `Parsing error` TS 语法 | 配置 `typescript-eslint` parser |
+| 规则改了不生效 | `npx eslint --print-config file.ts` 查看实际生效配置 |
+| 与 Prettier 打架（引号/分号） | 加 `eslint-config-prettier` |
+| 忽略文件写法变了 | v9 用 `ignores` 字段；不再支持 `.eslintignore`（可迁移） |
+| 检查太慢 | 加 `--cache`；开启 `linterOptions` 排除大目录 |
+| Vue 文件报错 | 配置 `vue-eslint-parser`，parserOptions.parser 指向 TS parser |
+
+## 十、最佳实践
+
+1. 新项目直接用 **flat config + typescript-eslint 推荐配置**。
+2. CI 与本地**同一套规则**，避免环境差异。
+3. 规则上线策略：先 `warn` 全量跑一遍，清理后再升 `error`。
+4. 定期审视 `eslint-disable` 注释，用 `--report-unused-disable-directives` 清理无用豁免。
+
+## 十一、参考
+
+- 官方文档：https://eslint.org/docs/latest/
+- typescript-eslint：https://typescript-eslint.io/
+- 中文站点：https://eslint.nodejs.cn/
+

@@ -1,0 +1,316 @@
+---
+slug: day-58
+kind: day
+day: 58
+week: 9
+weekTitle: 容器与部署运维
+weekBlurb: Docker 镜像与 compose、常见部署形态与基础运维，为后端课的模型服务化打底。
+title: Kubernetes 使用教程（kubectl / Helm / k9s）
+sourcePath: 09-容器与部署运维/04-Kubernetes.md
+---
+
+## 一、Kubernetes 是什么
+
+K8s 是容器编排平台，解决：
+
+- 容器调度到哪台机器；
+- 副本数维持、自动扩缩容；
+- 滚动更新与回滚；
+- 服务发现与负载均衡；
+- 配置与密钥管理。
+
+**核心概念速览**：
+
+| 概念 | 说明 |
+| --- | --- |
+| Pod | 最小调度单位，含 1..n 个容器 |
+| Deployment | 管理 Pod 副本与滚动更新（无状态应用） |
+| StatefulSet | 有状态应用（数据库、MQ） |
+| Service | 稳定的访问入口（ClusterIP/NodePort/LoadBalancer） |
+| Ingress | HTTP 层路由（域名/路径 → Service） |
+| ConfigMap / Secret | 配置与密钥 |
+| Namespace | 逻辑隔离 |
+| PV / PVC | 持久卷与申请 |
+| HPA | 水平自动扩缩容 |
+
+## 二、kubectl 安装与配置
+
+```powershell
+winget install Kubernetes.kubectl
+# macOS
+brew install kubectl
+```
+
+`kubeconfig`（默认 `~/.kube/config`）保存集群凭证，可管理多个集群：
+
+```powershell
+kubectl config view
+kubectl config get-contexts
+kubectl config use-context prod
+kubectl config set-context --current --namespace=myapp
+```
+
+### 常用工具
+
+| 工具 | 用途 |
+| --- | --- |
+| kubectx / kubens | 快速切换集群与命名空间 |
+| k9s | 终端 UI 管理集群（强烈推荐） |
+| helm | 包管理 |
+| kustomize | 配置叠加（kubectl 内置） |
+| stern | 多 Pod 日志聚合 |
+
+## 三、kubectl 核心命令
+
+### 查看
+
+```powershell
+kubectl get pods                     # 当前命名空间 Pod
+kubectl get pods -A                  # 所有命名空间
+kubectl get pods -o wide             # 含 IP、节点
+kubectl get deploy,svc,ing -A
+kubectl get pod mypod -o yaml        # 完整 YAML
+kubectl describe pod mypod           # 事件与详情（排错第一步）
+kubectl logs mypod                   # 日志
+kubectl logs -f deploy/api --tail=100
+kubectl logs mypod -c sidecar        # 指定容器
+kubectl top pods                     # 资源使用（需 metrics-server）
+kubectl get events --sort-by=.lastTimestamp
+```
+
+### 操作
+
+```powershell
+kubectl apply -f deployment.yaml     # 创建/更新
+kubectl delete -f deployment.yaml
+kubectl scale deploy/api --replicas=5
+kubectl rollout restart deploy/api
+kubectl rollout status deploy/api
+kubectl rollout undo deploy/api      # 回滚上一版本
+kubectl rollout history deploy/api
+kubectl exec -it mypod -- sh         # 进入容器
+kubectl port-forward svc/api 8080:80 # 本地端口转发（调试神器）
+kubectl cp mypod:/app/log.txt ./log.txt
+kubectl edit deploy/api              # 在线编辑
+kubectl set image deploy/api api=myapi:1.2.3
+```
+
+### 排错流程
+
+```powershell
+kubectl describe pod mypod           # 看 Events：镜像拉取失败？调度失败？探针失败？
+kubectl logs mypod --previous        # 看崩溃前一次日志
+kubectl get pod mypod -o yaml        # 看 spec 与 status
+kubectl get events -A --sort-by=.metadata.creationTimestamp
+```
+
+常见状态：
+
+| 状态 | 原因 |
+| --- | --- |
+| ImagePullBackOff | 镜像名错误 / 私有仓库凭证缺失 |
+| CrashLoopBackOff | 应用启动即崩溃，看日志 |
+| Pending | 资源不足 / 节点选择器不匹配 / PVC 未绑定 |
+| OOMKilled | 内存超限，调 resources.limits |
+
+## 四、核心 YAML 示例
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: myapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: api }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app: api }
+    spec:
+      containers:
+        - name: api
+          image: registry.example.com/api:1.2.3
+          ports: [{ containerPort: 3000 }]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: db-secret, key: url }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 3000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 3000 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata: { name: api, namespace: myapp }
+spec:
+  selector: { app: api }
+  ports: [{ port: 80, targetPort: 3000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api
+  namespace: myapp
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [api.example.com]
+      secretName: api-tls
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port: { number: 80 }
+```
+
+## 五、Helm（包管理）
+
+Helm 把一组 K8s 资源打包成 Chart，支持**参数化 + 版本管理**。
+
+### 基本命令
+
+```powershell
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+
+helm search repo postgresql
+helm install my-db bitnami/postgresql -n db --create-namespace -f values.yaml
+helm list -A
+helm status my-db -n db
+helm upgrade my-db bitnami/postgresql -f values-prod.yaml -n db
+helm rollback my-db 1 -n db
+helm uninstall my-db -n db
+helm template ./mychart -f values.yaml   # 本地渲染（不安装，调试用）
+```
+
+### 自定义 Chart 结构
+
+```
+mychart/
+├── Chart.yaml
+├── values.yaml
+└── templates/
+    ├── deployment.yaml
+    ├── service.yaml
+    ├── ingress.yaml
+    └── _helpers.tpl
+```
+
+`templates/deployment.yaml` 中使用变量：
+
+```yaml
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    spec:
+      containers:
+        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+```
+
+```powershell
+helm create mychart      # 生成骨架
+helm lint mychart        # 检查
+helm package mychart     # 打包 .tgz
+```
+
+### values.yaml 覆盖
+
+```powershell
+helm upgrade api ./mychart -f values.yaml --set image.tag=1.2.4
+```
+
+**优先级**：`--set` > `-f 后加载的文件` > `-f 先加载的文件` > Chart 内 values.yaml。
+
+## 六、k9s（终端 UI，强烈推荐）
+
+```powershell
+winget install k9s
+# macOS
+brew install k9s
+```
+
+```powershell
+k9s                 # 启动
+k9s -n myapp        # 指定命名空间
+```
+
+操作：
+
+| 按键 | 功能 |
+| --- | --- |
+| `:pod` / `:deploy` / `:svc` | 切换资源视图 |
+| `0-9` | 切换命名空间 |
+| `l` | 查看日志（`w` 切换自动滚动） |
+| `s` | 进入 shell |
+| `d` | describe |
+| `e` | 编辑 YAML |
+| `Ctrl+d` | 删除 |
+| `Shift+F` | 端口转发 |
+| `?` | 帮助 |
+
+比反复敲 kubectl 命令效率高 10 倍。
+
+## 七、本地演练环境
+
+```powershell
+# 选项 1：Docker Desktop 内置 K8s（Settings → Kubernetes → Enable）
+# 选项 2：kind（K8s in Docker）
+winget install Kubernetes.kind
+kind create cluster --name dev
+# 选项 3：minikube
+winget install Kubernetes.minikube
+minikube start
+# 选项 4：k3d
+```
+
+## 八、最佳实践
+
+1. **一切声明式 + Git 管理**（YAML 进仓库，`kubectl apply` 而非 `edit`）。
+2. `resources.requests/limits` 必填，否则调度不均、易 OOM。
+3. **探针必配**（readiness + liveness），保证滚动更新平滑。
+4. 镜像 tag 用不可变标识（版本号或 sha），禁止 `latest`。
+5. Secret 用外部 KMS / sealed-secrets，不要明文提交 Git。
+6. 用 namespaces 隔离环境（dev/staging/prod）。
+7. 多环境差异用 Helm values 或 Kustomize overlay 管理。
+8. 生产变更走 GitOps（见 10-CICD/05-GitOps.md）。
+
+## 九、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| Pod Pending | `describe` 看 Events：资源不足 / 污点 / PVC 未绑定 |
+| Probe 失败导致反复重启 | 探针路径/端口写错；initialDelay 太短 |
+| 拉私有镜像失败 | 创建 imagePullSecret 并配到 ServiceAccount |
+| Service 访问不通 | 检查 selector 是否匹配 Pod labels；targetPort 是否对 |
+| Ingress 404 | 检查 ingressClass、host、path 与 Service 端口 |
+| `kubectl` 权限不足 | 检查 RBAC / kubeconfig 上下文 |
+| 滚动更新卡住 | `kubectl rollout status` + describe 看新 Pod 状态 |
+| 日志太多刷屏 | 用 stern 聚合，或 k9s 的日志过滤 |
+
+## 十、参考
+
+- 官方文档：https://kubernetes.io/zh-cn/docs/
+- kubectl 速查：https://kubernetes.io/docs/reference/kubectl/quick-reference/
+- Helm：https://helm.sh/docs/
+- k9s：https://k9scli.io/
+- 12 因素应用：https://12factor.net/zh_cn/
+

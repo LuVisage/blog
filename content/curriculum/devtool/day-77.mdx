@@ -1,0 +1,293 @@
+---
+slug: day-77
+kind: day
+day: 77
+week: 12
+weekTitle: 日志与监控
+weekBlurb: 日志规范、指标与告警的可观测性入门，服务上线后靠它定位问题。
+title: ELK 使用教程（Elasticsearch / Logstash / Kibana）
+sourcePath: 12-日志与监控/06-ELK.md
+---
+
+## 一、ELK 是什么
+
+经典日志与搜索技术栈：
+
+| 组件 | 角色 |
+| --- | --- |
+| **Elasticsearch** | 分布式搜索引擎与存储（核心） |
+| **Logstash** | 采集与加工管道（重，常被 Beats 替代） |
+| **Kibana** | 可视化与查询界面 |
+| **Filebeat** | 轻量采集器（装在服务器上） |
+
+> 现代演进：**Elastic Stack**（含 Beats、APM）；采集侧多用 Filebeat / Fluent Bit，Logstash 仅做复杂加工。
+
+## 二、核心概念（Elasticsearch）
+
+| 概念 | 说明 |
+| --- | --- |
+| Index | 索引（类似数据库的表） |
+| Document | 文档（JSON 记录） |
+| Field Mapping | 字段类型（text / keyword / date / long...） |
+| Shard / Replica | 分片与副本 |
+| Analyzer | 分词器（中文需 IK 分词器） |
+| DSL | 查询语言（JSON） |
+
+**关键区分**：
+- `text`：会分词，用于全文搜索；
+- `keyword`：不分词，用于精确匹配、聚合、排序。
+
+## 三、快速起环境
+
+`docker-compose.yml`：
+
+```yaml
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports: ["9200:9200"]
+    volumes: ["es-data:/usr/share/elasticsearch/data"]
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.14.0
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports: ["5601:5601"]
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.14.0
+    user: root
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+  es-data:
+```
+
+验证：
+
+```powershell
+curl.exe http://localhost:9200      # 返回集群信息即成功
+# Kibana: http://localhost:5601
+```
+
+## 四、Filebeat 配置
+
+`filebeat.yml`：
+
+```yaml
+filebeat.inputs:
+  - type: filestream
+    id: app-logs
+    paths:
+      - /var/log/myapp/*.log
+    json.keys_under_root: true      # 日志本身是 JSON 时直接展开
+    json.add_error_key: true
+    fields:
+      env: prod
+      app: my-api
+
+processors:
+  - drop_event.when.regexp:
+      message: '^/healthz'          # 丢弃健康检查噪音
+
+  - add_host_metadata: ~
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "myapp-%{+yyyy.MM.dd}"     # 按天建索引（便于清理）
+```
+
+启动：
+
+```powershell
+filebeat -e -c filebeat.yml -d "publish"
+```
+
+## 五、Logstash 管道（复杂加工）
+
+`logstash.conf`：
+
+```ruby
+input {
+  beats { port => 5044 }
+  tcp  { port => 5000 codec => json }
+}
+
+filter {
+  # 解析 JSON
+  json { source => "message" target => "data" }
+
+  # Grok 解析非结构化日志（Nginx 示例）
+  grok {
+    match => { "message" => '%{IPORHOST:clientip} %{HTTPDUSER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] "%{WORD:verb} %{DATA:request} HTTP/%{NUMBER:httpversion}" %{NUMBER:response}' }
+  }
+
+  # 时间字段标准化
+  date { match => ["timestamp", "dd/MMM/yyyy:HH:mm:ss Z"] }
+
+  # 删除敏感字段
+  mutate { remove_field => ["password", "token", "credit_card"] }
+
+  # 按业务分流
+  if [status] == "500" {
+    mutate { add_tag => ["error"] }
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["http://elasticsearch:9200"]
+    index => "logs-%{[app]}-%{+yyyy.MM.dd}"
+  }
+}
+```
+
+## 六、Kibana 使用
+
+### 1. 创建 Data View
+
+`Stack Management → Data Views → Create`：
+
+- 匹配索引模式：`myapp-*`；
+- 时间字段选 `@timestamp`。
+
+### 2. Discover 探索日志
+
+- 顶部时间选择器（最近 15 分钟 / 自定义）；
+- **KQL 查询语法**：
+
+```
+level: error
+status >= 500 and app: "my-api"
+message: "timeout"
+user.id: 123
+not path: "/healthz"
+```
+
+- 左侧字段列表可点击过滤 / 排除；
+- 点某条日志查看完整 JSON，可复制字段值。
+
+### 3. 可视化与 Dashboard
+
+| 图表 | 用途 |
+| --- | --- |
+| Lens | 拖拽式可视化（推荐） |
+| TSVB | 复杂时序 |
+| Maps | 地理分布 |
+| Data Table | 明细统计 |
+
+典型 Dashboard：错误趋势、Top 报错接口、状态码分布、响应时间 P95。
+
+### 4. 告警
+
+`Stack Management → Rules → Create rule`：
+
+```
+索引条件：myapp-* 中 level: error
+阈值：5 分钟内 > 50 条
+动作：发送到 Webhook（接飞书/钉钉）/ 邮件 / Slack
+```
+
+## 七、ES 常用操作
+
+```powershell
+# 查询
+curl.exe "http://localhost:9200/myapp-*/_search?pretty" -H "Content-Type: application/json" -d '{\"query\":{\"match\":{\"message\":\"timeout\"}},\"size\":5}'
+
+# 索引管理
+curl.exe "http://localhost:9200/_cat/indices?v"
+curl.exe -X DELETE "http://localhost:9200/myapp-2026.08.*"
+
+# 集群健康
+curl.exe "http://localhost:9200/_cluster/health?pretty"
+```
+
+DSL 查询示例：
+
+```json
+{
+  "query": {
+    "bool": {
+      "must": [{ "match": { "message": "timeout" } }],
+      "filter": [
+        { "term": { "level": "error" } },
+        { "range": { "@timestamp": { "gte": "now-1h" } } }
+      ]
+    }
+  },
+  "aggs": {
+    "by_path": { "terms": { "field": "path.keyword", "size": 10 } }
+  }
+}
+```
+
+## 八、索引生命周期（ILM）
+
+避免磁盘被日志撑满：
+
+```
+hot（7 天，可写）→ warm（30 天，只读压缩）→ cold → delete
+```
+
+Kibana 中配置：`Stack Management → Index Lifecycle Policies`，或用 ILM API：
+
+```json
+PUT _ilm/policy/logs-policy
+{
+  "policy": {
+    "phases": {
+      "hot":    { "actions": { "rollover": { "max_size": "50gb", "max_age": "1d" } } },
+      "delete": { "min_age": "30d", "actions": { "delete": {} } }
+    }
+  }
+}
+```
+
+## 九、性能与成本优化
+
+1. **按天建索引** + ILM 自动清理；
+2. **字段映射控制**：不要全字段 `text`，日志字段多用 `keyword`；
+3. 关闭不需要的字段索引：`"index": false`；
+4. 控制副本数（日志类 `number_of_replicas: 0` 可省一半空间）；
+5. 采集端过滤噪音日志（健康检查、debug）；
+6. 冷数据用 **Searchable Snapshots** 或转存对象存储；
+7. 中文搜索装 **IK 分词器**。
+
+## 十、ELK vs Loki
+
+| 维度 | ELK | Loki |
+| --- | --- | --- |
+| 存储成本 | 高（全文索引） | 低 |
+| 查询能力 | 最强（全文检索、复杂聚合） | 够用（标签 + 过滤 + 管道） |
+| 运维复杂度 | 高（JVM、分片、调优） | 低 |
+| 适合 | 安全审计、海量全文检索、日志分析平台 | 常规运维排查（配 Grafana） |
+| 起步门槛 | 中高 | 低 |
+
+**建议**：中小团队优先 Loki；需要审计、合规、复杂检索再上 ELK。
+
+## 十一、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| ES 启动失败（内存） | 设置 `ES_JAVA_OPTS=-Xms1g -Xmx1g`；`vm.max_map_count` 调大 |
+| Kibana 查不到新日志 | 检查 Filebeat 采集、索引模式时间字段、ES 写入报错 |
+| 中文搜不到 | 装 IK 分词器并指定 analyzer |
+| 磁盘爆满 | 配 ILM 自动删除；`_cat/indices` 找大索引 |
+| 查询慢 | 缩小时间范围、避免通配符开头、`keyword` 字段用于聚合 |
+| 集群 yellow | 副本未分配（单节点属正常），或加节点 |
+| 字段类型冲突 | 重新建索引 + 显式 mapping（`text` vs `keyword`） |
+
+## 十二、参考
+
+- Elastic 官方文档：https://www.elastic.co/guide/index.html
+- Elasticsearch 中文：https://www.elastic.co/guide/cn/elasticsearch/guide/current/index.html
+- Kibana：https://www.elastic.co/guide/en/kibana/current/index.html
+- 中文分词 IK：https://github.com/infinilabs/analysis-ik
+

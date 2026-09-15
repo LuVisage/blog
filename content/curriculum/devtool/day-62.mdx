@@ -1,0 +1,339 @@
+---
+slug: day-62
+kind: day
+day: 62
+week: 10
+weekTitle: CI/CD
+weekBlurb: 以 GitHub Actions 为主的流水线：构建、测试、发布自动化，把前几周的检查串成一条链。
+title: GitHub Actions 使用教程
+sourcePath: 10-CICD/01-GitHub-Actions.md
+---
+
+## 一、基本概念
+
+| 概念 | 说明 |
+| --- | --- |
+| Workflow | 一个自动化流程，`.github/workflows/*.yml` |
+| Event | 触发条件（push、pull_request、schedule、workflow_dispatch...） |
+| Job | 一组步骤，默认并行；可设 `needs` 依赖 |
+| Step | 单个步骤（run 命令 或 uses 动作） |
+| Action | 可复用的步骤单元（官方/社区 marketplace） |
+| Runner | 执行机器（`ubuntu-latest`、`windows-latest`、`macos-latest` 或自建） |
+
+## 二、第一个 Workflow
+
+`.github/workflows/ci.yml`：
+
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test -- --run
+      - run: pnpm build
+```
+
+## 三、触发条件详解
+
+```yaml
+on:
+  # 分支推送
+  push:
+    branches: [main, 'release/**']
+    paths-ignore: ['docs/**', '*.md']      # 文档改动不触发
+
+  # PR
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+  # 定时（cron 用 UTC 时间）
+  schedule:
+    - cron: '0 2 * * *'      # 每天 UTC 02:00（北京 10:00）
+
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'staging'
+        type: choice
+        options: [staging, production]
+
+  # 其他 workflow 完成后
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+```
+
+## 四、常用技法
+
+### 1. 矩阵构建（一次跑多版本）
+
+```yaml
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: ${{ matrix.node }} }
+      # ...
+```
+
+### 2. Job 依赖与并行
+
+```yaml
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps: [...]
+  test:
+    runs-on: ubuntu-latest
+    steps: [...]
+  build:
+    needs: [lint, test]        # 两个都过才跑
+    runs-on: ubuntu-latest
+    steps: [...]
+```
+
+### 3. 缓存
+
+```yaml
+- uses: actions/cache@v4
+  with:
+    path: |
+      ~/.cache/pip
+      ~/.cargo/registry
+    key: ${{ runner.os }}-deps-${{ hashFiles('**/requirements.txt', '**/Cargo.lock') }}
+    restore-keys: ${{ runner.os }}-deps-
+```
+
+> `setup-node` 的 `cache: pnpm` 已自动处理 node_modules 缓存。
+
+### 4. 上传构建产物
+
+```yaml
+- uses: actions/upload-artifact@v4
+  with:
+    name: dist
+    path: dist/
+    retention-days: 7
+```
+
+### 5. 密钥与变量
+
+```yaml
+env:
+  NODE_ENV: production
+
+steps:
+  - run: echo "Deploying to ${{ vars.ENVIRONMENT }}"
+    env:
+      API_KEY: ${{ secrets.API_KEY }}
+```
+
+- `secrets.*`：仓库/组织 Secrets（Settings → Secrets and variables → Actions）；
+- `vars.*`：普通变量（非敏感）；
+- **不要 echo secrets**（GitHub 会打码，但仍应避免）。
+
+### 6. 条件执行
+
+```yaml
+- run: pnpm deploy
+  if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+- run: pnpm test:e2e
+  if: ${{ !cancelled() }}      # 即使前面失败也跑（收集更多信息）
+
+- run: echo "PR only"
+  if: github.event_name == 'pull_request'
+```
+
+### 7. 部署 Docker 镜像
+
+```yaml
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+```
+
+### 8. 部署到服务器（SSH）
+
+```yaml
+- name: Deploy
+  uses: appleboy/ssh-action@v1
+  with:
+    host: ${{ secrets.HOST }}
+    username: ${{ secrets.USER }}
+    key: ${{ secrets.SSH_KEY }}
+    script: |
+      cd /opt/myapp
+      docker compose pull
+      docker compose up -d
+```
+
+## 五、完整示例：测试 + 部署流水线
+
+```yaml
+name: Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true        # 同分支新推送取消旧任务（省钱）
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test -- --run --coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+
+  e2e:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  deploy:
+    needs: [quality, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production        # 可配置人工审批
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "部署到生产..."
+```
+
+## 六、安全要点
+
+1. **固定 Action 版本**：用 `@v4` 或完整 SHA，不要 `@main`；
+2. `permissions` 最小化：
+
+```yaml
+permissions:
+  contents: read
+```
+
+3. PR 来自 fork 时 secrets 不注入（安全设计），需要审批流程；
+4. 定期用 **Dependabot** 更新 Actions 版本：
+
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+```
+
+## 七、常用 Actions 清单
+
+| Action | 用途 |
+| --- | --- |
+| actions/checkout | 拉代码 |
+| actions/setup-node / setup-python / setup-go | 装运行时 |
+| actions/cache | 缓存 |
+| actions/upload-artifact / download-artifact | 产物传递 |
+| pnpm/action-setup | pnpm |
+| docker/build-push-action | 构建推送镜像 |
+| docker/login-action | 登录镜像仓库 |
+| github/codeql-action | 安全扫描 |
+| softprops/action-gh-release | 发布 Release |
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| Workflow 不触发 | 检查 `on` 分支名、yml 缩进、文件是否在 `.github/workflows/` |
+| 权限不足（403） | 添加 `permissions`；`GITHUB_TOKEN` 默认只读 |
+| 缓存不命中 | key 设计含 lock 文件 hash；不同 OS 不要共用一个 key |
+| 构建很慢 | 开缓存、并行 job、`concurrency` 取消旧任务 |
+| secrets 拿不到 | fork PR 不注入；检查名称拼写与所在环境 |
+| 部署需要审批 | 使用 GitHub Environments + Required reviewers |
+| Windows runner 很贵 | 只在必要时用，Linux 为主 |
+
+## 九、参考
+
+- 官方文档：https://docs.github.com/zh/actions
+- Actions Marketplace：https://github.com/marketplace?type=actions
+- 工作流语法：https://docs.github.com/zh/actions/reference/workflow-syntax-for-github-actions
+

@@ -1,0 +1,429 @@
+---
+slug: day-31
+kind: day
+day: 31
+week: 6
+weekTitle: 无监督学习
+weekBlurb: K-Means、层次聚类、GMM 与降维，从无标注数据里找结构。
+title: 聚类任务与 K-Means
+lead: '聚类是"没有老师的分类"。今天我们先把"怎么评价聚类结果"讲清楚（这比K-Means 本身更难），再推导 K-Means 的完整算法与改进。'
+sourcePath: Week06_无监督学习/Day1_聚类与KMeans.md
+---
+
+> 西瓜书第 9 章 9.1–9.4 节 · 南瓜书 9.1–9.20
+
+聚类是"没有老师的分类"。今天我们先把"怎么评价聚类结果"讲清楚（这比K-Means 本身更难），再推导 K-Means 的完整算法与改进。
+
+---
+
+## 今日目标
+
+1. 理解聚类任务的形式化描述与"簇"的两种定义；
+2. 掌握聚类的外部指标（Jaccard、NMI、ARI）与内部指标（DB、Dunn、轮廓系数）；
+3. 推导 K-Means 的目标函数及其"两阶段交替优化"算法；
+4. 证明 K-Means 一定收敛（目标函数单调不增）；
+5. 说清 K-Means 的三个局限与 K-Means++ 的改进；
+6. 从零实现 K-Means 与 K-Means++。
+
+---
+
+## 知识地图
+
+```
+Week06 无监督学习
+├── Day1 聚类与 K-Means  ← 你在这里
+├── Day2 层次聚类与 DBSCAN
+├── Day3 高斯混合聚类与 EM
+├── Day4 PCA
+└── Day5 流形学习与自编码器
+
+依赖: Week05 Day4（EM 算法）
+```
+
+---
+
+## 一、聚类任务
+
+### 1.1 形式化
+
+给定无标签数据集 $\mathcal{D} = \{\boldsymbol{x}_1,\dots,\boldsymbol{x}_m\}$，目标是把它划分为 $k$ 个**互不相交**的簇 $\{C_1,\dots,C_k\}$：
+
+$$C_l \cap C_{l'} = \varnothing\ (l\ne l'), \qquad \bigcup_{l=1}^{k}C_l = \mathcal{D}$$
+
+### 1.2 "簇"的两种定义
+
+**定义一（基于原型）**：簇由**中心/原型**刻画，样本离哪个原型近就属于哪个簇。
+
+- 代表：K-Means、LVQ、GMM；
+- 假设簇是**凸的、球形/椭球形**的。
+
+**定义二（基于密度）**：簇是"高密度区域"，被低密度区域隔开。
+
+- 代表：DBSCAN、OPTICS；
+- 能发现**任意形状**的簇。
+
+**定义三（基于层次）**：簇是一棵树的不同截断。
+
+- 代表：AGNES、BIRCH。
+
+### 1.3 聚类 vs 分类的关键差异
+
+| 维度 | 分类 | 聚类 |
+| --- | --- | --- |
+| 标签 | 有 | 无 |
+| 类别 | 预先定义，有语义 | 需要事后解释 |
+| 簇标签 | 有固定含义 | **可置换（permutation）** |
+| 评估 | 直接比较标签 | 需考虑标签置换（NMI/ARI 解决了这点）|
+| 目标 | 预测 | 发现结构 |
+
+> **重要**：聚类结果的簇编号本身没有意义。$\{1,2,3\}$ 与 $\{3,1,2\}$ 是同一个划分。
+
+---
+
+## 二、聚类性能度量
+
+### 2.1 外部指标（有参考标签时）
+
+设聚类结果 $\mathcal{C}$，参考划分 $\mathcal{C}^*$。对每一对样本 $(i,j)$ 定义：
+
+| 记号 | 含义 |
+| --- | --- |
+| $a$ | 在 $\mathcal{C}$ 与 $\mathcal{C}^*$ 中**都属于同一簇**的样本对数 |
+| $b$ | 在 $\mathcal{C}$ 中同簇、在 $\mathcal{C}^*$ 中不同簇的样本对数 |
+| $c$ | 在 $\mathcal{C}$ 中不同簇、在 $\mathcal{C}^*$ 中同簇的样本对数 |
+| $d$ | 在两者中**都不属于同一簇**的样本对数 |
+
+$a+b+c+d = \binom{m}{2}$。
+
+**常用指标**：
+
+**（1）Jaccard 系数（JC）**
+
+$$\text{JC} = \frac{a}{a+b+c}$$
+
+**（2）Rand 指数（RI）与调整 Rand 指数（ARI）**
+
+$$\text{RI} = \frac{a+d}{\binom{m}{2}}, \qquad \text{ARI} = \frac{\text{RI} - \mathbb{E}[\text{RI}]}{\max(\text{RI}) - \mathbb{E}[\text{RI}]}$$
+
+- $\text{ARI}\in[-1,1]$，0 表示"随机划分的水平"；
+- **ARI 是最常用的外部指标**，因为它对随机聚类有校正。
+
+**（3）归一化互信息（NMI）**
+
+$$\text{NMI}(\mathcal{C},\mathcal{C}^*) = \frac{I(\mathcal{C};\mathcal{C}^*)}{\sqrt{H(\mathcal{C})H(\mathcal{C}^*)}} \in [0,1]$$
+
+其中 $I$ 为互信息（Week01 Day5），$H$ 为熵。**对簇数 $k$ 不同的情形也适用**，因此常用于选 $k$。
+
+### 2.2 内部指标（无参考标签）
+
+只利用聚类结果本身的紧致度与分离度。
+
+**（1）DB 指数（Davies-Bouldin）**——越小越好
+
+$$\text{DBI} = \frac{1}{k}\sum_{i=1}^{k}\max_{j\ne i}\left(\frac{\text{avg}(C_i)+\text{avg}(C_j)}{d(\boldsymbol{\mu}_i,\boldsymbol{\mu}_j)}\right)$$
+
+其中 $\text{avg}(C_i)$ 是簇内平均距离。
+
+**（2）Dunn 指数**——越大越好
+
+$$\text{DI} = \frac{\min_{i\ne j}d_{\min}(C_i,C_j)}{\max_l \text{diam}(C_l)}$$
+
+**（3）轮廓系数（Silhouette Coefficient）**——最常用
+
+对样本 $i$：
+
+$$a(i) = \text{$i$ 到同簇其他样本的平均距离（内聚度）}$$
+$$b(i) = \text{$i$ 到最近的其他簇样本的平均距离（分离度）}$$
+
+$$s(i) = \frac{b(i) - a(i)}{\max\{a(i), b(i)\}} \in [-1, 1]$$
+
+**整体轮廓系数**：$S = \frac{1}{m}\sum_i s(i)$。
+
+| $S$ | 含义 |
+| --- | --- |
+| 接近 1 | 簇内紧、簇间远，聚类良好 |
+| 接近 0 | 簇边界模糊（重叠） |
+| 接近 -1 | **可能被分错簇了** |
+
+> **轮廓系数的用途**：① 选 $k$；② 找出"边缘样本"（$s(i)<0$ 的样本）。
+
+### 2.3 距离度量的选择
+
+聚类严重依赖距离。常用：
+
+| 距离 | 适用 |
+| --- | --- |
+| 欧氏距离 | 连续特征、球状簇 |
+| 曼哈顿距离 | 高维、对离群点更鲁棒 |
+| 余弦距离 | 文本、方向数据 |
+| 马氏距离 | 需考虑特征相关性 |
+| Jaccard 距离 | 集合型数据（$1-\text{JC}$） |
+
+**注意**：K-Means 用欧氏距离时**必须标准化**，否则大量纲特征主导。
+
+---
+
+## 三、K-Means 算法
+
+### 3.1 目标函数
+
+**最小化簇内平方误差（SSE / inertia）**：
+
+$$\boxed{\ J = \sum_{l=1}^{k}\sum_{\boldsymbol{x}\in C_l}\|\boldsymbol{x} - \boldsymbol{\mu}_l\|^2, \quad \boldsymbol{\mu}_l = \frac{1}{|C_l|}\sum_{\boldsymbol{x}\in C_l}\boldsymbol{x}\ }$$
+
+### 3.2 两阶段交替优化
+
+$$\min_{\{C_l\},\{\boldsymbol{\mu}_l\}} J$$
+
+**交替进行两步**：
+
+```
+1. 固定簇中心 {μ_l}，把每个样本分给【最近的】中心:
+      C_l = { x | ||x - μ_l|| <= ||x - μ_j||, 对所有 j }
+
+2. 固定划分 {C_l}，把中心更新为【簇内均值】:
+      μ_l = (1/|C_l|) Σ_{x ∈ C_l} x
+```
+
+### 3.3 为什么一定收敛
+
+**两步都在降低（不增）$J$**：
+
+**分配步**：对每个样本 $\boldsymbol{x}$，把它从当前簇 $C_l$ 移到最近的簇 $C_{l'}$，则它对 $J$ 的贡献从 $\|\boldsymbol{x}-\boldsymbol{\mu}_l\|^2$ 变为 $\|\boldsymbol{x}-\boldsymbol{\mu}_{l'}\|^2$，而后者更小。所以 $J$ 不增。
+
+**更新步**：$\boldsymbol{\mu}_l$ 是 $\sum_{\boldsymbol{x}\in C_l}\|\boldsymbol{x}-\boldsymbol{\mu}\|^2$ 的最小值点（求导置零即得均值）。所以 $J$ 不增。
+
+**综合**：$J$ 单调不增、非负且有下界 ⇒ 收敛。
+
+> **注意**：K-Means 是 EM 算法的一个特例！
+> - E 步 = 分配样本（硬分配）；
+> - M 步 = 更新中心。
+> 区别在于 K-Means 是**硬分配**（一个样本只属于一个簇），GMM 是**软分配**。
+
+### 3.4 完整算法
+
+```
+输入: 数据集 D, 簇数 k, 最大迭代 T
+1. 初始化 k 个中心 μ_1, ..., μ_k
+2. for t = 1 to T:
+     对每个样本 x_i: 计算到各中心的距离, 分配到最近的簇
+     对每个簇 l: 重新计算 μ_l = mean(C_l)
+     若所有中心不再变化 (或变化 < 阈值): 跳出
+3. 输出簇划分与中心
+```
+
+**复杂度**：每次迭代 $O(mkd)$，$d$ 为特征维度。
+
+---
+
+## 四、K-Means 的三个局限与改进
+
+### 4.1 局限一：需要预设 $k$
+
+**选 $k$ 的三种方法**：
+
+**（1）肘部法（Elbow Method）**
+
+画出 $J$ 随 $k$ 的变化曲线，找"拐点"：
+
+```
+J
+↑
+|*
+| *
+|  *
+|    *__
+|        ‾‾‾‾‾‾‾‾‾‾
++-------------------→ k
+      ↑
+    拐点 = 推荐的 k
+```
+
+**（2）轮廓系数法**：选使平均轮廓系数最大的 $k$。
+
+**（3）Gap Statistic**
+
+$$\text{Gap}(k) = \log W_k^{\text{obs}} - \mathbb{E}[\log W_k^{\text{uniform}}]$$
+
+选使 Gap 最大的 $k$（与随机均匀数据对比，比肘部法更客观）。
+
+### 4.2 局限二：球形假设
+
+K-Means 隐含假设簇是**各向同性的球形**（因为它最小化到中心的欧氏距离）。
+
+**反例**：两个拉长且相互交错的簇，K-Means 会从中间切错。
+
+**改进**：
+
+- 用 **GMM**（各簇有自己的协方差矩阵，可拟合椭圆）；
+- 用 **谱聚类**（基于图划分）；
+- 用 **核 K-Means**（在核空间中做球形分割）。
+
+### 4.3 局限三：对初始化敏感
+
+不同的初始中心可能收敛到不同的局部最优。
+
+**K-Means++ 的初始化策略**：
+
+```
+1. 随机选第一个中心 μ_1
+2. 重复直到选出 k 个中心:
+     对每个样本 x, 计算 D(x)^2 = 到【已选中心】的最近距离的平方
+     以正比于 D(x)^2 的概率随机选下一个中心
+3. 用这 k 个中心作为初始值跑标准 K-Means
+```
+
+**为什么有效**：$D(\boldsymbol{x})^2$ 加权采样让**远离已有中心的样本**更可能被选中，从而使初始中心**互相分散**。
+
+**理论基础**：K-Means++ 的期望近似比是 $O(\log k)$（Arthur & Vassilvitskii, 2007）。
+
+**工程实践**：`sklearn.cluster.KMeans(n_init=10)` —— 跑 10 次不同初始化取 SSE 最小的。**K-Means++ + 多次重启是标准配置。**
+
+### 4.4 其他注意事项
+
+| 问题 | 处理 |
+| --- | --- |
+| 空簇 | 重新分配：把最远的点作为新中心，或删除该簇 |
+| 量纲差异 | **必须标准化** |
+| 离群点 | 用 K-Medoids（PAM），中心必须是实际样本点 |
+| 大数据 | Mini-Batch K-Means |
+| 类别型特征 | 用 K-Modes 或 K-Prototypes |
+
+---
+
+## 五、K-Medoids（PAM）
+
+K-Means 的中心是**虚拟的均值点**，可能不在数据分布上。K-Medoids 要求中心必须是**实际样本**。
+
+**目标**：
+
+$$\min\ \sum_{l}\sum_{\boldsymbol{x}\in C_l}\|\boldsymbol{x} - \boldsymbol{o}_l\|^2, \quad \boldsymbol{o}_l \in C_l$$
+
+**优点**：
+
+- 对离群点更鲁棒；
+- 可使用任意距离度量（不必是欧氏距离）；
+- 中心是真实样本，可解释。
+
+**缺点**：复杂度更高（$O(k(m-k)^2)$ 每轮）。
+
+---
+
+## 六、代码实践
+
+```python
+import numpy as np
+
+def kmeans(X, k, n_iter=300, tol=1e-9, seed=0, init="kmeans++"):
+    rng = np.random.default_rng(seed)
+    m, d = X.shape
+
+    # ---------- 初始化 ----------
+    if init == "kmeans++":
+        centers = [X[rng.integers(m)]]
+        for _ in range(k - 1):
+            d2 = np.min([((X - c) ** 2).sum(axis=1) for c in centers], axis=0)
+            prob = d2 / d2.sum()
+            centers.append(X[rng.choice(m, p=prob)])
+        centers = np.array(centers)
+    else:
+        centers = X[rng.choice(m, k, replace=False)].copy()
+
+    labels = np.zeros(m, dtype=int)
+    for _ in range(n_iter):
+        # ---------- 分配步 ----------
+        dist2 = ((X[:, None, :] - centers[None, :, :]) ** 2).sum(axis=2)
+        new_labels = dist2.argmin(axis=1)
+        # ---------- 更新步 ----------
+        new_centers = np.array([
+            X[new_labels == l].mean(axis=0) if (new_labels == l).any()
+            else centers[l] for l in range(k)])
+        if np.allclose(new_centers, centers, atol=tol):
+            labels, centers = new_labels, new_centers
+            break
+        labels, centers = new_labels, new_centers
+    return labels, centers
+```
+
+完整版本见 `code/day1_kmeans.py`，包含：
+
+1. 从零实现 K-Means（随机初始化 vs K-Means++）；
+2. **同一数据跑 50 次不同初始化**，统计 SSE 的分布（展示局部最优问题）；
+3. **肘部法 + 轮廓系数 + Gap Statistic** 三种选 $k$ 方法；
+4. **K-Means 的失败案例**：环形/月牙形数据（与 DBSCAN 对比，为 Day2 铺垫）；
+5. 标准化的必要性实验；
+6. 与 `sklearn.cluster.KMeans` 的 SSE 对照。
+
+---
+
+## 七、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 忘记标准化 | 大量纲特征主导距离 |
+| 只用一次随机初始化 | 可能陷入差的局部最优；用 `n_init=10` |
+| 用准确率评估聚类 | 簇标签可置换，必须用 NMI/ARI |
+| 认为 $k$ 越大越好 | SSE 随 $k$ 单调下降，$k=m$ 时 SSE=0，需要用肘部/轮廓 |
+| 用轮廓系数选 $k$ 却不标准化 | 结果受量纲影响 |
+| 期望 K-Means 找出任意形状的簇 | 它只擅长球形簇 |
+| 忽略空簇 | 需特殊处理，否则会报错或死循环 |
+| 把 K-Means 当 EM 用 | 它是 EM 的硬分配特例，无法输出概率 |
+
+---
+
+## 八、练习题
+
+**基础**
+
+1. 写出 K-Means 的目标函数与两阶段更新公式。
+2. 数据有 5 个样本，聚成 2 类，写出 $a+b+c+d$ 的值。
+3. 说明轮廓系数的取值范围与含义。
+
+**进阶**
+
+4. 证明：固定划分时，使 $\sum_{\boldsymbol{x}\in C}\|\boldsymbol{x}-\boldsymbol{\mu}\|^2$ 最小的 $\boldsymbol{\mu}$ 是簇内均值。
+5. 证明：固定中心时，把样本分配给最近的中心会最小化 $J$。
+6. 综合 4、5 证明 K-Means 一定收敛。
+7. 实现 K-Means++ 的采样过程，并说明为什么它比均匀随机初始化更好。
+
+**思考题**
+
+8. 为什么 K-Means 是 EM 算法的特例？请写出对应的 E 步与 M 步，并说明与 GMM 的差别。
+9. 数据是"两个同心圆"时，K-Means 会给出什么结果？为什么？
+10. SSE 随 $k$ 单调下降，那"用 SSE 最小化选 $k$"会导致什么极端结果？
+
+<details>
+<summary>第 4 题答案</summary>
+
+$$f(\boldsymbol{\mu}) = \sum_{\boldsymbol{x}\in C}\|\boldsymbol{x}-\boldsymbol{\mu}\|^2 = \sum_{\boldsymbol{x}\in C}(\|\boldsymbol{x}\|^2 - 2\boldsymbol{x}^\top\boldsymbol{\mu} + \|\boldsymbol{\mu}\|^2)$$
+
+$$\nabla_{\boldsymbol{\mu}}f = -2\sum_{\boldsymbol{x}\in C}\boldsymbol{x} + 2|C|\boldsymbol{\mu} = 0 \Rightarrow \boldsymbol{\mu}^* = \frac{1}{|C|}\sum_{\boldsymbol{x}\in C}\boldsymbol{x}$$
+
+**含义**：均值是平方误差意义下的最优代表点。
+</details>
+
+<details>
+<summary>第 10 题答案</summary>
+
+**$k = m$（每个样本自成一簇）时 SSE = 0**（全局最小）。
+
+所以"SSE 最小"无法用来选 $k$。必须加入复杂度惩罚或使用其他准则：
+
+- 肘部法：看 SSE 下降的边际收益是否骤减；
+- 轮廓系数：直接衡量结构质量；
+- Gap Statistic：与随机数据的 SSE 比较；
+- BIC/AIC：带复杂度惩罚（GMM 常用）。
+
+**本质上这与监督学习中的"偏差-方差权衡"是同一个问题。**
+</details>
+
+---
+
+## 九、一句话总结
+
+**K-Means 是"交替优化"的最简单应用：分配 → 更新 → 分配 → 更新，目标函数单调下降必然收敛；它的全部威力与全部局限，都来自"用均值当簇代表 + 用欧氏距离当相似度"这一对假设。**
+
+---
+
+**明日预告**：Day2 讲层次聚类与 DBSCAN。你会看到一种能画出"聚类树"的方法，和一种能找出任意形状簇的方法。
+

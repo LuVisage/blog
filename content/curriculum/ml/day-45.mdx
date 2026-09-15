@@ -1,0 +1,448 @@
+---
+slug: day-45
+kind: day
+day: 45
+week: 8
+weekTitle: 工具链与数据预处理
+weekBlurb: Pandas / Matplotlib、七种预处理方法、jieba / NLTK 文本处理与特征工程 Pipeline。
+title: 综合实战：特征工程 Pipeline
+lead: '前 4 天学的都是"单个工具"。今天把它们组装成**一条可复用、不会数据泄漏的流水线**——这是从"能跑通脚本"到"能交付项目"的分水岭。'
+sourcePath: Week08_工具链与数据预处理/Day5_特征工程Pipeline.md
+---
+
+> CYC 导学.pdf + 工具课件全部内容整合
+
+前 4 天学的都是"单个工具"。今天把它们组装成**一条可复用、不会数据泄漏的流水线**——这是从"能跑通脚本"到"能交付项目"的分水岭。
+
+---
+
+## 今日目标
+
+1. 掌握 `Pipeline` 的语法与价值；
+2. 掌握 `ColumnTransformer` 处理"数值 + 类别 + 文本"混合表；
+3. 理解为什么 Pipeline 能**天然避免数据泄漏**；
+4. 会把 Pipeline 与**交叉验证 / 网格搜索**结合；
+5. 掌握 Pipeline 的保存与加载（部署必需）；
+6. 完成一个端到端的混合特征分类项目。
+
+---
+
+## 知识地图
+
+```
+Week08 收尾
+├── Day1 Pandas ✅
+├── Day2 Matplotlib ✅
+├── Day3 数据预处理 ✅
+├── Day4 文本预处理 ✅
+└── Day5 特征工程 Pipeline  ← 你在这里
+
+依赖: Week02 Day2（数据泄漏、交叉验证）
+```
+
+---
+
+## 一、为什么需要 Pipeline
+
+### 1.1 手写流程的三个典型错误
+
+```python
+# ❌ 错误示范
+scaler = StandardScaler()
+X_all = scaler.fit_transform(X)               # 错误 1：在全量数据上 fit
+X_train, X_test = train_test_split(X_all)     # 划分太晚
+model.fit(X_train)
+# 错误 2：交叉验证时忘了重新 fit scaler
+cross_val_score(model, X_all, y)              # 每一折都会用全量统计量
+# 错误 3：推理时忘了 transform
+model.predict(new_X_raw)                      # 直接用原始数据预测
+```
+
+### 1.2 Pipeline 的价值
+
+| 价值 | 说明 |
+| --- | --- |
+| **防泄漏** | `fit` 只在训练折内执行，`transform` 自动应用到验证折 |
+| **防遗忘** | 推理时 `pipe.predict(raw)` 会自动做全部预处理 |
+| **可复用** | 一条链在训练/验证/测试/线上完全一致 |
+| **可调参** | 网格搜索可以直接搜 `scaler__with_mean` 这样的嵌套参数 |
+| **可序列化** | 一个文件保存"预处理 + 模型"的全部状态 |
+
+---
+
+## 二、Pipeline 基础
+
+### 2.1 语法
+
+```python
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.linear_model import LogisticRegression
+
+pipe = Pipeline([
+    ("scaler", StandardScaler()),
+    ("pca",    PCA(n_components=10)),
+    ("clf",    LogisticRegression(max_iter=1000)),
+])
+
+pipe.fit(X_train, y_train)
+print(pipe.score(X_test, y_test))
+```
+
+**约定**：除最后一步外，所有步骤都必须实现 `fit` 与 `transform`；最后一步实现 `fit` 与 `predict`。
+
+**用 `make_pipeline` 省去命名**（自动用小写类名）：
+
+```python
+from sklearn.pipeline import make_pipeline
+pipe = make_pipeline(StandardScaler(), PCA(n_components=10), LogisticRegression())
+```
+
+> **建议**：需要网格搜索时**显式命名**（`scaler__with_mean`），否则自动名可能比想象的长。
+
+### 2.2 访问内部步骤
+
+```python
+pipe.named_steps["scaler"].mean_           # 取预处理器的属性
+pipe[:-1].transform(X_test)                # 取"除最后一步外"的中间输出（很有用）
+pipe.set_params(clf__C=0.1)                # 修改嵌套参数
+```
+
+### 2.3 为什么能防泄漏
+
+`pipe.fit(X_train, y_train)` 的执行顺序：
+
+```
+第 1 步 scaler.fit_transform(X_train)   <- 只用 X_train 统计
+第 2 步 pca.fit_transform(第1步输出)     <- 只用变换后的训练集
+第 3 步 clf.fit(第2步输出, y_train)
+```
+
+在 `cross_val_score(pipe, X, y, cv=5)` 中，**每一折都会重新调用 `pipe.fit(这一折的训练部分)`**，因此验证折的数据**从未参与任何统计量计算**。
+
+> **这就是"把预处理器放进 Pipeline"和"手动预处理"最本质的区别。**
+
+---
+
+## 三、ColumnTransformer：处理混合类型的表
+
+真实数据表往往长这样：
+
+| 列 | 类型 | 需要的处理 |
+| --- | --- | --- |
+| 年龄、收入 | 数值 | 标准化 |
+| 城市、性别 | 类别 | 独热编码 |
+| 用户评论 | 文本 | TF-IDF |
+| 是否有缺失 | 布尔 | 直接使用 |
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.impute import SimpleImputer
+
+num_cols = ["age", "income"]
+cat_cols = ["city", "gender"]
+txt_col   = "review"
+
+pre = ColumnTransformer([
+    ("num", Pipeline([
+        ("impute", SimpleImputer(strategy="median")),
+        ("scale",  StandardScaler()),
+    ]), num_cols),
+    ("cat", Pipeline([
+        ("impute", SimpleImputer(strategy="constant", fill_value="未知")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore")),
+    ]), cat_cols),
+    ("txt", TfidfVectorizer(max_features=2000, ngram_range=(1, 2)), txt_col),
+], remainder="drop")        # remainder="drop" 丢弃未指定的列
+```
+
+### 3.1 四种常用写法
+
+| 写法 | 适用 |
+| --- | --- |
+| `(name, transformer, [列名列表])` | 明确指定列 |
+| `(name, transformer, make_column_selector(dtype_include=np.number))` | 按类型自动选列 |
+| `remainder="drop"` | 丢弃未提到的列 |
+| `remainder="passthrough"` | 保留未提到的列（放在末尾） |
+
+### 3.2 输出维度会变化
+
+```python
+X_t = pre.fit_transform(df)
+print(df.shape, "->", X_t.shape)
+# 原始 4 列（含 1 个文本列）-> 变成 2 + onehot列数 + 2000 维
+```
+
+**重要**：独热编码与 TF-IDF 会让维度暴涨。**做完一定要打印维度**，否则后续模型会莫名变慢/过拟合。
+
+---
+
+## 四、与交叉验证、网格搜索结合
+
+### 4.1 交叉验证
+
+```python
+from sklearn.model_selection import cross_val_score
+scores = cross_val_score(pipe, X, y, cv=5, scoring="f1_macro")
+print(f"F1 = {scores.mean():.4f} ± {scores.std():.4f}")
+```
+
+**注意**：这里传入的是**原始 DataFrame `X`**（未预处理），一切都在 Pipeline 内部完成。
+
+### 4.2 网格搜索
+
+```python
+from sklearn.model_selection import GridSearchCV
+
+param_grid = {
+    "clf__C": [0.01, 0.1, 1, 10],
+    "pre__num__scale": [StandardScaler(), RobustScaler()],
+    "pre__txt__max_features": [1000, 3000],
+}
+
+gs = GridSearchCV(pipe, param_grid, cv=5, scoring="f1_macro", n_jobs=-1)
+gs.fit(X_train, y_train)
+print(gs.best_params_, gs.best_score_)
+```
+
+**命名规则**：`步骤名__子步骤名__参数名`，用双下划线连接。
+
+### 4.3 随机搜索（维度高时更高效）
+
+```python
+from sklearn.model_selection import RandomizedSearchCV
+from scipy.stats import loguniform
+
+param_dist = {
+    "clf__C": loguniform(1e-3, 1e2),          # 对数均匀
+    "pre__txt__max_features": [500, 1000, 3000],
+}
+rs = RandomizedSearchCV(pipe, param_dist, n_iter=20, cv=5,
+                        scoring="f1_macro", random_state=0, n_jobs=-1)
+```
+
+**为什么用对数均匀**：`C` 的有效范围跨几个数量级，线性均匀采样会浪费预算（Week02 Day2）。
+
+---
+
+## 五、保存与加载（部署必需）
+
+```python
+import joblib
+
+joblib.dump(pipe, "model_pipeline.joblib")     # 保存整条链
+pipe2 = joblib.load("model_pipeline.joblib")   # 加载
+
+# 直接吃原始数据
+pred = pipe2.predict(raw_df)
+```
+
+**必须保存整条 Pipeline，而不是只保存模型**：
+
+- 只保存模型 ⇒ 线上还得手工复现标准化 + 独热 + TF-IDF ⇒ 极易不一致；
+- 保存整条链 ⇒ 线上只需一行 `predict(raw_df)`。
+
+**版本兼容性注意**：
+
+| 风险 | 对策 |
+| --- | --- |
+| sklearn 版本升级导致加载失败 | 记录版本号，或用 ONNX 导出 |
+| 自定义类（如自己写的 Transformer） | 部署环境必须有同名类 |
+| 中文分词器（jieba 词典） | 词典文件也要一起打包 |
+
+---
+
+## 六、自定义 Transformer
+
+如果内置的预处理器不够用，可以自己写——**只要继承 `BaseEstimator` + `TransformerMixin`**：
+
+```python
+from sklearn.base import BaseEstimator, TransformerMixin
+import numpy as np
+
+class OutlierClipper(BaseEstimator, TransformerMixin):
+    """按分位数裁剪离群点（只在训练集上学习边界）"""
+
+    def __init__(self, lower=0.01, upper=0.99):
+        self.lower, self.upper = lower, upper
+
+    def fit(self, X, y=None):
+        X = np.asarray(X)
+        self.lo_ = np.quantile(X, self.lower, axis=0)
+        self.hi_ = np.quantile(X, self.upper, axis=0)
+        return self
+
+    def transform(self, X):
+        return np.clip(np.asarray(X), self.lo_, self.hi_)
+```
+
+**要点**：
+
+1. `fit` 返回 `self`；
+2. 学到的参数带**下划线结尾**（`lo_`、`hi_`），这是 sklearn 的约定；
+3. 不要修改输入数组（用 `np.clip` 返回新数组）。
+
+**可以直接放进 Pipeline 并参与网格搜索**
+
+---
+
+## 七、代码实践
+
+完整版本见 `code/day5_feature_pipeline.py`，包含：
+
+1. **混合特征数据集构造**（数值列 + 类别列 + 文本列 + 含缺失的列）；
+2. **手写流程 vs Pipeline** 的对照：分别在交叉验证下评估，展示手写版的数据泄漏导致的乐观偏差；
+3. `ColumnTransformer` 处理三类特征的完整配置与输出维度打印；
+4. **网格搜索**（含 `pre__num__scale` 这类嵌套参数）与**随机搜索**的对比；
+5. **自定义 Transformer**（分位数裁剪）并纳入 Pipeline；
+6. **保存 / 加载**整条 Pipeline 并验证"加载后的预测与原来完全一致"；
+7. **端到端小项目**：一个"用户流失预测"式的分类任务（合成数据），输出混淆矩阵、F1、ROC-AUC，并画出特征重要性。
+
+---
+
+## 八、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 把 `y` 也传进 `ColumnTransformer` | 它只处理特征 |
+| 列名在 Pipeline 外部被改动 | 列名必须与 fit 时一致 |
+| 忘记 `handle_unknown="ignore"` | 测试集出现新类别会直接报错 |
+| 用 `make_pipeline` 后不知道参数名 | 用 `pipe.get_params()` 查看全部可用参数名 |
+| 网格搜索里改数据预处理方式 | 会导致维度不一致，应搜"预处理器的参数"而非"换预处理器"（可以在 Pipeline 外做） |
+| 保存模型时只 dump 了 `pipe[-1]` | 必须 dump 整个 `pipe` |
+| 自定义 Transformer 的 `fit` 不返回 `self` | 会报错 |
+| 在 `transform` 里用到了 `y` | 会导致交叉验证泄漏 |
+| 用 `pandas` 索引对齐后再进 Pipeline | 建议先 `reset_index(drop=True)` |
+| 测试集单独做 `fit_transform` | 必须用训练集拟合好的对象 `transform` |
+| **用 `lambda` 当 `tokenizer`** | **lambda 无法被 pickle**，保存 Pipeline 时报 `Can't pickle <lambda>`；必须写成**模块级函数** |
+| 特征选择器放在 Pipeline 外面 | 泄漏！本日代码里实测虚高 **+0.45** 准确率 |
+| `TF-IDF` 在划分前 `fit` | 词表泄漏，测试集出现了训练时没有的词 |
+
+> **本周最重要的一个实验**：在 `code/day3_preprocessing.py` 的第 6 节，我们构造了 120 个样本、8000 个**纯噪声**特征、**随机标签**的数据集。
+> - 把 `SelectKBest` 放在交叉验证**外面** ⇒ 准确率 **0.8583**（完全是假的）
+> - 把 `SelectKBest` 放进 **Pipeline** ⇒ 准确率 **0.4083**（≈ 随机水平，真实）
+>
+> **虚高 0.45 个百分点** —— 这就是数据泄漏的威力。任何"用到 $y$ 的预处理"都必须进 Pipeline。
+
+---
+
+## 九、练习题
+
+**基础**
+
+1. 写出 `Pipeline([("scaler", StandardScaler()), ("clf", LogisticRegression())])` 的 `fit` 执行顺序。
+2. `ColumnTransformer` 中 `remainder="drop"` 与 `remainder="passthrough"` 的区别？
+3. 为什么必须保存整条 Pipeline 而不是只保存模型？
+
+**进阶**
+
+4. 说明 Pipeline 在 `cross_val_score` 中如何保证不泄漏。
+5. 写出访问"网格搜索中 Pipeline 第二步的 `C` 参数"的完整键名。
+6. 写一个自定义 Transformer，把"日期字符串"转成"星期几 + 是否周末 + 距今天数"三个数值特征。
+7. 设计一个实验，量化"先标准化再划分"带来的乐观偏差有多少个百分点。
+
+**思考题**
+
+8. 为什么"手写预处理 + 交叉验证"极易出错？请列出至少三种导致泄漏的具体写法。
+9. 在部署场景下，除了保存 Pipeline，还需要一起打包哪些东西？（提示：考虑中文分词）
+10. 如果某个特征在训练时存在、线上没有，Pipeline 会怎么表现？如何提前发现？
+
+<details>
+<summary>第 5 题答案</summary>
+
+键名格式为 `步骤名__参数名`：
+
+```python
+"clf__C"           # 如果步骤名是 "clf"
+```
+
+若 Pipeline 作为 GridSearchCV 的 estimator，且外面还套了 ColumnTransformer，则需要在 ColumnTransformer 的步骤名外层再加一层：
+
+```python
+"pre__num__scale__with_mean"     # pre 是 ColumnTransformer 的名字，num 是它内部的步骤名
+```
+
+**完整示例**：
+
+```python
+param_grid = {"clf__C": [0.1, 1, 10], "clf__penalty": ["l2"]}
+GridSearchCV(pipe, param_grid, cv=5)
+```
+
+**查询可用键名**：`pipe.get_params().keys()`
+</details>
+
+<details>
+<summary>第 8 题答案要点</summary>
+
+**泄漏写法一：先对全量数据做预处理，再划分**
+
+```python
+X = scaler.fit_transform(X)                    # ❌ 测试集参与了统计
+X_tr, X_te = train_test_split(X, y)
+```
+
+**泄漏写法二：交叉验证时在折外做预处理**
+
+```python
+X_all = scaler.fit_transform(X)                # ❌
+cross_val_score(model, X_all, y, cv=5)
+```
+
+**泄漏写法三：特征选择在折外做**
+
+```python
+sel = SelectKBest(k=100).fit(X, y)             # ❌ 用到了全部 y
+X_sel = sel.transform(X)
+cross_val_score(model, X_sel, y, cv=5)
+```
+
+**泄漏写法四：目标编码在全量上算**（Week08 Day3 思考题 9）
+
+**泄漏写法五：SMOTE 过采样在全量上做**（Week03 Day5）
+
+**统一解法**：**把所有"需要 fit 的东西"都包进 Pipeline**，让 sklearn 在每一折内部重新 fit。
+
+```python
+pipe = make_pipeline(StandardScaler(), SelectKBest(k=100), LogisticRegression())
+cross_val_score(pipe, X_raw, y, cv=5)          # ✅ 无泄漏
+```
+</details>
+
+<details>
+<summary>第 9 题答案要点</summary>
+
+除了 `pipeline.joblib`，还需要一起打包：
+
+1. **jieba 自定义词典文件**（否则线上分词结果与训练不一致）；
+2. **停用词表**（自维护的中文表）；
+3. **依赖库版本清单**：`sklearn`、`numpy`、`pandas`、`jieba` 的精确版本（`pip freeze > requirements.txt`）；
+4. **自定义类的源码或安装包**（`OutlierClipper` 这类必须能被 import）；
+5. **列名与列顺序的约定文档**（或直接保存 `df.columns.tolist()`）；
+6. **类别集合 / 词表快照**（若用了 `OneHotEncoder` / `TfidfVectorizer` 以外的自实现编码）；
+7. **推理示例输入与期望输出**（用于上线前的一致性冒烟测试）。
+
+**工程实践**：把这些一起打进一个 Docker 镜像，是最稳妥的做法。
+</details>
+
+---
+
+## 十、Week08 总结
+
+| 天 | 核心收获 |
+| --- | --- |
+| Day1 | Pandas 的 `DataFrame` 操作、`groupby`、缺失值、`merge` |
+| Day2 | Matplotlib 四层结构与 6 种图型、训练曲线诊断 |
+| Day3 | 7 种预处理方法、标准化 vs 归一化、编码选择、数据泄漏 |
+| Day4 | jieba/NLTK 分词与清洗、词袋与 TF-IDF、n-gram |
+| Day5 | `Pipeline` + `ColumnTransformer`、嵌套网格搜索、整链保存 |
+
+**从本周起，你处理真实数据的能力已经具备。** 后面的 PyTorch、CV、LLM 全部建立在这套数据能力之上。
+
+---
+
+**下周预告**：Week09 进入 **PyTorch**。你会看到：张量如何替代 NumPy 数组、`autograd` 如何自动完成 Week07 手推的反向传播、`Dataset`/`DataLoader` 如何把数据管线标准化——从此告别"手写 for 循环喂数据"。
+

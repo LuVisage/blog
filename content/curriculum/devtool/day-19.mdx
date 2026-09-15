@@ -1,0 +1,189 @@
+---
+slug: day-19
+kind: day
+day: 19
+week: 3
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: TypeScript 使用教程
+sourcePath: 03-构建打包/06-TypeScript.md
+---
+
+## 一、TypeScript 是什么
+
+JavaScript 的**超集**，在 JS 之上加了静态类型系统。类型在编译期检查、运行时被擦除。
+
+收益：
+- 编辑器智能提示、自动补全；
+- 编译期发现类型错误；
+- 重构安全（改名/改签名一改到底）；
+- 类型即文档，团队协作更清晰。
+
+## 二、安装与初始化
+
+```powershell
+pnpm add -D typescript
+npx tsc --init            # 生成 tsconfig.json
+npx tsc --version
+```
+
+## 三、tsconfig.json 详解
+
+```jsonc
+{
+  "compilerOptions": {
+    /* 语言与环境 */
+    "target": "ES2022",              // 输出语法版本
+    "lib": ["ES2022", "DOM"],        // 可用的内置类型
+    "module": "ESNext",              // 模块系统
+    "moduleResolution": "bundler",   // 解析策略（Vite 项目推荐 bundler）
+    "jsx": "react-jsx",              // React 17+ 自动运行时
+
+    /* 严格性 */
+    "strict": true,                  // 开启全部严格检查（必开）
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    /* 输出 */
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,             // 生成 .d.ts
+    "sourceMap": true,
+
+    /* 互操作 */
+    "esModuleInterop": true,
+    "skipLibCheck": true,            // 跳过库类型检查，加速
+    "forceConsistentCasingInFileNames": true,
+
+    /* 路径别名 */
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+常用命令：
+
+```powershell
+npx tsc                     # 编译
+npx tsc --noEmit            # 只做类型检查，不产出（CI 最常用）
+npx tsc --watch             # 监听模式
+npx tsc --build             # 增量构建（monorepo 项目引用）
+```
+
+## 四、核心类型速览
+
+```ts
+// 基础
+let n: number = 1;
+let s: string = 'hi';
+let b: boolean = true;
+let arr: number[] = [1, 2];
+let tuple: [string, number] = ['a', 1];
+let u: unknown = JSON.parse('{}');     // 比 any 安全，用前需收窄
+
+// 接口与类型别名
+interface User { id: number; name: string; age?: number }
+type Point = { x: number; y: number };
+type ID = string | number;
+
+// 联合与交叉
+type Status = 'idle' | 'loading' | 'done';
+type Admin = User & { role: 'admin' };
+
+// 泛型
+function first<T>(list: T[]): T | undefined { return list[0]; }
+interface ApiResponse<T> { code: number; data: T }
+
+// 工具类型
+type PartialUser = Partial<User>;      // 全部可选
+type RequiredUser = Required<User>;    // 全部必填
+type ReadonlyUser = Readonly<User>;
+type UserName = Pick<User, 'name'>;
+type NoId = Omit<User, 'id'>;
+type UserMap = Record<string, User>;
+type MaybeUser = User | null;
+
+// 类型收窄
+function fmt(v: string | number) {
+  if (typeof v === 'string') return v.trim();
+  return v.toFixed(2);
+}
+```
+
+## 五、工程实践要点
+
+### 1. `type` vs `interface`
+
+- `interface`：可声明合并、继承，适合对象/公共 API；
+- `type`：可联合、交叉、条件类型，更灵活；
+- 团队统一即可，没有绝对对错。
+
+### 2. 严格模式下的常见处理
+
+```ts
+// 非空断言（确认一定存在时）
+const el = document.getElementById('app')!;
+
+// 可选链 + 空值合并
+const name = user?.profile?.name ?? '匿名';
+
+// 类型断言（慎用）
+const data = resp as UserDto;
+
+// 类型守卫
+function isUser(x: unknown): x is User {
+  return typeof x === 'object' && x !== null && 'id' in x;
+}
+```
+
+### 3. 第三方库缺类型
+
+```powershell
+pnpm add -D @types/lodash        # 大多数库社区已提供
+```
+
+自己补声明：`src/types/global.d.ts`
+
+```ts
+declare module 'some-legacy-lib';
+declare global {
+  interface Window { __CONFIG__: Record<string, string> }
+}
+```
+
+### 4. 类型检查与构建分离
+
+现代工具（Vite / esbuild / SWC）只**擦除类型**不做检查，因此 CI 必须单独跑：
+
+```powershell
+npx tsc --noEmit
+```
+
+## 六、常见错误与解决
+
+| 错误 | 原因 / 解决 |
+| --- | --- |
+| `Object is possibly 'undefined'` | 用可选链、判空或收窄 |
+| `Type 'X' is not assignable to type 'Y'` | 检查字段是否可选、联合类型是否收窄 |
+| `Cannot find module './x' or its type declarations` | 检查 `moduleResolution`、路径大小写、文件是否被 include |
+| `'xxx' implicitly has an 'any' type` | 显式标注类型，或 `@ts-expect-error`（谨慎） |
+| 别名 `@/` 编译报错 | paths 配置 tsconfig，同时构建工具也要配 alias |
+| 编译慢 | 开 `skipLibCheck`、`incremental: true`；monorepo 用 project references |
+
+## 七、最佳实践
+
+1. **`strict: true` 从第一天开启**，后期再开成本极高。
+2. 少用 `any`，需要未知类型时用 `unknown` + 类型收窄。
+3. 公共 API 显式标注返回类型，避免意外推断变化。
+4. 用工具类型（`Pick/Omit/Partial`）派生类型，避免重复定义。
+5. CI 加入 `tsc --noEmit`，阻止类型错误进主干。
+
+## 八、参考
+
+- 官方手册：https://www.typescriptlang.org/docs/
+- 中文手册：https://www.tslang.cn/docs/home.html
+- Type Challenges（练习类型体操）：https://github.com/type-challenges/type-challenges
+

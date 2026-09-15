@@ -1,0 +1,172 @@
+---
+slug: day-16
+kind: day
+day: 16
+week: 3
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: Rollup 使用教程
+sourcePath: 03-构建打包/03-Rollup.md
+---
+
+## 一、Rollup 是什么
+
+Rollup 是专注 **JavaScript 库打包** 的模块打包器，特点是：
+
+- 基于 ES Module，**Tree Shaking 效果最好**，产物干净；
+- 支持输出多种格式：ESM / CJS / UMD / IIFE；
+- Vite 的生产构建底层就是 Rollup。
+
+适合：npm 库、组件库、SDK。不适合：需要处理大量 CSS/图片资源的前端应用（那更适合 Vite/Webpack）。
+
+## 二、快速开始
+
+```powershell
+pnpm add -D rollup typescript @rollup/plugin-typescript @rollup/plugin-node-resolve @rollup/plugin-commonjs
+```
+
+`rollup.config.mjs`：
+
+```js
+import typescript from '@rollup/plugin-typescript';
+import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+import dts from 'rollup-plugin-dts';
+
+export default [
+  {
+    input: 'src/index.ts',
+    output: [
+      { file: 'dist/index.cjs', format: 'cjs', sourcemap: true },
+      { file: 'dist/index.mjs', format: 'esm', sourcemap: true },
+    ],
+    external: ['react', 'react-dom'],   // 不打进产物，由使用方提供
+    plugins: [
+      resolve(),           // 解析 node_modules
+      commonjs(),          // 支持 require 的依赖
+      typescript({ tsconfig: './tsconfig.json' }),
+    ],
+    treeshake: true,
+  },
+  {
+    input: 'src/index.ts',
+    output: { file: 'dist/index.d.ts', format: 'es' },
+    plugins: [dts()],
+  },
+];
+```
+
+`package.json`：
+
+```json
+{
+  "name": "my-lib",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w"
+  }
+}
+```
+
+命令：
+
+```powershell
+pnpm build       # 打包
+pnpm dev         # 监听模式，改动自动重建
+rollup src/index.ts --format esm --file dist/index.mjs   # 免配置文件
+```
+
+## 三、常用插件
+
+| 插件 | 用途 |
+| --- | --- |
+| @rollup/plugin-node-resolve | 解析 node_modules 中的模块 |
+| @rollup/plugin-commonjs | 转换 CJS 依赖为 ESM |
+| @rollup/plugin-typescript / rollup-plugin-esbuild | TS 编译 |
+| @rollup/plugin-json | 支持 `import data from './x.json'` |
+| @rollup/plugin-terser | 压缩 |
+| rollup-plugin-dts | 合并生成 `.d.ts` |
+| @rollup/plugin-replace | 注入环境变量 |
+
+## 四、输出格式说明
+
+| format | 产物 | 适用 |
+| --- | --- | --- |
+| `esm`（es） | `import/export` | 现代打包器（Vite/Webpack）消费 |
+| `cjs` | `require()` | Node 环境、老工具链 |
+| `umd` | 兼容 AMD/CJS/全局变量 | 浏览器 `<script>` 直接引入 |
+| `iife` | 立即执行函数 | 独立脚本 |
+
+## 五、体积优化技巧
+
+1. **`external` 外部化** peer 依赖（react、lodash 等），让使用方去 tree-shake：
+
+```js
+external: (id) => /^(react|react-dom|lodash)/.test(id)
+```
+
+2. **`sideEffects: false`**（package.json）让引用方可以安全 tree-shake。
+3. **多入口 + preserveModules**（保留文件结构，利于按需加载）：
+
+```js
+output: { dir: 'dist/es', format: 'esm', preserveModules: true, preserveModulesRoot: 'src' }
+```
+
+4. 检查产物：`rollup-plugin-visualizer`。
+
+## 六、插件开发（了解原理）
+
+Rollup 插件通过钩子介入构建：
+
+```js
+export default function myPlugin() {
+  return {
+    name: 'my-plugin',
+    resolveId(source) { /* 决定模块如何解析 */ },
+    load(id) { /* 返回模块源码 */ },
+    transform(code, id) { /* 转换源码 */ },
+    renderChunk(code) { /* 修改 chunk 产物 */ },
+  };
+}
+```
+
+## 七、Rollup vs 其他
+
+| 维度 | Rollup | esbuild | tsup | Webpack |
+| --- | --- | --- | --- | --- |
+| 定位 | 库打包 | 极速转译/打包 | 库打包封装 | 应用打包 |
+| Tree Shaking | 最好 | 好 | 好 | 好 |
+| 速度 | 中 | 极快 | 快 | 慢 |
+| 配置复杂度 | 中 | 低 | 极低 | 高 |
+| 产物纯净度 | 最高 | 高 | 高 | 一般 |
+
+**结论**：要极致控制产物 → Rollup；要开箱即用 → tsup；要极速 → esbuild。
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 打包后 `require is not defined` | 依赖未转 ESM，加 `@rollup/plugin-commonjs` |
+| 类型文件没生成 | 单独用 `rollup-plugin-dts` 或先跑 `tsc --emitDeclarationOnly` |
+| peer 依赖被打进产物 | 配 `external` |
+| 循环依赖警告 | 重构拆分模块，或 `onwarn` 过滤（治标） |
+| 产物体积大 | 检查是否误打 node_modules，开 terser，检查 sideEffects |
+
+## 九、参考
+
+- 官方文档：https://rollupjs.org/
+- 插件列表：https://github.com/rollup/awesome
+

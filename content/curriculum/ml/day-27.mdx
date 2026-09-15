@@ -1,0 +1,385 @@
+---
+slug: day-27
+kind: day
+day: 27
+week: 5
+weekTitle: 支持向量机与概率模型
+weekBlurb: 间隔与对偶、核方法，以及贝叶斯分类器的概率视角。
+title: 核函数与软间隔
+lead: '昨天我们得到了一个只依赖内积的对偶问题。今天要利用这个性质做两件事：**用核函数把数据映射到高维（解决线性不可分）**，以及**引入软间隔（解决噪声与重叠）**。'
+sourcePath: Week05_支持向量机与概率模型/Day2_核函数与软间隔.md
+---
+
+> 西瓜书第 6 章 6.2–6.3 节 · 南瓜书 6.21–6.45
+
+昨天我们得到了一个只依赖内积的对偶问题。今天要利用这个性质做两件事：**用核函数把数据映射到高维（解决线性不可分）**，以及**引入软间隔（解决噪声与重叠）**。
+
+---
+
+## 今日目标
+
+1. 理解"线性不可分"的本质，以及升维为什么可能让它线性可分；
+2. 掌握核函数定义与 Mercer 条件；
+3. 熟记 4 个常用核函数，理解各自的适用场景；
+4. 手算验证高斯核的高维展开（理解"无穷维"的含义）；
+5. 掌握软间隔 SVM 与合页损失的等价性；
+6. 说清 $C$ 参数的偏差-方差含义。
+
+---
+
+## 知识地图
+
+```
+Week05
+├── Day1 最大间隔与对偶 ✅
+├── Day2 核函数与软间隔  ← 你在这里
+├── Day3 贝叶斯与朴素贝叶斯
+├── Day4 EM 与贝叶斯网络
+└── Day5 实战 SVM
+
+依赖: 对偶问题只含内积（Day1）
+```
+
+---
+
+## 一、线性不可分与升维
+
+### 1.1 经典反例：XOR
+
+```
+   ○ | ●          在 2 维空间中，
+   --+--          找不到一条直线把 ○ 和 ● 分开
+   ● | ○
+```
+
+### 1.2 映射到三维后
+
+定义映射 $\phi(x_1, x_2) = (x_1, x_2, x_1x_2)$。则：
+
+| 点 | $(x_1,x_2)$ | $(\phi_1,\phi_2,\phi_3)$ |
+| --- | --- | --- |
+| $(1,1)$ | 正类 | $(1,1,1)$ |
+| $(-1,-1)$ | 正类 | $(-1,-1,1)$ |
+| $(1,-1)$ | 负类 | $(1,-1,-1)$ |
+| $(-1,1)$ | 负类 | $(-1,1,-1)$ |
+
+**$\phi_3$ 恰好就是判别方向** ⇒ 在三维空间中线性可分（用 $x_1x_2 > 0$ 判断）。
+
+**核心洞察**：**低维线性不可分的问题，映射到足够高的维度后往往线性可分**。
+
+### 1.3 问题：高维计算爆炸
+
+若原始维度 $n = 1000$，二阶多项式特征有约 $5\times10^5$ 个，三阶则更多。**显式计算 $\phi(\boldsymbol{x})$ 不可行。**
+
+**核技巧的答案**：**只算内积，不算映射**。
+
+---
+
+## 二、核技巧
+
+### 2.1 核函数定义
+
+$$K(\boldsymbol{x}, \boldsymbol{z}) = \phi(\boldsymbol{x})^\top \phi(\boldsymbol{z})$$
+
+**核技巧**：把 Day1 对偶问题中所有的 $\boldsymbol{x}_i^\top\boldsymbol{x}_j$ 替换成 $K(\boldsymbol{x}_i,\boldsymbol{x}_j)$，就等价于在映射后的高维空间中做线性 SVM，而**计算量仍在原始维度**。
+
+**对偶问题变为**：
+
+$$\max_{\boldsymbol{\alpha}}\ \sum_i\alpha_i - \frac{1}{2}\sum_i\sum_j\alpha_i\alpha_jy_iy_jK(\boldsymbol{x}_i,\boldsymbol{x}_j)$$
+
+**决策函数变为**：
+
+$$f(\boldsymbol{x}) = \sum_{i\in SV}\alpha_iy_iK(\boldsymbol{x}_i,\boldsymbol{x}) + b$$
+
+### 2.2 手算验证：多项式核
+
+取 $\boldsymbol{x} = (x_1,x_2)$，$\boldsymbol{z} = (z_1,z_2)$，定义
+
+$$K(\boldsymbol{x},\boldsymbol{z}) = (\boldsymbol{x}^\top\boldsymbol{z})^2$$
+
+**展开**：
+
+$$(x_1z_1 + x_2z_2)^2 = x_1^2z_1^2 + 2x_1x_2z_1z_2 + x_2^2z_2^2$$
+
+**构造映射** $\phi(\boldsymbol{x}) = (x_1^2,\ \sqrt{2}x_1x_2,\ x_2^2)$，则
+
+$$\phi(\boldsymbol{x})^\top\phi(\boldsymbol{z}) = x_1^2z_1^2 + 2x_1x_2z_1z_2 + x_2^2z_2^2 = K(\boldsymbol{x},\boldsymbol{z})\ \checkmark$$
+
+**结论**：算一个内积的平方（$O(n)$）等于在 3 维特征空间中的内积，且 $n$ 越大优势越明显。
+
+### 2.3 高斯核的无穷维展开
+
+**高斯核（RBF）**：
+
+$$K(\boldsymbol{x},\boldsymbol{z}) = \exp\left(-\frac{\|\boldsymbol{x}-\boldsymbol{z}\|^2}{2\sigma^2}\right)$$
+
+利用 $\|\boldsymbol{x}-\boldsymbol{z}\|^2 = \|\boldsymbol{x}\|^2 - 2\boldsymbol{x}^\top\boldsymbol{z} + \|\boldsymbol{z}\|^2$：
+
+$$K(\boldsymbol{x},\boldsymbol{z}) = e^{-\frac{\|\boldsymbol{x}\|^2}{2\sigma^2}}\cdot e^{\frac{\boldsymbol{x}^\top\boldsymbol{z}}{\sigma^2}}\cdot e^{-\frac{\|\boldsymbol{z}\|^2}{2\sigma^2}}$$
+
+对中间项做泰勒展开（$e^t = \sum_{k=0}^\infty t^k/k!$）：
+
+$$e^{\frac{\boldsymbol{x}^\top\boldsymbol{z}}{\sigma^2}} = \sum_{k=0}^{\infty}\frac{(\boldsymbol{x}^\top\boldsymbol{z})^k}{\sigma^{2k}k!}$$
+
+每一项 $(\boldsymbol{x}^\top\boldsymbol{z})^k$ 对应 $k$ 阶多项式特征的内积。
+
+**结论**：**高斯核对应无穷维特征空间**（所有阶的多项式）。这就是它表达能力极强的根本原因。
+
+> 实践中"无穷维"不会导致过拟合，因为核函数对高阶项有 $1/(\sigma^{2k}k!)$ 的衰减惩罚。
+
+---
+
+## 三、常用核函数
+
+| 名称 | 表达式 | 超参数 | 适用场景 |
+| --- | --- | --- | --- |
+| **线性核** | $\boldsymbol{x}^\top\boldsymbol{z}$ | 无 | 高维稀疏（文本）、样本多 |
+| **多项式核** | $(\gamma\boldsymbol{x}^\top\boldsymbol{z}+r)^d$ | $\gamma, r, d$ | 需要显式特征交互 |
+| **高斯核 / RBF** | $\exp(-\gamma\|\boldsymbol{x}-\boldsymbol{z}\|^2)$ | $\gamma$ | **默认首选** |
+| **Sigmoid 核** | $\tanh(\gamma\boldsymbol{x}^\top\boldsymbol{z}+r)$ | $\gamma, r$ | 类似神经网络 |
+| 拉普拉斯核 | $\exp(-\gamma\|\boldsymbol{x}-\boldsymbol{z}\|_1)$ | $\gamma$ | 对离群点更鲁棒 |
+
+### 3.1 Mercer 条件
+
+**合法核函数**的充要条件：对任意有限样本集，核矩阵
+
+$$\mathbf{K}_{ij} = K(\boldsymbol{x}_i,\boldsymbol{x}_j)$$
+
+是**对称半正定**矩阵（$\mathbf{K} \succeq 0$）。
+
+**推论**：
+
+- 核函数的非负线性组合仍是核函数；
+- 核函数的乘积仍是核函数；
+- $K_1 + K_2$、$cK$（$c>0$）都是核函数 ⇒ 可以**组合多个核**。
+
+### 3.2 RBF 的直觉
+
+$$K(\boldsymbol{x},\boldsymbol{z}) = \exp(-\gamma\|\boldsymbol{x}-\boldsymbol{z}\|^2)$$
+
+**可以理解为一个"相似度"**：
+
+| 距离 | 核值 |
+| --- | --- |
+| $\boldsymbol{x}=\boldsymbol{z}$ | 1（最相似） |
+| 距离增大 | 迅速衰减到 0 |
+
+**几何含义**：RBF 核 SVM 相当于构造了无穷多个以训练样本为中心的"高斯基函数"，其线性组合形成决策面。
+
+### 3.3 RBF 的 $\gamma$ 参数
+
+$$\gamma = \frac{1}{2\sigma^2}$$
+
+| $\gamma$ | $\sigma$ | 影响半径 | 决策边界 | 风险 |
+| --- | --- | --- | --- | --- |
+| 大 | 小 | 窄 | 复杂、弯曲 | **过拟合** |
+| 小 | 大 | 宽 | 平滑、接近线性 | **欠拟合** |
+
+---
+
+## 四、软间隔 SVM
+
+### 4.1 动机
+
+硬间隔要求数据**完全线性可分**。现实中：
+
+- 数据有噪声、有重叠；
+- 完全分开会导致间隔极窄、严重过拟合。
+
+### 4.2 松弛变量
+
+引入松弛变量 $\xi_i \ge 0$，允许部分样本"违规"：
+
+$$\min_{\boldsymbol{w},b,\boldsymbol{\xi}}\ \frac{1}{2}\|\boldsymbol{w}\|^2 + C\sum_{i=1}^m\xi_i$$
+
+$$\text{s.t.}\quad y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b)\ge 1-\xi_i,\qquad \xi_i\ge0$$
+
+**含义**：
+
+- $\xi_i = 0$：样本在间隔外且分类正确；
+- $0 < \xi_i < 1$：落在间隔内但分类正确；
+- $\xi_i > 1$：**分类错误**。
+
+### 4.3 对偶问题（只多一个上界）
+
+$$\max_{\boldsymbol{\alpha}}\ \sum_i\alpha_i - \frac{1}{2}\sum_{i,j}\alpha_i\alpha_jy_iy_jK(\boldsymbol{x}_i,\boldsymbol{x}_j)$$
+
+$$\text{s.t.}\quad \sum_i\alpha_iy_i = 0,\qquad \boxed{0\le\alpha_i\le C}$$
+
+**唯一区别：$\alpha_i$ 多了上界 $C$。**
+
+### 4.4 三种样本的分类（互补松弛的推广）
+
+| 条件 | $\alpha_i$ | 位置 |
+| --- | --- | --- |
+| $y_if(\boldsymbol{x}_i) > 1$ | $\alpha_i = 0$ | 间隔外，正确分类 |
+| $y_if(\boldsymbol{x}_i) = 1$ | $0 < \alpha_i < C$ | **在间隔边界上**（标准支持向量）|
+| $y_if(\boldsymbol{x}_i) < 1$ | $\alpha_i = C$ | **间隔内或分错**（边界支持向量）|
+
+### 4.5 合页损失等价性
+
+软间隔 SVM 等价于最小化**合页损失 + L2 正则**：
+
+$$\boxed{\ \min_{\boldsymbol{w},b}\ \sum_{i=1}^m\max\left(0,\ 1 - y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b)\right) + \lambda\|\boldsymbol{w}\|^2\ }$$
+
+其中 $\lambda = \frac{1}{2C}$。
+
+**合页损失（Hinge Loss）图像**：
+
+```
+损失
+ ↑
+ |          /
+ |         /
+ |________/______________→ y·f(x)
+ 0        1
+    (间隔内+错分才有损失)
+```
+
+| 损失 | 公式 | 特点 |
+| --- | --- | --- |
+| 0-1 损失 | $\mathbb{1}[yf\le0]$ | 非凸、不可导 |
+| **合页损失** | $\max(0,1-yf)$ | **凸、上界于 0-1 损失** |
+| 交叉熵 | $\log(1+e^{-yf})$ | 凸、处处可导、对噪声更鲁棒 |
+| 指数损失 | $e^{-yf}$ | 对噪声极敏感（AdaBoost） |
+
+**合页损失是 0-1 损失的凸上界** ⇒ 最小化它等价于最小化 0-1 损失的凸松弛。
+
+### 4.6 $C$ 参数的作用
+
+$$C \uparrow \Rightarrow \text{惩罚违规样本更重} \Rightarrow \text{间隔更窄、更"硬"} \Rightarrow \text{偏置} \downarrow,\ \text{方差} \uparrow$$
+
+$$C \downarrow \Rightarrow \text{容忍更多违规} \Rightarrow \text{间隔更宽、更"软"} \Rightarrow \text{偏置} \uparrow,\ \text{方差} \downarrow$$
+
+| $C$ | 表现 |
+| --- | --- |
+| 很大 | 近似硬间隔，训练误差低，易过拟合 |
+| 适中 | 最佳泛化 |
+| 很小 | 接近"只看多数类"，欠拟合 |
+
+**注意**：$C$ 与正则化强度的方向**相反**（$C$ 大 = 正则弱）。
+
+### 4.7 支持向量比例与泛化
+
+$$\text{支持向量比例} \approx \frac{\text{泛化误差的上界}}{1}\quad\text{（粗略估计）}$$
+
+**经验法则**：若支持向量占比超过 50%，说明模型可能过拟合或 $C$ 太大。
+
+---
+
+## 五、代码实践
+
+```python
+import numpy as np
+
+def rbf_kernel(X, Z, gamma):
+    """高斯(RBF)核矩阵: K[i,j] = exp(-gamma * ||x_i - z_j||^2)"""
+    X2 = (X ** 2).sum(axis=1)[:, None]
+    Z2 = (Z ** 2).sum(axis=1)[None, :]
+    d2 = X2 + Z2 - 2 * X @ Z.T
+    return np.exp(-gamma * np.maximum(d2, 0))
+
+def check_psd(K, tol=1e-8):
+    """验证核矩阵是否对称半正定（Mercer 条件）"""
+    sym = np.allclose(K, K.T, atol=1e-8)
+    eig = np.linalg.eigvalsh((K + K.T) / 2)
+    return sym, bool(eig.min() > -tol), float(eig.min())
+```
+
+完整版本见 `code/day2_kernel_svm.py`，包含：
+
+1. 手写 4 种核函数并验证半正定性；
+2. **显式映射 vs 核函数** 的计算量对比（多项式核）；
+3. RBF 核 SVM 在 XOR 与同心圆数据上的效果（对比线性核）；
+4. **$\gamma$ 与 $C$ 的网格搜索**，画出决策边界与支持向量数；
+5. 与 `sklearn.svm.SVC` 对照。
+
+---
+
+## 六、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 不标准化就用 RBF 核 | RBF 依赖欧氏距离，量纲问题会被放大 |
+| $\gamma$ 设得过大 | 严重过拟合（每个样本自成一个小岛） |
+| 认为 $C$ 大 = 正则强 | 恰好相反：$C$ 大 = 正则弱 |
+| 用 Sigmoid 核的某些参数 | 该核函数在部分参数下不满足 Mercer 条件 |
+| 大数据集直接用核 SVM | 训练复杂度 $O(m^2)\sim O(m^3)$，$m>10^5$ 时不可行 |
+| 忽略类别不平衡 | SVM 对不平衡敏感，需 `class_weight='balanced'` |
+| 用 SVM 的输出当校准概率 | SVM 无概率输出，需 Platt Scaling 或 `probability=True` |
+
+---
+
+## 七、练习题
+
+**基础**
+
+1. 写出高斯核的表达式，并说明 $\gamma$ 增大时决策边界如何变化。
+2. 判断 $K(\boldsymbol{x},\boldsymbol{z}) = 1$（常数核）是否是合法核函数。
+3. 写出软间隔 SVM 的对偶问题。
+
+**进阶**
+
+4. 手算验证 $(\boldsymbol{x}^\top\boldsymbol{z})^2$ 对应的特征映射为 $(x_1^2,\sqrt{2}x_1x_2,x_2^2)$。
+5. 证明 $\max(0,1-yf)$ 是 0-1 损失的凸上界。
+6. 推导合页损失 + L2 正则与软间隔 SVM 的等价性（提示：令 $\xi_i = \max(0, 1-y_if(\boldsymbol{x}_i))$）。
+7. 对 RBF 核，证明 $K(\boldsymbol{x},\boldsymbol{x}) = 1$，并说明这为什么意味着所有样本映射到单位球面上。
+
+**思考题**
+
+8. 为什么说"高斯核是无穷维映射"？无穷维为什么不会必然导致过拟合？
+9. 数据维度 $n = 10^6$（文本），样本数 $m = 10^3$。应该用线性核还是 RBF 核？为什么？
+10. SVM 训练复杂度为 $O(m^2)$~$O(m^3)$。对于 $m = 10^7$ 的数据集，有什么替代方案？
+
+<details>
+<summary>第 6 题答案要点</summary>
+
+**从软间隔到合页损失**：
+
+把约束 $y_if(\boldsymbol{x}_i)\ge1-\xi_i$ 与 $\xi_i\ge0$ 合并，最优的 $\xi_i$ 取最小值：
+
+$$\xi_i^* = \max\left(0,\ 1-y_if(\boldsymbol{x}_i)\right)$$
+
+把它代回目标：
+
+$$\min_{\boldsymbol{w},b}\ \frac{1}{2}\|\boldsymbol{w}\|^2 + C\sum_i\max\left(0,1-y_if(\boldsymbol{x}_i)\right)$$
+
+除以 $C$、令 $\lambda = \frac{1}{2C}$，即得合页损失 + L2 形式。∎
+</details>
+
+<details>
+<summary>第 7 题答案</summary>
+
+$$K(\boldsymbol{x},\boldsymbol{x}) = \exp(-\gamma\|\boldsymbol{x}-\boldsymbol{x}\|^2) = e^0 = 1$$
+
+核函数值等于特征空间中向量的内积：
+
+$$K(\boldsymbol{x},\boldsymbol{x}) = \phi(\boldsymbol{x})^\top\phi(\boldsymbol{x}) = \|\phi(\boldsymbol{x})\|^2 = 1$$
+
+因此**所有样本都映射到无穷维单位球面上**。这也解释了 RBF 核的两点间距离有上界（$\|\phi(x)-\phi(z)\|^2 = 2-2K(x,z)\le 2$）。
+</details>
+
+<details>
+<summary>第 9 题答案</summary>
+
+**用线性核。**
+
+原因：
+
+1. 文本数据维度极高（$10^6$）且高度稀疏，**在原始空间就已近似线性可分**，无需映射到更高维；
+2. RBF 核在超高维稀疏数据上表现很差（距离集中，且计算核矩阵代价大）；
+3. 线性 SVM 训练快得多（LIBLINEAR 可处理百万级样本）。
+
+**实践结论**：文本分类几乎总是用线性核 / 逻辑回归。
+</details>
+
+---
+
+## 八、一句话总结
+
+**核技巧让 SVM 能隐式地在无穷维空间里画超平面；软间隔与合页损失则让它在噪声数据上依然可用。理解 $\gamma$ 控制"局部性"、$C$ 控制"容忍度"，你就掌握了 SVM 调参的全部。**
+
+---
+
+**明日预告**：Day3 换一条路线——从概率出发。你会看到"朴素贝叶斯"为什么在文本分类上几十年不过时。
+

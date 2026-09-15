@@ -1,0 +1,350 @@
+---
+slug: day-38
+kind: day
+day: 38
+week: 7
+weekTitle: 神经网络基础
+weekBlurb: 纯 NumPy 手写：感知机、激活函数、反向传播与两层网络的完整训练。
+title: 数值微分与反向传播
+lead: '**这是整个深度学习最核心的一天。** 反向传播不是玄学，它只是"链式法则 + 一个聪明的计算顺序"。今天我们用计算图把这个过程讲清楚，并手写一个自动求导的小框架。'
+sourcePath: Week07_神经网络基础/Day3_数值微分与反向传播.md
+---
+
+> 鱼书第 4–5 章 · 花书 6.5 · 苹果书第 4 讲
+
+**这是整个深度学习最核心的一天。** 反向传播不是玄学，它只是"链式法则 + 一个聪明的计算顺序"。今天我们用计算图把这个过程讲清楚，并手写一个自动求导的小框架。
+
+---
+
+## 今日目标
+
+1. 掌握数值微分（中心差分）与它的误差分析；
+2. 理解**计算图**的正向传播与反向传播；
+3. 掌握两条核心规则：**加法结点 ×1 传递、乘法结点交换输入后相乘**；
+4. 推导"标量对向量/矩阵"的梯度形状规律；
+5. 掌握层次化反向传播的四个公式；
+6. 手写一个支持自动求导的微型框架（MicroGrad 风格）。
+
+---
+
+## 知识地图
+
+```
+Week07
+├── Day1 感知机 ✅
+├── Day2 激活函数 ✅
+├── Day3 数值微分与反向传播  ← 你在这里（全课程最核心）
+├── Day4 从零实现两层网络
+└── Day5 训练流程
+
+依赖: Week01 Day4（链式法则）
+```
+
+---
+
+## 一、数值微分
+
+### 1.1 三种差分
+
+| 方法 | 公式 | 误差 |
+| --- | --- | --- |
+| 前向差分 | $\frac{f(x+h)-f(x)}{h}$ | $O(h)$ |
+| **中心差分** | $\frac{f(x+h)-f(x-h)}{2h}$ | $O(h^2)$ |
+| 二阶中心差分 | $\frac{f(x+h)-2f(x)+f(x-h)}{h^2}$ | $O(h^2)$ |
+
+**中心差分的误差更小**（同样 $h$ 下精度高一个量级）。
+
+### 1.2 步长的两难
+
+$$\text{总误差} = \underbrace{O(h^2)}_{\text{截断误差}} + \underbrace{O\left(\frac{\epsilon}{h}\right)}_{\text{浮点相消误差}}$$
+
+- $h$ 太大 ⇒ 截断误差大；
+- $h$ 太小 ⇒ 分子两个相近的数相减，**有效位数丢失**。
+
+**结论**：$h \approx 10^{-5}$ 时总误差最小（双精度）。**不要用 $10^{-10}$ 这种极小步长。**
+
+### 1.3 什么是梯度检查（Gradient Check）
+
+```python
+def numerical_grad(f, x, eps=1e-5):
+    grad = np.zeros_like(x, dtype=float)
+    it = np.nditer(x, flags=["multi_index"])
+    while not it.finished:
+        idx = it.multi_index
+        old = x[idx]
+        x[idx] = old + eps
+        fx1 = f(x)
+        x[idx] = old - eps
+        fx2 = f(x)
+        x[idx] = old
+        grad[idx] = (fx1 - fx2) / (2 * eps)
+        it.iternext()
+    return grad
+```
+
+**用法**：把解析梯度与数值梯度比较：
+
+$$\text{相对误差} = \frac{\|g_{\text{analytic}} - g_{\text{numeric}}\|}{\|g_{\text{analytic}}\| + \|g_{\text{numeric}}\|}$$
+
+| 相对误差 | 判断 |
+| --- | --- |
+| $< 10^{-7}$ | 完美 |
+| $10^{-7}$–$10^{-5}$ | 正常（数值误差） |
+| $> 10^{-4}$ | **可能有 bug** |
+| $\approx 1$ | 严重错误（如符号错、忘记某个项） |
+
+> **注意**：用 ReLU 等不可导点做梯度检查时，若步长跨过不可导点会得到错误结果。梯度检查建议用 **sigmoid / tanh** 等光滑函数。
+
+**数值微分的成本**：$O(n)$ 次前向传播（$n$ 为参数个数）。参数百万时不可行 ⇒ **只用于调试**。
+
+---
+
+## 二、计算图
+
+### 2.1 从链式法则到计算图
+
+**链式法则**：
+
+$$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial z}\cdot\frac{\partial z}{\partial x}$$
+
+**计算图的思想**：把复合函数拆成基本运算的结点，**反向**遍历每个结点，把"上游传来的梯度"乘以"本结点的局部导数"再传给下游。
+
+$$z = f(x) \quad\Rightarrow\quad \frac{\partial L}{\partial x} = \underbrace{\frac{\partial L}{\partial z}}_{\text{上游}}\cdot\underbrace{f'(x)}_{\text{局部}}$$
+
+### 2.2 两条核心规则（记住这两条就够了）
+
+**规则一：加法结点把梯度原样传给两个输入**
+
+$$z = x + y \quad\Rightarrow\quad \frac{\partial z}{\partial x} = 1,\ \frac{\partial z}{\partial y} = 1$$
+
+$$\boxed{\ \frac{\partial L}{\partial x} = \frac{\partial L}{\partial z},\qquad \frac{\partial L}{\partial y} = \frac{\partial L}{\partial z}\ }$$
+
+**直觉**：加法对每个输入的"敏感度"都是 1 ⇒ 梯度不变。
+
+**规则二：乘法结点把梯度乘以"交换后的输入"**
+
+$$z = x\cdot y \quad\Rightarrow\quad \frac{\partial z}{\partial x} = y,\ \frac{\partial z}{\partial y} = x$$
+
+$$\boxed{\ \frac{\partial L}{\partial x} = \frac{\partial L}{\partial z}\cdot y,\qquad \frac{\partial L}{\partial y} = \frac{\partial L}{\partial z}\cdot x\ }$$
+
+**直觉**：输出的变化对 $x$ 而言由 $y$ 的"大小"决定（$y$ 大则 $x$ 的变化被放大）。
+
+**示例（完整流程）**：计算 $L = (x+y)\cdot z$
+
+```
+正向:
+   x=2 ──┐
+         ├──(+)── p=5 ──┐
+   y=3 ──┘              ├──(×)── L=15
+   z=3 ─────────────────┘
+
+反向（从 L 出发，设 ∂L/∂L = 1）:
+   到 (×): ∂L/∂p = 1 × z = 1 × 3 = 3
+           ∂L/∂z = 1 × p = 1 × 5 = 5
+   到 (+): ∂L/∂x = 3 × 1 = 3
+           ∂L/∂y = 3 × 1 = 3
+
+验证: L = (x+y)z = xz + yz  =>  ∂L/∂x = z = 3 ✅
+```
+
+---
+
+## 三、矩阵情形的形状规律
+
+**核心规律**：**梯度与变量同形。**
+
+| 表达式 | 梯度形状 | 公式 |
+| --- | --- | --- |
+| $L = \boldsymbol{a}^\top\boldsymbol{b}$ | $\frac{\partial L}{\partial\boldsymbol{a}}$ 与 $\boldsymbol{a}$ 同形 | $= \boldsymbol{b}$ |
+| $\mathbf{Y} = \mathbf{X}\mathbf{W}$ | $\frac{\partial L}{\partial\mathbf{W}}$ 与 $\mathbf{W}$ 同形 | $= \mathbf{X}^\top\frac{\partial L}{\partial\mathbf{Y}}$ |
+| 同上 | $\frac{\partial L}{\partial\mathbf{X}}$ 与 $\mathbf{X}$ 同形 | $= \frac{\partial L}{\partial\mathbf{Y}}\mathbf{W}^\top$ |
+| $\boldsymbol{y} = \text{softmax}(\boldsymbol{z})$ + CE | — | $= \boldsymbol{y}-\boldsymbol{t}$ |
+| $\mathbf{Y} = \mathbf{X} + \boldsymbol{b}$（广播加） | $\frac{\partial L}{\partial\boldsymbol{b}}$ | 沿 batch 维求和 |
+
+**广播的反向**：加法时 $\boldsymbol{b}$ 被广播到 $(m, n)$，反向时必须**把梯度沿广播的维度求和**：
+
+$$\frac{\partial L}{\partial b_j} = \sum_{i=1}^{m}\frac{\partial L}{\partial Y_{ij}}$$
+
+**这是最常见的 bug 来源之一。**
+
+---
+
+## 四、层次化反向传播的四个公式
+
+设网络有 $L$ 层：
+
+$$\boldsymbol{z}^{(l)} = \mathbf{W}^{(l)}\boldsymbol{a}^{(l-1)}+\boldsymbol{b}^{(l)}, \qquad \boldsymbol{a}^{(l)} = \sigma(\boldsymbol{z}^{(l)})$$
+
+**误差项定义**：$\boldsymbol{\delta}^{(l)} = \frac{\partial L}{\partial \boldsymbol{z}^{(l)}}$
+
+**四个公式**：
+
+**（1）输出层误差**
+
+$$\boldsymbol{\delta}^{(L)} = \boldsymbol{a}^{(L)} - \boldsymbol{t}\quad(\text{softmax + 交叉熵})$$
+
+或对 MSE：$\boldsymbol{\delta}^{(L)} = (\boldsymbol{a}^{(L)}-\boldsymbol{t})\odot\sigma'(\boldsymbol{z}^{(L)})$
+
+**（2）误差反向传递**
+
+$$\boxed{\ \boldsymbol{\delta}^{(l)} = \left(\mathbf{W}^{(l+1)\top}\boldsymbol{\delta}^{(l+1)}\right)\odot\sigma'(\boldsymbol{z}^{(l)})\ }$$
+
+**（3）权重梯度**
+
+$$\boxed{\ \frac{\partial L}{\partial \mathbf{W}^{(l)}} = \boldsymbol{\delta}^{(l)}\boldsymbol{a}^{(l-1)\top}\ }$$
+
+**（4）偏置梯度**
+
+$$\boxed{\ \frac{\partial L}{\partial \boldsymbol{b}^{(l)}} = \boldsymbol{\delta}^{(l)}\ }$$
+
+**批处理情形**（$m$ 个样本）：把 (3)(4) 改成累加/矩阵形式：
+
+$$\frac{\partial L}{\partial\mathbf{W}^{(l)}} = \frac{1}{m}\boldsymbol{\Delta}^{(l)\top}\mathbf{A}^{(l-1)}$$
+
+其中 $\boldsymbol{\Delta}^{(l)}\in\mathbb{R}^{m\times n_l}$ 是整批的误差矩阵。
+
+---
+
+## 五、手写自动求导框架
+
+思路：定义一个 `Tensor` 类，记录**父节点**与**反向函数**，构建计算图后调用 `backward()` 做拓扑排序反向传播。
+
+```python
+class Tensor:
+    def __init__(self, data, parents=(), backward_fn=None):
+        self.data = np.asarray(data, dtype=float)
+        self.grad = None
+        self._parents = parents
+        self._backward = backward_fn or (lambda: None)
+
+    def __add__(self, other):
+        other = other if isinstance(other, Tensor) else Tensor(other)
+        out = Tensor(self.data + other.data, (self, other))
+
+        def _backward():
+            self.grad = out.grad if self.grad is None else self.grad + out.grad
+            other.grad = out.grad if other.grad is None else other.grad + out.grad
+        out._backward = _backward
+        return out
+
+    def __mul__(self, other):
+        other = other if isinstance(other, Tensor) else Tensor(other)
+        out = Tensor(self.data * other.data, (self, other))
+
+        def _backward():
+            gs = out.grad * other.data
+            go = out.grad * self.data
+            self.grad = gs if self.grad is None else self.grad + gs
+            other.grad = go if other.grad is None else other.grad + go
+        out._backward = _backward
+        return out
+
+    def backward(self):
+        topo, visited = [], set()
+
+        def build(v):
+            if id(v) in visited:
+                return
+            visited.add(id(v))
+            for p in v._parents:
+                build(p)
+            topo.append(v)
+
+        build(self)
+        self.grad = np.ones_like(self.data)
+        for v in reversed(topo):
+            v._backward()
+```
+
+完整版本见 `code/day3_backprop.py`，包含：
+
+1. 数值微分的误差-步长曲线（验证 $h\approx10^{-5}$ 最优）；
+2. **计算图的完整手算追踪**（打印每个中间变量与梯度）；
+3. **手动实现各层反向传播**：AddLayer / MulLayer / ReLU / Sigmoid / Affine / SoftmaxWithLoss；
+4. 手写 `Tensor` 自动求导框架，与手动实现的结果对比；
+5. **梯度检查**：用一个两层网络验证解析梯度与数值梯度一致（相对误差 $<10^{-6}$）；
+6. **故意引入 bug**（少乘一项、转置错），展示梯度检查如何发现它们。
+
+---
+
+## 六、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 数值微分步长取 $10^{-10}$ | 浮点相消，误差反而大；用 $10^{-5}$ |
+| 用前向差分 | 精度差一个量级；用中心差分 |
+| 在 ReLU 的不可导点做梯度检查 | 会得到错误结果 |
+| 忘记**梯度累加**（多路使用同一变量） | 应 `+=` 而不是 `=` |
+| 广播后的梯度忘记求和 | 加法广播时需沿广播维求和 |
+| 矩阵乘法转置搞错 | 用"梯度与变量同形"自检 |
+| 忘记除以 batch size | 梯度尺度随 batch 变化 |
+| 在计算图中保留完整历史 | 内存爆炸；训练时用 `torch.no_grad()` |
+| 反复调用 `backward()` 不清零梯度 | PyTorch 中梯度会累积，需 `optimizer.zero_grad()` |
+
+---
+
+## 七、练习题
+
+**基础**
+
+1. 写出中心差分公式，并说明为什么它比前向差分好。
+2. 画出 $z = (x+y)\cdot w$ 的计算图，写出反向传播的每步梯度。
+3. 说出加法结点与乘法结点的反向规则。
+
+**进阶**
+
+4. 推导 $\frac{\partial}{\partial\mathbf{W}}\|\mathbf{X}\mathbf{W}-\mathbf{Y}\|^2$。
+5. 推导 softmax + 交叉熵对 logits 的梯度。
+6. 证明广播加法的反向需要沿广播维求和。
+7. 设 $\boldsymbol{p} = \sigma(\mathbf{W}_1\boldsymbol{x}+\boldsymbol{b}_1)$，$\hat y = \boldsymbol{w}_2^\top\boldsymbol{p}+b_2$，$L = (\hat y - y)^2$。写出完整的反向传播过程（每一步的梯度表达式与形状）。
+
+**思考题**
+
+8. 为什么反向传播的计算量与一次前向传播同阶（而不是 $O(n)$ 倍）？
+9. 梯度检查为什么不能用于大规模训练？
+10. 如果发现梯度检查的相对误差是 $10^{-2}$，可能是哪些原因？（至少列出 3 个）
+
+<details>
+<summary>第 8 题答案要点</summary>
+
+**关键**：反向传播**复用**了前向传播计算出的中间值（激活值、logits 等），并且每个结点的局部导数只需算一次。
+
+**对比**：
+
+| 方法 | 计算量 |
+| --- | --- |
+| 数值微分 | $O(n)$ 次前向 ⇒ $O(n)$ 倍 |
+| 逐参数解析求导 | 每个参数一次链式展开，重复计算大量中间值 |
+| **反向传播** | 一次前向 + 一次反向 = $O(1)$ 倍前向开销（常数因子约 2–3） |
+
+**代价**：需要存储前向传播的中间激活值（内存换时间）。这就是为什么大 batch 会 OOM。
+
+**工程推论**：梯度检查点的思想（`torch.utils.checkpoint`）就是"用时间换内存"——不保存中间值，反向时重新计算。
+</details>
+
+<details>
+<summary>第 10 题答案要点</summary>
+
+相对误差 $10^{-2}$ 说明**反向传播很可能有错误**（因为正常数值误差应在 $10^{-7}$ 量级）。常见原因：
+
+1. **符号错误**：某个梯度少了一个负号（例如 $-\log$ 的负号忘了）；
+2. **漏项**：忘记某个结点的梯度（例如忘记加偏置的梯度）；
+3. **转置错误**：矩阵乘法的转置放反了；
+4. **忘记归一化**：前向用了 `/m`，反向没有对应处理；
+5. **激活函数导数写错**：例如把 ReLU 的导数写成恒等；
+6. **梯度累加写成了赋值**：被多路复用的变量只保留了最后一次的梯度；
+7. **广播的梯度未求和**：形状对上了但数值错了。
+
+**排查顺序**：从**输出层**开始逐层检查，因为越靠近输入的误差会被层层放大。
+</details>
+
+---
+
+## 八、一句话总结
+
+**反向传播 = 链式法则 + 从后往前算；加法结点原样传、乘法结点交换乘。理解这两条规则，你就理解了 PyTorch 的 `autograd`。**
+
+---
+
+**明日预告**：Day4 我们把 Day1–Day3 的知识合起来，用纯 NumPy 写一个完整的两层全连接网络，并在 MNIST 上训练到 97% 以上。
+

@@ -1,0 +1,188 @@
+---
+slug: day-28
+kind: day
+day: 28
+week: 4
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: golangci-lint 使用教程
+sourcePath: 04-代码检查与格式化/05-golangci-lint.md
+---
+
+## 一、golangci-lint 是什么
+
+Go 生态的**聚合式 Linter 运行器**：把 `govet`、`staticcheck`、`errcheck`、`ineffassign`、`revive` 等几十个 linter 统一到一条命令，支持并行执行与结果去重，速度远快于逐个运行。
+
+## 二、安装
+
+```powershell
+# Windows
+winget install golangci-lint
+# 或 scoop install golangci-lint
+# macOS
+brew install golangci-lint
+# 通用（推荐，锁定版本）
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59.1
+```
+
+```powershell
+golangci-lint --version
+```
+
+## 三、基本使用
+
+```powershell
+golangci-lint run                  # 检查当前包及子包
+golangci-lint run ./...            # 全项目
+golangci-lint run --fix            # 自动修复可修复项
+golangci-lint run -v               # 显示更多信息
+golangci-lint run path/to/pkg/...  # 指定包
+golangci-lint linters              # 列出所有可用 linter
+golangci-lint cache clean
+```
+
+## 四、配置文件 `.golangci.yml`
+
+```yaml
+run:
+  timeout: 5m
+  tests: true
+  skip-dirs:
+    - vendor
+    - third_party
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - revive
+    - gocritic
+    - bodyclose
+    - contextcheck
+    - sqlclosecheck
+    - errname
+  disable:
+    - depguard
+
+linters-settings:
+  govet:
+    enable-all: true
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+  max-issues-per-linter: 0
+  max-same-issues: 0
+```
+
+## 五、常用 linter 说明
+
+| Linter | 作用 |
+| --- | --- |
+| govet | 官方 vet，检查可疑构造（printf 参数、锁拷贝等） |
+| staticcheck | 最全面的静态分析（SA 系列检查） |
+| errcheck | 检查未处理的 error 返回值 |
+| ineffassign | 无效赋值 |
+| unused | 未使用的代码 |
+| revive | golint 替代品，可配置风格规则 |
+| gocritic | 性能与风格建议 |
+| bodyclose | HTTP body 未关闭 |
+| sqlclosecheck | sql.Rows/Stmt 未关闭 |
+| contextcheck | context 传递问题 |
+
+## 六、与格式化工具配合
+
+```powershell
+gofmt -l .                # 列出未格式化的文件
+goimports -l -w .         # 自动整理 import
+go vet ./...              # 官方基础检查
+golangci-lint run         # 综合检查
+```
+
+编辑器（VS Code + Go 扩展）`settings.json`：
+
+```json
+{
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": ["--fast"],
+  "go.formatTool": "goimports"
+}
+```
+
+> `--fast` 只跑快速 linter，适合保存时触发；完整检查留给 CI。
+
+## 七、CI 集成
+
+**GitHub Actions**：
+
+```yaml
+name: lint
+on: [push, pull_request]
+jobs:
+  golangci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.59.1
+          args: --timeout=5m
+```
+
+**pre-commit**：
+
+```yaml
+repos:
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.59.1
+    hooks:
+      - id: golangci-lint
+        entry: golangci-lint run --new-from-rev=HEAD~1
+```
+
+## 八、性能优化
+
+1. **只检查增量**：`golangci-lint run --new-from-rev=origin/main`（CI 中最实用）；
+2. 开缓存（默认开启，位于 `~/.cache/golangci-lint`）；
+3. `--concurrency` 调整并发；
+4. 关闭不需要的 linter，减少重复分析。
+
+## 九、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 首次运行内存占用高 | 加大内存或分目录跑；Go 1.19+ 支持 `GOMEMLIMIT` |
+| 报 `typecheck` 错误 | 通常是代码有编译错误，先 `go build ./...` 修复 |
+| 和 IDE 提示不一致 | 统一版本：让 IDE 与 CI 使用同一 golangci-lint 版本 |
+| 老项目一次报几千个问题 | 分阶段：先 `--new-from-rev`，再逐步开规则全量清理 |
+| 规则太啰嗦 | `.golangci.yml` 的 `issues.exclude-rules` 精确豁免 |
+| 升级后行为变化 | 版本号写死（go.mod 的 tool 依赖 / CI 指定 version） |
+
+## 十、最佳实践
+
+1. **版本锁定**，团队/CI/IDE 三方一致。
+2. 新项目默认开启 `errcheck`、`staticcheck`、`govet`，这是收益最高的三个。
+3. 老项目用 `--new-from-rev` 逐步收紧，不要一次性全量强制。
+4. 每条 `//nolint` 注释写明原因：`//nolint:errcheck // 该错误已在调用方处理`。
+
+## 十一、参考
+
+- 官方文档：https://golangci-lint.run/
+- Linter 清单：https://golangci-lint.run/usage/linters/
+

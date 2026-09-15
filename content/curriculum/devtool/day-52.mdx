@@ -1,0 +1,233 @@
+---
+slug: day-52
+kind: day
+day: 52
+week: 8
+weekTitle: 终端与命令行
+weekBlurb: Shell、常用命令行工具与终端复用，把日常操作脚本化。
+title: Shell 配置教程（zsh + oh-my-zsh / fish）
+sourcePath: 08-终端与命令行/04-Shell配置.md
+---
+
+## 一、Shell 是什么
+
+Shell 是命令解释器。常见：
+
+| Shell | 平台 | 特点 |
+| --- | --- | --- |
+| bash | Linux/macOS 默认 | 通用性最强，脚本兼容最好 |
+| zsh | macOS 默认（Catalina+） | 功能强，插件生态好（oh-my-zsh） |
+| fish | 跨平台 | 开箱智能提示最友好，语法与 bash 不同 |
+| PowerShell | Windows 默认 | 面向对象管道，.NET 集成 |
+
+可以随时查看当前 shell：`echo $SHELL`（Windows：`$PSVersionTable`）。
+
+## 二、zsh + oh-my-zsh（macOS / WSL / Linux）
+
+### 安装
+
+```bash
+# 确认 zsh
+zsh --version
+# 安装（Debian/Ubuntu）
+sudo apt install zsh
+# 设为默认
+chsh -s $(which zsh)
+```
+
+安装 oh-my-zsh：
+
+```bash
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+```
+
+### 主题与插件
+
+编辑 `~/.zshrc`：
+
+```bash
+# 主题（推荐 powerlevel10k，功能与颜值兼顾）
+ZSH_THEME="robbyrussell"
+# 安装 p10k（需先装 Nerd Font）
+# git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
+# ZSH_THEME="powerlevel10k/powerlevel10k"
+
+# 插件（默认自带 git，其他需下载）
+plugins=(
+  git                    # git 别名与提示
+  z                      # 目录智能跳转
+  zsh-autosuggestions    # 历史命令灰字建议
+  zsh-syntax-highlighting # 命令语法高亮
+  sudo                   # 双击 Esc 补 sudo
+  extract                # x 命令解压任意压缩包
+)
+
+source $ZSH/oh-my-zsh.sh
+```
+
+安装第三方插件：
+
+```bash
+git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+git clone https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+```
+
+生效：`source ~/.zshrc`。
+
+### 自定义别名与函数
+
+```bash
+# 别名
+alias ll='ls -lah'
+alias gs='git status'
+alias gc='git commit -m'
+alias gco='git checkout'
+alias dps='docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+alias pn='pnpm'
+
+# 函数：创建目录并进入
+mkcd() { mkdir -p "$1" && cd "$1"; }
+
+# 环境变量
+export EDITOR=nvim
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+## 三、fish（开箱即用）
+
+### 安装与设为默认
+
+```powershell
+# Windows
+winget install fishshell.fish
+# macOS
+brew install fish
+# Ubuntu（PPA）
+sudo apt-add-repository ppa:fish-shell/release-3
+sudo apt install fish
+chsh -s $(which fish)
+```
+
+### 开箱即有的功能
+
+- **智能自动建议**（基于历史）；
+- **语法高亮**（错误命令变红）；
+- **Tab 补全带描述**；
+- **交互式历史搜索**（上箭头）。
+
+### 配置
+
+配置文件：`~/.config/fish/config.fish`
+
+```fish
+# 别名在 fish 里叫 abbr（缩写，输入时自动展开）
+abbr -a gs 'git status'
+abbr -a ll 'ls -lah'
+abbr -a pn 'pnpm'
+
+# 函数
+function mkcd
+    mkdir -p $argv[1]; and cd $argv[1]
+end
+
+# 环境变量
+set -gx EDITOR nvim
+set -gx PATH $HOME/.local/bin $PATH
+
+# 提示符（推荐 starship 或 tide）
+starship init fish | source
+```
+
+插件管理用 **fisher**：
+
+```fish
+curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher
+fisher install jorgebucaran/nvm.fish
+```
+
+### 与 bash 脚本的兼容性
+
+fish **不兼容 bash 语法**（如 `$var` 是 `$var`，但 `export`/`&&` 写法不同）。脚本一律写 `#!/usr/bin/env bash`，交互用 fish 无妨。
+
+## 四、PowerShell（Windows 用户重点）
+
+### 安装 PowerShell 7
+
+```powershell
+winget install Microsoft.PowerShell
+```
+
+### 配置文件 `$PROFILE`
+
+```powershell
+notepad $PROFILE      # 首次需先创建目录
+```
+
+```powershell
+# 别名
+Set-Alias ll Get-ChildItem
+function gs { git status }
+function gco { param($b) git checkout $b }
+
+# 提示符美化（oh-my-posh）
+oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH\jandedobbeleer.omp.json" | Invoke-Expression
+
+# PSReadLine 增强（历史搜索、智能补全）
+Import-Module PSReadLine
+Set-PSReadLineOption -PredictionSource HistoryAndPlugin
+Set-PSReadLineOption -PredictionViewStyle ListView
+Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
+Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
+
+# 目录跳转
+Set-Alias zoxide z
+Invoke-Expression (& { (zoxide init pwsh | Out-String) })
+```
+
+### 常用工具链（推荐）
+
+```powershell
+winget install JanDeDobbeleer.OhMyPosh      # 提示符
+winget install ajeetdsouza.zoxide           # 智能目录跳转（z 命令）
+winget install sharkdp.bat                  # cat 替代
+winget install BurntSushi.ripgrep.MSVC      # rg 搜索
+winget install junegunn.fzf                 # 模糊查找
+```
+
+## 五、三者对比
+
+| 维度 | zsh + omz | fish | PowerShell 7 |
+| --- | --- | --- | --- |
+| 平台 | macOS/Linux/WSL | 全平台 | Windows 为主 |
+| 开箱体验 | 需配置 | 最好 | 一般 |
+| bash 兼容 | 高 | 低 | 无 |
+| 脚本生态 | 大量 bash 脚本可用 | 较少 | PowerShell 生态 |
+| 推荐 | macOS 主力 | 追求开箱体验 | Windows 主力 |
+
+## 六、通用最佳实践
+
+1. **配置文件进 Git**（dotfiles 仓库），换机一键恢复；
+2. **别名不要过度**：只把高频长命令做别名，避免记不住；
+3. **提示符要简洁且含关键信息**（分支、状态、时间）；
+4. **历史搜索必学**：`Ctrl+R`（多数 shell 通用）；
+5. Windows 上建议 **WSL + zsh** 与 **PowerShell 7** 双轨：Linux 项目在 WSL，Windows 工具在 PS。
+
+## 七、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| oh-my-zsh 启动慢 | 减少插件；用 p10k 并按提示关闭不必要段 |
+| 提示符出现乱码方块 | 终端未装 Nerd Font |
+| fish 里 source .bashrc 失败 | fish 语法不同，用 `source (path)` 或改写 |
+| PowerShell 执行脚本被禁止 | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
+| 别名不生效 | 检查配置文件路径、是否重新 source |
+| WSL 里速度慢 | 项目放 Linux 侧；关掉 Windows 与 WSL 交叉路径操作 |
+
+## 八、参考
+
+- oh-my-zsh：https://ohmyz.sh/
+- powerlevel10k：https://github.com/romkatv/powerlevel10k
+- fish：https://fishshell.com/docs/current/
+- Oh My Posh：https://ohmyposh.dev/
+- PSReadLine：https://learn.microsoft.com/zh-cn/powershell/module/psreadline/
+

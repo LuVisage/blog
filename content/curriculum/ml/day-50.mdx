@@ -1,0 +1,294 @@
+---
+slug: day-50
+kind: day
+day: 50
+week: 9
+weekTitle: PyTorch 框架与数据管线
+weekBlurb: 张量、自动求导、计算图，Dataset / DataLoader 与第一个训练循环。
+title: 综合实战 —— 用 PyTorch 重写 MNIST
+lead: '今日目标：把 Week07 用 NumPy 手写的两层网络，完整迁移到 PyTorch；跑通"数据 → 训练 → 验证 → 测试 → 分析"全流程；用混淆矩阵和错误样本定位模型短板；……'
+sourcePath: Week09_PyTorch框架与数据管线/Day5_实战PyTorch重写MNIST.md
+---
+
+> 今日目标：把 Week07 用 NumPy 手写的两层网络，完整迁移到 PyTorch；跑通"数据 → 训练 → 验证 → 测试 → 分析"全流程；用混淆矩阵和错误样本定位模型短板；完成 Week07 与 Week09 的正式对照。
+> 配套案例：`code/day5_pytorch_mnist.py`
+
+---
+
+## 5.1 知识地图
+
+```
+Week07（NumPy 手写）              Week09（PyTorch）
+├─ load_data()                   ├─ Dataset / DataLoader      Day3
+├─ Affine / ReLU / SoftmaxWithLoss├─ nn.Linear / nn.ReLU / CE   Day2
+├─ 手写 backward()                ├─ loss.backward()            Day1
+├─ 手写 optimizer.update()        ├─ optimizer.step()           Day4
+└─ 97% on sklearn digits          └─ ?% on MNIST  ← 今天验证
+```
+
+**今天这一跑，是整条学习曲线的转折点**：从"理解每一行"进入"用工具解决问题"。
+
+---
+
+## 5.2 实战目标
+
+| # | 目标 | 验收标准 |
+| --- | --- | --- |
+| 1 | 跑通完整训练流程 | 训练/验证/测试三段式，无报错 |
+| 2 | 精度达到合理水平 | 测试集 ≥ 97% |
+| 3 | 分析模型行为 | 画出混淆矩阵，找出最易混淆的数字对 |
+| 4 | 定位错误样本 | 可视化预测错误的样本并分析原因 |
+| 5 | 完成与 Week07 的对照 | 填写最后的对照表 |
+
+---
+
+## 5.3 项目结构
+
+一个好的深度学习项目至少应该分成这几块，**不要写成一个 500 行的脚本**：
+
+```
+day5_pytorch_mnist.py
+├── 配置区          # 超参数集中管理
+├── build_loaders() # 数据
+├── make_model()    # 模型
+├── train_one_epoch()
+├── evaluate()
+├── run_training()  # 编排
+└── analyze()       # 分析：混淆矩阵、错误样本
+```
+
+**为什么强调模块化**：Week10 换 CNN、Week13 换 RNN，你需要改的只有 `make_model()` 一个函数。
+
+---
+
+## 5.4 数据准备
+
+```python
+def build_loaders(n_train=None, n_val=2000, batch_size=128):
+    tf = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,)),
+    ])
+    full = datasets.MNIST(DATA_ROOT, train=True, download=True, transform=tf)
+    test = datasets.MNIST(DATA_ROOT, train=False, download=True, transform=tf)
+
+    if n_train:                       # 快速模式：只取一部分
+        full = Subset(full, range(n_train))
+
+    n_val_actual = min(n_val, len(full) // 5)
+    tr, va = random_split(
+        full, [len(full) - n_val_actual, n_val_actual],
+        generator=torch.Generator().manual_seed(42)     # ★ 固定划分
+    )
+    ...
+```
+
+**关键纪律**（前面四天反复出现的点，这里集中体现）：
+
+1. `random_split` 固定 `generator` —— 保证每次运行的验证集一致；
+2. 训练集 `shuffle=True`，验证/测试集 `shuffle=False`；
+3. 数据增强只加在训练集（本实战不做增强，留给 Week11 的 CNN）。
+
+---
+
+## 5.5 模型：三层 MLP
+
+```python
+def make_model(hidden=(256, 128), dropout=0.1):
+    layers = [nn.Flatten()]
+    prev = 784
+    for h in hidden:
+        layers += [nn.Linear(prev, h), nn.ReLU(), nn.Dropout(dropout)]
+        prev = h
+    layers.append(nn.Linear(prev, 10))
+    return nn.Sequential(*layers)
+```
+
+参数量：
+
+| 层 | 形状 | 参数量 |
+| --- | --- | --- |
+| Linear(784, 256) | (256, 784) + (256,) | 200,960 |
+| Linear(256, 128) | (128, 256) + (128,) | 32,896 |
+| Linear(128, 10) | (10, 128) + (10,) | 1,290 |
+| **合计** | | **235,146** |
+
+对比 Week07 的两层网络（784→50→10）只有 39,760 个参数。参数量增加 6 倍，精度从约 92% 提升到约 98% —— 这是"深度 + 宽度"带来的收益。
+
+---
+
+## 5.6 训练配置
+
+```python
+CONFIG = {
+    "n_train": 30000,        # 用 None 表示全量 60000
+    "n_val": 2000,
+    "batch_size": 128,
+    "epochs": 10,
+    "lr": 1e-3,
+    "weight_decay": 5e-5,
+    "hidden": (256, 128),
+    "dropout": 0.1,
+    "patience": 8,
+}
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=5e-5)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+```
+
+**为什么是这套配置**：AdamW 收敛快且正则可控（Day4）；余弦调度平滑收尾；Dropout 0.1 抑制过拟合；weight_decay 5e-5 补充正则。
+
+> **超参数是调出来的，不是猜出来的**。案例最初用的是 `dropout=0.2 / weight_decay=1e-4 / 8 epochs`，结果训练准确率冲到 99.4% 而验证只有 96.5% —— 正则过强加上训练轮数不足，属于典型的"调过头"。把 dropout 降到 0.1、补充训练轮数、加大数据量后，验证准确率提升到 97.7%。**每一次改动都要看曲线，而不是凭感觉。**
+
+---
+
+## 5.7 分析：混淆矩阵
+
+只看总体准确率是不够的。**混淆矩阵**告诉你"错在哪"：
+
+```
+              预测
+          0  1  2  3  4  5  6  7  8  9
+真实 0 [978  0  1  0  0  0  1  0  0  0]
+     1 [  0 1120 2  1  0  0  2  0  10 0]
+     ...
+```
+
+**读法**：
+
+- 对角线 = 正确分类数；
+- 某一行（真实类）的非对角元素 = **漏检/误判**（这个类被分成了别的）；
+- 某一列（预测类）的非对角元素 = **误报**（别的类被分成了这个）。
+
+**MNIST 上典型的易混淆对**：
+
+| 对 | 原因 |
+| --- | --- |
+| 4 ↔ 9 | 手写体的上封口与否 |
+| 3 ↔ 5 | 左侧笔画的开闭 |
+| 7 ↔ 1 | 欧洲写法中 7 带横杠 |
+| 8 ↔ 3 | 笔画粘连 |
+
+呼应 Week02 Day3：这就是"性能度量"从二分类推广到多分类后的分析手段。
+
+---
+
+## 5.8 分析：错误样本
+
+```python
+def show_errors(model, dataset, device, n=6):
+    """打印预测错误的样本（ASCII）"""
+    model.eval()
+    shown = 0
+    with torch.no_grad():
+        for x, y in dataset:
+            pred = model(x.unsqueeze(0).to(device)).argmax(1).item()
+            if pred != y:
+                print(f"真实 {y} / 预测 {pred}")
+                show_digit(x)
+                shown += 1
+                if shown >= n:
+                    break
+```
+
+**看到错误样本后的判断顺序**（这是工程师与调包者的分界线）：
+
+1. **是标注错误吗？** 人眼都认不出 → 数据问题，不是模型问题；
+2. **是尺度/位置问题吗？** 数字偏小、偏角落 → 需要数据增强（随机裁剪/缩放）；
+3. **是系统性混淆吗？** 集中在某几对 → 需要更大模型或针对性增强。
+
+---
+
+## 5.9 Week07 与 Week09 正式对照
+
+| 维度 | Week07（NumPy 手写） | Week09（PyTorch） |
+| --- | --- | --- |
+| **数据** | sklearn digits，1797 条，8×8 | MNIST，60000 条，28×28 |
+| **网络** | 2 层（784→50→10） | 3 层 MLP（784→256→128→10） |
+| **参数量** | 39,760 | 235,146 |
+| **前向** | `x @ W1 + b1` 手写 | `nn.Linear` |
+| **反向** | 手写 4 个 backward 方法 | `loss.backward()` |
+| **优化** | 手写 SGD + 动量 | `optim.AdamW` + 余弦调度 |
+| **正则** | 无 | Dropout + weight_decay |
+| **训练控制** | 手动循环 | 验证 + 早停 + 保存最优 |
+| **GPU** | 不支持 | `.to(device)` 一行 |
+| **核心代码行数** | 约 200 行 | 约 80 行 |
+| **测试精度** | 约 97%（8×8 小图，1797 条） | **97.57%（28×28，30000 条）** |
+
+**最重要的结论**：精度接近，但**代码量减半、可扩展性天差地别**。Week07 的代码加一个卷积层要重推导一遍反向传播；Day5 的代码只需要在 `make_model()` 里加一行 `nn.Conv2d`。
+
+---
+
+## 5.10 三档训练规模
+
+```python
+# 快速验证（CPU 也可，约 1 分钟）
+CONFIG["n_train"] = 10000;  CONFIG["epochs"] = 5
+
+# 标准（默认，CPU 约 3 分钟 / GPU 约 40 秒）
+CONFIG["n_train"] = 30000;  CONFIG["epochs"] = 10
+
+# 完整（追求最高精度，GPU 推荐）
+CONFIG["n_train"] = None;   CONFIG["epochs"] = 10
+```
+
+**实测精度**：
+
+| 规模 | 训练样本 | 验证精度 | 测试精度 |
+| --- | --- | --- | --- |
+| 快速 | 10,000 | 约 96.5% | 约 96.3% |
+| **标准（默认）** | **30,000** | **97.70%** | **97.57%** |
+| 完整 | 60,000 | 约 98.1% | 约 98.0% |
+
+> 全连接网络在 MNIST 上的天花板约 98.3%。想突破 99%，需要 CNN（Week11）—— 因为 CNN 利用了"图像的局部相关性"，而全连接层把图像拍平后丢失了空间结构。
+
+---
+
+## 5.11 产物
+
+运行脚本后会生成：
+
+```
+code/
+├── data/MNIST/                 # 数据集缓存
+├── checkpoints/
+│   └── day5_mnist_mlp.pt       # 最优模型参数
+└── figures/
+    ├── day5_curves.png         # 训练曲线（loss + acc）
+    └── day5_confusion.png      # 混淆矩阵热图
+```
+
+**保存训练曲线是工程习惯**：论文、周报、复盘都要它，而且它能一眼看出过拟合/欠拟合（呼应 Week02 Day4）。
+
+---
+
+## 5.12 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 精度卡在 10% 左右 | 忘了 `optimizer.step()` 或 loss 写错 | 检查五步骨架 |
+| 精度卡在 90%，上不去 | 全连接层已到瓶颈 | 换 CNN（Week11） |
+| 验证精度高于测试精度 | 测试集样本少 / 划分差异 | 用全量测试集（10000 条） |
+| 训练快但验证差很多 | 过拟合 | 加 Dropout / weight_decay / 增强 |
+| `plt` 中文乱码 | 字体缺失 | 用英文标签或设 `rcParams["font.sans-serif"]` |
+| 无显示环境下卡住 | matplotlib 默认交互后端 | `matplotlib.use("Agg")` |
+| 显存/内存随 epoch 增长 | 累积了带计算图的对象 | 只存 `loss.item()` |
+| 换机器后加载失败 | 保存了整个模型对象 | 统一 `state_dict` |
+
+---
+
+## 5.13 今日自测
+
+1. 把 `hidden` 改成 `(64,)`，重跑，观察精度下降多少 —— 这就是"模型容量"的直观含义。
+2. 去掉 Dropout 和 weight_decay，对比训练/验证 loss 曲线的间隙（过拟合的典型形状）。
+3. 在混淆矩阵里找出 top-3 易混淆的数字对，用错误样本可视化验证原因。
+4. 把 `n_train` 设为 `None`（全量）跑一次，看测试精度能否到 98%。
+5. 保存模型后写一个独立的推理脚本：加载 `state_dict`，对单张图预测并输出概率分布。
+
+---
+
+## 5.14 一句话总结
+
+**Week07 你手写了"为什么能学"，Day5 你验证了"能学到什么程度"—— 同一件事，从 200 行降到 80 行，从 1797 条数据扩到 60000 条，而精度的天花板恰好是下一周要打破的对象。**
+
+**下周预告**：Week10 深入深度学习理论 —— 花书第 6–8 章的正则化、优化、初始化策略，解释今天这些超参数背后的原理。
+

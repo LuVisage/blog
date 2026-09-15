@@ -1,0 +1,121 @@
+---
+slug: day-03
+kind: day
+day: 3
+week: 1
+weekTitle: 版本控制
+weekBlurb: 从 Git 四区模型起步，延伸到 gh / glab、图形客户端、LFS 与提交钩子——后面每门课的作业都从 git init 开始。
+title: GitLab CLI（glab）使用教程
+sourcePath: 01-版本控制/03-GitLab-CLI.md
+---
+
+## 一、是什么
+
+`glab` 是 GitLab 官方命令行工具，功能与 `gh` 类似：管理 MR（Merge Request）、Issue、Pipeline、Release 等。适用于 GitLab.com 与自建 GitLab 实例。
+
+## 二、安装与认证
+
+```powershell
+# Windows
+winget install --id GitLab.GLab
+# macOS
+brew install glab
+# Linux (Debian/Ubuntu)
+sudo apt install glab        # 或从 release 页下载二进制
+```
+
+```powershell
+glab --version
+glab auth login              # 选择 gitlab.com 或自建地址，输入 token
+glab auth login --hostname gitlab.company.com --token <your-token>
+glab auth status
+```
+
+## 三、核心命令速查
+
+### 仓库
+
+```powershell
+glab repo clone user/repo
+glab repo fork user/repo --clone
+glab repo view --web
+glab repo list
+```
+
+### Merge Request（对应 GitHub 的 PR）
+
+```powershell
+glab mr create --title "feat: 支付模块" --description "说明" --target-branch main
+glab mr list                       # 列出 MR
+glab mr list --assignee @me
+glab mr checkout 15                # 检出 MR #15
+glab mr view 15 --web
+glab mr diff 15
+glab mr approve 15
+glab mr merge 15 --squash --remove-source-branch
+glab mr note 15 -m "LGTM"
+```
+
+### Issue
+
+```powershell
+glab issue create --title "性能优化" --label performance
+glab issue list --state opened
+glab issue view 7
+glab issue close 7
+glab issue board view              # 看板视图
+```
+
+### CI/CD Pipeline
+
+```powershell
+glab ci status                     # 当前分支流水线状态
+glab ci view                       # 交互式查看
+glab ci run                        # 触发流水线
+glab ci trace                      # 实时跟踪日志
+glab ci lint                       # 校验 .gitlab-ci.yml
+glab ci retry
+```
+
+### 变量与 Release
+
+```powershell
+glab variable list
+glab variable set API_KEY "xxx" --masked
+glab release create v1.0.0 ./dist/app.zip
+```
+
+## 四、典型工作流
+
+```powershell
+git switch -c fix/timeout
+# ... 修改代码 ...
+git add . && git commit -m "fix: 修复登录超时"
+git push -u origin fix/timeout
+glab mr create --fill --remove-source-branch --squash-before-merge
+glab ci status --live              # 观察流水线
+```
+
+## 五、glab vs gh 对照
+
+| 功能 | gh | glab |
+| --- | --- | --- |
+| 登录 | `gh auth login` | `glab auth login` |
+| 提 PR/MR | `gh pr create` | `glab mr create` |
+| 流水线 | `gh run list` | `glab ci status` |
+| 变量管理 | `gh variable` | `glab variable` |
+| API 调用 | `gh api` | `glab api` |
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 自建实例 TLS 证书问题 | `export GITLAB_HOST=gitlab.company.com`；必要时配置 `GITLAB_SKIP_TLS_VERIFY=1`（仅测试环境） |
+| token 权限 | 需 `api` scope；创建 MR 需 `write_repository` |
+| 代理 | `$env:HTTPS_PROXY="http://127.0.0.1:7890"` |
+
+## 七、参考
+
+- 官方文档：https://gitlab.com/gitlab-org/cli
+- 命令手册：https://gitlab.com/gitlab-org/cli/-/tree/main/docs
+

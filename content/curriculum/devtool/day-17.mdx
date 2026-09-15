@@ -1,0 +1,163 @@
+---
+slug: day-17
+kind: day
+day: 17
+week: 3
+weekTitle: 构建打包
+weekBlurb: Vite、Webpack、Rollup、esbuild/SWC、Babel 到 TypeScript 编译与 Turbo / Nx / Make 任务编排。
+title: esbuild 与 SWC 使用教程
+lead: '两者都是**原生语言编写的极速编译工具**，用于替代传统的 Babel + Terser 慢速链路。'
+sourcePath: 03-构建打包/04-esbuild与SWC.md
+---
+
+两者都是**原生语言编写的极速编译工具**，用于替代传统的 Babel + Terser 慢速链路。
+
+| 维度 | esbuild | SWC |
+| --- | --- | --- |
+| 语言 | Go | Rust |
+| 定位 | 打包器 + 转译器 + 压缩器 | 转译器（编译器），可替代 Babel |
+| 速度 | 极快（比 Webpack 快 10-100x） | 极快（比 Babel 快 20x+） |
+| 集成 | 独立 CLI / API，被 Vite 用作依赖预构建 | 被 Next.js、Vite 等用作编译器 |
+| 配置 | CLI 参数或 JS API | `.swcrc` 配置 |
+
+## 一、esbuild
+
+### 安装
+
+```powershell
+pnpm add -D esbuild
+```
+
+### CLI 用法
+
+```powershell
+# 打包 + 压缩
+esbuild src/index.ts --bundle --minify --outfile=dist/bundle.js
+
+# 输出 ESM，指定平台
+esbuild src/index.ts --bundle --format=esm --platform=browser --outfile=dist/index.mjs
+
+# 开发模式：监听 + sourcemap
+esbuild src/index.ts --bundle --outfile=dist/bundle.js --watch --sourcemap
+
+# 本地服务器
+esbuild src/index.ts --bundle --outfile=dist/bundle.js --servedir=dist
+```
+
+### JS API
+
+```js
+import * as esbuild from 'esbuild';
+
+// 单次构建
+await esbuild.build({
+  entryPoints: ['src/index.ts'],
+  bundle: true,
+  outfile: 'dist/bundle.js',
+  minify: true,
+  sourcemap: true,
+  target: ['es2018'],
+  format: 'esm',
+  external: ['react'],
+  loader: { '.png': 'dataurl', '.svg': 'text' },
+  define: { 'process.env.NODE_ENV': '"production"' },
+});
+
+// watch 模式
+const ctx = await esbuild.context({ entryPoints: ['src/index.ts'], outfile: 'dist/bundle.js', bundle: true });
+await ctx.watch();
+```
+
+### 特点与限制
+
+- 支持 TS、JSX、CSS、JSON、图片等 loader；
+- **不做类型检查**（只删类型），类型检查交给 `tsc --noEmit`；
+- 某些 Babel 插件特性（装饰器旧语法等）支持有限。
+
+## 二、SWC
+
+### 安装与使用
+
+```powershell
+pnpm add -D @swc/cli @swc/core
+
+swc src -d dist                      # 编译目录
+swc src/index.ts -o dist/index.js
+swc src -d dist --watch
+```
+
+### .swcrc 配置
+
+```json
+{
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "tsx": true,
+      "decorators": true
+    },
+    "target": "es2018",
+    "transform": {
+      "react": { "runtime": "automatic" }
+    },
+    "minify": { "compress": true, "mangle": true }
+  },
+  "module": {
+    "type": "es6"
+  },
+  "sourceMaps": true
+}
+```
+
+### 在构建工具中替代 Babel
+
+**Webpack**：
+
+```js
+module.exports = {
+  module: {
+    rules: [
+      { test: /\.[jt]sx?$/, exclude: /node_modules/, use: { loader: 'swc-loader' } },
+    ],
+  },
+};
+```
+
+**Jest**：
+
+```json
+{ "transform": { "^.+\\.(t|j)sx?$": ["@swc/jest"] } }
+```
+
+**Next.js**（内置，一行开启）：
+
+```js
+// next.config.js
+module.exports = { swcMinify: true };
+```
+
+## 三、何时选谁
+
+| 场景 | 选择 |
+| --- | --- |
+| 需要「打包 + 转译 + 压缩」一条龙 | esbuild |
+| 需要替换 Babel（保留原打包器） | SWC（兼容 Babel 配置习惯） |
+| Webpack 项目加速 | `swc-loader` 替换 `babel-loader` |
+| 库打包 | 直接用 tsup（底层 esbuild） |
+| 需要严格类型检查 | 两者都不做，另跑 `tsc --noEmit` |
+
+## 四、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| esbuild 报 TS 类型错误？ | 它不检查类型，用 `tsc --noEmit` 单独检查 |
+| 装饰器/old proposal 语法不识别 | 配置 `tsconfig.json` 的 `experimentalDecorators`；SWC 在 `.swcrc` 中开 `decorators` |
+| 产物用了新语法导致老浏览器报错 | 设置 `target`（esbuild `--target=es2018`，SWC `jsc.target`） |
+| CSS Modules 支持 | esbuild 用 `--loader:.module.css=local-css`；SWC 需其他工具配合 |
+| Windows 二进制安装失败 | 重装依赖（`pnpm rebuild esbuild`），检查网络 |
+
+## 五、参考
+
+- esbuild 文档：https://esbuild.github.io/
+- SWC 文档：https://swc.rs/docs/
+

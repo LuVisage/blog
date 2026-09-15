@@ -1,0 +1,132 @@
+---
+slug: week-14
+kind: reference
+day: 15
+week: 14
+weekTitle: Transformer 与 ViT
+weekBlurb: 自注意力、多头注意力与位置编码，亲手实现 Transformer 并走向 ViT。
+title: Transformer 与 ViT
+lead: '**这是整个课程最重要的转折点。** 前 13 周的所有模型都在"局部"或"顺序"上做文章，而 Transformer 用**自注意力**让每个位置都能直接看到所有其他位置 —— 距离不再是障碍。'
+sourcePath: Week14_Transformer与ViT/README.md
+---
+
+> 花书第 10 章（注意力与序列建模）· 苹果书（自注意力 / Transformer）· 原论文《Attention Is All You Need》
+
+**这是整个课程最重要的转折点。** 前 13 周的所有模型都在"局部"或"顺序"上做文章，而 Transformer 用**自注意力**让每个位置都能直接看到所有其他位置 —— 距离不再是障碍。
+
+今天所有的大模型（GPT、Claude、Gemini、文心、Qwen）都是 Transformer。这一周你会亲手把它搭出来。
+
+---
+
+## 本周目标
+
+学完本周，你应该能够：
+
+1. 说清注意力机制的"查询-键-值"框架，并手写缩放点积注意力；
+2. 解释**为什么必须除以 $\sqrt{d_k}$**（并用方差分析给出数学论证）；
+3. 手写多头注意力，说清"多头的本质是把表示空间切分成多个子空间"；
+4. 说清位置编码为什么必需、正弦编码与外学习编码的区别；
+5. 从零搭建完整的 Transformer 编码器（含残差、LayerNorm、FFN、掩码）；
+6. 说清 Transformer 相比 RNN 的两个根本优势（长程依赖、并行计算）；
+7. 理解 ViT 的核心思想：**图像也能当序列处理**。
+
+---
+
+## 书籍对照
+
+| 天 | 主题 | 花书 | 苹果书 | 论文 |
+| --- | --- | --- | --- | --- |
+| Day1 | 自注意力机制 | 10.4 | 自注意力 | Attention Is All You Need |
+| Day2 | 多头注意力与位置编码 | — | Transformer | 同上 §3.2–3.5 |
+| Day3 | Transformer 架构 | 10.5 | Transformer | 同上 |
+| Day4 | 从零实现 Transformer | — | — | 同上 |
+| Day5 | ViT 与预训练模型 | — | — | An Image is Worth 16x16 Words |
+
+---
+
+## 时间安排
+
+| 天 | 内容 | 文档 | 代码 | 建议时长 |
+| --- | --- | --- | --- | --- |
+| Day1 | 自注意力机制 | [Day1_自注意力机制.md](/learn/ml/day-71) | `code/day1_attention.py` | 4h |
+| Day2 | 多头注意力与位置编码 | [Day2_多头注意力与位置编码.md](/learn/ml/day-72) | `code/day2_multihead.py` | 4h |
+| Day3 | Transformer 架构 | [Day3_Transformer架构.md](/learn/ml/day-73) | `code/day3_transformer.py` | 4h |
+| Day4 | 从零实现完整 Transformer | [Day4_实战实现Transformer.md](/learn/ml/day-74) | `code/day4_train_transformer.py` | 4h |
+| Day5 | ViT 与预训练模型 | [Day5_ViT与预训练.md](/learn/ml/day-75) | `code/day5_vit.py` | 3.5h |
+
+---
+
+## 本周核心公式
+
+**缩放点积注意力**：
+
+$$\text{Attention}(\mathbf{Q},\mathbf{K},\mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}$$
+
+> **这一个公式就是整个 Transformer 的核心。** GPT 的每一层里都有一份它。
+
+**为什么要除以 $\sqrt{d_k}$**（方差分析）：
+
+若 $q_i, k_i$ 独立、均值 0、方差 1，则点积 $q\cdot k = \sum_{i=1}^{d_k}q_ik_i$ 的方差是 $d_k$。除以 $\sqrt{d_k}$ 后方差回到 1，避免 softmax 进入饱和区。
+
+**多头注意力**：
+
+$$\text{MultiHead}(\mathbf{Q},\mathbf{K},\mathbf{V}) = \text{Concat}(\text{head}_1,\dots,\text{head}_h)\mathbf{W}^O$$
+$$\text{head}_i = \text{Attention}(\mathbf{Q}\mathbf{W}_i^Q, \mathbf{K}\mathbf{W}_i^K, \mathbf{V}\mathbf{W}_i^V)$$
+
+**Transformer 的一个块**：
+
+$$\boldsymbol{x} \leftarrow \boldsymbol{x} + \text{Attention}(\text{LN}(\boldsymbol{x}))$$
+$$\boldsymbol{x} \leftarrow \boldsymbol{x} + \text{FFN}(\text{LN}(\boldsymbol{x}))$$
+
+（Pre-LN 结构，现代默认）
+
+---
+
+## 本周检查清单
+
+- [ ] 我能手写缩放点积注意力，并与 `F.scaled_dot_product_attention` 对比验证
+- [ ] 我能用方差分析解释 $\sqrt{d_k}$ 的作用，并实验验证
+- [ ] 我能手写多头注意力，理解"切分-并行-拼接"的流程
+- [ ] 我能说清位置编码为什么必需（自注意力本身是置换等变的）
+- [ ] 我能从零搭出一个可训练的 Transformer 编码器
+- [ ] 我能说出 Transformer 相比 RNN 的两个根本优势
+- [ ] 我会算自注意力的计算复杂度 $O(T^2 d)$，并解释它的代价
+- [ ] 我能说清 Pre-LN 与 Post-LN 的区别与取舍
+- [ ] 我能说清 ViT 如何把图像变成序列（patch embedding）
+- [ ] 我知道 ViT 为什么需要大规模预训练才能超过 CNN
+
+---
+
+## 为什么这一周是"现代 AI 的分水岭"
+
+```
+Week13  RNN/LSTM                  Week14  Transformer
+┌──────────────────────┐          ┌──────────────────────┐
+│ 顺序计算，无法并行     │          │ 完全并行，训练快 10 倍 │
+│ 信息压缩进固定向量     │   →      │ 直接看到所有位置       │
+│ 长程依赖会衰减        │          │ 距离无关，O(1) 可达    │
+│ 难以扩展到超长序列     │          │ 可扩展到百万 token     │
+└──────────────────────┘          └──────────────────────┘
+       2014-2017                          2017 → 现在
+```
+
+**2017 年之后，NLP 的所有进展都建立在 Transformer 上；2020 年之后，视觉（ViT）、语音、蛋白质结构预测（AlphaFold2）也被它统一。** 理解 Transformer，就理解了现代 AI 的半壁江山。
+
+---
+
+## 环境准备
+
+```bash
+pip install torch torchvision numpy matplotlib
+```
+
+**数据说明**：本周继续使用现成数据（MNIST / 合成序列），不依赖额外下载。
+
+- Day1–Day3 用合成数据演示机制；
+- Day4 用 MNIST 上做 Transformer 分类，与 Week11 的 CNN、Week13 的 RNN 对比；
+- Day5 演示 ViT 的结构改造。
+
+---
+
+**下一篇**：[Day1_自注意力机制.md](/learn/ml/day-71)
+

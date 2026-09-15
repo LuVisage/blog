@@ -1,0 +1,125 @@
+---
+slug: day-05
+kind: day
+day: 5
+week: 1
+weekTitle: 版本控制
+weekBlurb: 从 Git 四区模型起步，延伸到 gh / glab、图形客户端、LFS 与提交钩子——后面每门课的作业都从 git init 开始。
+title: Git LFS（Large File Storage）使用教程
+sourcePath: 01-版本控制/05-Git-LFS.md
+---
+
+## 一、解决的问题
+
+Git 仓库不适合存放大文件（二进制、模型权重、视频、设计稿）：
+- 每次修改都会完整保存一份，仓库体积爆炸；
+- 克隆越来越慢。
+
+**Git LFS** 用「指针文件」代替真实大文件：仓库里只存一小段文本指针，真实内容存在 LFS 服务器上，检出时自动下载。
+
+## 二、安装
+
+```powershell
+# Windows
+winget install --id GitHub.GitLFS
+# macOS
+brew install git-lfs
+# Linux
+sudo apt install git-lfs
+
+git lfs install        # 每个用户执行一次，注册全局 filter
+```
+
+## 三、基本使用
+
+### 1. 跟踪指定类型文件
+
+```powershell
+git lfs track "*.psd"
+git lfs track "*.zip"
+git lfs track "models/*.bin"
+git lfs track "*.mp4"
+```
+
+命令会生成/更新 `.gitattributes`，**必须把它一起提交**：
+
+```powershell
+git add .gitattributes
+git commit -m "chore: 启用 git-lfs 跟踪"
+```
+
+### 2. 正常提交即可
+
+```powershell
+git add design.psd
+git commit -m "add design"
+git push origin main        # 大文件自动上传到 LFS
+```
+
+### 3. 查看与管理
+
+```powershell
+git lfs ls-files            # 列出当前被 LFS 跟踪的文件
+git lfs status
+git lfs env                 # 查看 LFS 端点配置
+git lfs track               # 查看跟踪规则
+```
+
+## 四、已有大文件历史迁移
+
+如果仓库里已经提交过大文件，需要重写历史：
+
+```powershell
+git lfs migrate import --include="*.psd,*.zip" --everything
+git push --force origin main     # 重写历史后必须强推（确认团队已同步）
+```
+
+迁移后所有协作者需要重新克隆仓库。
+
+## 五、克隆与拉取
+
+```powershell
+git clone https://github.com/user/repo.git      # LFS 文件自动下载
+git lfs pull                                     # 手动拉取 LFS 内容
+git lfs fetch --all                              # 拉取所有历史 LFS 对象
+```
+
+只想要指针、不下载大文件（节省带宽）：
+
+```powershell
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/user/repo.git
+git lfs pull --include="models/llama.bin"        # 之后按需拉取
+```
+
+## 六、清理与排错
+
+```powershell
+git lfs prune                # 删除本地不再引用的 LFS 缓存
+git lfs fsck                 # 校验 LFS 对象完整性
+```
+
+| 问题 | 解决 |
+| --- | --- |
+| 克隆后大文件是几行文本指针 | 目标机未装 git-lfs：安装后 `git lfs install && git lfs pull` |
+| `LFS: exceeded quota` | GitHub 免费额度 1GB 存储 / 1GB 月流量，需购买或换存储方案 |
+| 误把大文件提交进普通 Git 历史 | `git lfs migrate import` 重写历史 |
+| 推送卡住 | 检查代理、`git config lfs.activitytimeout 60` 加大超时 |
+
+## 七、最佳实践
+
+1. 项目**第一天**就启用 LFS，避免后期迁移。
+2. `.gitattributes` 纳入版本控制，团队统一。
+3. 明确 LFS 配额；超大模型权重建议用对象存储（S3/OSS）而非 Git。
+4. CI 中使用 `actions/checkout` 时需开启 `lfs: true`：
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    lfs: true
+```
+
+## 八、参考
+
+- 官网：https://git-lfs.com/
+- 手册：https://github.com/git-lfs/git-lfs/tree/main/docs
+

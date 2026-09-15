@@ -1,0 +1,345 @@
+---
+slug: day-17
+kind: day
+day: 17
+week: 3
+weekTitle: 线性模型
+weekBlurb: 线性回归、逻辑回归与线性判别分析，第一批可解释模型，公式开始密集。
+title: 梯度下降家族
+lead: '昨天我们用闭式解解决了线性回归。但对绝大多数模型（包括逻辑回归、神经网络），闭式解不存在，**梯度下降是唯一的通用武器**。今天讲清它的三个变体和一堆工程细节。'
+sourcePath: Week03_线性模型/Day2_梯度下降家族.md
+---
+
+> 西瓜书第 3 章（优化部分）· 南瓜书 3.9–3.15
+
+昨天我们用闭式解解决了线性回归。但对绝大多数模型（包括逻辑回归、神经网络），闭式解不存在，**梯度下降是唯一的通用武器**。今天讲清它的三个变体和一堆工程细节。
+
+---
+
+## 今日目标
+
+1. 掌握批量梯度下降（BGD）、随机梯度下降（SGD）、小批量梯度下降（MBGD）的公式与取舍；
+2. 理解"SGD 的随机梯度是真实梯度的无偏估计"这一关键性质；
+3. 说清 SGD 的噪声为什么有助于逃离鞍点与局部极小；
+4. 掌握学习率衰减策略与常用调度器；
+5. 理解收敛性的基本条件，知道什么情况下梯度下降会失败；
+6. 会用 NumPy 从零实现三种梯度下降并对比收敛速度。
+
+---
+
+## 知识地图
+
+```
+Week03
+├── Day1 线性回归与最小二乘 ✅  （闭式解）
+├── Day2 梯度下降家族  ← 你在这里（通用优化）
+├── Day3 对数几率回归
+├── Day4 LDA
+└── Day5 多分类与不平衡
+
+        ↓ 直接服务于
+Week07 反向传播（用链式法则算梯度 + 用今天的算法更新参数）
+Week08 优化算法进阶（Momentum / Adam）
+```
+
+---
+
+## 一、统一的问题框架
+
+给定损失函数（经验风险）：
+
+$$L(\boldsymbol{\theta}) = \frac{1}{m}\sum_{i=1}^{m} \ell\left(\boldsymbol{\theta}; \boldsymbol{x}_i, y_i\right)$$
+
+其中 $\ell$ 是**单个样本的损失**。
+
+**目标**：
+
+$$\boldsymbol{\theta}^* = \arg\min_{\boldsymbol{\theta}} L(\boldsymbol{\theta})$$
+
+**真实梯度**：
+
+$$\nabla L(\boldsymbol{\theta}) = \frac{1}{m}\sum_{i=1}^m \nabla\ell(\boldsymbol{\theta};\boldsymbol{x}_i,y_i)$$
+
+关键观察：**梯度是 $m$ 个样本梯度的平均**。三种梯度下降的区别，仅在于"用多少个样本来估计这个平均"。
+
+---
+
+## 二、批量梯度下降（BGD）
+
+**做法**：每次用**全部 $m$ 个样本**计算梯度。
+
+$$\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t - \eta \cdot \frac{1}{m}\sum_{i=1}^{m}\nabla\ell(\boldsymbol{\theta}_t;\boldsymbol{x}_i,y_i)$$
+
+| 优点 | 缺点 |
+| --- | --- |
+| 梯度精确，方向最稳 | 每次迭代要遍历全量数据，**极慢** |
+| 凸问题有严格收敛保证 | 内存要求高（大数据装不下） |
+| 损失曲线平滑单调 | 容易卡在鞍点（噪声为 0） |
+
+**适用**：数据量小（$m < 10^4$）或需要精确解的场景。
+
+---
+
+## 三、随机梯度下降（SGD）
+
+**做法**：每次只随机取**1 个样本**计算梯度。
+
+$$\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t - \eta \cdot \nabla\ell(\boldsymbol{\theta}_t;\boldsymbol{x}_{i_t},y_{i_t})$$
+
+其中 $i_t$ 是第 $t$ 步随机抽取的样本索引。
+
+### 3.1 为什么 SGD 是对的：无偏性
+
+把随机梯度记为 $g_t = \nabla\ell(\boldsymbol{\theta}_t;\boldsymbol{x}_{i_t},y_{i_t})$。对随机下标 $i_t$ 取期望：
+
+$$\mathbb{E}_{i_t}\left[g_t\right] = \sum_{i=1}^{m}\frac{1}{m}\nabla\ell(\boldsymbol{\theta}_t;\boldsymbol{x}_i,y_i) = \nabla L(\boldsymbol{\theta}_t)$$
+
+**所以随机梯度是真实梯度的无偏估计。** 这就是 SGD 有效的理论保证。
+
+### 3.2 方差与噪声的好处
+
+$$\operatorname{Var}(g_t) = O(1) \quad\text{（不随 } m \text{ 减小）}$$
+
+- **坏处**：迭代路径抖动，无法精确收敛到极小点（会在极小点附近震荡）；
+- **好处**：**噪声帮助逃离鞍点和尖锐的局部极小**。
+
+为什么噪声能帮忙？在第 $j$ 维上，若真实梯度 $\nabla_j L \ne 0$ 但很小，且噪声方差 $\sigma_j^2$ 远大于 $|\nabla_j L|^2$，则：
+
+$$|g_j + \nabla_j L|^2 - |\nabla_j L|^2 \approx \sigma_j^2 > 0$$
+
+即期望意义上，噪声会推动参数继续移动，而不是被"吸"在鞍点附近。
+
+> **经验结论**：深度学习中，SGD 找到的局部极小往往**泛化更好**（更平坦）。这被称为 **SGD 的隐式正则化**。Week08 会继续讨论平坦极小与泛化的关系。
+
+### 3.3 渐进收敛要求学习率衰减
+
+SGD 要收敛，学习率需满足 Robbins–Monro 条件：
+
+$$\sum_{t=1}^\infty \eta_t = \infty, \qquad \sum_{t=1}^\infty \eta_t^2 < \infty$$
+
+例如 $\eta_t = \frac{\eta_0}{1+t}$ 或 $\eta_t = \frac{\eta_0}{\sqrt{t}}$。
+
+**直观解释**：
+
+- 第一个条件保证"能走到任意远处"（不会被卡在半路）；
+- 第二个条件保证"抖动幅度最终消失"（能稳定下来）。
+
+---
+
+## 四、小批量梯度下降（Mini-batch GD）
+
+**做法**：每次用 $B$ 个样本（batch size）。
+
+$$\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t - \eta \cdot \frac{1}{B}\sum_{i\in \mathcal{B}_t}\nabla\ell(\boldsymbol{\theta}_t;\boldsymbol{x}_i,y_i)$$
+
+**这是深度学习的标准做法。**
+
+### 4.1 为什么是"最佳折中"
+
+| 方法 | 单步计算量 | 梯度方差 | 并行性 |
+| --- | --- | --- | --- |
+| BGD | $O(m)$ | 0 | 差 |
+| SGD | $O(1)$ | 高 | 无 |
+| **MBGD** | $O(B)$ | $\propto 1/B$ | **好（GPU 友好）** |
+
+### 4.2 Batch size 的权衡
+
+| Batch 大小 | 优点 | 缺点 |
+| --- | --- | --- |
+| 小（1–32） | 泛化好、内存小、能逃离鞍点 | 训练慢、GPU 利用率低、BN 统计不稳 |
+| 大（512–8192） | GPU 利用率高、每轮快 | 泛化可能变差、内存大、需要更大学习率 |
+
+**经验规律（Linear Scaling Rule）**：batch size 扩大 $k$ 倍时，学习率也大致扩大 $k$ 倍，以保持梯度噪声的相对尺度。
+
+**关于"大 batch 泛化差"的缓解**：
+
+- 学习率预热（Warmup）；
+- 梯度噪声注入；
+- LARS / LAMB 等分层自适应优化器。
+
+### 4.3 一个 epoch 有多少步
+
+$$\text{steps per epoch} = \left\lceil \frac{m}{B} \right\rceil$$
+
+---
+
+## 五、学习率调度
+
+固定学习率在实践中很少够用。常用策略：
+
+| 策略 | 公式 | 特点 |
+| --- | --- | --- |
+| 阶梯衰减 | $\eta_t = \eta_0 \cdot \gamma^{\lfloor t/s\rfloor}$ | 简单，需手工设节点 |
+| 指数衰减 | $\eta_t = \eta_0 e^{-kt}$ | 平滑 |
+| 余弦退火 | $\eta_t = \eta_{\min} + \frac{1}{2}(\eta_0-\eta_{\min})\left(1+\cos\frac{t\pi}{T}\right)$ | 现代主流 |
+| 预热 + 衰减 | 先线性升到 $\eta_0$，再衰减 | Transformer 标配 |
+| 1/t 衰减 | $\eta_t = \eta_0/(1+kt)$ | 满足 Robbins–Monro |
+| 自适应（Adam 等） | 见 Week08 | 每参数自适应 |
+
+**为什么需要预热（Warmup）**：训练初期参数随机，梯度方向不可靠；若学习率过大，可能一步把参数踢到很糟的区域（尤其是有 BatchNorm 的网络）。
+
+---
+
+## 六、收敛性理论（了解即可）
+
+### 6.1 凸 + Lipschitz 光滑
+
+若 $L$ 凸且 $\nabla L$ 是 $\beta$-Lipschitz 连续的，取 $\eta \le 1/\beta$，则：
+
+$$L(\boldsymbol{\theta}_T) - L(\boldsymbol{\theta}^*) \le \frac{\|\boldsymbol{\theta}_0 - \boldsymbol{\theta}^*\|^2}{2\eta T} = O\left(\frac{1}{T}\right)$$
+
+即**次线性收敛**。
+
+### 6.2 强凸
+
+若 $L$ 还是 $\mu$-强凸的，取 $\eta = 1/\beta$：
+
+$$\|\boldsymbol{\theta}_T - \boldsymbol{\theta}^*\|^2 \le \left(1 - \frac{\mu}{\beta}\right)^T\|\boldsymbol{\theta}_0-\boldsymbol{\theta}^*\|^2$$
+
+**线性（指数）收敛**，速率由条件数 $\kappa = \beta/\mu$ 决定。
+
+> 这从理论上解释了 Week01 Day4 的观察：**条件数大 ⇒ 收敛慢**。
+
+### 6.3 非凸
+
+只能保证收敛到**驻点**（$\nabla L = 0$）附近。实践中依赖：
+
+- 好的初始化；
+- 动量/自适应学习率；
+- 足够的训练时间与学习率衰减。
+
+---
+
+## 七、梯度下降失败的五种情形
+
+| 现象 | 原因 | 诊断 | 对策 |
+| --- | --- | --- | --- |
+| 损失爆炸为 nan | 学习率太大 / 梯度爆炸 | loss 突然变 inf | 减小 lr、梯度裁剪、归一化 |
+| 损失不下降 | 学习率太小 / 梯度为 0 | loss 几乎不动 | 增大 lr、检查数据标准化 |
+| 损失震荡 | 学习率偏大 | loss 上下跳动 | 减小 lr、加动量 |
+| 下降一会又上升 | 过拟合 / lr 调度不当 | train↓ val↑ | 正则化、早停 |
+| 卡在高原不动 | 饱和区 / 梯度消失 | 梯度范数 ≈ 0 | 换激活函数、加残差连接 |
+
+**调试口诀**：**先用一个小数据子集把 loss 打到接近 0，确认代码正确，再上全量数据。**
+
+---
+
+## 八、代码实践
+
+```python
+import numpy as np
+
+def bgd(X, y, lr=0.1, epochs=100):
+    m, n = X.shape
+    w = np.zeros(n)
+    for _ in range(epochs):
+        grad = X.T @ (X @ w - y) / m          # 用全部样本
+        w -= lr * grad
+    return w
+
+def sgd(X, y, lr=0.01, epochs=100, seed=0):
+    rng = np.random.default_rng(seed)
+    m, n = X.shape
+    w = np.zeros(n)
+    for _ in range(epochs):
+        for i in rng.permutation(m):          # 每个样本更新一次
+            xi, yi = X[i], y[i]
+            grad = (xi @ w - yi) * xi
+            w -= lr * grad
+    return w
+
+def minibatch_gd(X, y, lr=0.05, epochs=100, batch_size=32, seed=0):
+    rng = np.random.default_rng(seed)
+    m, n = X.shape
+    w = np.zeros(n)
+    for _ in range(epochs):
+        idx = rng.permutation(m)
+        for s in range(0, m, batch_size):
+            b = idx[s:s + batch_size]
+            Xb, yb = X[b], y[b]
+            grad = Xb.T @ (Xb @ w - yb) / len(b)
+            w -= lr * grad
+    return w
+```
+
+完整版本见 `code/day2_gradient_descent.py`，包含：
+
+1. 三种方法在标准回归问题上的收敛曲线（每个 epoch 记录 loss 与参数误差）；
+2. 统计**相同 epoch 数下达到的目标精度所需的梯度计算次数**；
+3. 学习率过大导致发散、过小导致收敛慢的对比；
+4. SGD 的噪声演示：多次运行 SGD，画出参数轨迹的"抖动云"；
+5. 学习率衰减（1/t、余弦退火）的效果对比。
+
+---
+
+## 九、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 混淆 "epoch" 与 "step" | 1 epoch = 遍历一遍全部数据；1 step = 一次参数更新 |
+| 未打乱数据就做 SGD | 数据的顺序会导致系统性偏差（如按类别排序的数据） |
+| 用同一个学习率训练所有层 | 不同层梯度尺度差异大（Week08 的自适应方法解决） |
+| 认为 SGD 一定比 BGD 差 | 最终精度可能略差，但**泛化常更好**、速度更快 |
+| batch size 与学习率不联动 | 改变 batch 时要相应调整 lr |
+| 忽略梯度累积 | 显存不足时可用"小 batch 累积 + 大等效 batch" |
+| 学习率调参靠猜 | 应先跑 Learning Rate Range Test（lr 从 1e-7 到 1 扫描） |
+
+---
+
+## 十、练习题
+
+**基础**
+
+1. 写出 BGD、SGD、MBGD 的更新公式，并说明三者的关系。
+2. 数据集 10000 个样本，batch size = 64。一个 epoch 有多少步？
+3. 为什么 SGD 需要学习率衰减，而 BGD 不需要那么强烈？
+
+**进阶**
+
+4. 证明 SGD 的随机梯度是真实梯度的无偏估计。
+5. 设 $\ell(\boldsymbol{\theta}) = \frac{1}{2}(\boldsymbol{\theta}^\top\boldsymbol{A}\boldsymbol{\theta} - 2\boldsymbol{b}^\top\boldsymbol{\theta})$，$\mathbf{A}$ 对称正定。写出梯度下降的迭代式，并证明取 $\eta < 2/\lambda_{\max}(\mathbf{A})$ 时收敛。
+6. 某训练日志显示：前 100 步 loss 从 2.3 平滑降到 1.1，然后突然变成 nan。请给出三种可能原因与排查顺序。
+
+**思考题**
+
+7. 为什么说"SGD 的噪声有助于泛化"？请从"平坦极小 vs 尖锐极小"的角度解释。
+8. 大 batch 训练为什么可能导致泛化变差？（提示：考虑梯度噪声的尺度，以及噪声与"逃离尖锐极小"的关系）如何缓解？
+
+<details>
+<summary>第 2 题答案</summary>
+
+$$\lceil 10000/64 \rceil = 157 \text{ 步}$$
+</details>
+
+<details>
+<summary>第 5 题提示</summary>
+
+梯度 $\nabla\ell = \mathbf{A}\boldsymbol{\theta} - \boldsymbol{b}$，迭代：
+
+$$\boldsymbol{\theta}_{t+1} = (\mathbf{I} - \eta\mathbf{A})\boldsymbol{\theta}_t + \eta\boldsymbol{b}$$
+
+误差 $\boldsymbol{e}_t = \boldsymbol{\theta}_t - \boldsymbol{\theta}^*$ 满足 $\boldsymbol{e}_{t+1} = (\mathbf{I}-\eta\mathbf{A})\boldsymbol{e}_t$。
+
+在 $\mathbf{A}$ 的特征基下分解，每个方向以 $|1-\eta\lambda_i|$ 衰减。要全部衰减，需 $|1-\eta\lambda_i| < 1$ 对所有 $i$，即 $0 < \eta < 2/\lambda_{\max}$。
+</details>
+
+<details>
+<summary>第 7 题要点</summary>
+
+**尖锐极小**：Hessian 最大特征值大，参数稍微扰动 loss 就剧增 → 测试集分布略偏就崩。
+
+**平坦极小**：Hessian 各方向都平缓 → 对参数扰动和分布偏移都鲁棒。
+
+SGD 的梯度噪声相当于在参数上持续注入扰动，只有"足够宽的谷"才能容纳这种扰动，因此 SGD 倾向于停在平坦极小处。**这就是隐式正则化。**
+</details>
+
+---
+
+## 十一、一句话总结
+
+**梯度下降的本质是"用一部分数据估计整体梯度"；三种变体的区别只是估计的样本数，而所有工程细节（学习率、batch size、调度）都是在"噪声大小"与"计算效率"之间做权衡。**
+
+---
+
+**明日预告**：Day3 回到模型本身——对数几率回归。我们会证明它的损失函数是凸的，并推导出那个极其优雅的梯度公式 $\mathbf{X}^\top(\hat{\boldsymbol{y}}-\boldsymbol{y})$。
+

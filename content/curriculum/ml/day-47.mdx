@@ -1,0 +1,457 @@
+---
+slug: day-47
+kind: day
+day: 47
+week: 9
+weekTitle: PyTorch 框架与数据管线
+weekBlurb: 张量、自动求导、计算图，Dataset / DataLoader 与第一个训练循环。
+title: nn.Module 与模型构建
+lead: '今日目标：理解 `nn.Module` 的"参数自动注册"机制；掌握定义网络的三种方式；避开 `nn.Linear` 的权重形状陷阱；搞清 `CrossEntropyLoss` 为什么内置 softmax。'
+sourcePath: Week09_PyTorch框架与数据管线/Day2_nnModule与模型构建.md
+---
+
+> 今日目标：理解 `nn.Module` 的"参数自动注册"机制；掌握定义网络的三种方式；避开 `nn.Linear` 的权重形状陷阱；搞清 `CrossEntropyLoss` 为什么内置 softmax。
+> 配套案例：`code/day2_module.py`
+
+---
+
+## 2.1 知识地图
+
+```
+Day1  Tensor + autograd        ← 你会求梯度了
+        │
+        ▼
+Day2（今天）★ 把参数和 forward 封装成类
+  ├─ nn.Parameter：哪些张量会被训练
+  ├─ nn.Module：参数自动注册 + 递归管理
+  ├─ 三种建模方式：Sequential / 类继承 / ModuleList
+  └─ 损失函数：CrossEntropyLoss 内置 softmax 的坑
+        │
+        ▼
+Day3  Dataset / DataLoader     ← 数据怎么进来
+Day4  训练循环                  ← 把 model / loss / optimizer 串起来
+```
+
+---
+
+## 2.2 思维转变：从"一堆变量"到"一个对象"
+
+Week07 你写网络是这样的：
+
+```python
+# Week07 风格：参数字典
+params = {}
+params["W1"] = np.random.randn(784, 50) * 0.01
+params["b1"] = np.zeros(50)
+params["W2"] = np.random.randn(50, 10) * 0.01
+params["b2"] = np.zeros(10)
+
+def forward(x, params):
+    a1 = np.maximum(0, x @ params["W1"] + params["b1"])
+    return a1 @ params["W2"] + params["b2"]
+```
+
+问题很明显：
+
+- 参数散落在字典里，层一多就乱；
+- 没有"层"的概念，无法复用；
+- 无法一眼看出哪些参数需要梯度；
+- 保存/加载要手动遍历字典。
+
+PyTorch 的做法是把参数和方法装进一个对象：
+
+```python
+class TwoLayerNet(nn.Module):
+    def __init__(self, n_in, n_hidden, n_out):
+        super().__init__()
+        self.fc1 = nn.Linear(n_in, n_hidden)
+        self.fc2 = nn.Linear(n_hidden, n_out)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        return self.fc2(x)
+```
+
+`nn.Module` 替你做了四件事：
+
+| 能力 | 说明 |
+| --- | --- |
+| **参数注册** | 赋值给 `self.xxx` 的 `Parameter` / 子 `Module` 会自动登记 |
+| **递归管理** | `model.parameters()` 返回所有层（含嵌套）的参数 |
+| **状态管理** | `train()` / `eval()` 一键切换所有子模块的模式 |
+| **设备迁移** | `model.to(device)` 一键搬走全部参数 |
+
+---
+
+## 2.3 nn.Parameter：什么会被训练
+
+`nn.Parameter` 是 `Tensor` 的子类，特殊之处是：**赋值给 Module 属性时会自动注册**。
+
+```python
+class MyLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.W = nn.Parameter(torch.randn(3, 4))   # 会被注册 -> 出现在 parameters() 里
+        self.scale = torch.randn(1)                # 普通 Tensor -> 不会注册，不会被训练！
+
+    def forward(self, x):
+        return x @ self.W * self.scale
+```
+
+验证：
+
+```python
+layer = MyLayer()
+print([n for n, _ in layer.named_parameters()])    # ['W']  <- scale 不在里面
+```
+
+**这是新手常见 bug**：想让某个张量可训练，却忘了包 `nn.Parameter`，结果 `optimizer` 收不到它，训练永远不动。
+
+> **记忆点**：只要是"模型需要学的量"，就必须是 `nn.Parameter`，或者放在 `nn.Linear` 等内置层里。
+
+---
+
+## 2.4 nn.Linear 的两个坑
+
+### 坑 1：权重形状是"转置"的
+
+PyTorch 的 `nn.Linear(in_features, out_features)` 内部存的是 $\mathbf{W} \in \mathbb{R}^{\text{out} \times \text{in}}$，计算为：
+
+$$\boldsymbol{y} = \boldsymbol{x}\mathbf{W}^\top + \boldsymbol{b}$$
+
+而 Week07 你用的是 $\boldsymbol{y} = \boldsymbol{x}\mathbf{W} + \boldsymbol{b}$，其中 $\mathbf{W} \in \mathbb{R}^{\text{in} \times \text{out}}$。
+
+```python
+fc = nn.Linear(3, 5)
+print(fc.weight.shape)    # torch.Size([5, 3])   ← 不是 (3, 5)！
+print(fc.bias.shape)      # torch.Size([5])
+
+x = torch.randn(4, 3)
+print(fc(x).shape)        # torch.Size([4, 5])
+print((x @ fc.weight.T + fc.bias).shape)   # 等价写法，也是 (4, 5)
+```
+
+**为什么这样设计？** 历史原因（早期是 `y = Wx` 的列向量约定，改成 batch 行向量后就成了转置形式）。后果是：**从 Week07 迁移权重时必须 `.T`**，否则形状对不上或结果错。
+
+### 坑 2：默认自带偏置
+
+```python
+nn.Linear(3, 5)                # bias=True，默认有 b
+nn.Linear(3, 5, bias=False)    # 不要 b（如后面接 BatchNorm 时常这么写）
+```
+
+---
+
+## 2.5 定义模型的三种方式
+
+| 方式 | 写法 | 适用 |
+| --- | --- | --- |
+| **Sequential** | `nn.Sequential(nn.Linear(3,5), nn.ReLU(), nn.Linear(5,2))` | 纯线性堆叠，最简单 |
+| **类继承** | 继承 `nn.Module`，写 `__init__` + `forward` | **推荐**，任意复杂结构 |
+| **ModuleList / ModuleDict** | `self.layers = nn.ModuleList([...])` | 层数动态、需要循环创建 |
+
+### 方式一：Sequential
+
+```python
+model = nn.Sequential(
+    nn.Linear(784, 50), nn.ReLU(),
+    nn.Linear(50, 10),
+)
+out = model(x)          # 直接像函数一样调用
+```
+
+缺点：无法表达分支、跳连、多输入输出。
+
+### 方式二：类继承（生产标准）
+
+```python
+class MLP(nn.Module):
+    def __init__(self, n_in=784, n_hidden=50, n_out=10):
+        super().__init__()                       # ★ 必须调用
+        self.fc1 = nn.Linear(n_in, n_hidden)
+        self.fc2 = nn.Linear(n_hidden, n_out)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        return self.fc2(x)
+```
+
+**三个必须注意的点**：
+
+1. `super().__init__()` 必须第一行调用，否则参数注册机制不工作；
+2. **不要**定义 `def forward` 之外的"前向"名字，框架只认 `forward`；
+3. 调用时写 `model(x)` 而**不是** `model.forward(x)` —— `__call__` 里还包了 hook 等机制。
+
+### 方式三：ModuleList
+
+```python
+class DeepMLP(nn.Module):
+    def __init__(self, n_layers=5, n_in=784, n_hidden=128, n_out=10):
+        super().__init__()
+        dims = [n_in] + [n_hidden] * (n_layers - 1) + [n_out]
+        self.layers = nn.ModuleList(
+            nn.Linear(dims[i], dims[i + 1]) for i in range(len(dims) - 1)
+        )
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layers):
+            x = layer(x)
+            if i < len(self.layers) - 1:
+                x = torch.relu(x)
+        return x
+```
+
+**必须用 `nn.ModuleList` 而不是 Python `list`**！用普通 list 装 Module，参数不会被注册：
+
+```python
+self.layers = [nn.Linear(3, 5)]              # 错误！参数丢失
+self.layers = nn.ModuleList([nn.Linear(3, 5)])  # 正确
+```
+
+---
+
+## 2.6 复刻 Week07 的层
+
+Week07 你手写了 `Affine` 和 `ReLU`。现在用 `nn.Module` 重写一遍（注意形状约定也要跟着改）：
+
+```python
+class Affine(nn.Module):
+    """y = x @ W^T + b   （为了与 nn.Linear 对齐，把 W 存成 (out, in)）"""
+    def __init__(self, in_features, out_features):
+        super().__init__()
+        self.W = nn.Parameter(torch.randn(out_features, in_features) * 0.01)
+        self.b = nn.Parameter(torch.zeros(out_features))
+
+    def forward(self, x):
+        return x @ self.W.T + self.b
+
+class ReLU(nn.Module):
+    def forward(self, x):
+        return torch.clamp(x, min=0)
+
+class TwoLayerNet(nn.Module):
+    """完整复刻 Week07 Day4 的两层网络"""
+    def __init__(self, n_in, n_hidden, n_out):
+        super().__init__()
+        self.fc1 = Affine(n_in, n_hidden)
+        self.relu = ReLU()
+        self.fc2 = Affine(n_hidden, n_out)
+
+    def forward(self, x):
+        return self.fc2(self.relu(self.fc1(x)))
+```
+
+注意这里**完全没有反向传播代码** —— Day1 的 autograd 会处理。
+
+---
+
+## 2.7 常用层速查
+
+| 层 | 作用 | 输入 → 输出 | 备注 |
+| --- | --- | --- | --- |
+| `nn.Linear(m, n)` | 全连接 | `(..., m)` → `(..., n)` | 形状转置坑 |
+| `nn.ReLU()` | 激活 | 形状不变 | 最常用，缓解梯度消失 |
+| `nn.Sigmoid()` | 激活 | 形状不变 | 易饱和，深层网络不推荐 |
+| `nn.Tanh()` | 激活 | 形状不变 | 输出零中心 |
+| `nn.Softmax(dim)` | 概率化 | 形状不变 | **损失函数内部已含，别重复** |
+| `nn.Dropout(p)` | 随机置零 | 形状不变 | 只在 `train()` 生效 |
+| `nn.BatchNorm1d(n)` | 批归一化 | `(N, n)` | `train`/`eval` 行为不同 |
+| `nn.Flatten()` | 展平 | `(N,C,H,W)` → `(N,C*H*W)` | CNN 接全连接时用 |
+| `nn.Embedding(V, d)` | 词嵌入 | `(N, L)` → `(N, L, d)` | 输入是整数索引 |
+
+**激活函数别用 `nn.ReLU` 类，函数式更省事**：
+
+```python
+x = torch.relu(x)          # 推荐，不占内存
+x = torch.sigmoid(x)
+x = torch.tanh(x)
+x = F.softmax(x, dim=-1)   # 函数式，需要指定 dim
+```
+
+---
+
+## 2.8 损失函数：两个内置的"陷阱"
+
+### 坑 1：CrossEntropyLoss 内部已经包含 Softmax
+
+这是最经典的错误 —— 多算了一次 softmax：
+
+```python
+# 错误写法
+logits = model(x)
+probs = torch.softmax(logits, dim=1)          # ← 多余！
+loss = nn.CrossEntropyLoss()(probs, y)        # 概率被二次压平，loss 异常变大
+
+# 正确写法
+logits = model(x)
+loss = nn.CrossEntropyLoss()(logits, y)       # 直接喂 logits
+```
+
+**为什么框架要内置 softmax？** 数值稳定性。手写 `softmax` 再取 `log` 时，极端值会溢出；合并后可用 log-sum-exp 技巧：
+
+$$\text{CE} = -\log\frac{e^{z_y}}{\sum_j e^{z_j}} = \log\sum_j e^{z_j} - z_y$$
+
+等价地，PyTorch 的交叉熵 = `nn.LogSoftmax` + `nn.NLLLoss`。
+
+**接口细节**：
+
+```python
+criterion = nn.CrossEntropyLoss()
+logits = torch.randn(4, 10)      # (N, C)  未经 softmax 的原始分数
+target = torch.tensor([3, 0, 9, 2])   # (N,)  类别索引（int64），不是 one-hot！
+loss = criterion(logits, target)
+```
+
+- 输入是 **logits**，不是概率；
+- `target` 是**整数索引** `(N,)`，不是 one-hot `(N, C)`；
+- 想要 one-hot，用 `target = y.argmax(1)` 转回来或 `label_smoothing` 参数。
+
+### 坑 2：二分类要用 BCEWithLogitsLoss
+
+```python
+# 错误：先 sigmoid 再 BCE
+prob = torch.sigmoid(logits)
+loss = nn.BCELoss()(prob, target)              # 数值不稳定
+
+# 正确：内置 sigmoid
+loss = nn.BCEWithLogitsLoss()(logits, target.float())
+```
+
+### 损失函数速查
+
+| 任务 | 损失 | 输入 | target 形状 |
+| --- | --- | --- | --- |
+| 回归 | `nn.MSELoss()` | 任意 | 同输入 |
+| 二分类 | `nn.BCEWithLogitsLoss()` | logits | `(N,)` float |
+| 多分类 | `nn.CrossEntropyLoss()` | logits | `(N,)` long |
+| 多标签 | `nn.BCEWithLogitsLoss()` | logits | `(N, C)` float |
+
+---
+
+## 2.9 state_dict 与参数管理
+
+```python
+model = MLP()
+
+# 遍历参数
+for name, p in model.named_parameters():
+    print(name, tuple(p.shape))
+
+# 输出:
+# fc1.weight (50, 784)
+# fc1.bias   (50,)
+# fc2.weight (10, 50)
+# fc2.bias   (10,)
+```
+
+**`state_dict()` 是保存模型的标准方式**（Day4 会详细用）：
+
+```python
+sd = model.state_dict()
+print(list(sd.keys()))     # ['fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
+
+torch.save(model.state_dict(), "mlp.pt")          # 只存参数，推荐
+torch.save(model, "mlp_full.pt")                  # 存整个对象，不推荐（依赖类定义）
+```
+
+**参数数量统计**：
+
+```python
+total = sum(p.numel() for p in model.parameters())
+trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(f"总参数 {total}, 可训练 {trainable}")
+```
+
+**冻结部分参数**（微调时常用）：
+
+```python
+for p in model.fc1.parameters():
+    p.requires_grad = False        # 冻结第一层
+```
+
+---
+
+## 2.10 参数初始化
+
+PyTorch 的 `nn.Linear` 默认用 Kaiming 均匀初始化。但自定义层需要自己处理：
+
+```python
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        nn.init.kaiming_normal_(m.weight, nonlinearity="relu")   # He 初始化
+        nn.init.zeros_(m.bias)
+
+model.apply(init_weights)          # 递归应用到所有子模块
+```
+
+**呼应 Week07 Day5**：为什么 ReLU 要用 He 初始化（std $=\sqrt{2/n}$）？因为 ReLU 把一半输入置零，方差减半，需要放大 $\sqrt{2}$ 倍才能保持信号强度。Week07 你是手写 `* np.sqrt(2/n)`，现在是 `nn.init.kaiming_normal_`。
+
+| 初始化 | 公式 | 适用激活 |
+| --- | --- | --- |
+| Xavier | $\sqrt{1/n}$ | tanh / sigmoid |
+| He (Kaiming) | $\sqrt{2/n}$ | ReLU 系 |
+| 零初始化 bias | $0$ | 通用 |
+
+**不要全部初始化为 0**：所有神经元输出相同 → 梯度相同 → 永远学不出差异（对称性无法打破）。
+
+---
+
+## 2.11 与 Week07 逐参数对照
+
+这是今天最重要的验证：**用同一组权重，Week07 的 NumPy 前向 与 PyTorch 的 `nn.Sequential` 前向，输出必须完全一致**。
+
+```python
+# Week07 风格（NumPy）
+W1 = np.random.randn(3, 5) * 0.5
+b1 = np.zeros(5)
+W2 = np.random.randn(5, 2) * 0.5
+b2 = np.zeros(2)
+out_np = np.maximum(0, X @ W1 + b1) @ W2 + b2
+
+# PyTorch 风格
+model = nn.Sequential(nn.Linear(3, 5), nn.ReLU(), nn.Linear(5, 2))
+with torch.no_grad():
+    model[0].weight.copy_(torch.tensor(W1.T))     # ★ 注意转置！
+    model[0].bias.copy_(torch.tensor(b1))
+    model[2].weight.copy_(torch.tensor(W2.T))
+    model[2].bias.copy_(torch.tensor(b2))
+out_torch = model(torch.tensor(X))
+
+print(np.abs(out_np - out_torch.numpy()).max())   # ~1e-16
+```
+
+**转置那一步是今天所有坑的集中体现。** 跑一遍案例代码，把这张对照表内化。
+
+---
+
+## 2.12 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 参数不在 `parameters()` 里 | 用了普通 `list` 装模块，或忘了 `nn.Parameter` | 改 `nn.ModuleList` / 包 `nn.Parameter` |
+| loss 不下降，但也不报错 | `CrossEntropyLoss` 前多做了 softmax | 直接喂 logits |
+| `RuntimeError: expected scalar type Long` | 分类 target 传了 float | `target.long()` |
+| 从 Week07 迁移权重后结果错 | `nn.Linear` 权重是转置的 | `weight.copy_(W.T)` |
+| 修改模块后参数消失 | 用赋值覆盖了已注册的子模块 | 用 `nn.ModuleList.append()` |
+| 冻结了参数但还在更新 | 只设了 `requires_grad=False`，没重建 optimizer | 冻结后**重新创建** optimizer |
+| `model.forward(x)` 与 `model(x)` 结果不同 | 后者会触发 hooks | 永远用 `model(x)` |
+| `super().__init__()` 报错 | 忘记继承 `nn.Module` | 检查类定义 |
+
+---
+
+## 2.13 今日自测
+
+1. 写一个 `MLP` 类，支持任意层数（用 `nn.ModuleList`），并打印参数总数。
+2. 故意用 Python `list` 存层，验证 `parameters()` 为空，然后改成 `nn.ModuleList` 修复。
+3. 验证 `CrossEntropyLoss` 内置 softmax：对同一批 logits，分别手写 `softmax + NLL` 与直接调用，看 loss 是否一致。
+4. 复现 `nn.Linear` 的转置坑：把 Week07 的 `W` 直接 `copy_` 进去（不转置），观察输出错误大小。
+5. 统计一个两层网络在 MNIST 上的参数量，并算出其中 90% 集中在哪一层。
+
+---
+
+## 2.14 一句话总结
+
+**`nn.Module` 的核心价值是"参数自动注册"—— 只要你把 `Parameter` 或子模块赋值给 `self.xxx`，它就会出现在 `parameters()` 里，交给 optimizer 训练。**
+
+**明日预告**：Day3 学习数据管线 —— `Dataset` 定义"一条样本怎么取"，`DataLoader` 负责"怎么成批、怎么打乱、怎么并行"。
+

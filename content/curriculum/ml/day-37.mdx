@@ -1,0 +1,350 @@
+---
+slug: day-37
+kind: day
+day: 37
+week: 7
+weekTitle: 神经网络基础
+weekBlurb: 纯 NumPy 手写：感知机、激活函数、反向传播与两层网络的完整训练。
+title: 激活函数与输出层设计
+lead: '**激活函数是神经网络的"非线性来源"。** 如果不用激活函数（或全用线性的），无论多少层，整个网络都等价于一个线性模型。今天把 5 个常用激活函数讲透。'
+sourcePath: Week07_神经网络基础/Day2_激活函数与输出层.md
+---
+
+> 鱼书第 3 章 · 花书 6.3 · 苹果书第 2–3 讲
+
+**激活函数是神经网络的"非线性来源"。** 如果不用激活函数（或全用线性的），无论多少层，整个网络都等价于一个线性模型。今天把 5 个常用激活函数讲透。
+
+---
+
+## 今日目标
+
+1. 理解"为什么必须有非线性激活"；
+2. 掌握 5 种激活函数的表达式、导数、优缺点；
+3. 理解 sigmoid 的**梯度消失**问题与导出；
+4. 理解 ReLU 的**死亡神经元**问题与 Leaky ReLU / ELU 的改进；
+5. 掌握输出层设计规则：回归 / 二分类 / 多分类；
+6. 掌握 softmax + 交叉熵的"梯度优雅抵消"。
+
+---
+
+## 知识地图
+
+```
+Week07
+├── Day1 感知机 ✅
+├── Day2 激活函数与输出层  ← 你在这里
+├── Day3 反向传播
+├── Day4 从零实现
+└── Day5 训练流程
+
+依赖: Week01 Day5（交叉熵）、Week03 Day3（sigmoid 与梯度）
+```
+
+---
+
+## 一、为什么必须有非线性
+
+**若 $\sigma(z) = z$（恒等），则两层网络**：
+
+$$\boldsymbol{y} = \mathbf{W}_2(\mathbf{W}_1\boldsymbol{x}+\boldsymbol{b}_1)+\boldsymbol{b}_2 = \underbrace{(\mathbf{W}_2\mathbf{W}_1)}_{\mathbf{W}'}\boldsymbol{x} + \underbrace{(\mathbf{W}_2\boldsymbol{b}_1+\boldsymbol{b}_2)}_{\boldsymbol{b}'}$$
+
+**仍然是一个线性变换！**
+
+**推广**：任何层数为 $L$ 的**纯线性**网络都等价于单层线性变换。
+
+$$\boxed{\ \text{没有非线性激活 = 深度毫无意义}\ }$$
+
+---
+
+## 二、五种常用激活函数
+
+### 2.1 阶跃函数（仅作对照）
+
+$$h(z) = \begin{cases}1, & z>0\\ 0, & z\le0\end{cases}$$
+
+- 导数几乎处处为 0 ⇒ **不能用于梯度下降**；
+- 不可用于多层网络。
+
+### 2.2 Sigmoid
+
+$$\sigma(z) = \frac{1}{1+e^{-z}}, \qquad \sigma'(z) = \sigma(z)(1-\sigma(z))$$
+
+**图像**：S 形，值域 $(0,1)$，在 $z\to\pm\infty$ 时饱和。
+
+| 优点 | 缺点 |
+| --- | --- |
+| 输出可解释为概率 | **梯度消失**（饱和区导数 ≈ 0） |
+| 平滑可导 | 输出非零均值（导致后层输入有偏） |
+| 有界 | 计算含指数，较慢 |
+
+**梯度消失定量分析**：$\sigma'(z)$ 的最大值是 $0.25$（在 $z=0$ 处）。
+
+若网络有 $L$ 层，反向传播连乘 $L$ 次，梯度大致按 $(0.25)^L$ 衰减：
+
+| $L$ | $(0.25)^L$ |
+| --- | --- |
+| 5 | $9.8\times10^{-4}$ |
+| 10 | $9.5\times10^{-7}$ |
+| 20 | $9.1\times10^{-13}$ |
+
+**结论**：sigmoid 网络超过 5 层就基本**无法训练**。
+
+### 2.3 Tanh（双曲正切）
+
+$$\tanh(z) = \frac{e^z - e^{-z}}{e^z+e^{-z}} = 2\sigma(2z)-1, \qquad \tanh'(z) = 1-\tanh^2(z)$$
+
+| 优点 | 缺点 |
+| --- | --- |
+| **零均值**（比 sigmoid 好） | 仍然有梯度消失 |
+| 导数最大为 1（比 sigmoid 的 0.25 好 4 倍） | 计算含指数 |
+
+**为什么零均值有用**：若隐层输出恒为正，则 $\frac{\partial L}{\partial \mathbf{W}}$ 的所有元素符号相同，梯度方向被限制在参数空间的"一个卦限"内，导致**锯齿状震荡**（zig-zag）收敛慢。
+
+### 2.4 ReLU（修正线性单元）
+
+$$\text{ReLU}(z) = \max(0, z), \qquad \text{ReLU}'(z) = \begin{cases}1, & z>0\\ 0, & z<0\end{cases}$$
+
+**这是现代深度学习的默认选择。**
+
+| 优点 | 缺点 |
+| --- | --- |
+| 导数在正区间恒为 1 ⇒ **不衰减** | **死亡 ReLU**（$z<0$ 时梯度恒为 0） |
+| 计算极快（只有比较） | 输出非零均值 |
+| 稀疏激活（约一半神经元输出 0） | 在 0 处不可导（实践中取次梯度） |
+
+**死亡 ReLU（Dying ReLU）**：
+
+若某个神经元的加权和**长期为负**，则它的梯度恒为 0 ⇒ **参数永不更新** ⇒ 该神经元"死掉"，且不可恢复。
+
+**成因**：学习率过大（一步把参数推到负区间）、初始化不当（偏置初始化太负）。
+
+### 2.5 Leaky ReLU / PReLU / ELU
+
+**Leaky ReLU**：
+
+$$f(z) = \begin{cases}z, & z>0\\ \alpha z, & z\le0\end{cases}, \qquad \alpha = 0.01$$
+
+- 负区间**有小的非零梯度** ⇒ 神经元不会死；
+- 是 ReLU 与 ELU 之间最简单的折中。
+
+**PReLU**：$\alpha$ 作为**可学习参数**。
+
+**ELU**：
+
+$$f(z) = \begin{cases}z, & z>0\\ \alpha(e^z-1), & z\le0\end{cases}$$
+
+- 负区间饱和到 $-\alpha$，输出更接近零均值；
+- 计算含指数，比 ReLU 慢。
+
+### 2.6 Swish / GELU（现代选择）
+
+$$\text{Swish}(z) = z\cdot\sigma(\beta z)$$
+
+$$\text{GELU}(z) = z\cdot\Phi(z) \quad (\Phi\ \text{为标准正态的 CDF})$$
+
+**GELU 是 Transformer 的标配**（BERT、GPT 都用）。
+
+### 2.7 对照速查表
+
+| 函数 | 公式 | 导数 | 值域 | 优点 | 缺点 |
+| --- | --- | --- | --- | --- | --- |
+| 阶跃 | $\mathbb{1}[z>0]$ | 0 | $\{0,1\}$ | — | 不可导 |
+| Sigmoid | $\frac{1}{1+e^{-z}}$ | $\sigma(1-\sigma)$ | $(0,1)$ | 概率解释 | 梯度消失 |
+| Tanh | $\frac{e^z-e^{-z}}{e^z+e^{-z}}$ | $1-\tanh^2$ | $(-1,1)$ | 零均值 | 仍会消失 |
+| **ReLU** | $\max(0,z)$ | $\mathbb{1}[z>0]$ | $[0,\infty)$ | **快、不衰减** | 死亡神经元 |
+| Leaky ReLU | $\max(\alpha z,z)$ | $1$ 或 $\alpha$ | $(-\infty,\infty)$ | 不死 | 需调 $\alpha$ |
+| GELU | $z\Phi(z)$ | 复杂 | 近似 ReLU | 平滑、效果好 | 计算贵 |
+
+**实践建议**：
+
+```
+隐层     -> ReLU（默认）；若出现死亡神经元 -> Leaky ReLU / ELU
+深层网络 -> GELU（Transformer）、Swish
+输出层   -> 恒等 / sigmoid / softmax（见第三节）
+```
+
+---
+
+## 三、输出层设计
+
+**核心规则**：**输出层的激活函数由"任务类型 + 损失函数"共同决定。**
+
+| 任务 | 输出层激活 | 损失函数 | 输出含义 |
+| --- | --- | --- | --- |
+| **回归** | 恒等（无激活） | MSE / MAE | 连续值 |
+| **二分类** | sigmoid | 二元交叉熵（BCE） | $P(y=1)$ |
+| **多分类** | softmax | 交叉熵（CE） | 各类概率 |
+| 多标签分类 | 逐元素 sigmoid | 逐元素 BCE | 每个标签独立 |
+| 排序 | 恒等 | 排序损失 | 打分 |
+
+### 3.1 恒等函数用于回归
+
+$$y = \boldsymbol{w}^\top\boldsymbol{z} + b$$
+
+**为什么不用 sigmoid**：回归目标可能取任意实数值，sigmoid 会把输出压到 $(0,1)$。
+
+### 3.2 softmax 用于多分类
+
+$$y_k = \frac{e^{z_k}}{\sum_{j=1}^{K}e^{z_j}}$$
+
+**实现必须数值稳定**：
+
+```python
+def softmax(z):
+    z = z - np.max(z, axis=-1, keepdims=True)   # 减最大值
+    e = np.exp(z)
+    return e / e.sum(axis=-1, keepdims=True)
+```
+
+### 3.3 交叉熵的梯度为何如此简洁（关键）
+
+设真实类别为 one-hot $\boldsymbol{t}$，softmax 输出 $\boldsymbol{y}$，损失
+
+$$L = -\sum_k t_k\log y_k$$
+
+**推导**（利用 Week01 Day3 的 softmax Jacobian $\frac{\partial y_k}{\partial z_j} = y_k(\delta_{kj}-y_j)$）：
+
+$$\frac{\partial L}{\partial z_j} = -\sum_k \frac{t_k}{y_k}\cdot y_k(\delta_{kj}-y_j) = -\sum_k t_k(\delta_{kj}-y_j) = -\left(t_j - y_j\sum_k t_k\right)$$
+
+因为 $\sum_k t_k = 1$：
+
+$$\boxed{\ \frac{\partial L}{\partial \boldsymbol{z}} = \boldsymbol{y} - \boldsymbol{t}\ }$$
+
+**这就是"预测概率 - 真实标签"**。
+
+**意义**：分母的 $\sum_k e^{z_k}$ 在求导中被完全消掉了，所以**无论预测多离谱，梯度都不会消失**。这是 softmax + 交叉熵成为分类标准配置的根本原因。
+
+**工程实现**：用 `log_softmax` + `NLLLoss`（或框架的 `cross_entropy`），避免"先 softmax 再 log"的数值问题：
+
+```python
+# ❌ 不稳定
+loss = -np.log(softmax(logits)[target])
+
+# ✅ 稳定
+loss = -(logits[target] - logsumexp(logits))
+```
+
+---
+
+## 四、代码实践
+
+```python
+import numpy as np
+
+def relu(z, derivative=False):
+    if derivative:
+        return (z > 0).astype(z.dtype)
+    return np.maximum(0, z)
+
+def sigmoid(z):
+    out = np.empty_like(z, dtype=float)
+    pos = z >= 0
+    out[pos] = 1.0 / (1.0 + np.exp(-z[pos]))
+    ez = np.exp(z[~pos])
+    out[~pos] = ez / (1.0 + ez)
+    return out
+
+def softmax(z):
+    z = z - np.max(z, axis=-1, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=-1, keepdims=True)
+```
+
+完整版本见 `code/day2_activations.py`，包含：
+
+1. 五种激活函数及其导数的数值验证（与解析导数对比）；
+2. **梯度消失定量演示**：模拟 20 层 sigmoid 网络的梯度连乘衰减；
+3. **死亡 ReLU 演示**：用大学习率训练，统计死神经元比例，并对比 Leaky ReLU；
+4. **零均值对比**：sigmoid vs tanh 对梯度方向的影响（模拟 zig-zag）；
+5. **softmax + 交叉熵的梯度验证**：数值验证 $\frac{\partial L}{\partial\boldsymbol{z}} = \boldsymbol{y}-\boldsymbol{t}$。
+
+---
+
+## 五、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 隐层用 sigmoid | 深层网络必然梯度消失；改用 ReLU |
+| 输出层用 softmax + MSE | 梯度会消失（$y_i(1-y_i)$ 且无抵消）；应配交叉熵 |
+| 学习率过大导致 ReLU 死亡 | 减小 lr，或换 Leaky ReLU，或改用较小初始化 |
+| 忘记减最大值就 softmax | 上溢为 nan |
+| 先 softmax 再 log | $\log 0 = -\infty$；用 `log_softmax` |
+| 回归任务用 sigmoid 输出 | 无法表示 $[0,1]$ 外的值 |
+| 多标签任务用 softmax | softmax 强制各类互斥；多标签应逐元素 sigmoid |
+| 认为 ReLU 在 0 处必须可导 | 实践中取次梯度（0 或 1）即可，不影响训练 |
+
+---
+
+## 六、练习题
+
+**基础**
+
+1. 写出 sigmoid、tanh、ReLU 的表达式与导数。
+2. 说明为什么"没有非线性激活的多层网络等价于单层线性模型"。
+3. 写出三种任务的输出层激活与对应损失。
+
+**进阶**
+
+4. 证明 $\tanh(z) = 2\sigma(2z)-1$。
+5. 推导 softmax + 交叉熵的梯度 $\frac{\partial L}{\partial\boldsymbol{z}} = \boldsymbol{y}-\boldsymbol{t}$。
+6. 计算 sigmoid 导数在饱和区的值，并估算 10 层网络的梯度衰减倍数。
+7. 证明 Leaky ReLU 在整个定义域上都有非零导数（$\alpha>0$）。
+
+**思考题**
+
+8. 为什么"死亡 ReLU"是不可逆的？有哪些预防措施？
+9. 为什么多标签分类不能用 softmax？
+10. GELU 相比 ReLU 的优势是什么？为什么 Transformer 用它而不用 ReLU？
+
+<details>
+<summary>第 6 题答案</summary>
+
+$\sigma'(z) = \sigma(z)(1-\sigma(z)) \le 0.25$。
+
+在饱和区（如 $z=10$）：$\sigma(10) \approx 0.99995$，$\sigma'(10) \approx 0.99995\times0.00005 \approx 5\times10^{-5}$。
+
+10 层连乘（取每层 0.25 的上界）：$0.25^{10} = 9.5\times10^{-7}$。
+
+**即梯度衰减到百万分之一 ⇒ 浅层参数几乎不更新。**
+</details>
+
+<details>
+<summary>第 8 题答案要点</summary>
+
+**为什么不可逆**：当某神经元的输入恒为负时，ReLU 输出恒为 0，梯度恒为 0 ⇒ 参数**永远不会更新** ⇒ 输入仍然恒为负。形成死锁。
+
+**预防措施**：
+
+1. 减小学习率（避免一步把权重推到"全负"区域）；
+2. 使用合适的初始化（He 初始化，保证前向方差稳定）；
+3. 加偏置项并设一个小的正值（如 `b=0.1`）；
+4. 用 Leaky ReLU / PReLU / ELU（负区间有非零梯度）；
+5. 用 BatchNorm（规范了输入分布，减少极端负值）。
+
+**检测方法**：训练中统计每层激活值为 0 的比例；若某层超过 50% 且持续上升，说明有死亡神经元。
+</details>
+
+<details>
+<summary>第 9 题答案要点</summary>
+
+**softmax 的约束是 $\sum_k y_k = 1$**，即各类**互斥**。
+
+**多标签**（如一张图同时有"猫"和"沙发"）中，标签**可以同时为真**，需要每个标签独立输出概率。
+
+**正确做法**：输出层每个节点用 **sigmoid**，损失用**逐元素 BCE**：
+
+$$L = -\sum_{k=1}^{K}\left[t_k\log y_k + (1-t_k)\log(1-y_k)\right]$$
+
+**诊断方法**：如果发现"模型永远只输出一个标签"，先检查是不是误用了 softmax。
+</details>
+
+---
+
+## 七、一句话总结
+
+**激活函数是深度的意义所在；ReLU 解决了梯度消失，代价是死亡神经元；输出层的选择只需记住一条规则——让"输出层的激活 + 损失函数"这对搭档梯度优美。**
+
+---
+
+**明日预告**：Day3 讲反向传播。你会用**计算图**把链式法则变成两个简单的局部规则，然后手写一个能自动求导的"微型框架"。
+

@@ -1,0 +1,124 @@
+---
+slug: week-09
+kind: reference
+day: 10
+week: 9
+weekTitle: PyTorch 框架与数据管线
+weekBlurb: 张量、自动求导、计算图，Dataset / DataLoader 与第一个训练循环。
+title: PyTorch 框架与数据管线
+lead: '前八周我们用 NumPy 手写了一切：线性回归、逻辑回归、两层神经网络、反向传播。**手写是为了理解，框架是为了生产。** 这一周完成从"造轮子"到"开汽车"的迁移 —— 把 Week07 手写的每一行，……'
+sourcePath: Week09_PyTorch框架与数据管线/README.md
+---
+
+> CYC 深度学习课件 1.2 PyTorch（张量 / 自动求导 / 计算图 / 反向传播）· CYC CV 课件 01 数据处理与模型构建
+
+前八周我们用 NumPy 手写了一切：线性回归、逻辑回归、两层神经网络、反向传播。**手写是为了理解，框架是为了生产。** 这一周完成从"造轮子"到"开汽车"的迁移 —— 把 Week07 手写的每一行，换成 PyTorch 的等价写法。
+
+---
+
+## 本周目标
+
+学完本周，你应该能够：
+
+1. 熟练创建与操作 `Tensor`，说清它与 NumPy 数组的异同（`dtype` / `device` / 视图与拷贝）；
+2. 用 `autograd` 自动求导，理解**计算图**是如何被动态构建并释放的；
+3. 用 `nn.Module` 组织模型，理解 `Parameter`、子模块注册、`state_dict` 三层结构；
+4. 用 `Dataset` + `DataLoader` 搭出可复用、可并行、带变换的数据管线；
+5. 写出**规范的训练循环**（`train`/`eval` 模式、梯度清零、验证、保存最优、学习率调度）；
+6. 把 Week07 的两层网络用 PyTorch 重写，并在相同数据上对比精度与训练速度。
+
+---
+
+## 课件对照
+
+| 天 | 主题 | CYC 课件 | 其他参考 |
+| --- | --- | --- | --- |
+| Day1 | 张量与自动求导 | 深度学习/1.2 PyTorch | 花书 6.5（计算图） |
+| Day2 | nn.Module 与模型构建 | 深度学习/1.2 PyTorch | PyTorch 官方 60 分钟入门 |
+| Day3 | Dataset 与 DataLoader | CV/01 数据处理与模型构建 | torch.utils.data 文档 |
+| Day4 | 训练循环与优化器 | CV/01 数据处理与模型构建 | 花书 7.1–7.8 |
+| Day5 | 综合实战：PyTorch 重写 MNIST | CV/01 | 鱼书第 4 章（对照） |
+
+---
+
+## 时间安排
+
+| 天 | 内容 | 文档 | 代码 | 建议时长 |
+| --- | --- | --- | --- | --- |
+| Day1 | 张量与自动求导 | [Day1_张量与自动求导.md](/learn/ml/day-46) | `code/day1_tensor_autograd.py` | 3h |
+| Day2 | nn.Module 与模型构建 | [Day2_nnModule与模型构建.md](/learn/ml/day-47) | `code/day2_module.py` | 3h |
+| Day3 | Dataset 与 DataLoader | [Day3_数据集与DataLoader.md](/learn/ml/day-48) | `code/day3_dataset_dataloader.py` | 3h |
+| Day4 | 训练循环与优化器 | [Day4_训练循环与优化器.md](/learn/ml/day-49) | `code/day4_training_loop.py` | 3.5h |
+| Day5 | 综合实战：PyTorch 重写 MNIST | [Day5_实战PyTorch重写MNIST.md](/learn/ml/day-50) | `code/day5_pytorch_mnist.py` | 3.5h |
+
+---
+
+## 核心：NumPy 版 → PyTorch 版对照表
+
+这张表是**本周的总纲**，建议抄在手边。
+
+| 环节 | Week07 手写版（NumPy） | Week09 框架版（PyTorch） |
+| --- | --- | --- |
+| 数据容器 | `np.ndarray` | `torch.Tensor` |
+| 求梯度 | 手写 `backward()` 链式法则 | `loss.backward()` 自动求导 |
+| 层参数 | 自己维护 `W1, b1, W2, b2` | `nn.Linear` 自动注册 `Parameter` |
+| 层组合 | 手动按顺序调用 | `nn.Sequential` / 自定义 `Module.forward` |
+| 激活函数 | `np.maximum(0, x)` | `nn.ReLU()` |
+| 损失函数 | 手写 `SoftmaxWithLoss` | `nn.CrossEntropyLoss()` |
+| 参数更新 | `W -= lr * dW` | `optimizer.step()` |
+| 梯度清零 | 不存在（每次重算覆盖） | `optimizer.zero_grad()`（**必须显式调用**） |
+| 小批量切分 | 手动 `idx[s:s+32]` | `DataLoader(dataset, batch_size=32)` |
+| 训练/测试切换 | 自己传 `train=True/False` | `model.train()` / `model.eval()` |
+| GPU 加速 | 无 | `model.to(device)` / `x.to(device)` |
+
+> **最危险的一条**：NumPy 版不存在"梯度累积"，PyTorch 默认会**累加**梯度，忘了 `zero_grad()` 会导致梯度越滚越大。
+
+---
+
+## 本周检查清单
+
+- [ ] 我能说清 `Tensor` 与 `ndarray` 的三个关键差异（自动求导、设备、原地操作陷阱）
+- [ ] 我能解释 `requires_grad=True` 之后发生了什么，以及 `backward()` 之后图为什么被释放
+- [ ] 我知道为什么 `loss.backward()` 前必须 `optimizer.zero_grad()`
+- [ ] 我能说清 `model.train()` 与 `model.eval()` 到底改变了什么（Dropout / BatchNorm）
+- [ ] 我能用 `nn.Module` 写一个自定义网络，并打印出 `state_dict` 的键
+- [ ] 我能写一个自定义 `Dataset`（实现 `__len__` 与 `__getitem__`）
+- [ ] 我能说清 `num_workers`、`pin_memory`、`shuffle` 各自的作用
+- [ ] 我知道验证集评估为什么要包在 `with torch.no_grad():` 里
+- [ ] 我能手动做「梯度检查」验证 autograd 的结果与数值微分一致
+- [ ] 我能把模型 `save` 成 `state_dict` 并在另一个脚本里 `load` 回来继续训练
+
+---
+
+## 为什么这一周值得花时间
+
+```
+第 1~8 周                第 9 周                第 10~16 周
+┌──────────────┐   ┌──────────────┐   ┌────────────────────────┐
+│ NumPy 手写    │ → │ PyTorch 框架  │ → │ CNN / RNN / Transformer │
+│ 理解每一行    │   │ 换来生产力    │   │ 只改结构，训练循环不变   │
+└──────────────┘   └──────────────┘   └────────────────────────┘
+      知其所以然          知其然            用其所以然
+```
+
+后面 8 周的网络结构会不断变化，但**训练循环的骨架一次都不会变**。把 Day4 的循环模板背下来，后面的 CNN、RNN、Transformer 都只是换一个 `model` 而已。
+
+---
+
+## 环境准备
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# 有 NVIDIA 显卡（可选，代码自动检测）
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+
+# 验证
+python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+```
+
+**所有脚本都自动选择设备**：有 GPU 用 GPU，没有就用 CPU，无需改代码。
+
+---
+
+**下一篇**：[Day1_张量与自动求导.md](/learn/ml/day-46)
+

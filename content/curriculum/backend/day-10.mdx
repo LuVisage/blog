@@ -1,0 +1,505 @@
+---
+slug: day-10
+kind: day
+day: 10
+week: 2
+weekTitle: FastAPI 后端开发
+weekBlurb: HTTP 与 FastAPI、依赖注入与中间件、JWT 鉴权、SSE 流式输出、错误处理与可观测性。
+title: 错误处理与可观测性
+lead: 今日目标：统一所有错误的返回格式；分清 4xx 与 5xx；实现健康检查；建立 trace_id 贯穿的日志体系；知道出问题时该怎么排查。
+sourcePath: Python工程化与后端实战/Week2_FastAPI后端开发/Day5_错误处理与可观测性.md
+---
+
+> 今日目标：统一所有错误的返回格式；分清 4xx 与 5xx；实现健康检查；建立 trace_id 贯穿的日志体系；知道出问题时该怎么排查。
+> 配套案例：`code/demo_api/src/demo_service/api/errors.py`
+
+---
+
+## 5.1 知识地图
+
+```
+Day1-4  路由 / 依赖 / 鉴权 / 流式
+        │
+        ▼
+Day5（今天）★ 出错时能快速定位
+  ├─ 统一错误格式
+  ├─ 状态码怎么选
+  ├─ 不泄漏内部信息
+  ├─ 健康检查
+  ├─ trace_id 贯穿
+  └─ 排查流程
+        │
+        ▼
+Week3  换掉内存存储 -> PostgreSQL + Redis
+Week4  部署上线
+```
+
+---
+
+## 5.2 不统一错误格式的后果
+
+**FastAPI 默认会对不同错误返回不同结构**：
+
+```json
+// 参数校验失败 (422)
+{"detail": [{"loc": ["body","prompt"], "msg": "Field required", "type": "missing"}]}
+
+// HTTPException (401)
+{"detail": "缺少认证信息"}
+
+// 未捕获异常 (500)
+"Internal Server Error"        // ← 纯文本！连 JSON 都不是
+```
+
+**前端要为每种格式写一套解析代码**：
+
+```javascript
+// 前端的噩梦
+try {
+  const r = await fetch(...);
+  if (!r.ok) {
+    const body = await r.json().catch(() => null);
+    if (Array.isArray(body?.detail)) {
+      show(JSON.stringify(body.detail));
+    } else if (typeof body?.detail === 'string') {
+      show(body.detail);
+    } else {
+      show(await r.text());        // 500 的情况
+    }
+  }
+} catch (e) { ... }
+```
+
+**统一之后**：
+
+```json
+{
+  "error": "validation_error",
+  "message": "请求参数不合法",
+  "detail": [{"field": "body.prompt", "message": "Field required"}],
+  "trace_id": "66eb2f0702ca"
+}
+```
+
+**前端只要写一次**：
+
+```javascript
+if (!r.ok) {
+  const body = await r.json();
+  show(body.message);
+  console.error('trace:', body.trace_id);      // ← 报错时能直接给后端这个 ID
+}
+```
+
+> **`trace_id` 放进错误响应里是极其有用的实践**：用户截图报错时带着这个 ID，你就能在日志里精确定位那一次请求。
+
+---
+
+## 5.3 统一实现
+
+```python
+_STATUS_TO_CODE = {
+    400: "bad_request",      401: "unauthorized",
+    403: "forbidden",        404: "not_found",
+    405: "method_not_allowed", 409: "conflict",
+    422: "validation_error", 429: "rate_limited",
+    500: "internal_error",   502: "bad_gateway",
+    503: "service_unavailable", 504: "gateway_timeout",
+}
+
+def _body(error: str, message: str, detail=None) -> dict:
+    return {
+        "error": error,                   # 机器可读的错误码
+        "message": message,               # 人类可读的说明
+        "detail": detail,                 # 结构化细节（可选）
+        "trace_id": trace_id_var.get(),   # ★ 便于定位
+    }
+
+def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(RequestValidationError)
+    async def validation_handler(request, exc):
+        # 把 Pydantic 的错误整理成"哪个字段错了"
+        detail = [{
+            "field": ".".join(str(x) for x in e["loc"]),
+            "message": e["msg"],
+            "type": e["type"],
+        } for e in exc.errors()]
+        return JSONResponse(422, content=_body(
+            "validation_error", "请求参数不合法", detail))
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_handler(request, exc):
+        code = _STATUS_TO_CODE.get(exc.status_code, "http_error")
+        return JSONResponse(exc.status_code,
+                            content=_body(code, str(exc.detail)),
+                            headers=getattr(exc, "headers", None))
+
+    @app.exception_handler(Exception)
+    async def unhandled_handler(request, exc):
+        # ★ 日志里记完整堆栈，对外【不暴露】任何细节
+        logger.exception("未处理的异常", extra={"path": request.url.path})
+        return JSONResponse(500, content=_body(
+            "internal_error", "服务内部错误，请联系管理员"))
+```
+
+**三个 handler 的分工**：
+
+| Handler | 捕获什么 | 状态码 |
+| --- | --- | --- |
+| `RequestValidationError` | Pydantic 校验失败 | 422 |
+| `StarletteHTTPException` | 所有 `raise HTTPException(...)` | 由抛出者指定 |
+| `Exception` | 其他所有未捕获异常 | 500 |
+
+**执行的优先级**：**越具体的 handler 优先**。所以 `RequestValidationError` 会先于 `Exception` 被匹配。
+
+---
+
+## 5.4 状态码怎么选（实战指南）
+
+| 场景 | 状态码 | 理由 |
+| --- | --- | --- |
+| 查询成功 | 200 | |
+| 创建成功 | **201** | 语义准确，客户端知道有新资源 |
+| 删除成功且无返回体 | 204 | |
+| 参数不合法 | **422** | FastAPI 默认；也可用 400 |
+| 缺少/无效 token | **401** | 未认证 |
+| 已登录但无权限 | **403** | 已认证，未授权 |
+| 资源不存在 | **404** | |
+| 资源冲突（用户名已存在） | **409** | 比 400 语义更准 |
+| 请求过于频繁 | **429** | 必须带 `Retry-After` |
+| 服务内部错误 | 500 | **兜底，说明有 bug** |
+| **上游服务出错** | **502** | 不是你的错，是依赖的错 |
+| 上游超时 | **504** | |
+| 服务暂时不可用（维护中） | 503 | |
+
+**两条容易搞错的经验**：
+
+**① 上游出错用 502，不要用 500**
+
+```python
+try:
+    return await llm.chat(req)
+except ConnectionError as e:
+    # ✗ 500 会让监控告警以为是你自己的 bug
+    # ✓ 502 语义准确：坏网关（上游不可用）
+    raise HTTPException(502, "上游服务不可用，请稍后重试") from e
+```
+
+**为什么重要**：监控系统通常对 5xx 一视同仁地告警，但你排查时想知道"是我的问题还是依赖的问题"。502/504 明确指向**依赖**。
+
+**② 业务错误用 400，不要用 500**
+
+```python
+try:
+    return await llm.chat(req)
+except ValueError as e:
+    # 用户输入导致的错误 -> 400（客户端错误）
+    raise HTTPException(400, str(e)) from e
+```
+
+**案例代码的对应实现**：
+
+```python
+@chat.post("", response_model=ChatResponse)
+async def chat_once(req: ChatRequest, llm: LLM, user: CurrentUser):
+    try:
+        return await llm.chat(req)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e            # 业务错误
+    except ConnectionError as e:
+        raise HTTPException(502, "上游服务不可用，请稍后重试") from e   # 依赖错误
+```
+
+**案例测试验证**：
+
+```python
+@pytest.mark.parametrize("kind,expected_status,expected_error", [
+    ("400", 400, "bad_request"),
+    ("401", 401, "unauthorized"),
+    ("403", 403, "forbidden"),
+    ("404", 404, "not_found"),
+    ("409", 409, "conflict"),
+])
+def test_error_format_is_uniform(client, kind, expected_status, expected_error):
+    r = client.get(f"/api/v1/demo/error/{kind}")
+    assert r.status_code == expected_status
+    assert r.json()["error"] == expected_error
+    assert "trace_id" in r.json()
+```
+
+---
+
+## 5.5 不泄漏内部信息
+
+**未捕获异常的处理有一条铁律**：
+
+```python
+# ✗ 灾难：把堆栈返回给客户端
+@app.exception_handler(Exception)
+async def handler(request, exc):
+    return JSONResponse(500, content={
+        "error": str(exc),
+        "traceback": traceback.format_exc(),      # ← 泄漏一切
+    })
+```
+
+**堆栈会暴露什么**：
+
+| 泄漏内容 | 攻击者能做什么 |
+| --- | --- |
+| 文件路径 | 了解服务器目录结构 |
+| 库名与版本 | 查该版本的已知漏洞 |
+| SQL 语句 | 了解表结构与字段名 |
+| 变量值 | 可能含密钥、连接串 |
+| 框架内部结构 | 判断技术栈，定向攻击 |
+
+**正确做法**：
+
+```python
+@app.exception_handler(Exception)
+async def unhandled_handler(request, exc):
+    # 日志里记【完整】堆栈，方便自己排查
+    logger.exception("未处理的异常", extra={"path": request.url.path})
+
+    # 对外只给一个泛化的错误 + trace_id
+    return JSONResponse(500, content=_body(
+        "internal_error", "服务内部错误，请联系管理员"))
+```
+
+**测试验证**：
+
+```python
+def test_unhandled_exception_returns_500_without_leaking(app) -> None:
+    with TestClient(app, raise_server_exceptions=False) as c:
+        r = c.get("/api/v1/demo/error/boom")
+    assert r.status_code == 500
+    assert "故意抛出" not in r.json()["message"]         # 不泄漏异常信息
+    assert "Traceback" not in json.dumps(r.json())       # 不泄漏堆栈
+```
+
+> **注意 `raise_server_exceptions=False`**：TestClient 默认会把服务端异常重新抛出（方便调试），
+> 但那样就测不到"统一异常处理返回了什么"。要测真实响应必须关掉这个行为。
+
+---
+
+## 5.6 健康检查
+
+**两种探针，用途不同**：
+
+| 探针 | 端点 | 问什么 | 失败后果 |
+| --- | --- | --- | --- |
+| **Liveness（存活）** | `/health` | **进程还活着吗** | 容器被重启 |
+| **Readiness（就绪）** | `/readyz` | **能接受流量吗** | 从负载均衡摘掉，但不重启 |
+
+**最关键的设计原则**：
+
+> **Liveness 探针不能依赖外部服务。**
+
+```
+如果 /health 里检查了数据库:
+  数据库抖动 -> /health 返回 500 -> K8s 认为容器死了 -> 重启容器
+  -> 重启后数据库还是不通 -> 又重启 -> 【无限重启循环】
+  -> 整个服务雪崩
+
+而数据库抖动本来只需要"暂时摘掉流量"就够了（Readiness 的职责）
+```
+
+**实现**：
+
+```python
+@system_router.get("/health", response_model=HealthResponse, tags=["系统"])
+async def health(request: Request, settings: SettingsDep, store: Store):
+    """存活探针 —— 必须快（< 100ms）且不依赖外部服务"""
+    return HealthResponse(
+        status="ok",
+        version=settings.version,
+        uptime_seconds=round(time.time() - request.app.state.started_at, 1),
+        checks={"db": "ok", "llm": "ok", "users": str(store.count())},
+    )
+```
+
+**健康检查要暴露什么信息**：
+
+| 信息 | 用途 |
+| --- | --- |
+| `status` | 上游判断健康与否 |
+| `version` | **确认部署的是哪个版本**（排查"我的修复上线了吗"） |
+| `uptime_seconds` | 判断是否刚重启过（排查崩溃循环） |
+| `checks` | 各依赖的状态 |
+
+** 健康检查不要暴露敏感信息**：
+
+```python
+# ✗ 泄漏配置
+return {"db_url": settings.database_url, "api_key": settings.api_key}
+
+# ✓ 只给状态
+return {"checks": {"db": "ok", "llm": "ok"}}
+```
+
+**另外要注意**：
+
+| 注意点 | 说明 |
+| --- | --- |
+| **路径不带版本前缀** | 用 `/health` 而不是 `/api/v1/health`（探针配置简单） |
+| **必须免鉴权** | 否则负载均衡器探活失败 |
+| **必须豁免限流** | 否则高频探活会把自己限流掉 |
+| **要快** | 探针通常 1~5 秒超时 |
+
+案例代码的中间件里对此做了处理：
+
+```python
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.url.path in ("/health", "/docs", "/openapi.json"):
+            return await call_next(request)
+        ...
+```
+
+**并且有测试保证**：
+
+```python
+def test_health_is_exempt_from_rate_limit(client) -> None:
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert "X-RateLimit-Limit" not in r.headers
+```
+
+---
+
+## 5.7 可观测性三支柱与排查流程
+
+**回顾 Week1 Day4 的三支柱**：
+
+| 支柱 | 回答 | 工具 |
+| --- | --- | --- |
+| **Logs** | 发生了什么 | Loki / ELK |
+| **Metrics** | 系统健康吗 | Prometheus |
+| **Traces** | 慢在哪一步 | Jaeger / Tempo |
+
+**本周做到的是 Logs 扎实**：结构化 JSON + trace_id 贯穿。
+
+### 一个具体的排查流程
+
+**场景**：用户反馈"刚才那个请求报错了"。
+
+```
+① 用户提供 trace_id（从错误响应里拿的）
+     ↓
+② 按 trace_id 检索日志:
+     trace_id:"66eb2f0702ca" AND level:ERROR
+     ↓
+③ 看到完整的一次请求链路:
+     {"trace_id":"66eb...","msg":"请求完成","status":502,"elapsed_ms":30012}
+     {"trace_id":"66eb...","msg":"上游服务不可用"}
+     {"trace_id":"66eb...","msg":"耗时","func":"chat","elapsed_ms":30001}
+     ↓
+④ 结论: 上游 LLM 调用超时 30 秒
+     ↓
+⑤ 下一步: 看当时 LLM 服务的状态，或调整超时与重试策略
+```
+
+**如果没有 trace_id，同样的问题要这样排查**：
+
+```
+① 问用户"大概什么时候" -> "下午 2 点左右"
+② 翻 2 点的日志 -> 几千行
+③ 逐行猜哪一行是用户的请求 -> 靠 IP 匹配
+④ 可能匹配到多个请求，靠猜
+⑤ 半小时过去了
+```
+
+**这就是 trace_id 的价值**：把"半小时"变成"10 秒"。
+
+### 日志的四个好习惯
+
+| 习惯 | 例子 |
+| --- | --- |
+| **带业务标识** | `extra={"user_id": user.id, "prompt_len": len(prompt)}` |
+| **带耗时** | `extra={"elapsed_ms": 52.3}` |
+| **错误日志带堆栈** | 用 `logger.exception` 而不是 `logger.error` |
+| **关键节点都记** | 请求进来、调外部服务前、返回前 |
+
+**案例代码的日志样例**：
+
+```python
+logger.info("对话请求", extra={"user_id": user.id, "prompt_len": len(req.prompt)})
+logger.info("批量对话完成", extra={
+    "user_id": user.id, "ok": len(results), "fail": len(errors),
+    "concurrency": concurrency})
+logger.warning("登录失败", extra={"username": username})
+logger.exception("未处理的异常", extra={"path": request.url.path})
+```
+
+**这些日志输出成 JSON**：
+
+```json
+{"ts":"2026-09-15T12:40:42","level":"INFO","msg":"对话请求","trace_id":"66eb2f0702ca","user_id":1,"prompt_len":18}
+```
+
+**现在可以做的查询**：
+
+```
+user_id:1 AND level:WARNING                 谁在触发警告
+status:502                                   哪些请求打到了坏的上游
+elapsed_ms:>3000                             哪些请求慢
+trace_id:"abc123"                            某一次请求的完整链路
+```
+
+---
+
+## 5.8 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 前端要写多套错误解析 | 没统一错误格式 | 注册三个 exception handler |
+| 500 响应泄漏了堆栈 | 直接返回 `str(exc)` | 只返回泛化信息 + trace_id |
+| 上游错误报成 500 | 没区分依赖错误 | 用 502/504 |
+| 健康检查导致重启循环 | Liveness 依赖了外部服务 | Liveness 只检查进程 |
+| 健康检查被限流/鉴权 | 没豁免 | 中间件排除 + 免鉴权 |
+| 健康检查太慢 | 里面做了重查询 | 只做内存检查；依赖检查放 `/readyz` |
+| 日志里没有 trace_id | 中间件顺序不对 | TraceId 要在 AccessLog 之内 |
+| 错误响应里没有 trace_id | `_body` 里没加 | 统一从 `trace_id_var` 取 |
+| 监控无法区分版本 | 健康检查没暴露 version | 加上 |
+| 测试测不到 500 响应 | `raise_server_exceptions=True` | 设为 False |
+
+---
+
+## 5.9 今日自测
+
+1. 访问 `/api/v1/demo/error/{400,401,403,404,409}`，确认所有响应结构一致。
+2. 访问 `/api/v1/demo/error/boom`，确认返回 500 且**没有**泄漏异常信息。
+3. 从任一错误响应里拿 `trace_id`，去日志里搜索，找到这次请求的完整链路。
+4. 给健康检查加上 `version` 和 `uptime_seconds`，并解释它们的排查价值。
+5. 写一个 `/readyz` 端点，检查数据库/Redis 连通性，并说明它为什么不能和 `/health` 合并。
+
+---
+
+## 5.10 一句话总结
+
+**统一错误格式让前端只需写一套解析逻辑，而错误里带上 `trace_id` 让"用户截图报错"变成"10 秒定位"；状态码要分清楚是客户端错（4xx）、你自己的 bug（500）还是依赖的错（502/504）；而健康检查的铁律是 —— Liveness 绝不能依赖外部服务，否则依赖抖动会引发无限重启循环。**
+
+---
+
+## Week2 总结
+
+| 天 | 能力 | 代码位置 |
+| --- | --- | --- |
+| Day1 | 路由、参数、自动文档、应用工厂 | `api/app.py`、`api/routes.py` |
+| Day2 | 依赖注入、中间件、trace_id、CORS | `api/deps.py`、`api/middleware.py` |
+| Day3 | JWT、密码哈希、401/403 | `security.py` |
+| Day4 | **SSE 流式输出** | `api/routes.py` 的 `chat_stream` |
+| Day5 | 统一错误、健康检查、可观测性 | `api/errors.py` |
+
+**实测成果**：
+
+- 48 个测试全部通过
+- `/docs` 自动文档可用
+- JWT 鉴权（注册/登录/受保护接口）
+- 批量并发（8 个请求 0.06s）
+- **SSE 流式：首字节 6ms，全程 344ms**
+- 统一错误格式 + trace_id
+- 限流 + CORS + 健康检查
+
+**下周预告**：Week3 把内存存储换成 **PostgreSQL + Redis** —— 解决"重启数据就没了"和"多实例限流失效"这两个致命问题。
+

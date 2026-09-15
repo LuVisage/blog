@@ -1,0 +1,157 @@
+---
+slug: day-26
+kind: day
+day: 26
+week: 4
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: Biome 使用教程
+sourcePath: 04-代码检查与格式化/03-Biome.md
+---
+
+## 一、Biome 是什么
+
+Biome 是 Rust 编写的**一体化前端工具链**，用一个工具替代：
+
+- ESLint（Lint）
+- Prettier（格式化）
+
+特点：
+- **极快**：比 ESLint + Prettier 组合快 10 倍以上；
+- **零配置起步**：`biome init` 即可；
+- 单一二进制，无插件兼容地狱；
+- 支持 JS / TS / JSX / JSON / CSS / GraphQL（部分）。
+
+> 适合新项目、希望简化工具链的团队；老项目若依赖大量 ESLint 插件（如 react-hooks 之外的自定义规则），迁移需评估。
+
+## 二、安装
+
+```powershell
+pnpm add -D --save-exact @biomejs/biome
+npx biome init             # 生成 biome.json
+```
+
+VS Code 安装扩展 **Biome**（`biomejs.biome`）。
+
+## 三、配置文件
+
+`biome.json`：
+
+```jsonc
+{
+  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
+  "organizeImports": { "enabled": true },
+
+  "files": {
+    "ignore": ["dist", "coverage", "node_modules"]
+  },
+
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all"
+    }
+  },
+
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": { "noExplicitAny": "warn" },
+      "style": { "noNonNullAssertion": "off" }
+    }
+  }
+}
+```
+
+## 四、常用命令
+
+```powershell
+npx biome check .              # Lint + 格式检查 + import 排序（CI 用）
+npx biome check --write .      # 一键修复所有可修问题（日常开发）
+npx biome format . --write     # 只做格式化
+npx biome lint .               # 只做 lint
+npx biome lint --write .       # lint 自动修复
+npx biome ci .                 # CI 专用模式，输出更清晰、不写文件
+npx biome check --changed      # 只检查 git 变更文件
+```
+
+`package.json`：
+
+```json
+{
+  "scripts": {
+    "lint": "biome lint .",
+    "format": "biome format . --write",
+    "check": "biome check --write .",
+    "ci": "biome ci ."
+  }
+}
+```
+
+## 五、迁移现有项目
+
+```powershell
+npx biome migrate eslint --write      # 读取 .eslintrc 转换规则
+npx biome migrate prettier --write    # 读取 .prettierrc 转换配置
+```
+
+迁移后：
+
+1. 删除 `eslint` / `prettier` 相关依赖与配置；
+2. 替换 scripts；
+3. 更新编辑器设置（禁用 Prettier/ESLint 扩展，启用 Biome）；
+4. 全量跑一次 `biome check --write`，作为独立提交。
+
+## 六、VS Code 集成
+
+`.vscode/settings.json`：
+
+```json
+{
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
+  }
+}
+```
+
+## 七、Biome vs ESLint + Prettier
+
+| 维度 | Biome | ESLint + Prettier |
+| --- | --- | --- |
+| 性能 | 极快（Rust） | 慢（多进程 JS） |
+| 配置量 | 一个文件 | 多文件 + 多个插件 |
+| 插件生态 | 内置规则，扩展有限 | 极其丰富 |
+| 自动修复能力 | 强 | 强 |
+| 框架支持 | React hooks 等核心规则 | 全（Vue/Svelte/Angular...） |
+| 成熟度 | 快速成长中 | 十年生态 |
+| 适合 | 新项目、TS/React 团队 | 老项目、复杂插件需求 |
+
+> 结论：**TS/React 新项目可以优先 Biome**；Vue、依赖特殊插件的项目仍建议 ESLint。
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 和 ESLint/Prettier 同时生效打架 | 禁用对应扩展，只保留 Biome |
+| 某规则太严格 | 在 `linter.rules` 中改为 `"warn"` 或 `"off"` |
+| 想忽略某文件 | `files.ignore` 或文件顶加 `// biome-ignore` |
+| CSS 格式化不符合预期 | 检查 `css.formatter` 配置，或暂时忽略 CSS 文件 |
+| 与 lint-staged 集成 | `"*.{ts,tsx,js,jsx,json,css}": ["biome check --write --no-errors-on-unmatched"]` |
+
+## 九、参考
+
+- 官方文档：https://biomejs.dev/zh-cn/
+- 规则列表：https://biomejs.dev/linter/rules/
+

@@ -1,0 +1,51 @@
+---
+slug: path
+kind: reference
+day: 90
+week: 0
+weekTitle: 第 0 周
+weekBlurb: ''
+title: 开发工具使用教程合集
+lead: 本仓库按功能分类整理了现代软件开发中常用的工具，每个分类一个文件夹，内含该分类的总览 README 与各工具的具体使用教程。
+sourcePath: README.md
+---
+
+本仓库按功能分类整理了现代软件开发中常用的工具，每个分类一个文件夹，内含该分类的总览 README 与各工具的具体使用教程。
+
+> 适用环境：本教程以 **Windows + PowerShell** 为主，同时给出 macOS / Linux 的差异说明。所有示例均可在本地直接复现。
+
+## 目录
+
+| 分类 | 文件夹 | 主要内容 |
+| --- | --- | --- |
+| 1 | 01-版本控制 | Git、GitHub CLI（gh）、GitLab CLI（glab）、图形客户端、git-lfs、提交钩子 |
+| 2 | 02-包管理与运行时 | Node 版本管理、npm/pnpm/yarn/bun、npx、Python、Java、Rust、Go |
+| 3 | 03-构建打包 | Vite、Webpack、Rollup、esbuild、SWC、Babel、TypeScript、tsup、Turbo、Nx、Make/Just/Task |
+| 4 | 04-代码检查与格式化 | ESLint、Prettier、Biome、Ruff、Black、isort、golangci-lint、Husky、lint-staged、commitlint |
+| 5 | 05-测试 | Vitest、Jest、Playwright、Cypress、Testing Library、MSW、Pytest、JUnit、Go test |
+| 6 | 06-调试与网络 | Chrome DevTools、VS Code Debugger、curl、httpie、Postman、Insomnia、Apifox、Bruno、Charles、mitmproxy、Wireshark、ngrok、cloudflared、localtunnel |
+| 7 | 07-编辑器与IDE | VS Code、Cursor、WebStorm、IntelliJ IDEA、PyCharm、GoLand、RustRover、Neovim |
+| 8 | 08-终端与命令行 | Windows Terminal、iTerm2、Warp、Tabby、tmux、WSL2、zsh、fish、ripgrep、fd、fzf、bat、jq、tldr |
+| 9 | 09-容器与部署运维 | Docker、Podman、docker compose、kubectl、Helm、k9s、Nginx、Caddy、Vercel、Netlify、Cloudflare Pages、Railway、Render、Fly.io、Terraform、Ansible |
+| 10 | 10-CICD | GitHub Actions、GitLab CI、Jenkins、CircleCI、Argo CD、Flux CD |
+| 11 | 11-数据库与中间件 | DBeaver、DataGrip、TablePlus、pgAdmin、MySQL Workbench、RedisInsight、MongoDB Compass、Kafka 工具、RabbitMQ 管理台 |
+| 12 | 12-日志与监控 | Sentry、OpenTelemetry、Prometheus、Grafana、Loki、ELK、Jaeger、Zipkin |
+| 13 | 13-文档与协作 | Swagger/OpenAPI、Redoc、Storybook、GitHub、GitLab、Jira、Linear、Slack、飞书、Notion |
+
+## 建议学习路线
+
+如果你是初学者，推荐按以下顺序学习：
+
+1. **打基础**：Git（01）→ Node/包管理（02）→ 终端与命令行（08）
+2. **写代码**：编辑器与 IDE（07）→ 调试与网络（06）
+3. **保质量**：代码检查与格式化（04）→ 测试（05）
+4. **上生产**：构建打包（03）→ 容器与部署（09）→ CI/CD（10）
+5. **可观测**：数据库与中间件（11）→ 日志与监控（12）
+6. **团队协作**：文档与协作（13）
+
+## 阅读约定
+
+- `$` 开头的命令表示在终端中执行；注释用 `#` 标注。
+- 命令中的 `xxx` 为占位符，替换为你自己的名称。
+- 涉及安装的部分，默认给出 Windows（winget / scoop / choco）方式，并补充 macOS（brew）与 Linux（apt / dnf）方式。
+

@@ -1,0 +1,135 @@
+---
+slug: day-25
+kind: day
+day: 25
+week: 4
+weekTitle: 代码检查与格式化
+weekBlurb: ESLint、Prettier、Biome 与各语言 lint 方案，最后用提交前质量关卡把第 1 周的钩子填上真检查。
+title: Prettier 使用教程
+sourcePath: 04-代码检查与格式化/02-Prettier.md
+---
+
+## 一、Prettier 是什么
+
+**固执己见（opinionated）的代码格式化工具**，支持 JS/TS/JSX/Vue/HTML/CSS/SCSS/JSON/YAML/Markdown 等。
+
+核心理念：**放弃风格争论**，格式问题全部交给工具，团队只关注代码逻辑。
+
+## 二、安装
+
+```powershell
+pnpm add -D prettier
+# 或全局安装（不推荐，项目内安装保证版本一致）
+npm install -g prettier
+```
+
+## 三、配置
+
+`.prettierrc.json`：
+
+```json
+{
+  "semi": true,
+  "singleQuote": true,
+  "printWidth": 100,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "vueIndentScriptAndStyle": false
+}
+```
+
+常用配置项说明：
+
+| 选项 | 说明 | 推荐值 |
+| --- | --- | --- |
+| printWidth | 每行最大宽度 | 100 |
+| tabWidth | 缩进宽度 | 2 |
+| semi | 语句结尾分号 | true |
+| singleQuote | 使用单引号 | true |
+| trailingComma | 多行结尾逗号 | all |
+| endOfLine | 换行符 | lf（跨平台统一） |
+| quoteProps | 对象属性引号 | as-needed |
+
+忽略文件 `.prettierignore`：
+
+```gitignore
+dist
+coverage
+pnpm-lock.yaml
+*.min.js
+```
+
+## 四、常用命令
+
+```powershell
+npx prettier . --write                 # 格式化并写回
+npx prettier . --check                 # 只检查（CI 用，不通过则退出码非 0）
+npx prettier src/index.ts --write
+npx prettier . --write --cache         # 开启缓存加速
+npx prettier --support-info            # 查看支持的解析器与选项
+```
+
+`package.json`：
+
+```json
+{
+  "scripts": {
+    "format": "prettier . --write",
+    "format:check": "prettier . --check"
+  }
+}
+```
+
+## 五、编辑器集成（保存自动格式化）
+
+VS Code `.vscode/settings.json`：
+
+```json
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "[vue]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[markdown]": { "editor.formatOnSave": true }
+}
+```
+
+配合 ESLint 时的常见做法：
+
+- **方案 A（推荐）**：Prettier 管格式，ESLint 管质量，用 `eslint-config-prettier` 关闭冲突规则；
+- **方案 B（新项目）**：直接用 **Biome** 替代两者（见 03-Biome.md）。
+
+## 六、与其他工具配合
+
+| 场景 | 做法 |
+| --- | --- |
+| 提交前格式化 | lint-staged 中 `"*.{ts,tsx,json,md}": ["prettier --write"]` |
+| CI 校验 | `prettier . --check` 作为独立 job |
+| Tailwind 类名排序 | `prettier-plugin-tailwindcss` |
+| import 排序 | `@trivago/prettier-plugin-sort-imports` |
+| PHP/Java 等 | 通过插件或对应语言格式化器 |
+
+## 七、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 与 ESLint 规则冲突 | 安装 `eslint-config-prettier` 并在 ESLint 配置末尾引入 |
+| Windows 与 Mac 换行符不一致 | 设 `"endOfLine": "lf"`，并在 `.gitattributes` 加 `* text=auto eol=lf` |
+| 某些文件不想格式化 | 在文件首行加 `// prettier-ignore`，或加入 `.prettierignore` |
+| 单行想忽略 | 上一行加 `// prettier-ignore`（针对下一个节点） |
+| 格式化后代码语义变化 | 极少数边界情况（ASI、注释位置），检查后调整写法 |
+| 报 `.prettierrc` 解析失败 | 配置文件名必须合法（`prettier.config.js` 需导出对象） |
+
+## 八、最佳实践
+
+1. **项目内固定版本**（写入 devDependencies），避免不同机器格式化结果不同。
+2. **一次全量格式化单独提交**（`chore: apply prettier`），避免污染功能提交的 diff。
+3. CI 中必跑 `--check`，防止未格式化代码合入。
+4. 格式化规则不要频繁变更；如必须改，全仓库一次性调整。
+
+## 九、参考
+
+- 官方文档：https://prettier.io/docs/en/
+- 在线体验：https://prettier.io/playground/
+

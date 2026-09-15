@@ -1,0 +1,211 @@
+---
+slug: day-44
+kind: day
+day: 44
+week: 6
+weekTitle: 调试与网络
+weekBlurb: DevTools 与调试器断点、curl / httpie、抓包、API 客户端与内网穿透——排查问题的完整工具箱。
+title: 内网穿透使用教程（ngrok / cloudflared / localtunnel）
+sourcePath: 06-调试与网络/06-内网穿透.md
+---
+
+## 一、解决什么问题
+
+本地服务跑在 `localhost:3000`，外网无法访问。需要临时把本地端口暴露到公网时，用**内网穿透**：
+
+- 微信 / 支付宝 / 支付回调调试（必须公网 HTTPS 回调地址）；
+- GitHub / GitLab Webhook 调试；
+- 手机真机访问本机开发服务；
+- 给客户/同事演示正在开发的功能。
+
+## 二、三款工具对比
+
+| 工具 | 厂商 | 免费额度 | 特点 |
+| --- | --- | --- | --- |
+| ngrok | ngrok | 免费（随机域名、有限连接数） | 老牌、文档全、国内访问一般 |
+| cloudflared | Cloudflare | 免费额度大、可自定义域名 | 稳定、速度快、支持固定域名（需自有域名接入 CF） |
+| localtunnel | 开源 | 完全免费 | 零配置、极简，稳定性一般 |
+
+## 三、ngrok 使用
+
+### 安装与配置
+
+```powershell
+winget install ngrok.ngrok
+# 或 scoop install ngrok
+```
+
+1. 注册账号：https://dashboard.ngrok.com/signup
+2. 获取 Authtoken 并配置：
+
+```powershell
+ngrok config add-authtoken <YOUR_TOKEN>
+```
+
+### 基本用法
+
+```powershell
+ngrok http 3000                  # 暴露本地 3000 端口
+ngrok http 3000 --region ap      # 选择亚太节点（国内更快）
+ngrok http https://localhost:8443   # 转发到本地 HTTPS 服务
+```
+
+输出示例：
+
+```
+Forwarding  https://a1b2-c3d4.ngrok-free.app -> http://localhost:3000
+```
+
+把这个公网地址填到回调 / Webhook 配置里即可。
+
+### 实用功能
+
+```powershell
+ngrok http 3000 --basic-auth "user:pass"    # 加基础认证保护
+ngrok http 3000 --host-header=rewrite       # 改写 Host 头（虚拟主机场景）
+ngrok tcp 22                                # 暴露 TCP（非 HTTP）
+ngrok http 3000 --domain=your-domain.com    # 付费固定域名
+```
+
+本地 Web 面板：http://127.0.0.1:4040 可查看所有转发请求（含重放）。
+
+## 四、cloudflared 使用
+
+Cloudflare 的隧道工具，免费且稳定。
+
+### 安装
+
+```powershell
+winget install Cloudflare.cloudflared
+# macOS
+brew install cloudflared
+```
+
+### 快速隧道（免登录，随机域名）
+
+```powershell
+cloudflared tunnel --url http://localhost:3000
+```
+
+输出会给出一个 `https://xxx.trycloudflare.com` 地址。
+
+### 命名隧道（需登录 + 自有域名，地址固定）
+
+```powershell
+cloudflared tunnel login                       # 浏览器授权
+cloudflared tunnel create mytunnel             # 创建隧道
+cloudflared tunnel route dns mytunnel dev.example.com
+cloudflared tunnel run mytunnel                # 启动
+```
+
+配置文件 `~/.cloudflared/config.yml`：
+
+```yaml
+tunnel: mytunnel
+credentials-file: C:\Users\me\.cloudflared\<id>.json
+
+ingress:
+  - hostname: dev.example.com
+    service: http://localhost:3000
+  - hostname: api.example.com
+    service: http://localhost:8080
+  - service: http_status:404
+```
+
+启动后：
+
+```powershell
+cloudflared tunnel run mytunnel
+```
+
+### 常用命令
+
+```powershell
+cloudflared tunnel list
+cloudflared tunnel info mytunnel
+cloudflared tunnel delete mytunnel
+cloudflared service install     # 安装为系统服务，开机自启
+```
+
+## 五、localtunnel 使用
+
+零配置、无需注册：
+
+```powershell
+npx localtunnel --port 3000
+# 输出: your url is: https://xxx.loca.lt
+```
+
+指定子域名：
+
+```powershell
+npx localtunnel --port 3000 --subdomain myapp-demo
+```
+
+注意：首次访问会有一个「点击继续」的验证页；对自动化回调不友好，正式调试建议用 cloudflared。
+
+## 六、常见场景配置
+
+### 微信/支付宝回调调试
+
+1. 启动 `cloudflared tunnel --url http://localhost:8080`（需支持 HTTPS）；
+2. 把生成的 `https://xxx.trycloudflare.com/notify` 填入支付平台回调地址；
+3. 本地打印收到的回调报文，验证签名逻辑。
+
+### GitHub Webhook 调试
+
+1. 仓库 → Settings → Webhooks → Add webhook；
+2. Payload URL 填隧道地址 + `/webhook`；
+3. Content type 选 `application/json`；
+4. 本地用 `ngrok` 面板的 Replay 功能反复测试。
+
+### 手机真机访问本地开发服务
+
+```powershell
+# 方案 A：同一局域网直接访问电脑 IP（最简单，无需穿透）
+# 电脑 IP：ipconfig 查 IPv4，手机浏览器访问 http://192.168.x.x:5173
+
+# 方案 B：需要 HTTPS / 不在同一网络 → 内网穿透
+cloudflared tunnel --url http://localhost:5173
+```
+
+### 多个服务同时暴露
+
+```powershell
+# 开多个终端，或用 cloudflared 命名隧道的 ingress 多 hostname 配置
+ngrok http 3000
+ngrok http 8080
+```
+
+## 七、安全提醒
+
+1. 穿透地址是**公网可达**的，务必：
+ - 加基础认证（ngrok `--basic-auth`）；
+ - 或仅暴露非敏感服务；
+ - 用完立即停止隧道。
+2. 不要在穿透暴露的服务里放**真实用户数据**或生产数据库连接。
+3. 免费隧道的域名会被扫描机器人访问，日志里出现异常请求属正常。
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| ngrok 连接超时 | 换 region：`--region ap`；或检查公司网络是否拦截 |
+| 隧道地址每次重启都变 | 用 cloudflared 命名隧道（自有域名）或 ngrok 付费固定域名 |
+| HTTPS 证书不受信任 | 免费隧道域名证书由厂商签发，浏览器一般直接信任；若自签则需注意 |
+| 回调收到 502 | 本地服务未启动或端口写错；检查防火墙 |
+| 上传大文件超时 | 免费版有请求体大小/超时限制，考虑自建 frp/其他方案 |
+| 想让同事长期访问 | 用 cloudflared 命名隧道 + 自有域名，而非临时随机域名 |
+
+## 九、选型建议
+
+- **临时演示、快速验证** → ngrok（生态好）
+- **需要稳定固定域名、长期使用** → cloudflared（免费且强）
+- **完全免费零注册** → localtunnel（体验将就）
+
+## 十、参考
+
+- ngrok：https://ngrok.com/docs
+- cloudflared：https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+- localtunnel：https://github.com/localtunnel/localtunnel
+

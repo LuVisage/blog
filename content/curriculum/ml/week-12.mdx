@@ -1,0 +1,133 @@
+---
+slug: week-12
+kind: reference
+day: 13
+week: 12
+weekTitle: 现代 CNN 与注意力
+weekBlurb: 1x1 瓶颈、深度可分离卷积、注意力机制与高效网络设计。
+title: 现代 CNN 与注意力机制
+lead: 'Week11 的 ResNet 解决了"能不能更深"。这一周解决下一个问题：**在精度不变的前提下，能不能更小、更快？**'
+sourcePath: Week12_现代CNN与注意力/README.md
+---
+
+> CYC CV 课件 03–04 · 论文精读：MobileNet / Squeeze-and-Excitation / EfficientNet
+
+Week11 的 ResNet 解决了"能不能更深"。这一周解决下一个问题：**在精度不变的前提下，能不能更小、更快？**
+
+这是从"学术界刷分"转向"工业界落地"的关键一周 —— 手机端、边缘设备、实时推理的真实约束，全都在这一周的内容里。
+
+---
+
+## 本周目标
+
+学完本周，你应该能够：
+
+1. 说清 1×1 卷积的三种作用（跨通道融合、升降维、增加非线性），并会算它省下的参数量；
+2. 手写深度可分离卷积，说清它与标准卷积的参数量/计算量比值；
+3. 实现 SE（Squeeze-and-Excitation）注意力模块，解释"通道注意力"的机制；
+4. 说清 EfficientNet 的复合缩放（compound scaling）为什么比单独调深度/宽度更优；
+5. 在 Fashion-MNIST 上完成标准卷积 / 深度可分离 / SE 三种结构的完整对比；
+6. 建立"精度-参数量-FLOPs-延迟"四维评估的工程习惯。
+
+---
+
+## 课件对照
+
+| 天 | 主题 | 关键论文 | CYC |
+| --- | --- | --- | --- |
+| Day1 | 1×1 卷积与瓶颈结构 | Network in Network / ResNet | CV/03 |
+| Day2 | 深度可分离卷积 | MobileNet V1/V2 | CV/03 |
+| Day3 | 注意力机制（SE / CBAM） | Squeeze-and-Excitation Networks | CV/04 |
+| Day4 | 高效网络与复合缩放 | EfficientNet | CV/04 |
+| Day5 | 综合实战：Fashion-MNIST 对比 | — | CV/04 |
+
+---
+
+## 时间安排
+
+| 天 | 内容 | 文档 | 代码 | 建议时长 |
+| --- | --- | --- | --- | --- |
+| Day1 | 1×1 卷积与瓶颈结构 | [Day1_1x1卷积与瓶颈结构.md](/learn/ml/day-61) | `code/day1_bottleneck.py` | 3h |
+| Day2 | 深度可分离卷积 | [Day2_深度可分离卷积.md](/learn/ml/day-62) | `code/day2_depthwise.py` | 3.5h |
+| Day3 | 注意力机制 | [Day3_注意力机制.md](/learn/ml/day-63) | `code/day3_se_attention.py` | 3.5h |
+| Day4 | 高效网络与复合缩放 | [Day4_高效网络设计.md](/learn/ml/day-64) | `code/day4_efficientnet.py` | 3h |
+| Day5 | 综合实战：Fashion-MNIST 对比 | [Day5_实战现代CNN对比.md](/learn/ml/day-65) | `code/day5_fashion_benchmark.py` | 3.5h |
+
+---
+
+## 本周核心公式
+
+**标准卷积的计算量**：
+
+$$\text{FLOPs}_{\text{std}} = H_{out}W_{out}\cdot C_{out}\cdot C_{in}\cdot k^2$$
+
+**深度可分离卷积的计算量**：
+
+$$\text{FLOPs}_{\text{dw}} = \underbrace{H_{out}W_{out}\cdot C_{in}\cdot k^2}_{\text{逐通道卷积}} + \underbrace{H_{out}W_{out}\cdot C_{in}\cdot C_{out}}_{\text{逐点卷积}}$$
+
+**两者的比值**：
+
+$$\frac{\text{FLOPs}_{\text{dw}}}{\text{FLOPs}_{\text{std}}} = \frac{1}{C_{out}} + \frac{1}{k^2}$$
+
+> **这是本周最重要的一个公式**。$k=3$ 时比值约 $\frac{1}{C_{out}} + \frac{1}{9}$。当 $C_{out}=256$ 时，深度可分离卷积的计算量只有标准卷积的 **11.5%**。
+
+**SE 模块的参数量**：
+
+$$\text{Params}_{SE} = C \cdot \frac{C}{r} + \frac{C}{r}\cdot C = \frac{2C^2}{r}$$
+
+其中 $r$ 是压缩比（通常取 16）。
+
+**复合缩放**：
+
+$$\text{depth}: \alpha^\phi, \quad \text{width}: \beta^\phi, \quad \text{resolution}: \gamma^\phi$$
+$$\text{s.t.}\quad \alpha\cdot\beta^2\cdot\gamma^2 \approx 2, \quad \alpha,\beta,\gamma \ge 1$$
+
+---
+
+## 本周检查清单
+
+- [ ] 我能说清 1×1 卷积为什么不是"什么都没做"
+- [ ] 我能算出 `Bottleneck(256→64→256)` 比两个 3×3 卷积省多少参数
+- [ ] 我能手写深度可分离卷积（深度卷积 + 逐点卷积）并验证与标准卷积的输出形状一致
+- [ ] 我能验证 $\frac{1}{C_{out}}+\frac{1}{k^2}$ 这个比值公式
+- [ ] 我能实现 SE 模块并接入任意卷积块
+- [ ] 我能解释 SE 的 `sigmoid` 门控为什么用 sigmoid 而不是 softmax
+- [ ] 我能在 Fashion-MNIST 上跑通三种结构的对比实验
+- [ ] 我能报告"参数量 / FLOPs / 精度 / 训练时间"四项指标
+- [ ] 我能说清 EfficientNet 的复合缩放与"单独调宽度"的区别
+- [ ] 我知道什么时候**不该**用深度可分离卷积（大 batch、GPU 算力充足时可能更慢）
+
+---
+
+## 为什么这一周是"工业化"的转折点
+
+```
+Week11  ResNet            「能不能更深」        —— 学术问题
+Week12  MobileNet / SE    「能不能更小更快」    —— 工程问题
+        EfficientNet
+```
+
+**真实项目里的约束**（按重要性排序）：
+
+1. **能不能跑得动**（显存 / 延迟）；
+2. **精度够不够**（业务指标）；
+3. 训练成本；
+4. 模型大小（部署体积）。
+
+Week11 的网络精度很高但动辄上亿参数。本周的技术让同样的精度可以用 **1/10 的参数**达到。
+
+---
+
+## 环境准备
+
+```bash
+pip install torch torchvision matplotlib numpy
+```
+
+数据使用 **Fashion-MNIST**（28×28 灰度，10 类，比 MNIST 更难，更适合展示结构差异），
+脚本会自动下载到 `code/data/`。
+
+---
+
+**下一篇**：[Day1_1x1卷积与瓶颈结构.md](/learn/ml/day-61)
+

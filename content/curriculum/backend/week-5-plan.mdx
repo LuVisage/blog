@@ -1,0 +1,615 @@
+---
+slug: week-5-plan
+kind: reference
+day: 5
+week: 5
+weekTitle: 向量检索与 RAG 工程化
+weekBlurb: 切分 / HNSW / 重排 / 引用来源、RAGAS 评估与毕业项目，与 Agent 课程的 RAG 周直接衔接。
+title: 向量检索与 RAG 工程化
+lead: '**本周目标**：把前 4 周的能力用在一个真实的 AI 应用上 —— 一个生产级的 RAG 服务。'
+sourcePath: Python工程化与后端实战/Week5_向量检索与RAG工程化/README.md
+---
+
+> **本周目标**：把前 4 周的能力用在一个真实的 AI 应用上 —— 一个生产级的 RAG 服务。
+> 这是本教程的**毕业项目**。
+
+---
+
+## 为什么 RAG 是 AI 应用工程师的必备技能
+
+**先看 LLM 的三个固有限制**：
+
+| 限制 | 表现 | 解决方案 |
+| --- | --- | --- |
+| **知识截止** | 不知道训练后的新信息 | **RAG** |
+| **幻觉** | 编造看似合理的内容 | **RAG + 引用来源** |
+| **上下文有限** | 装不下大量文档 | **RAG（只塞相关的几段）** |
+
+**RAG（Retrieval-Augmented Generation，检索增强生成）** 的核心思路：
+
+```
+不：把知识"灌"进模型（微调，贵且效果差）
+而：在回答问题前，先【检索】出相关片段，塞进提示词里
+
+用户问："我们公司的年假政策是什么？"
+     ↓
+① 检索：从公司文档库里找出最相关的 3 段
+     ↓
+② 拼装：把【检索到的内容 + 问题】一起给 LLM
+     ↓
+③ 生成："根据公司政策文档，年假为……（引用自《员工手册》第 3.2 节）"
+```
+
+**为什么这在企业里是刚需**：
+
+| 需求 | 为什么只能靠 RAG |
+| --- | --- |
+| 内部文档问答 | 数据敏感，不能拿去微调 |
+| 客服知识库 | 知识每天都在变，微调跟不上 |
+| 法务/医疗合规 | **必须能引用来源**，微调做不到 |
+| 成本 | RAG 的成本比微调低一个数量级 |
+
+> **实践顺序**：**先提示工程 → 再 RAG → 最后才考虑微调。** 三者的成本差了一个数量级。
+
+---
+
+## 五天安排
+
+| 天 | 主题 | 关键内容 | 时长 |
+| --- | --- | --- | --- |
+| Day1 | 文本切分与 Embedding | 切分策略 / 重叠 / 元数据 / Embedding 选型与成本 | 3.5h |
+| Day2 | 向量索引原理 | 暴力检索 / **HNSW** / IVF / PQ / 召回率与内存估算 | 4h |
+| Day3 | RAG 全链路实现 | 入库 / 检索 / **重排** / 提示词拼装 / 引用来源 | 4.5h |
+| Day4 | RAG 评估 | RAGAS / 忠实度 / 答案相关性 / 检索指标 | 4h |
+| Day5 | 毕业项目 | 把 5 周全部串起来，部署上线 | 4h |
+
+---
+
+## Day1 核心：文本切分
+
+### 为什么必须切分
+
+```
+问题: 一篇 50000 字的文档，怎么放进只有 8k token 上下文的模型？
+
+✗ 整篇塞进去 -> 超出上下文 / 成本极高 / 关键信息被淹没
+✗ 每句话一段 -> 片段太碎，缺少上下文，检索质量差
+
+✓ 按语义完整性切分，每段 300~800 字，相邻段重叠 10~20%
+```
+
+### 三种切分策略
+
+| 策略 | 做法 | 适用 |
+| --- | --- | --- |
+| **固定长度** | 每 500 字切一刀 | 最简单，但会切断句子 |
+| **递归切分**（推荐） | 按 `\n\n` → `\n` → `。` → `，` 逐级尝试 | **通用，效果好** |
+| **语义切分** | 用 Embedding 判断语义边界 | 效果最好，但慢且贵 |
+
+**案例代码用的是递归切分**（LangChain 的 `RecursiveCharacterTextSplitter` 就是这个思路）：
+
+```python
+class RecursiveSplitter:
+    """按分隔符优先级递归切分 —— 优先在段落边界切，实在不行才按句子切"""
+
+    def __init__(self, chunk_size: int = 500, overlap: int = 100):
+        self.chunk_size = chunk_size
+        self.overlap = overlap
+        self.separators = ["\n\n", "\n", "。", "！", "？", "；", "，", " ", ""]
+
+    def split(self, text: str) -> list[str]:
+        return self._split(text, 0)
+
+    def _split(self, text: str, sep_idx: int) -> list[str]:
+        if len(text) <= self.chunk_size:
+            return [text] if text.strip() else []
+
+        if sep_idx >= len(self.separators):
+            # 实在切不开，硬切
+            return [text[i:i + self.chunk_size]
+                    for i in range(0, len(text), self.chunk_size - self.overlap)]
+
+        sep = self.separators[sep_idx]
+        parts = text.split(sep) if sep else list(text)
+
+        chunks, buf = [], ""
+        for p in parts:
+            piece = p + sep
+            if len(buf) + len(piece) <= self.chunk_size:
+                buf += piece
+            else:
+                if buf:
+                    chunks.append(buf)
+                # ★ 单个片段还是太长 -> 用下一级分隔符继续切
+                if len(piece) > self.chunk_size:
+                    chunks.extend(self._split(piece, sep_idx + 1))
+                    buf = ""
+                else:
+                    buf = piece
+        if buf:
+            chunks.append(buf)
+
+        # ★ 加重叠 —— 防止答案刚好被切在边界上
+        return self._add_overlap(chunks)
+```
+
+### 重叠（overlap）为什么必要
+
+```
+原文: "……年假为 10 天。入职满 3 年后增加至 15 天……"
+
+无重叠时可能切成:
+  片段A: "……年假为 10 天。"
+  片段B: "入职满 3 年后增加至 15 天……"
+
+用户问："入职 5 年的员工有多少年假？"
+  检索"入职 5 年" -> 命中片段B（有"入职满 3 年"）
+  但片段B里【没有】"15 天"的具体数字？不对，有。
+  问题是：如果答案是跨边界的，比如"10 天"和"15 天"的关系，
+  单个片段说明不了问题。
+```
+
+**重叠让相邻片段共享一部分内容**，保证跨边界的语义不丢。
+
+| 参数 | 经验值 |
+| --- | --- |
+| `chunk_size` | **300~800 字**（中文）；太小则缺上下文，太大则噪声多 |
+| `overlap` | **chunk_size 的 10~20%** |
+
+### 元数据（很重要但常被忽略）
+
+**每个片段必须带元数据**，否则：
+
+- 无法给出**引用来源**（RAG 的核心价值之一）；
+- 无法做**元数据过滤**（"只在 2024 年的文档里搜"）；
+- 无法**删除更新**（文档改了要删旧片段）。
+
+```python
+@dataclass
+class Chunk:
+    id: str                       # 唯一 ID（用文档ID+序号生成）
+    text: str                     # 片段内容
+    doc_id: str                   # 来自哪个文档
+    doc_title: str                # 文档标题
+    chunk_index: int              # 在文档里的位置
+    source: str | None = None     # 来源路径/URL
+    created_at: datetime | None = None
+    metadata: dict = field(default_factory=dict)   # 自定义字段
+
+    def to_prompt_block(self) -> str:
+        """转成提示词里的一段（★ 带来源信息）"""
+        return (f"[来源: {self.doc_title} 第 {self.chunk_index + 1} 段]\n"
+                f"{self.text}")
+```
+
+> **"引用来源"是 RAG 相对微调的【决定性优势】** —— 在法务、医疗、客服场景里，一个不能给出出处的答案是没用的。
+
+### Embedding：选型与成本
+
+| 方案 | 维度 | 成本 | 适用 |
+| --- | --- | --- | --- |
+| **OpenAI text-embedding-3-small** | 1536 | $0.02 / 1M tokens | 通用，性价比高 |
+| OpenAI text-embedding-3-large | 3072 | $0.13 / 1M tokens | 要求高 |
+| **BGE-M3 / bge-large-zh** | 1024 | **免费**（自部署） | 中文效果好，数据不出境 |
+| Cohere embed-multilingual | 1024 | $0.1 / 1M | 多语言 |
+
+**成本估算**（这个算术必须会）：
+
+```
+一篇 5000 字的文档 ≈ 7000 tokens
+1000 篇文档 ≈ 700 万 tokens
+
+用 text-embedding-3-small:
+  首次入库: 7M × $0.02/1M = $0.14      （几乎免费）
+
+向量存储:
+  1000 篇 × 10 片段/篇 = 10000 个向量
+  1536 维 × 4 字节 = 6KB/向量
+  总计 60MB（内存完全放得下）
+```
+
+**三个选型要点**：
+
+| 要点 | 说明 |
+| --- | --- |
+| **维度越高越准，但内存和检索成本也越高** | 3072 维比 1536 维贵一倍 |
+| **中文场景优先选中文优化的模型** | bge 系列对中文明显更好 |
+| **查询与文档必须用【同一个】模型** | 用不同模型生成的向量不在同一空间，检索完全失效 |
+
+> **最后一条是新手最容易犯的错**：换 Embedding 模型后，**必须重新入库所有文档**。
+
+---
+
+## Day2 核心：向量索引原理
+
+### 为什么需要索引
+
+```python
+# 暴力检索（Flat）：和每个向量算相似度
+for vec in all_vectors:              # 100 万个
+    score = cosine(query, vec)       # 每次 1536 次乘加
+# 单次查询 ≈ 100 万 × 1536 = 15 亿次运算 ≈ 100ms
+```
+
+**数据量上来后（1000 万向量）就是 10 秒** —— 不可接受。
+
+### 三种索引的取舍
+
+| 索引 | 原理 | 召回率 | 速度 | 内存 | 适用 |
+| --- | --- | --- | --- | --- | --- |
+| **Flat** | 暴力扫描 | 1.0 | 慢 | 全量 | &lt; 10 万 |
+| **IVF** | 先聚类，只搜最近的几个簇 | 0.9~0.98 | 快 | 全量 + 少量 | 百万级 |
+| **HNSW**（主流） | 多层图，逐层快速逼近 | **0.95~0.99** | **很快** | **全量 + 图开销** | **百万~亿级** |
+| **PQ** | 向量压缩 | 0.8~0.95 | 最快 | **1/4~1/16** | 内存受限 |
+
+**HNSW 为什么成为主流**：
+
+```
+核心思想: 建一个"多层的近邻图"
+
+第 2 层（稀疏）:  A ---------------- F
+                   \                /
+第 1 层（中等）:  A --- C --- E --- F
+                   \   / \   / \   /
+第 0 层（密集）:  A-B-C-D-E-F-G-H-I-J
+
+查询流程:
+  ① 从最高层的入口点开始
+  ② 在当前层贪心地向"更近的邻居"移动
+  ③ 无法更近时下沉到下一层
+  ④ 在最底层精细搜索，得到 top-k
+```
+
+| 参数 | 作用 | 调大的后果 |
+| --- | --- | --- |
+| **M** | 每个节点的连接数 | 召回率↑、内存↑（典型 16~64） |
+| **ef_construction** | 建图时的搜索宽度 | 索引质量↑、建索引慢（典型 100~500） |
+| **ef_search** | 查询时的搜索宽度 | **召回率↑、查询慢**（典型 50~200） |
+
+** HNSW 的一个重要限制**：**不支持实时删除**。
+
+```
+问题: 你删除了一个文档，它的向量还在图里？
+
+实际做法（Milvus / Qdrant 的处理）:
+  · 标记删除（软删除），查询时过滤掉
+  · 定期 compaction 重建索引
+```
+
+**这对 RAG 的含义**：**文档更新后不是立即生效的**，要接受这个延迟，或者定期重建。
+
+### 内存估算（运维必须会算）
+
+```
+内存 = 向量数 × 维度 × 4 字节 × (1 + 索引开销)
+
+例: 100 万向量，1536 维，HNSW
+  原始向量: 1e6 × 1536 × 4 = 6.1 GB
+  HNSW 图:  约 1e6 × 64 × 4 × 2 = 0.5 GB
+  总计: 约 6.6 GB
+
+如果用 PQ 压缩到 1/8:
+  向量: 0.77 GB
+  总计: 约 1.3 GB      <- 省 5 倍内存，代价是召回率下降
+```
+
+**这就是为什么很多团队最后选了 1024 维而不是 3072 维**：不是效果差异，是内存成本。
+
+### 相似度度量
+
+| 度量 | 公式 | 特点 |
+| --- | --- | --- |
+| **余弦相似度** | $\frac{a \cdot b}{\|a\|\|b\|}$ | **最常用**，只关心方向 |
+| 内积 | $a \cdot b$ | 更快，但受模长影响 |
+| 欧氏距离 | $\|a-b\|$ | 关心绝对距离 |
+
+**重要事实**：**如果向量都做了 L2 归一化，余弦相似度 ≡ 内积**。
+
+```python
+# 归一化后，余弦相似度就是内积 —— 计算量减半
+vec = vec / np.linalg.norm(vec)
+```
+
+**Week01 Day2 讲过余弦相似度的原理** —— 这里它变成了工程参数。
+
+---
+
+## Day3 核心：完整的 RAG 链路
+
+```
+【入库流程】（离线，一次性）
+文档 -> 解析（PDF/Word/Markdown）-> 切分 -> Embedding -> 存入向量库 + 元数据
+                                                              ↓
+【查询流程】（在线，每次请求）                          Postgres 存元数据
+用户提问 -> Embedding -> 向量检索 top-k -> 重排 -> 拼提示词 -> LLM -> 带引用的回答
+```
+
+### 三个关键环节
+
+**① 检索（Retrieval）**
+
+```python
+async def retrieve(query: str, top_k: int = 20) -> list[Chunk]:
+    qvec = await embed(query)
+    # 粗排：向量检索取较多候选（便宜）
+    return await vector_store.search(qvec, top_k=top_k)
+```
+
+**② 重排（Rerank）—— 最容易被忽略但收益最大的一步**
+
+```
+问题: 向量检索是"双塔"结构（query 和 doc 分别编码），
+      精度有限，top-20 里常常只有 3~5 个真正相关
+
+解法: 用一个"交叉编码器"（cross-encoder）对这 20 个候选精细打分
+
+对比:
+  双塔（bi-encoder）:  encode(q) · encode(d)     很快，精度低
+  交叉编码器:          encode(q + d)             很慢，精度高
+
+所以: 向量检索粗排 top-20 -> 重排精排取 top-3 -> 给 LLM
+```
+
+| | 双塔（向量检索） | 交叉编码器（重排） |
+| --- | --- | --- |
+| 速度 | 快（可预计算 doc 向量） | 慢（每个 q-d 对都要算一次） |
+| 精度 | 中 | **高** |
+| 用途 | 从百万里选 20 个 | 从 20 个里选 3 个 |
+
+**实测收益**：重排通常能把 RAG 的答案准确率提升 **10~25 个百分点**。
+
+```python
+async def rerank(query: str, candidates: list[Chunk],
+                 top_n: int = 3) -> list[Chunk]:
+    """用交叉编码器精排"""
+    # 生产环境用 Cohere Rerank / bge-reranker
+    # 这里用一个简单的词项重叠打分演示
+    scored = []
+    for c in candidates:
+        score = _lexical_overlap(query, c.text)
+        scored.append((score, c))
+    scored.sort(key=lambda x: -x[0])
+    return [c for _, c in scored[:top_n]]
+```
+
+**③ 提示词拼装（含引用）**
+
+```python
+SYSTEM_PROMPT = """你是一个严谨的文档问答助手。
+
+规则:
+1. 只根据【参考资料】回答，不要使用你自己的知识
+2. 如果参考资料里没有答案，直接说"根据现有资料无法回答"
+3. 回答时用 [序号] 标注引用来源
+4. 不要编造资料里没有的信息
+
+参考资料:
+{context}
+"""
+
+def build_messages(query: str, chunks: list[Chunk]) -> list[dict]:
+    context = "\n\n---\n\n".join(
+        f"[{i + 1}] {c.doc_title}\n{c.text}" for i, c in enumerate(chunks))
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT.format(context=context)},
+        {"role": "user", "content": query},
+    ]
+```
+
+**四个提示词设计要点**：
+
+| 要点 | 为什么 |
+| --- | --- |
+| **明确"只用参考资料"** | 减少模型用自己的（可能是错的）知识 |
+| **明确"不知道就说不知道"** | **这是抑制幻觉最有效的一句话** |
+| **要求标注引用** | 可验证，用户体验好 |
+| **编号 + 来源标题** | 让模型能正确引用 |
+
+> **"如果资料里没有答案，就直接说不知道"** —— 这一句的价值被严重低估。
+> Week16 Day5 讲过：幻觉的根源是模型的目标是"生成合理文本"而非"说真话"。
+> 显式允许它说"不知道"，能大幅降低幻觉率。
+
+---
+
+## Day4 核心：RAG 评估
+
+**这是把"玩具"和"生产系统"区分开的地方。**
+
+**没有评估会怎样**：
+
+```
+你改了切分策略 -> 感觉"好像好一点" -> 上线 -> 用户投诉变多 -> 不清楚为什么
+```
+
+**Week15 Day5 讲过**：生成任务的评估比分类难得多。RAG 有更结构化的评估框架（**RAGAS**）。
+
+### 四个核心指标
+
+| 指标 | 衡量什么 | 怎么算 |
+| --- | --- | --- |
+| **忠实度（Faithfulness）** | 答案是否**只基于**检索到的内容 | 把答案拆成陈述句，检查每句能否从 context 推出 |
+| **答案相关性（Answer Relevancy）** | 答案是否**真的回答了**问题 | 用 LLM 判断，或用"反向生成问题"的相似度 |
+| **上下文精确率（Context Precision）** | 检索到的片段**有多少是相关的** | 相关的片段排在前面吗 |
+| **上下文召回率（Context Recall）** | **该检索到的都检索到了吗** | 标准答案里的信息在 context 里能找到吗 |
+
+**两个最实用的**：
+
+```
+上下文召回率低 -> 检索有问题（切分/Embedding/索引）-> 优化检索
+上下文召回率高但忠实度低 -> 提示词有问题（没限制住）-> 优化提示词
+```
+
+**这个诊断路径非常重要**：它告诉你"该改检索还是改提示词"。
+
+### 评估集的构造
+
+**三种方式**：
+
+| 方式 | 做法 | 成本 |
+| --- | --- | --- |
+| **人工标注** | 人工写 50~100 个（问题，标准答案，相关文档） | 高，但最准 |
+| **LLM 生成** | 拿文档片段让 LLM 生成问题 | 低，需人工筛 |
+| **线上挖掘** | 收集真实用户问题 + 人工标注答案 | 最真实 |
+
+**最低要求**：**50 个问题**。少于这个数，指标波动会大到无法判断改动是否有用。
+
+```python
+@dataclass
+class EvalSample:
+    question: str
+    ground_truth: str                    # 标准答案
+    relevant_doc_ids: set[str]           # 应该检索到的文档
+
+async def evaluate_pipeline(pipeline, samples: list[EvalSample]) -> dict:
+    metrics = defaultdict(list)
+
+    for s in samples:
+        result = await pipeline.answer(s.question)
+        retrieved_ids = {c.doc_id for c in result.chunks}
+
+        # ---- 检索指标（不需要 LLM，便宜）----
+        hit = len(retrieved_ids & s.relevant_doc_ids) / len(s.relevant_doc_ids)
+        metrics["recall"].append(hit)
+
+        precision = (len(retrieved_ids & s.relevant_doc_ids)
+                     / max(len(retrieved_ids), 1))
+        metrics["precision"].append(precision)
+
+        # ---- 生成指标（需要 LLM 评判）----
+        metrics["faithfulness"].append(
+            await judge_faithfulness(result.answer, result.chunks))
+        metrics["relevancy"].append(
+            await judge_relevancy(s.question, result.answer))
+
+    return {k: float(np.mean(v)) for k, v in metrics.items()}
+```
+
+### 用评估驱动优化
+
+**案例代码会演示一个完整的优化实验**：
+
+| 配置 | 召回率 | 忠实度 | 说明 |
+| --- | --- | --- | --- |
+| 基线（chunk=500, top-k=3） | — | — | 建基线 |
+| chunk=200 | — | — | 片段太小，缺上下文 |
+| chunk=1000 | — | — | 片段太大，噪声多 |
+| + 重排 | — | — | 通常提升最明显 |
+| + 更好的提示词 | — | — | 忠实度提升 |
+
+> **纪律**：**每次只改一个变量**（这是 Week10 Day5 和 Week15 Day5 反复强调的消融纪律）。
+
+---
+
+## Day5 核心：毕业项目
+
+**要求：一个部署在公网、可被使用的 RAG 服务，包含**：
+
+```
+✅ 文档上传接口（支持 Markdown / txt，可扩展到 PDF）
+✅ 自动切分 + Embedding + 入库（带元数据）
+✅ 向量检索（HNSW 索引，带元数据过滤）
+✅ 重排（cross-encoder 或词项重叠）
+✅ 带引用来源的回答
+✅ SSE 流式输出
+✅ JWT 鉴权（每个用户只能访问自己的文档）
+✅ PostgreSQL 存文档元数据与对话历史
+✅ Redis 做检索缓存与限流
+✅ RAG 评估脚本（50 个问题，四个指标）
+✅ 结构化日志 + trace_id + 健康检查
+✅ pytest 测试（覆盖率 > 60%）
+✅ Docker Compose 一键启动
+✅ Nginx + HTTPS 部署在公网
+✅ README 含架构图、API 文档、部署步骤、评估结果
+```
+
+### 验收：面试官会怎么问
+
+| 问题 | 你应该能答 |
+| --- | --- |
+| "你的 RAG 怎么评估的？" | 50 个标注样本 + 四个指标 + 消融实验表 |
+| "为什么 chunk_size 选 500？" | 我试了 200/500/1000，500 的召回率最高（给数据） |
+| "重排有用吗？" | 有，召回率从 X 提到 Y（给数据） |
+| "怎么防止幻觉？" | 提示词限制 + 强制引用 + 忠实度指标监控 |
+| "如何防止用户互相看到文档？" | 元数据过滤 + 数据库层面的 user_id 隔离 |
+| "向量库为什么选这个？" | 数据量、内存估算、召回率实测 |
+| "文档更新后多久生效？" | HNSW 不支持实时删除，我们做了软删除 + 定期重建 |
+| "检索慢怎么办？" | 索引参数调优（ef_search）、缓存高频查询、PQ 压缩 |
+| "成本多少？" | Embedding 一次性 $X + 每次查询 $Y，能算出数 |
+| "下一步优化什么？" | 有数据支撑的优先级，而不是"试着换个大模型" |
+
+> **最后一条最能区分人**：能说出"我的数据显示瓶颈在检索召回率，所以下一步优化切分和重排"，比"我觉得可以用 GPT-4"有说服力得多。
+
+---
+
+## 环境准备
+
+```bash
+# 向量库（选一个，Mivus / Qdrant / pgvector）
+# 推荐 pgvector —— 复用 Week3 的 Postgres，不用多一个服务
+docker run -d --name pg -e POSTGRES_PASSWORD=devpass -p 5432:5432 \
+  pgvector/pgvector:pg16
+
+# 在 Postgres 里启用扩展
+psql -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+```bash
+pip install sqlalchemy[asyncio] asyncpg alembic redis
+pip install pgvector
+pip install pypdf python-docx          # 文档解析
+```
+
+**为什么推荐 pgvector**：
+
+| 优点 | 说明 |
+| --- | --- |
+| **复用已有的 Postgres** | 少一个服务、少一份运维 |
+| **向量 + 元数据在同一个库** | 可以一条 SQL 做"向量检索 + 元数据过滤" |
+| **支持事务** | 文档和向量能原子更新 |
+| **IVFFlat / HNSW 都支持** | 百万级数据够用 |
+
+**什么时候需要专门的向量库（Milvus / Qdrant）**：
+
+- 数据量 > 千万向量；
+- 需要 PQ 压缩省内存；
+- 需要分布式与水平扩展。
+
+---
+
+## 本周检查清单
+
+- [ ] 我能说清 RAG 相对微调的三个优势（成本、更新速度、可引用）
+- [ ] 我能实现递归切分，并说清 overlap 为什么必要
+- [ ] 我知道每个片段必须带哪些元数据，以及为什么
+- [ ] 我能估算 100 万向量的内存占用
+- [ ] 我能说清 HNSW 的 M / ef_construction / ef_search 各调什么
+- [ ] 我知道 HNSW 不支持实时删除，以及生产上怎么绕
+- [ ] 我能说清双塔与交叉编码器的区别，以及重排为什么值得做
+- [ ] 我能写出抑制幻觉的提示词（尤其是"不知道就说不知道"那句）
+- [ ] 我能构造评估集并用四个 RAGAS 指标做消融
+- [ ] 我能从"召回率低 vs 忠实度低"诊断出该改检索还是改提示词
+
+---
+
+## 毕业项目的价值
+
+**这一个项目能同时回答面试官的六个问题**：
+
+| 面试官想看的 | 项目体现了 |
+| --- | --- |
+| 会写代码吗 | 5 周积累的完整代码库 |
+| 懂工程吗 | 测试、日志、配置、错误处理、可观测性 |
+| 能上线吗 | Docker Compose + Nginx + HTTPS + 部署脚本 |
+| 懂 AI 吗 | RAG + 向量索引 + 重排 + 提示词 + 评估 |
+| 考虑过性能吗 | 异步、缓存、索引、限流、连接池 |
+| 有数据驱动的思维吗 | 消融实验表、成本估算、有依据的优化优先级 |
+
+**最重要的是最后一条**：**能给出数据的人，和只能给出感觉的人，在面试里是两个层次。**
+
+---
+
+**从这里继续**：
+- 回到 `README.md` 查看完整的 5 周路线
+- 开始 Agent 开发教程（LangChain / LangGraph / MCP）
+- 参考 [Agent开发工程师路线图.md](/learn/ml/agent-roadmap) 规划后续学习
+

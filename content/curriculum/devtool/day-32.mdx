@@ -1,0 +1,214 @@
+---
+slug: day-32
+kind: day
+day: 32
+week: 5
+weekTitle: 测试
+weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
+title: Playwright 使用教程
+sourcePath: 05-测试/03-Playwright.md
+---
+
+## 一、Playwright 是什么
+
+微软出品的现代**端到端（E2E）测试与浏览器自动化**框架：
+
+- 支持 Chromium / Firefox / WebKit（含移动端模拟）；
+- **自动等待**（auto-waiting），几乎不需要手写 `sleep`；
+- 内置并行、重试、录制器（codegen）、Trace 查看器；
+- 多语言：JS/TS、Python、Java、.NET。
+
+## 二、安装与初始化
+
+```powershell
+pnpm create playwright        # 交互式初始化
+# 或手动
+pnpm add -D @playwright/test
+npx playwright install        # 下载浏览器（chromium/firefox/webkit）
+npx playwright install --with-deps   # CI 上装系统依赖
+```
+
+## 三、配置
+
+`playwright.config.ts`：
+
+```ts
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 30_000,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 2 : undefined,
+  reporter: [['html', { open: 'never' }], ['list']],
+
+  use: {
+    baseURL: 'http://localhost:5173',
+    trace: 'on-first-retry',       // 失败时保留 trace
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+  },
+
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'mobile', use: { ...devices['iPhone 14'] } },
+  ],
+
+  webServer: {
+    command: 'pnpm dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: !process.env.CI,
+  },
+});
+```
+
+## 四、编写测试
+
+```ts
+import { test, expect } from '@playwright/test';
+
+test.describe('登录流程', () => {
+  test('正确账号可以登录', async ({ page }) => {
+    await page.goto('/login');
+
+    await page.getByLabel('用户名').fill('admin');
+    await page.getByLabel('密码').fill('secret');
+    await page.getByRole('button', { name: '登录' }).click();
+
+    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page.getByRole('heading', { name: '控制台' })).toBeVisible();
+  });
+
+  test('错误密码提示错误', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('用户名').fill('admin');
+    await page.getByLabel('密码').fill('wrong');
+    await page.getByRole('button', { name: '登录' }).click();
+    await expect(page.getByText('用户名或密码错误')).toBeVisible();
+  });
+});
+```
+
+### 定位器优先级（官方推荐）
+
+```ts
+page.getByRole('button', { name: '提交' });   // ① 最推荐（无障碍角色）
+page.getByLabel('邮箱');                       // ② 表单标签
+page.getByPlaceholder('请输入密码');           // ③
+page.getByText('欢迎回来');                    // ④
+page.getByTestId('submit-btn');               // ⑤ 显式测试 id，最稳定
+page.locator('.btn-primary');                 // ⑥ CSS，最后手段
+```
+
+### 常用操作
+
+```ts
+await page.goto('/');
+await page.getByRole('link', { name: '设置' }).click();
+await page.getByLabel('搜索').fill('playwright');
+await page.getByLabel('搜索').press('Enter');
+await page.selectOption('select#city', 'shanghai');
+await page.getByLabel('同意').check();
+await page.getByTestId('file').setInputFiles('fixtures/a.png');
+await expect(page.getByTestId('result')).toHaveText('找到 3 条');
+await expect(page).toHaveScreenshot('home.png');   // 视觉对比
+```
+
+### 网络拦截与 Mock
+
+```ts
+// 拦截并返回假数据
+await page.route('**/api/users', (route) =>
+  route.fulfill({ status: 200, json: [{ id: 1, name: 'Ada' }] }),
+);
+
+// 等待接口返回
+const respPromise = page.waitForResponse('**/api/login');
+await page.getByRole('button', { name: '登录' }).click();
+const resp = await respPromise;
+expect(resp.status()).toBe(200);
+```
+
+### 存储状态复用（登录一次，多测试复用）
+
+```ts
+// auth.setup.ts
+import { test as setup } from '@playwright/test';
+
+setup('登录并保存状态', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('用户名').fill('admin');
+  await page.getByLabel('密码').fill('secret');
+  await page.getByRole('button', { name: '登录' }).click();
+  await page.context().storageState({ path: 'e2e/.auth/user.json' });
+});
+```
+
+config 中配置 `projects` 依赖与 `storageState` 即可全程免登录。
+
+## 五、常用命令
+
+```powershell
+npx playwright test                    # 跑全部
+npx playwright test login.spec.ts      # 指定文件
+npx playwright test -g "登录"          # 按名称过滤
+npx playwright test --project=chromium # 只跑某浏览器
+npx playwright test --headed           # 显示浏览器窗口
+npx playwright test --ui               # UI 模式（调试神器）
+npx playwright test --debug            # 单步调试
+npx playwright codegen http://localhost:5173   # 录制生成代码
+npx playwright show-report             # 打开 HTML 报告
+npx playwright show-trace trace.zip    # 打开 trace 回放
+npx playwright test --update-snapshots # 更新视觉快照
+```
+
+## 六、CI 集成
+
+```yaml
+- run: pnpm playwright install --with-deps chromium
+- run: pnpm playwright test --project=chromium
+- uses: actions/upload-artifact@v4
+  if: failure()
+  with:
+    name: playwright-report
+    path: playwright-report/
+```
+
+## 七、Playwright vs Cypress
+
+| 维度 | Playwright | Cypress |
+| --- | --- | --- |
+| 浏览器支持 | Chromium/Firefox/WebKit | 主要 Chromium 系（+Firefox/WebKit 实验） |
+| 多标签/多窗口 | 原生支持 | 支持有限 |
+| 自动等待 | 强 | 强 |
+| 执行架构 | 进程外（CDP） | 进程内（跑在浏览器里） |
+| 并行 | 内置 shard / worker | 需 Dashboard（付费）或第三方 |
+| 调试体验 | Trace / UI / codegen | 时间旅行调试极佳 |
+| 语言 | JS/TS/Python/Java/.NET | 仅 JS/TS |
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 元素定位不稳定 | 改用 `getByRole/getByTestId`；避免依赖 nth-child |
+| CI 上浏览器装不上 | `playwright install --with-deps`；或用官方 docker 镜像 |
+| 本地过、CI 挂 | 检查时区/语言/视口；开 trace 分析；提高 retries |
+| 登录态每个测试都要重登 | 用 `storageState` 复用 |
+| 测试太慢 | 只跑必要 project（CI 跑 chromium）；开 `fullyParallel` |
+| 视觉对比经常失败 | 设 `maxDiffPixelRatio`；字体渲染差异用固定环境 |
+
+## 九、最佳实践
+
+1. **E2E 只测关键路径**（登录、下单、支付），数量控制在几十个以内。
+2. 用 `data-testid` 作为稳定契约，与产品约定好。
+3. 失败必留 **trace + 截图 + 视频**，定位成本大幅降低。
+4. 并行 + 重试 + 分层（smoke 每次提交跑，全量每晚跑）。
+5. 不依赖真实第三方服务，全部 route mock。
+
+## 十、参考
+
+- 官方文档：https://playwright.dev/
+- Trace Viewer：https://playwright.dev/docs/trace-viewer
+

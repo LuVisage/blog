@@ -1,0 +1,209 @@
+---
+slug: day-11
+kind: day
+day: 11
+week: 2
+weekTitle: 包管理与运行时
+weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
+title: Java 构建工具教程（Maven / Gradle）
+sourcePath: 02-包管理与运行时/05-Java构建工具.md
+---
+
+## 一、定位
+
+| 工具 | 配置方式 | 特点 |
+| --- | --- | --- |
+| Maven | XML（pom.xml） | 约定优于配置，标准化强，企业常见 |
+| Gradle | Groovy/Kotlin DSL | 灵活、增量构建快，Android/Spring 新项目主流 |
+
+两者都负责：依赖管理、编译、测试、打包、发布。
+
+## 二、环境准备
+
+```powershell
+# JDK（先装）
+winget install EclipseAdoptium.Temurin.21.JDK
+java -version
+
+# Maven
+winget install Apache.Maven
+mvn -v
+
+# Gradle（推荐用 wrapper，不必全局安装）
+winget install Gradle.Gradle
+gradle -v
+```
+
+国内加速（Maven `~/.m2/settings.xml`）：
+
+```xml
+<mirrors>
+  <mirror>
+    <id>aliyun</id>
+    <mirrorOf>central</mirrorOf>
+    <url>https://maven.aliyun.com/repository/public</url>
+  </mirror>
+</mirrors>
+```
+
+Gradle 加速（`init.gradle` 或项目仓库声明）：
+
+```groovy
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    mavenCentral()
+}
+```
+
+## 三、Maven 使用
+
+### 常用命令
+
+```powershell
+mvn archetype:generate -DgroupId=com.demo -DartifactId=demo-app -DarchetypeArtifactId=maven-archetype-quickstart
+mvn clean                 # 清理 target
+mvn compile               # 编译
+mvn test                  # 跑测试
+mvn package               # 打包（jar/war）
+mvn install               # 装入本地仓库 ~/.m2
+mvn deploy                # 发布到私服
+mvn spring-boot:run       # Spring Boot 运行
+mvn dependency:tree       # 查看依赖树（排查冲突）
+mvn -DskipTests package   # 跳过测试打包
+mvn versions:display-dependency-updates   # 检查可更新依赖
+```
+
+### pom.xml 核心结构
+
+```xml
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.demo</groupId>
+  <artifactId>demo-app</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+
+  <properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>33.2.0-jre</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+```
+
+依赖范围 `scope`：`compile`（默认）、`provided`、`runtime`、`test`、`system`。
+
+### 多模块
+
+```xml
+<modules>
+  <module>common</module>
+  <module>service</module>
+  <module>web</module>
+</modules>
+```
+
+父 POM 统一管理版本（`dependencyManagement`），子模块声明依赖不写版本号。
+
+## 四、Gradle 使用
+
+### 初始化与命令
+
+```powershell
+gradle init                # 交互式生成项目
+.\gradlew build            # 用 wrapper 构建（推荐，团队版本一致）
+.\gradlew test
+.\gradlew run
+.\gradlew bootRun          # Spring Boot
+.\gradlew dependencies     # 依赖树
+.\gradlew --refresh-dependencies
+```
+
+> 永远用 `gradlew`（wrapper）而不是全局 `gradle`，保证团队/CI 使用同一 Gradle 版本。
+
+### build.gradle.kts（Kotlin DSL 示例）
+
+```kotlin
+plugins {
+    java
+    application
+}
+
+group = "com.demo"
+version = "1.0.0"
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("com.google.guava:guava:33.2.0-jre")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+}
+
+tasks.test { useJUnitPlatform() }
+
+application { mainClass = "com.demo.App" }
+```
+
+### 常用概念
+
+- `implementation` / `api` / `testImplementation`：依赖配置（可见性不同，影响编译与传递）；
+- `tasks.register(...)`：自定义任务；
+- `settings.gradle.kts`：多模块 `include(":common", ":service")`。
+
+## 五、Maven vs Gradle 选择
+
+| 维度 | Maven | Gradle |
+| --- | --- | --- |
+| 上手难度 | 低（XML 直观） | 中（需懂 DSL） |
+| 构建速度 | 一般 | 快（增量 + 缓存 + 并行） |
+| 灵活性 | 低 | 高（可写逻辑） |
+| 生态 | 企业/老项目多 | Android、Spring 新项目多 |
+| 建议 | 维护老项目 | 新项目 / Android / 追求速度 |
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 依赖冲突（NoSuchMethodError） | Maven：`mvn dependency:tree`；Gradle：`gradlew dependencies`，用 `exclude` 或 `resolutionStrategy` 强制版本 |
+| 下载依赖慢 | 配置阿里云镜像，或公司私服 Nexus |
+| `JAVA_HOME` 未设置 | `setx JAVA_HOME "C:\Program Files\Eclipse Adoptium\jdk-21"`，重启终端 |
+| Gradle 版本不兼容插件 | 修改 `gradle-wrapper.properties` 中的 distributionUrl |
+| 中文乱码（Windows） | 设置 `-Dfile.encoding=UTF-8` 与终端 UTF-8 |
+| 内存不足 | `JAVA_OPTS=-Xmx2g` 或 Gradle `org.gradle.jvmargs` |
+
+## 七、最佳实践
+
+1. **锁依赖版本**：Maven 用父 POM `dependencyManagement`；Gradle 用 version catalog（`libs.versions.toml`）。
+2. **保留 wrapper**：`mvnw` / `gradlew` 必须提交（Gradle 尤其重要）。
+3. **CI 中跳过无关任务**：`mvn -DskipTests package`、`gradlew build -x test`（单元测试单独跑）。
+4. **构建产物统一目录**：Maven `target/`、Gradle `build/`，加入 `.gitignore`。
+
+## 八、参考
+
+- Maven 官方：https://maven.apache.org/guides/
+- Gradle 官方：https://docs.gradle.org/current/userguide/userguide.html
+- Spring Initializr：https://start.spring.io/
+

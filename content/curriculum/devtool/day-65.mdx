@@ -1,0 +1,207 @@
+---
+slug: day-65
+kind: day
+day: 65
+week: 10
+weekTitle: CI/CD
+weekBlurb: 以 GitHub Actions 为主的流水线：构建、测试、发布自动化，把前几周的检查串成一条链。
+title: CircleCI 使用教程
+sourcePath: 10-CICD/04-CircleCI.md
+---
+
+## 一、CircleCI 是什么
+
+云原生 CI/CD 平台，特点：
+
+- 配置简洁（YAML），文档优秀；
+- **Orbs**：可复用的配置包（类似 Actions）；
+- 构建镜像可自定义（Docker 镜像 + 预装工具）；
+- 并行与测试分片开箱即用；
+- 免费额度：每月 6000 分钟（Linux），个人项目友好。
+
+## 二、快速开始
+
+1. 用 GitHub/GitLab 账号登录 https://circleci.com/；
+2. `Projects → Set Up Project` 选仓库；
+3. 在仓库中创建 `.circleci/config.yml`。
+
+## 三、基础配置
+
+```yaml
+version: 2.1
+
+orbs:
+  node: circleci/node@5.2.0
+
+workflows:
+  build-test-deploy:
+    jobs:
+      - build
+      - test:
+          requires: [build]
+      - deploy:
+          requires: [test]
+          filters:
+            branches:
+              only: main
+
+jobs:
+  build:
+    docker:
+      - image: cimg/node:20.15
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: pnpm
+      - run:
+          name: 构建
+          command: pnpm build
+      - persist_to_workspace:
+          root: .
+          paths: [dist]
+
+  test:
+    docker:
+      - image: cimg/node:20.15
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: pnpm
+      - run:
+          name: Lint 与测试
+          command: |
+            pnpm lint
+            pnpm test -- --run --coverage
+      - store_test_results:
+          path: reports
+      - store_artifacts:
+          path: coverage
+
+  deploy:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: 部署
+          command: ./deploy.sh
+```
+
+## 四、核心概念
+
+| 概念 | 说明 |
+| --- | --- |
+| Workflow | 编排多个 job（依赖、并行、过滤） |
+| Job | 执行单元（含 executor 与 steps） |
+| Executor | 执行环境：`docker` / `machine`（完整 VM）/ `macos` / `windows` |
+| Step | 具体行动（checkout、run、save_cache...） |
+| Orb | 可复用配置包 |
+| Workspace | job 间传递文件 |
+| Cache | 跨构建缓存依赖 |
+| Context | 组织级共享环境变量与密钥 |
+
+## 五、缓存依赖
+
+```yaml
+steps:
+  - checkout
+  - restore_cache:
+      keys:
+        - v1-deps-{{ checksum "pnpm-lock.yaml" }}
+        - v1-deps-
+  - run: pnpm install --frozen-lockfile
+  - save_cache:
+      key: v1-deps-{{ checksum "pnpm-lock.yaml" }}
+      paths:
+        - ~/.local/share/pnpm/store
+```
+
+## 六、测试分片与并行
+
+```yaml
+- run:
+    command: |
+      pnpm vitest run --shard=$CIRCLE_NODE_INDEX/$CIRCLE_NODE_TOTAL
+    parallelism: 4        # 在 job 级别设置
+```
+
+CircleCI 提供 `CIRCLE_NODE_INDEX` / `CIRCLE_NODE_TOTAL` 环境变量。
+
+## 七、Secrets 与 Context
+
+- **Project 级**：Project Settings → Environment Variables；
+- **组织级**：Organization Settings → Contexts（多个项目共享，可限制使用范围）。
+
+```yaml
+workflows:
+  deploy:
+    jobs:
+      - deploy:
+          context: production-secrets
+```
+
+在配置中通过 `$VAR_NAME` 使用。
+
+## 八、Orbs（复用配置）
+
+```yaml
+orbs:
+  node: circleci/node@5.2.0
+  aws-cli: circleci/aws-cli@4.1.0
+  slack: circleci/slack@4.13.3
+
+jobs:
+  notify:
+    docker: [{ image: cimg/base:stable }]
+    steps:
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
+```
+
+查看可用 Orb：https://circleci.com/developer/orbs
+
+## 九、手动审批与环境
+
+```yaml
+workflows:
+  release:
+    jobs:
+      - build
+      - hold:
+          type: approval           # 人工审批（在 UI 点击）
+          requires: [build]
+      - deploy-prod:
+          requires: [hold]
+```
+
+## 十、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `cimg` 镜像缺工具 | cimg 系列已预装常用工具；或 `command: sudo apt-get install -y xxx` |
+| 需要 Docker | 用 `setup_remote_docker`（docker executor）或 `machine` executor |
+| 缓存没有命中 | key 用 checksum；注意 restore_keys 前缀回退策略 |
+| 部署需要审批 | 用 `type: approval` job |
+| 分钟数消耗快 | 减少并行、用缓存、优化 Docker 层、缩小测试范围 |
+| Windows/macOS 构建 | 选 `windows` / `macos` executor（按分钟计费更高） |
+
+## 十一、与 GitHub Actions 对比
+
+| 维度 | CircleCI | GitHub Actions |
+| --- | --- | --- |
+| 配置位置 | `.circleci/config.yml` | `.github/workflows/` |
+| 复用机制 | Orbs | Actions / reusable workflows |
+| 并行分片 | 原生支持好 | matrix |
+| 本地调试 | `circleci local execute` | `act` |
+| 生态 | 专注 CI 多年 | 与 GitHub 深度绑定 |
+| 适合 | 已有 CircleCI 沉淀、需要成熟并行能力 | GitHub 用户（首选） |
+
+## 十二、参考
+
+- 官方文档：https://circleci.com/docs/
+- Orb 注册中心：https://circleci.com/developer/orbs
+- 配置参考：https://circleci.com/docs/configuration-reference/
+

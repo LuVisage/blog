@@ -1,0 +1,269 @@
+---
+slug: day-73
+kind: day
+day: 73
+week: 12
+weekTitle: 日志与监控
+weekBlurb: 日志规范、指标与告警的可观测性入门，服务上线后靠它定位问题。
+title: OpenTelemetry 使用教程
+sourcePath: 12-日志与监控/02-OpenTelemetry.md
+---
+
+## 一、OpenTelemetry 是什么
+
+OpenTelemetry（简称 OTel）是 CNCF 主导的**可观测性标准**，统一了：
+
+- **API/SDK**：在代码中埋点（Traces、Metrics、Logs）；
+- **语义约定**：统一字段命名（如 `http.method`、`db.system`）；
+- **Collector**：接收、处理、转发遥测数据的中间件；
+- **协议 OTLP**：厂商中立的传输协议。
+
+**核心价值**：一次埋点，数据可发给任意后端（Jaeger、Prometheus、Datadog、阿里云...），**不锁定厂商**。
+
+## 二、三大信号
+
+| 信号 | 说明 | 典型用途 |
+| --- | --- | --- |
+| Traces | 请求链路（Span 树） | 定位慢在哪一环 |
+| Metrics | 数值指标（Counter/Gauge/Histogram） | 容量、告警 |
+| Logs | 日志（可与 Trace 关联） | 事件详情 |
+
+## 三、架构
+
+```
+应用（OTel SDK 埋点）
+      │ OTLP
+      ▼
+OTel Collector（接收 → 处理 → 导出）
+      │
+      ├──► Jaeger / Tempo（Traces）
+      ├──► Prometheus（Metrics）
+      └──► Loki / Elasticsearch（Logs）
+```
+
+Collector 也可省略，SDK 直发后端，但生产建议用 Collector（可做批量、重试、脱敏、路由）。
+
+## 四、Node.js 接入
+
+```powershell
+pnpm add @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node \
+  @opentelemetry/exporter-trace-otlp-http @opentelemetry/exporter-metrics-otlp-http
+```
+
+`instrumentation.ts`（必须在应用代码之前加载）：
+
+```ts
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+
+const sdk = new NodeSDK({
+  resource: resourceFromAttributes({
+    'service.name': 'order-service',
+    'service.version': '1.2.3',
+    'deployment.environment': process.env.NODE_ENV!,
+  }),
+  traceExporter: new OTLPTraceExporter({ url: 'http://localhost:4318/v1/traces' }),
+  metricReader: new PeriodicExportingMetricReader({
+    exporter: new OTLPMetricExporter({ url: 'http://localhost:4318/v1/metrics' }),
+    exportIntervalMillis: 30_000,
+  }),
+  instrumentations: [getNodeAutoInstrumentations()],
+});
+
+sdk.start();
+
+process.on('SIGTERM', () => sdk.shutdown());
+```
+
+启动：
+
+```powershell
+node --import ./instrumentation.ts ./src/server.ts
+```
+
+**自动埋点**覆盖：HTTP 客户端/服务端、Express、MySQL、Redis、gRPC 等，无需改业务代码。
+
+### 手动埋点
+
+```ts
+import { trace, SpanStatusCode } from '@opentelemetry/api';
+
+const tracer = trace.getTracer('order-service');
+
+export async function submitOrder(order: Order) {
+  return tracer.startActiveSpan('submitOrder', async (span) => {
+    try {
+      span.setAttribute('order.id', order.id);
+      span.setAttribute('order.amount', order.amount);
+
+      await validate(order);
+      await pay(order);
+
+      span.setStatus({ code: SpanStatusCode.OK });
+      return { ok: true };
+    } catch (err) {
+      span.recordException(err as Error);
+      span.setStatus({ code: SpanStatusCode.ERROR });
+      throw err;
+    } finally {
+      span.end();
+    }
+  });
+}
+```
+
+### 自定义指标
+
+```ts
+import { metrics } from '@opentelemetry/api';
+
+const meter = metrics.getMeter('order-service');
+const orderCounter = meter.createCounter('orders.created');
+const payLatency = meter.createHistogram('payment.duration', { unit: 'ms' });
+
+orderCounter.add(1, { channel: 'app' });
+payLatency.record(123, { provider: 'alipay' });
+```
+
+## 五、Python 接入
+
+```powershell
+pip install opentelemetry-distro opentelemetry-exporter-otlp
+opentelemetry-bootstrap -a install     # 自动安装对应 instrument 包
+```
+
+```python
+# 方式一：零代码自动埋点
+# opentelemetry-instrument --service_name order-api python app.py
+
+# 方式二：代码中初始化
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+
+provider = TracerProvider(resource=Resource.create({"service.name": "order-api"}))
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4318/v1/traces")))
+trace.set_tracer_provider(provider)
+
+tracer = trace.get_tracer(__name__)
+with tracer.start_as_current_span("submit_order") as span:
+    span.set_attribute("order.id", 123)
+```
+
+Flask/FastAPI/Django 均有自动 instrumentation（`opentelemetry-instrumentation-flask` 等）。
+
+## 六、Go 接入
+
+```go
+import (
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+    "go.opentelemetry.io/otel/sdk/trace"
+    "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+)
+
+func initTracer() func() {
+    exporter, _ := otlptracehttp.New(context.Background(),
+        otlptracehttp.WithEndpoint("localhost:4318"),
+        otlptracehttp.WithInsecure(),
+    )
+    tp := trace.NewTracerProvider(trace.WithBatcher(exporter),
+        trace.WithResource(resource.NewWithAttributes(semconv.SchemaURL,
+            semconv.ServiceName("order-api"))))
+    otel.SetTracerProvider(tp)
+    return func() { tp.Shutdown(context.Background()) }
+}
+
+// HTTP 中间件自动埋点
+handler := otelhttp.NewHandler(mux, "http-server")
+```
+
+## 七、Collector 配置
+
+`otel-collector-config.yaml`：
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc: { endpoint: 0.0.0.0:4317 }
+      http: { endpoint: 0.0.0.0:4318 }
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+  attributes:
+    actions:
+      - key: http.url
+        action: delete        # 脱敏：删除含 token 的 URL
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls: { insecure: true }
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, attributes]
+      exporters: [otlp/jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
+```
+
+启动：
+
+```powershell
+docker run -d --name otelcol `
+  -p 4317:4317 -p 4318:4318 -p 8889:8889 `
+  -v ${PWD}/otel-collector-config.yaml:/etc/otelcol/config.yaml `
+  otel/opentelemetry-collector:latest
+```
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 没有 Trace 数据 | instrumentation 必须在业务代码前加载（`--import`）；检查端口 4318 |
+| 链路断了（跨服务） | 确保 HTTP 头透传（`traceparent`），网关不要剥离 |
+| 数据量太大 | 采样（`OTEL_TRACES_SAMPLER=parentbased_traceidratio` + ratio）；Collector 过滤 |
+| 属性含敏感信息 | Collector `attributes` processor 删字段；SDK 层不要记录 |
+| 指标与 Prometheus 对不上 | 注意 Histogram 分桶与聚合窗口差异 |
+| 服务名重复 | `service.name` 必须唯一且规范（kebab-case） |
+
+## 九、最佳实践
+
+1. **服务名、版本、环境三要素必填**，否则数据无法聚合；
+2. 生产**必开采样**（头部采样 1-10%，或尾部采样保留错误链路）；
+3. Collector 层做**脱敏与过滤**，不要寄望于每个服务自己规范；
+4. Trace ID 注入日志，实现「日志 ↔ 链路」互跳：
+
+```ts
+const span = trace.getActiveSpan();
+logger.info({ traceId: span?.spanContext().traceId }, '订单创建成功');
+```
+
+5. 先接好 Traces（收益最大），再补 Metrics 与 Logs。
+
+## 十、参考
+
+- 官方文档：https://opentelemetry.io/docs/
+- Collector：https://opentelemetry.io/docs/collector/
+- 语义约定：https://opentelemetry.io/docs/specs/semconv/
+- Demo（微服务示例）：https://opentelemetry.io/docs/demo/
+

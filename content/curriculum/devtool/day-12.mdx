@@ -1,0 +1,175 @@
+---
+slug: day-12
+kind: day
+day: 12
+week: 2
+weekTitle: 包管理与运行时
+weekBlurb: Node 的 nvm / npm / pnpm / npx，Python 的 venv 与 uv，再到 Java、Rust、Go 的构建工具，装依赖不再靠抄命令。
+title: Rust Cargo 使用教程
+sourcePath: 02-包管理与运行时/06-Rust-Cargo.md
+---
+
+## 一、Cargo 是什么
+
+Cargo 是 Rust 的**包管理器 + 构建系统 + 测试运行器 + 发布工具**，一站式覆盖：
+
+- 依赖管理（crates.io）
+- 编译构建
+- 单元/集成测试
+- 文档生成
+- 发布 crate
+
+## 二、安装 rustup
+
+```powershell
+# Windows
+winget install Rustlang.Rustup
+# 或访问 https://rustup.rs/ 下载 rustup-init.exe
+
+# macOS / Linux
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+```powershell
+rustup --version
+rustc --version
+cargo --version
+
+rustup update                 # 更新工具链
+rustup toolchain list
+rustup default stable
+rustup component add rustfmt clippy    # 常用组件
+```
+
+国内镜像（`~/.cargo/config.toml`）：
+
+```toml
+[source.crates-io]
+replace-with = "ustc"
+
+[source.ustc]
+registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
+```
+
+## 三、Cargo 核心命令
+
+```powershell
+cargo new hello            # 创建二进制项目（含 git 初始化）
+cargo new mylib --lib      # 创建库项目
+cargo init                 # 在已有目录初始化
+
+cargo build                # 调试构建（target/debug）
+cargo build --release      # 发布构建（target/release，优化）
+cargo run                  # 构建并运行
+cargo run -- arg1 arg2     # 传参给程序
+
+cargo test                 # 运行所有测试
+cargo test test_name       # 运行匹配的测试
+cargo test -- --nocapture  # 显示 println 输出
+
+cargo check                # 只做类型检查（比 build 快得多）
+cargo clippy               # 静态检查（Lint）
+cargo fmt                  # 格式化代码
+cargo doc --open           # 生成并打开文档
+
+cargo add serde --features derive   # 添加依赖
+cargo remove serde
+cargo update               # 按 Cargo.toml 约束升级依赖
+cargo tree                 # 依赖树
+cargo clean                # 清理构建产物
+```
+
+## 四、项目结构
+
+```
+hello/
+├── Cargo.toml        # 清单文件
+├── Cargo.lock        # 锁定精确版本（应用提交；库可不提交）
+├── src/
+│   ├── main.rs       # 二进制入口
+│   └── lib.rs        # 库入口
+├── tests/            # 集成测试
+└── benches/          # 基准测试
+```
+
+`Cargo.toml` 示例：
+
+```toml
+[package]
+name = "hello"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+```
+
+## 五、Workspace（多 crate 仓库）
+
+`Cargo.toml`：
+
+```toml
+[workspace]
+members = ["crates/core", "crates/cli", "crates/api"]
+resolver = "2"
+```
+
+```powershell
+cargo build --workspace
+cargo test -p core        # 只测某个 crate
+```
+
+## 六、发布到 crates.io
+
+```powershell
+cargo login <token>        # 从 crates.io 获取 API token
+cargo publish --dry-run
+cargo publish
+```
+
+注意：版本号遵循 semver；已被引用的版本**不可撤回**（只能 yank）。
+
+## 七、工具链文件与团队一致性
+
+`rust-toolchain.toml`：
+
+```toml
+[toolchain]
+channel = "1.79.0"
+components = ["rustfmt", "clippy"]
+```
+
+提交后，团队与 CI 自动使用指定版本。
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 编译慢 | 用 sccache、`cargo check` 代替 build；开启 `lto = "thin"` |
+| 下载依赖慢 | 配置 ustc/rsproxy 镜像 |
+| Windows 缺少链接器 | 安装 Visual Studio Build Tools（MSVC 工具链）或使用 `rustup default stable-gnu` |
+| 依赖树里两个版本冲突 | `cargo tree -d` 查找重复依赖；升级或 patch |
+| 磁盘占用大 | `cargo clean`；target 目录常达数 GB |
+| clippy 报警告失败 CI | 本地先 `cargo clippy -- -D warnings` 修复 |
+
+## 九、最佳实践
+
+1. 提交 **Cargo.lock**（应用项目），保证构建可复现。
+2. CI 流程固定为：`cargo fmt --check` → `cargo clippy -- -D warnings` → `cargo test`。
+3. 用 workspace 管理多 crate，共享依赖版本。
+4. 二进制体积优化：`strip = true`、`panic = "abort"`。
+
+## 十、参考
+
+- 官方文档：https://doc.rust-lang.org/cargo/
+- Rust 中文教程：https://kaisery.github.io/trpl-zh-cn/
+- crates.io：https://crates.io/
+

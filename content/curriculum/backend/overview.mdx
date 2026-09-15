@@ -1,0 +1,321 @@
+---
+slug: overview
+kind: reference
+day: 0
+week: 0
+weekTitle: 第 0 周
+weekBlurb: ''
+title: Python 工程化与后端实战（5 周 · 25 篇）
+lead: '**这套教程解决什么问题**：你学完了 16 周 AI 基础，会训模型了。'
+sourcePath: Python工程化与后端实战/README.md
+---
+
+> **这套教程解决什么问题**：你学完了 16 周 AI 基础，会训模型了。
+> 但把模型变成**别人能用的产品**，缺的是软件工程能力。
+>
+> 这套教程直接对着「AI 应用工程师 / Agent 开发工程师」的岗位缺口打。
+
+---
+
+## 一、为什么需要这一套
+
+**一个扎心的事实**：市面上大多数 AI 教程教你训模型，但**岗位要的是交付产品**。
+
+| 只会训模型 | 岗位真正要的 |
+| --- | --- |
+| 在 Jupyter 里跑通 demo | 写成可维护的服务，部署到服务器 |
+| 同步代码，一次处理一条 | 异步并发，同时服务几百个请求 |
+| 手写 `while True` 重试 | 超时、重试、熔断、可观测 |
+| 密码写在代码里 | 密钥管理、鉴权、限流 |
+| 只在自己的机器上能跑 | Docker 打包，一条命令在任何机器启动 |
+| 出错了 print | 结构化日志、监控、告警 |
+
+**来源**：这是从「[Agent开发工程师路线图.md](/learn/ml/agent-roadmap)」里识别的 6 个缺口，其中**缺口 1、2、3（Python 工程化 + 后端 + 部署）占了成功率的 70%**。
+
+---
+
+## 二、学完能得到什么
+
+对标一份真实的 **AI 应用工程师 JD**：
+
+| JD 要求 | 本教程对应 |
+| --- | --- |
+| 扎实的 Python 功底，熟悉异步编程 | Week1 |
+| 熟练使用 FastAPI / Flask 开发 RESTful API | Week2 |
+| 熟悉 PostgreSQL / Redis，了解索引与查询优化 | Week3 |
+| 熟悉 Docker 容器化部署，了解 CI/CD | Week4 |
+| 有 RAG / 向量数据库实践经验 | Week5 |
+| 有 LLM 应用（Agent）开发经验 | Week5 + 毕业项目 |
+
+**毕业标准**：你能独立交付一个**部署在公网、有鉴权、有监控、有测试、能承受并发**的 AI 服务。
+
+---
+
+## 三、和 16 周基础教程的关系
+
+```
+16 周 AI 基础教程                    本教程
+    （模型怎么工作）                 （产品怎么交付）
+         │                                │
+    Week01-16 ✓                      Week1-5（本教程）
+    微积分 / ML / DL / CV / LLM      工程化 / 后端 / 数据库 / 部署 / RAG
+         │                                │
+         └────────────┬───────────────────┘
+                      ↓
+              Agent 开发教程（LangChain/LangGraph）
+                      ↓
+                 AI 应用工程师
+```
+
+**并行关系，不是先后关系**：
+- 如果你还没学完 16 周基础 → **可以先学本教程**，它只要求「会 Python 基本语法」；
+- 如果你已经学完 → 直接开始，本教程会让你第一次真正「上线」一个服务。
+
+---
+
+## 四、五周路线
+
+| 周 | 主题 | 核心产出 | 天数 |
+| --- | --- | --- | --- |
+| **Week1** | **Python 工程化** | 一个可测试、可复用、带日志与配置的 Python 包 | 5 |
+| **Week2** | **FastAPI 后端开发** | 一个带鉴权、流式输出、错误处理的 REST API | 5 |
+| **Week3** | **PostgreSQL 与 Redis** | 给 API 加上持久化与会话/缓存层 | 5 |
+| **Week4** | **Docker 与云部署** | 一条命令部署到公网，带 HTTPS 与监控 | 5 |
+| **Week5** | **向量检索与 RAG 工程化** | 一个生产级 RAG 服务（含评估） | 5 |
+
+---
+
+## 五、每周详细大纲
+
+### Week1｜Python 工程化
+
+> **目标**：把「能跑的脚本」变成「别人敢维护的代码」。
+
+| 天 | 主题 | 关键内容 |
+| --- | --- | --- |
+| Day1 | 类型注解与数据校验 | `typing` / `Optional` / `Literal` / Pydantic / mypy |
+| Day2 | 装饰器与高阶函数 | 闭包 / 装饰器 / `functools` / 重试与计时装饰器 |
+| Day3 | 异步编程（重点） | `async/await` / 事件循环 / `asyncio.gather` / 并发控制 |
+| Day4 | 测试与日志 | pytest / fixture / mock / 结构化日志 / 配置管理 |
+| Day5 | 项目结构与打包 | 包组织 / `pyproject.toml` / 依赖管理 / CLI 入口 |
+
+**为什么 Day3 最重要**：所有 LLM 框架（LangChain / OpenAI SDK）的流式接口都是 `async`。不会异步，就只能写最慢的串行代码。**这是本教程最重要的一天。**
+
+### Week2｜FastAPI 后端开发
+
+> **目标**：写出一个能给前端和 Agent 调用的 API 服务。
+
+| 天 | 主题 | 关键内容 |
+| --- | --- | --- |
+| Day1 | HTTP 与 FastAPI 基础 | 请求/响应 / 路由 / Pydantic 模型 / 自动文档 |
+| Day2 | 依赖注入与中间件 | `Depends` / 中间件 / 生命周期 / CORS |
+| Day3 | 鉴权与安全 | JWT / OAuth2 / 密码哈希 / 限流 / 密钥管理 |
+| Day4 | **SSE 流式输出**（重点） | Server-Sent Events / `StreamingResponse` / 打字机效果 |
+| Day5 | 错误处理与可观测性 | 异常处理 / 结构化日志 / 请求追踪 / 健康检查 |
+
+**为什么 Day4 最重要**：LLM 应用的「打字机效果」靠的就是 SSE。这是 AI 应用与前端的**主要接口形式**。
+
+### Week3｜PostgreSQL 与 Redis
+
+> **目标**：让数据持久化、可查询、可缓存。
+
+| 天 | 主题 | 关键内容 |
+| --- | --- | --- |
+| Day1 | SQL 基础与 Python 连接 | 建表 / CRUD / psycopg / **参数化查询（防注入）** |
+| Day2 | 索引与查询优化 | B-Tree / 复合索引 / `EXPLAIN ANALYZE` / N+1 问题 |
+| Day3 | ORM 与迁移 | SQLAlchemy 2.0 / Alembic / 关系建模 |
+| Day4 | Redis 与缓存 | 缓存策略 / 过期 / 会话 / 限流计数器 |
+| Day5 | 事务与并发安全 | 事务隔离级别 / 乐观锁 / 连接池 |
+
+### Week4｜Docker 与云部署
+
+> **目标**：从「在我机器上能跑」到「在任何机器上都能跑」。
+
+| 天 | 主题 | 关键内容 |
+| --- | --- | --- |
+| Day1 | Docker 基础 | 镜像/容器 / Dockerfile / 多阶段构建 / 体积优化 |
+| Day2 | Docker Compose | 编排 API + Postgres + Redis / 网络 / 数据卷 |
+| Day3 | Nginx 与 HTTPS | 反向代理 / 负载均衡 / Let's Encrypt / 域名 |
+| Day4 | 云服务器部署 | 购买 / SSH / 防火墙 / 环境变量 / 一键部署脚本 |
+| Day5 | CI/CD 与监控 | GitHub Actions / 自动测试 / 日志收集 / 告警 |
+
+### Week5｜向量检索与 RAG 工程化
+
+> **目标**：交付一个生产级 RAG 服务。
+
+| 天 | 主题 | 关键内容 |
+| --- | --- | --- |
+| Day1 | 文本切分与 Embedding | 切分策略 / 重叠 / 元数据 / Embedding 选型与成本 |
+| Day2 | 向量索引原理 | 暴力检索 / **HNSW** / IVF / PQ / 召回率与内存估算 |
+| Day3 | RAG 全链路实现 | 入库 / 检索 / 重排 / 提示词拼装 / 引用来源 |
+| Day4 | RAG 评估 | RAGAS / 忠实度 / 答案相关性 / 检索指标 |
+| Day5 | 毕业项目 | 把前 5 周全部串起来，部署上线 |
+
+---
+
+## 六、毕业项目
+
+**要求**：一个部署在公网、可被别人使用的 AI 服务，包含：
+
+```
+✅ FastAPI 服务，有 /docs 自动文档
+✅ JWT 鉴权（未登录不能调用）
+✅ SSE 流式输出（前端能看到打字机效果）
+✅ PostgreSQL 存对话历史（带索引，查询 < 10ms）
+✅ Redis 做会话与限流（每用户每分钟 N 次）
+✅ 向量检索（RAG，支持引用来源）
+✅ 结构化日志 + 健康检查端点
+✅ pytest 测试覆盖率 > 60%
+✅ Docker Compose 一条命令启动全部服务
+✅ 部署在有 HTTPS 的云服务器上
+✅ README 写清架构图与部署步骤
+```
+
+**为什么这个项目能拿到面试**：
+
+| 面试官想看的 | 这个项目体现了 |
+| --- | --- |
+| 会写代码吗 | 5 周 25 天的代码积累 |
+| 懂工程吗 | 测试、日志、配置、错误处理 |
+| 能上线吗 | Docker + 云部署 + HTTPS |
+| 懂 AI 吗 | RAG + 向量检索 + 评估 |
+| 考虑过性能吗 | 异步 + 缓存 + 索引 + 限流 |
+| 有产品意识吗 | 完整的 README 与架构图 |
+
+---
+
+## 七、前置要求
+
+| 要求 | 程度 |
+| --- | --- |
+| Python 基本语法 | 变量、循环、函数、类、字典、异常处理 |
+| 命令行基本操作 | `cd` / `ls` / 环境变量 |
+| 一台能联网的电脑 | 无需显卡 |
+
+**不会 Python？** 先完成基础教程的
+[Week00 零基础起步](/learn/ml/week-00)（一周，含环境安装与 Python 语法速成），
+Day3 的容器/函数/类 + Day4 的 NumPy 正是本教程需要的全部语言基础。
+
+**不需要**：任何 AI/ML 知识。本教程 Week5 的 RAG 部分会用到 LLM API，但不需要你会训模型。
+
+**给还在学 16 周基础教程的你**：本教程可以与基础教程**并行学**。完成 Week00 就够开始了。
+
+---
+
+## 八、环境准备
+
+### 阶段一：本地开发（Week1-3 够用）
+
+```bash
+# 1. 安装 Python 3.11+（推荐用 pyenv 或官方安装包）
+python --version        # 应 >= 3.11
+
+# 2. 创建虚拟环境
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+
+# 3. 安装依赖
+pip install fastapi uvicorn pydantic pydantic-settings
+pip install sqlalchemy alembic psycopg[binary]
+pip install redis pytest pytest-asyncio httpx python-jose[cryptography] passlib[bcrypt]
+
+# 国内加速
+pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+### 阶段二：Docker（Week4 起）
+
+```bash
+# 安装 Docker Desktop（Windows/macOS）或 docker-ce（Linux）
+docker --version
+docker compose version
+```
+
+### 阶段三：云服务器（Week4 Day4 起）
+
+**建议**：任意云厂商的 2核2G 入门机型即可（约 10~30 元/月）。
+**学习期省钱技巧**：很多厂商有「学生认证免费试用」，先申请再买。
+
+---
+
+## 九、怎么用这套教程
+
+1. **代码必须亲手敲**：不要复制粘贴。工程能力来自肌肉记忆。
+2. **每天一个可运行产出**：每天结束时，你的项目都应该能跑起来并通过测试。
+3. **遇到报错先读完整堆栈**：工程化的核心能力之一是「读懂错误信息」。
+4. **每周末做一次「能上线吗」自查**：用第六节的清单逐项打勾。
+5. **不要追求「学完再做项目」**：从 Week2 开始，就边学边把毕业项目往里加。
+
+---
+
+## 十、和 16 周基础教程的交叉索引
+
+| 本教程 | 用到的 16 周知识 | 位置 |
+| --- | --- | --- |
+| Week1 Day4 测试与日志 | 可复现性、消融实验纪律 | Week15 Day5 |
+| Week2 Day4 SSE 流式 | 自回归生成（逐 token 输出） | Week16 Day5 |
+| Week3 Day1 参数化查询 | —— | 独立内容 |
+| Week5 Day1 文本切分 | 分词与 token 成本 | Week16 Day5 |
+| Week5 Day2 向量索引 | 余弦相似度、Embedding | Week01 Day2 |
+| Week5 Day4 RAG 评估 | precision/recall/F1、评估协议 | Week02 Day3、Week15 Day5 |
+| Week5 Day5 毕业项目 | 全部 | —— |
+
+---
+
+## 十一、进度清单与目录
+
+| 周 | 状态 | 内容 | 配套代码 |
+| --- | --- | --- | --- |
+| **Week1** Python 工程化 | **完整** | README + 5 篇日课 | 4 个可运行脚本 + 48 个测试 |
+| **Week2** FastAPI 后端开发 | **完整** | README + 5 篇日课 | 完整 API 项目 + 48 个测试 |
+| **Week3** PostgreSQL 与 Redis | **完整** | README + 代码 | **72 个测试全绿**（内存/SQLite 模式离线可跑） |
+| **Week4** Docker 与云部署 | **完整** | README + 部署配置 | Dockerfile / compose / nginx / deploy.sh / CI（需 Docker 环境） |
+| **Week5** 向量检索与 RAG | **完整** | README + 代码 | RAG 全链路包 + **23 个测试**（离线可跑） |
+
+**Week1-2 是可直接上手的完整章节**（有跑通的代码和测试），**Week3-5 的 README 里已包含全部核心知识点、代码示例与配置模板**，可以按它自己实现。
+
+---
+
+## 十二、Week1-2 的实测成果
+
+**Week1**（`Week1_Python工程化/code/`）：
+
+| 脚本 | 验证内容 |
+| --- | --- |
+| `day1_typing.py` | 注解运行时不存在、Pydantic 校验、LLM 工具参数防注入 |
+| `day2_decorators.py` | 重试指数退避、TTL 缓存、限流、**异步装饰器的 0.00ms vs 109.95ms** |
+| `day3_async.py` | **串行 3.03s vs 并发 2.01s**、Semaphore 限流、阻塞事件循环的 0.45s 卡顿 |
+| `day4_testing.py` + `test_day4.py` | 结构化日志、ContextVar trace_id、**48 个测试全绿** |
+| `day5_project/` | 可安装的包 + CLI（`pip install -e .` 后 `demo-cli --help`） |
+
+**Week2**（`Week2_FastAPI后端开发/code/demo_api/`）：
+
+| 验证项 | 结果 |
+| --- | --- |
+| 测试 | **48 个全部通过** |
+| 自动文档 | `/docs` 可用 |
+| JWT 鉴权 | 注册 / 登录 / 受保护接口 / 篡改签名被拒 |
+| 批量并发 | 8 个请求 **0.06s** |
+| **SSE 流式** | **首字节 6ms，全程 344ms** —— 证明真流式 |
+| 统一错误格式 | 400/401/403/404/409/500 结构一致 |
+| 限流 / CORS / 健康检查 | 全部生效 |
+
+**启动方式**：
+
+```bash
+cd Week2_FastAPI后端开发/code/demo_api
+pip install -e ".[dev]"
+uvicorn demo_service.main:app --reload --port 8000
+# 打开 http://localhost:8000/docs
+```
+
+---
+
+**从这里开始**：[Week1_Python工程化/README.md](/learn/backend/week-1-plan)
+
+**同时建议**：读完 Week1-2 后，就可以开始 Agent 开发教程 了 —— 那时你会发现自己能看懂它的每一行代码，并且知道它在生产环境还缺什么。
+

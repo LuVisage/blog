@@ -1,0 +1,170 @@
+---
+slug: day-39
+kind: day
+day: 39
+week: 6
+weekTitle: 调试与网络
+weekBlurb: DevTools 与调试器断点、curl / httpie、抓包、API 客户端与内网穿透——排查问题的完整工具箱。
+title: Chrome DevTools 使用教程
+sourcePath: 06-调试与网络/01-Chrome-DevTools.md
+---
+
+## 一、打开方式
+
+| 快捷键 | 说明 |
+| --- | --- |
+| `F12` / `Ctrl+Shift+I` | 打开 DevTools |
+| `Ctrl+Shift+C` | 打开并进入元素选择模式 |
+| `Ctrl+Shift+J` | 直接打开 Console |
+| `Ctrl+Shift+P` | 打开命令面板（DevTools 内部） |
+
+## 二、Panels 速览
+
+| 面板 | 用途 |
+| --- | --- |
+| Elements | 查看/编辑 DOM 与 CSS |
+| Console | 执行 JS、看日志与报错 |
+| Sources | 断点调试、查看源码 |
+| Network | 请求分析（最常用） |
+| Performance | 性能分析（火焰图） |
+| Memory | 内存快照、泄漏排查 |
+| Application | Storage / Cookie / Service Worker / 缓存 |
+| Lighthouse | 性能、可访问性、SEO 评分 |
+
+## 三、Console 技巧
+
+```js
+// 常用快捷变量
+$0            // 当前选中的元素（Elements 面板）
+$_            // 上一次表达式的结果
+$('selector') // = document.querySelector
+$$('selector')// = document.querySelectorAll（返回数组）
+
+// 打印技巧
+console.table(users);              // 表格展示数组/对象
+console.dir(el);                   // 展开对象结构
+console.time('loop'); /*...*/ console.timeEnd('loop');  // 计时
+console.count('hit');              // 计数
+console.trace();                   // 打印调用栈
+console.group('组'); console.groupEnd();
+
+// 断言
+console.assert(total === 100, { total });
+
+// 快速操作
+monitorEvents(window, 'resize');   // 监听事件
+copy(obj);                         // 复制到剪贴板
+queryObjects(Object.prototype);    // 查找所有对象实例
+```
+
+`console.log` 支持样式：`console.log('%cHello', 'color:red;font-size:20px')`。
+
+## 四、Network 面板（重点）
+
+### 常看列
+
+| 列 | 含义 |
+| --- | --- |
+| Name | 请求 URL |
+| Status | 状态码（4xx 红、5xx 红、304 灰） |
+| Type | 资源类型（fetch/xhr/document/script） |
+| Size | 传输大小 / 解压后大小 |
+| Time | 耗时 |
+| Waterfall | 时间瀑布图，看阻塞点 |
+
+### 常用筛选
+
+- 顶部 `Fetch/XHR`：只看接口请求；
+- 过滤框输入 `status-code:500`、`larger-than:100k`、`domain:api.example.com`；
+- 勾选 **Preserve log**：页面跳转后保留记录；
+- 限速：`No throttling` → `Slow 3G`（模拟弱网）；
+- 禁用缓存：勾选 **Disable cache**（开发时必开）。
+
+### 排查利器
+
+1. **查看请求头/响应头**：Headers → Request Headers（Cookie、Authorization）、Response Headers（CORS 头）。
+2. **查看载荷**：Payload → 表单/JSON 数据。
+3. **预览与响应**：Preview 是格式化 JSON，Response 是原始内容。
+4. **复制为 curl**：右键请求 → Copy → Copy as cURL，可在终端复现。
+5. **重放请求**：右键 → Replay XHR（REST 不行，fetch 可）。
+6. **CORS 报错**：Console 里会提示缺少哪个响应头。
+
+## 五、Sources 面板断点调试
+
+1. 打开 Sources → 左侧文件树找到你的 JS/TS；
+2. 点击行号设置断点（蓝色）；
+3. 触发代码路径后：
+ - **右侧 Scope**：查看当前作用域变量；
+ - **Call Stack**：调用栈，逐层回溯；
+ - **Watch**：添加自定义监听表达式。
+
+断点类型：
+
+| 类型 | 用途 |
+| --- | --- |
+| 行断点 | 最常用 |
+| 条件断点（右键行号） | 条件满足才停（如 `i === 5`） |
+| 日志断点（Logpoint） | 不暂停，只打印表达式（不侵入代码） |
+| DOM 断点（Elements 右键） | 元素被修改时暂停 |
+| XHR 断点（Sources → XHR/fetch） | URL 匹配时暂停 |
+
+调试控制：`F8` 继续、`F10` 单步跳过、`F11` 单步进入、`Shift+F11` 跳出。
+
+### 调试已压缩的线上代码
+
+1. Sources → 找到文件；
+2. 右下角 `{}`（Pretty print）格式化；
+3. 结合 Source Map：构建时输出 `.map` 并部署，可定位到原始 TS 源码。
+
+## 六、Performance 面板
+
+1. 点 `●` 录制 → 复现操作 → 停止；
+2. 关注：
+ - **FPS** 条：红色表示掉帧；
+ - **Main 火焰图**：找出耗时长的长任务（Long Task）；
+ - **Bottom-Up / Call Tree**：定位哪个函数最耗时。
+
+常见优化结论：长任务拆分、减少重排重绘、虚拟列表、图片懒加载。
+
+## 七、Memory 面板排查内存泄漏
+
+1. 打开页面做操作 → 拍 Heap Snapshot；
+2. 反复操作几轮 → 再拍一次；
+3. 对比快照（Comparison），看哪些对象数量持续增长；
+4. 常见泄漏：未解绑事件、闭包持有大对象、定时器未清理、全局缓存无上限。
+
+## 八、Application 面板
+
+- **Storage**：LocalStorage / SessionStorage / IndexedDB（可编辑、删除）；
+- **Cookies**：查看/修改过期时间、Domain；
+- **Service Workers**：查看注册与状态，`Unregister` 排查缓存问题；
+- **Cache Storage**：查看 PWA 缓存内容；
+- **Clear storage**：一键清空站点数据（调试脏数据必备）。
+
+## 九、移动端调试
+
+1. **设备模拟**：DevTools 左上角手机图标（`Ctrl+Shift+M`），选机型与网络；
+2. **真机远程调试**：
+ - Android：USB 连接 + `chrome://inspect`；
+ - iOS：Safari → 开发 → 选择设备（需 Mac）。
+3. **手机内查看**：装 **vConsole / eruda** 在页面注入调试面板。
+
+## 十、实用技巧合集
+
+| 需求 | 做法 |
+| --- | --- |
+| 临时改样式 | Elements 里直接编辑 CSS |
+| 找元素绑定的事件 | Elements → Event Listeners 面板 |
+| 存储内容太大看不了 | Application 里右键存储项复制/删除 |
+| 强制加载最新资源 | Network 勾 Disable cache + `Ctrl+Shift+R` |
+| 模拟离线 | Network → Offline |
+| 模拟定位 | 命令面板 → Sensors → 设置经纬度 |
+| 修改 UA | Network → 自定义 UA，或 Sensors 面板 |
+| 截图整页 | 命令面板 → Capture full size screenshot |
+| 查看真实设备性能 | 用远程调试，别只看模拟器 |
+
+## 十一、参考
+
+- 官方文档：https://developer.chrome.com/docs/devtools/
+- 中文教程：https://developer.chrome.com/docs/devtools/overview?hl=zh-cn
+

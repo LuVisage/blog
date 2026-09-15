@@ -1,0 +1,207 @@
+---
+slug: day-30
+kind: day
+day: 30
+week: 5
+weekTitle: 测试
+weekBlurb: 从 Vitest / Jest 单测到 Playwright / Cypress 端到端，再补 pytest / JUnit / go test，测试金字塔一次配齐。
+title: Vitest 使用教程
+sourcePath: 05-测试/01-Vitest.md
+---
+
+## 一、Vitest 是什么
+
+Vite 原生的测试框架，特点：
+
+- **配置与 Vite 共用**（vite.config.ts），零额外构建配置；
+- 极快（基于 Vite 的转换管线 + 多线程）；
+- **兼容 Jest API**（`describe/it/expect` 基本一致，迁移成本低）；
+- 内置断言、Mock、覆盖率、快照、UI 界面。
+
+## 二、安装与初始化
+
+```powershell
+pnpm add -D vitest
+# 配套（按需）
+pnpm add -D @vitest/coverage-v8 @vitest/ui jsdom @testing-library/react
+```
+
+`package.json`：
+
+```json
+{
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
+  }
+}
+```
+
+## 三、配置
+
+`vite.config.ts`：
+
+```ts
+/// <reference types="vitest/config" />
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  test: {
+    globals: true,                 // 免 import describe/it/expect
+    environment: 'jsdom',          // 组件测试用 jsdom / happy-dom
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      exclude: ['**/*.d.ts', '**/types/**', 'src/main.tsx'],
+      thresholds: { lines: 70, functions: 70 },
+    },
+  },
+});
+```
+
+`src/test/setup.ts`：
+
+```ts
+import '@testing-library/jest-dom/vitest';
+import { afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+
+afterEach(() => cleanup());
+```
+
+## 四、编写测试
+
+### 基本结构
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { add, fetchUser } from './math';
+
+describe('add', () => {
+  it('两数相加', () => {
+    expect(add(1, 2)).toBe(3);
+  });
+
+  it.each([
+    [1, 1, 2],
+    [2, 3, 5],
+    [-1, 1, 0],
+  ])('add(%i, %i) = %i', (a, b, expected) => {
+    expect(add(a, b)).toBe(expected);
+  });
+});
+```
+
+### 异步
+
+```ts
+it('获取用户', async () => {
+  const user = await fetchUser(1);
+  expect(user.name).toBe('Ada');
+});
+
+it('抛出错误', async () => {
+  await expect(fetchUser(-1)).rejects.toThrow('invalid id');
+});
+```
+
+### Mock
+
+```ts
+import { vi, expect, it } from 'vitest';
+
+// 1. Mock 函数
+const fn = vi.fn().mockReturnValue(42);
+expect(fn()).toBe(42);
+expect(fn).toHaveBeenCalledTimes(1);
+
+// 2. Mock 模块
+vi.mock('./api', () => ({
+  fetchUser: vi.fn().mockResolvedValue({ id: 1, name: 'Ada' }),
+}));
+
+// 3. 监听对象方法
+const obj = { save: () => 'real' };
+const spy = vi.spyOn(obj, 'save').mockReturnValue('mocked');
+
+// 4. 假定时器
+vi.useFakeTimers();
+setTimeout(() => console.log('hi'), 1000);
+vi.advanceTimersByTime(1000);
+vi.useRealTimers();
+
+// 5. 环境变量
+vi.stubEnv('VITE_API_BASE', 'http://test.local');
+```
+
+### 快照
+
+```ts
+it('渲染一致', () => {
+  expect(renderToString(<Button />)).toMatchSnapshot();
+  // 更新快照：vitest run -u
+});
+```
+
+## 五、常用命令
+
+```powershell
+vitest                      # watch 模式（默认）
+vitest run                  # 单次运行（CI）
+vitest run src/utils         # 只跑匹配路径
+vitest run -t "add"          # 只跑匹配名称
+vitest --ui                  # 浏览器 UI（需 @vitest/ui）
+vitest run --coverage
+vitest related src/a.ts      # 只跑与某文件相关的测试（配合 lint-staged）
+vitest bench                 # 运行 benchmark
+```
+
+## 六、CI 集成
+
+```yaml
+- run: pnpm vitest run --coverage
+```
+
+配合 `--reporter=junit --outputFile=report.xml` 可对接测试报告系统。
+
+## 七、Vitest vs Jest
+
+| 维度 | Vitest | Jest |
+| --- | --- | --- |
+| 速度 | 快（Vite 原生 ESM） | 较慢（需 babel/ts-jest 转换） |
+| 配置 | 复用 vite.config | 独立配置，需 transform |
+| ESM 支持 | 原生 | 需实验开关，坑多 |
+| 生态 | 快速增长 | 极其成熟 |
+| API | 兼容 Jest | — |
+| 适合 | Vite 项目、新项目 | 老项目、CRA、React Native |
+
+**迁移建议**：Vite 项目直接用 Vitest；Jest 项目想迁移时，多数代码只改 import 即可。
+
+## 八、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| `document is not defined` | 设 `environment: 'jsdom'` 或 happy-dom |
+| CSS/图片导入报错 | 配置 `test.css: false` 或加相应 transformer |
+| 别名 `@/` 不解析 | 复用 vite 的 resolve.alias（Vitest 自动继承） |
+| Mock 不生效 | `vi.mock` 会被提升到文件顶部，注意工厂函数内不能用外部变量（用 `vi.hoisted`） |
+| 覆盖率偏低 | 排除入口、类型、配置文件；关注核心模块 |
+| 测试串行互相污染 | 每个测试独立准备数据；用 `beforeEach` 重置 mock（`vi.clearAllMocks()`） |
+
+## 九、最佳实践
+
+1. **测试文件与被测文件同目录**：`utils.ts` + `utils.test.ts`。
+2. 名字描述行为：`it('当余额不足时拒绝转账')`，而非 `it('test transfer')`。
+3. 优先 `getByRole/getByLabelText`（Testing Library），避免 `container.querySelector`。
+4. 网络请求一律 Mock（MSW），不依赖真实后端。
+5. CI 中 `vitest run --coverage` 并把 thresholds 打开，防止覆盖率持续下滑。
+
+## 十、参考
+
+- 官方文档：https://vitest.dev/
+- 中文文档：https://cn.vitest.dev/
+

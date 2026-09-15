@@ -1,0 +1,264 @@
+---
+slug: day-68
+kind: day
+day: 68
+week: 13
+weekTitle: 循环神经网络
+weekBlurb: RNN / BPTT、LSTM / GRU，序列建模与字符级文本生成。
+title: PyTorch 序列建模实践
+lead: '今日目标：掌握 `nn.RNN`/`nn.LSTM`/`nn.GRU` 的接口与输出结构；正确处理变长序列（`pack_padded_sequence`）；掌握多层与双向 RNN 的配置与输出解读。'
+sourcePath: Week13_循环神经网络/Day3_PyTorch序列建模.md
+---
+
+> 今日目标：掌握 `nn.RNN`/`nn.LSTM`/`nn.GRU` 的接口与输出结构；正确处理变长序列（`pack_padded_sequence`）；掌握多层与双向 RNN 的配置与输出解读。
+> 配套案例：`code/day3_pytorch_rnn.py`
+
+---
+
+## 3.1 知识地图
+
+```
+Day1-2  RNN/LSTM 原理 + 手写实现
+        │
+        ▼
+Day3（今天）★ 工程实践
+  ├─ 三种 RNN 的接口对比
+  ├─ batch_first 的坑
+  ├─ 变长序列: padding + pack
+  ├─ 多层与双向
+  └─ 输出结构的解读
+        │
+        ▼
+Day4  序列分类实战
+Day5  字符级文本生成
+```
+
+---
+
+## 3.2 三种 RNN 的接口
+
+```python
+nn.RNN(input_size, hidden_size, num_layers=1, batch_first=False, bidirectional=False)
+nn.LSTM(input_size, hidden_size, num_layers=1, batch_first=False, bidirectional=False)
+nn.GRU(input_size, hidden_size, num_layers=1, batch_first=False, bidirectional=False)
+```
+
+**输入输出结构**：
+
+| 模型 | 输入 | 输出 1 | 输出 2 |
+| --- | --- | --- | --- |
+| `nn.RNN` | `(T, N, d)` | `out (T, N, h)` | `hn (L, N, h)` |
+| `nn.GRU` | `(T, N, d)` | `out (T, N, h)` | `hn (L, N, h)` |
+| `nn.LSTM` | `(T, N, d)` | `out (T, N, h)` | **`(hn, cn)`**，各 `(L, N, h)` |
+
+- $T$：序列长度，$N$：batch size，$d$：输入维度，$h$：隐藏维度，$L$：层数
+- **默认 `batch_first=False`**，即形状是 `(T, N, ...)`
+
+**`batch_first=True` 后**：
+
+| 张量 | 形状 |
+| --- | --- |
+| 输入 | `(N, T, d)` |
+| `out` | `(N, T, h)` |
+| `hn` | `(L, N, h)` —— **注意 `hn` 永远是 `(L, N, h)`！** |
+
+> **这是最容易搞错的点**：即使设了 `batch_first=True`，**`hn`/`cn` 的形状也不变**（第一维永远是层数）。因为它没有"序列"这个维度，`batch_first` 对它无意义。
+
+---
+
+## 3.3 三种用法模式
+
+### 多对一（文本分类）
+
+```python
+out, hn = lstm(x)              # out: (N, T, h)
+feature = out[:, -1]           # 取最后一步  <- 最常用
+# 或者 feature = hn[-1]        # 取最后一层的最终状态（多层时等价）
+logits = classifier(feature)
+```
+
+**两者什么时候不等价**：当序列有 padding 时！`out[:, -1]` 可能是 padding 位置的输出（垃圾），而 `hn[-1]` 才是真正的最后有效状态。
+
+**正确做法**：用 `pack_padded_sequence`（见 3.4），此时 `out[:, -1]` 就是最后有效步。
+
+### 多对多（序列标注）
+
+```python
+out, _ = lstm(x)               # out: (N, T, h)
+logits = classifier(out)       # 每个时间步都输出
+```
+
+### 编码器-解码器
+
+```python
+enc_out, (hn, cn) = encoder(src)
+dec_out, _ = decoder(tgt, (hn, cn))    # 把编码器的最终状态作为解码器初始状态
+```
+
+---
+
+## 3.4 变长序列：padding + pack
+
+### 3.4.1 问题
+
+一个 batch 里的句子长度不同，必须 pad 到等长：
+
+```
+样本 A: [3, 5, 7]                 ->  [3, 5, 7, 0, 0]
+样本 B: [2, 9, 1, 4, 8]           ->  [2, 9, 1, 4, 8]
+样本 C: [6, 2]                    ->  [6, 2, 0, 0, 0]   (max_len = 5)
+```
+
+**问题**：RNN 会把 padding 的 0 当作真实输入来处理，污染最终状态。
+
+### 3.4.2 解决：pack_padded_sequence
+
+```python
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
+# ① 计算真实长度（必须先按长度降序排序！）
+lengths = torch.tensor([3, 5, 2])
+order = lengths.argsort(descending=True)
+x_sorted, lengths_sorted = x[order], lengths[order]
+
+# ② 打包
+packed = pack_padded_sequence(x_sorted, lengths_sorted,
+                              batch_first=True, enforce_sorted=True)
+
+# ③ 过 RNN
+packed_out, (hn, cn) = lstm(packed)
+
+# ④ 解包
+out, out_lengths = pad_packed_sequence(packed_out, batch_first=True)
+
+# ⑤ 恢复原始顺序
+inv = order.argsort()
+out = out[inv]
+hn = hn[:, inv]
+```
+
+**四个必须注意的点**：
+
+1. **必须按长度降序排序**（`enforce_sorted=True` 时）。或者设 `enforce_sorted=False` 让 PyTorch 自己排序；
+2. **`hn` 不受 padding 影响**：LSTM 内部会跳过 padding 步，`hn` 就是最后有效步的状态；
+3. **解包后的 `out` 在 padding 位置是 0**（不是垃圾值），可以直接参与后续计算但要 mask 掉；
+4. **恢复顺序**：打包时排序了，解包后要恢复。
+
+### 3.4.3 更简单的替代：mask
+
+如果不想用 pack（比如用的是自定义 RNN），可以手动 mask：
+
+```python
+mask = (x.abs().sum(-1) != 0).float()          # (N, T)
+out = out * mask.unsqueeze(-1)                  # 把 padding 位置的输出置零
+feature = out.sum(1) / mask.sum(1, keepdim=True)   # 按有效长度平均
+```
+
+**对比**：
+
+| 方案 | 优点 | 缺点 |
+| --- | --- | --- |
+| `pack_padded_sequence` | 精确、高效（不计算 padding） | 接口略繁琐 |
+| 手动 mask | 简单、灵活 | 仍会计算 padding（浪费） |
+
+---
+
+## 3.5 多层与双向
+
+### 多层
+
+```python
+nn.LSTM(d, h, num_layers=3, batch_first=True)
+```
+
+**输出结构**：
+
+- `out`：**只有最后一层**的输出，形状 `(N, T, h)`；
+- `hn`：**每一层**的最终状态，形状 `(L, N, h)`。
+
+**要拿中间层的输出**：设 `output_all_layers=True` 或用 `nn.ModuleList` 手动堆。
+
+**参数量**：第一层是 $4(dh + h^2)$，后续层是 $4(h^2+h^2)$。（因为后续层输入维度也是 $h$）
+
+### 双向
+
+```python
+nn.LSTM(d, h, bidirectional=True, batch_first=True)
+```
+
+**输出结构**：
+
+- `out`：**正向和反向的输出拼接**，形状 `(N, T, 2h)`；
+- `hn`：形状 `(2L, N, h)` —— 前 $L$ 个是正向，后 $L$ 个是反向。
+
+**取最终特征**：
+
+```python
+# 前向最后一步 + 反向第一步（在原始序列里是最后一步）
+feature = torch.cat([hn[-2], hn[-1]], dim=-1)     # (N, 2h)
+```
+
+**适用场景**：
+
+| | 适用 | 不适用 |
+| --- | --- | --- |
+| 双向 | 分类、标注（能看完整句） | **自回归生成**（不能看未来） |
+| 单向 | 语言模型、生成任务 | — |
+
+> **双向 RNN 的参数量是单向的 2 倍**（正向、反向两套参数）。它的收益通常比"加深"更大，因为同时获得了左右上下文。
+
+---
+
+## 3.6 训练 RNN 的三条铁律
+
+```python
+for xb, yb in loader:
+    optimizer.zero_grad()
+    out, _ = model(xb)
+    loss = criterion(out, yb)
+    loss.backward()
+
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)   # ① 必须裁剪
+
+    optimizer.step()
+
+# ② 每个 batch 从零初始化隐藏状态（不要跨 batch 传递）
+# ③ 评估时用 no_grad() 且不用保存中间状态
+```
+
+**为什么必须裁剪**：Day1 已经证明梯度会爆炸。
+
+**为什么不能跨 batch 传状态**：计算图会累积，显存持续增长；而且不同 batch 之间没有语义连续性（如果确实需要（如超长文档流式处理），要显式 `detach()`）。
+
+---
+
+## 3.7 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 形状报错 | 忘了 `batch_first=True` | 要么设它，要么手动 transpose |
+| `hn` 形状理解错 | 以为 `batch_first` 也影响 `hn` | `hn` 恒为 `(L, N, h)` |
+| 变长序列结果不对 | 没用 pack | 用 `pack_padded_sequence` |
+| pack 时报错 | 长度没降序 | 排序或 `enforce_sorted=False` |
+| 双向输出的维度对不上 | 忘了 `out` 是 `2h` | `Linear(2h, num_classes)` |
+| 显存持续增长 | 跨 batch 传状态 | 每 batch 重置或 detach |
+| 中间层输出拿不到 | `out` 只有最后一层 | 手动堆层或用 hook |
+
+---
+
+## 3.8 今日自测
+
+1. 打印 `nn.LSTM(10, 20, num_layers=2, batch_first=True, bidirectional=True)` 的 `out` 与 `hn` 的形状，并解释每一维的含义。
+2. 构造一个变长序列 batch，分别用"直接过 RNN"和"pack 后过 RNN"，比较 `hn` 的差异。
+3. 验证：`batch_first=True` 时 `hn` 的形状是否改变。
+4. 统计单向/双向、1 层/2 层的参数量关系。
+5. 写一个函数，把 `(N, T, d)` 的 padded 输入按真实长度降序排序、pack、过 LSTM、解包、恢复顺序，验证最终 `hn` 与未排序时一致。
+
+---
+
+## 3.9 一句话总结
+
+**`nn.LSTM` 的接口只有三个关键点：`batch_first` 决定输入形状、`hn` 永远是 `(L,N,h)`、变长序列必须 pack；掌握这三点，剩下的事情 Day4 的实战会全部走一遍。**
+
+**明日预告**：Day4 用真实任务串联 —— 把 MNIST 的每一行当作一个时间步，做序列分类，对比 RNN/LSTM/GRU/双向的差异。
+

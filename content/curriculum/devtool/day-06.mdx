@@ -1,0 +1,194 @@
+---
+slug: day-06
+kind: day
+day: 6
+week: 1
+weekTitle: 版本控制
+weekBlurb: 从 Git 四区模型起步，延伸到 gh / glab、图形客户端、LFS 与提交钩子——后面每门课的作业都从 git init 开始。
+title: 提交钩子使用教程（Husky / simple-git-hooks / pre-commit）
+sourcePath: 01-版本控制/06-提交钩子.md
+---
+
+## 一、什么是 Git 钩子
+
+Git 在特定事件（提交、推送等）前后会自动执行 `.git/hooks/` 下的脚本，常用钩子：
+
+| 钩子 | 触发时机 | 典型用途 |
+| --- | --- | --- |
+| `pre-commit` | commit 之前 | 跑 lint、格式化、类型检查 |
+| `commit-msg` | 写完提交信息后 | 校验提交信息规范（commitlint） |
+| `pre-push` | push 之前 | 跑测试、构建 |
+| `pre-rebase` | rebase 前 | 阻止对公共分支 rebase |
+
+问题：`.git/hooks` **不进版本库**，无法团队共享。于是有了这些工具来管理钩子。
+
+## 二、Node 生态：Husky（最常用）
+
+### 安装（Husky v9）
+
+```powershell
+npm install -D husky
+npx husky init            # 生成 .husky/ 目录并写 prepare 脚本
+```
+
+`package.json` 会自动添加：
+
+```json
+{
+  "scripts": {
+    "prepare": "husky"
+  }
+}
+```
+
+### 添加钩子
+
+```powershell
+echo "npm test" > .husky/pre-commit
+echo "npx commitlint --edit `$1" > .husky/commit-msg
+```
+
+`.husky/pre-commit` 文件内容示例：
+
+```sh
+npx lint-staged
+```
+
+### 典型组合：Husky + lint-staged + commitlint
+
+```powershell
+npm install -D husky lint-staged @commitlint/cli @commitlint/config-conventional
+```
+
+`package.json`：
+
+```json
+{
+  "lint-staged": {
+    "*.{js,ts,tsx,vue}": ["eslint --fix", "prettier --write"],
+    "*.{css,md,json}": ["prettier --write"]
+  }
+}
+```
+
+`commitlint.config.js`：
+
+```js
+export default { extends: ['@commitlint/config-conventional'] };
+```
+
+`.husky/commit-msg`：
+
+```sh
+npx --no -- commitlint --edit "$1"
+```
+
+效果：提交前只对**改动的文件**做 lint + 格式化；提交信息不符合 `feat:/fix:` 规范直接拦截。
+
+## 三、更轻量的选择：simple-git-hooks
+
+零依赖、体积小（几 KB），适合不想引入 Husky 全套的项目。
+
+```powershell
+npm install -D simple-git-hooks
+```
+
+`package.json`：
+
+```json
+{
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged",
+    "pre-push": "npm test",
+    "commit-msg": "npx commitlint --edit $1"
+  },
+  "scripts": {
+    "prepare": "simple-git-hooks"
+  }
+}
+```
+
+执行一次 `npx simple-git-hooks` 即写入 `.git/hooks`。
+
+## 四、Python 生态：pre-commit
+
+跨语言通用框架，配置写在 `.pre-commit-config.yaml`，团队共享、可缓存、支持任意语言。
+
+```powershell
+pip install pre-commit
+```
+
+`.pre-commit-config.yaml`：
+
+```yaml
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1024']
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+```
+
+使用：
+
+```powershell
+pre-commit install                 # 安装到 .git/hooks
+pre-commit run --all-files         # 对全部文件跑一遍
+pre-commit autoupdate              # 更新 hook 版本
+```
+
+## 五、其他语言钩子
+
+- **Go**：`golangci-lint run` 直接写进 `.husky/pre-commit` 或使用 `pre-commit` 框架。
+- **Java**：Maven/Gradle 插件（如 `spotless`、`checkstyle`）在构建阶段强制校验。
+- **lefthook**：Go 写的多语言钩子管理器，速度极快，YAML 配置，可替代 Husky：
+
+```yaml
+# lefthook.yml
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: "*.{js,ts}"
+      run: npx eslint --fix {staged_files}
+```
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| 钩子不生效 | 确认已运行 `npm run prepare` / `pre-commit install`（钩子未进版本库，克隆后需重新安装） |
+| CI 中钩子被跳过 | CI 直接用 `npm run lint`，不要依赖钩子；本地 `git commit --no-verify` 可跳过 |
+| Husky 在 CI 报错 | 设置 `HUSKY=0` 或安装时 `--ignore-scripts` |
+| Windows 下钩子脚本报语法错误 | 确保 `.husky/*` 文件用 LF 换行，并在 `.gitattributes` 加 `*.sh text eol=lf` |
+| pre-commit 首次运行很慢 | 需要下载隔离环境，属正常；用 `pre-commit run` 缓存后续很快 |
+
+## 七、最佳实践
+
+1. 钩子只做**快速检查**（lint、格式化、提交信息），单次控制在 10 秒内；重测试放 CI。
+2. 必须提供跳过方式（`--no-verify`），避免紧急修复被卡死。
+3. 用 `lint-staged` 只处理改动文件，避免全量扫描拖慢提交。
+4. 钩子配置与 CI 检查保持**一套规则**，避免"本地过了 CI 挂"。
+
+## 八、参考
+
+- Husky：https://typicode.github.io/husky/
+- lint-staged：https://github.com/lint-staged/lint-staged
+- pre-commit：https://pre-commit.com/
+- lefthook：https://github.com/evilmartians/lefthook
+

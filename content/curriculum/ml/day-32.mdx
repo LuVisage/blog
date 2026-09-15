@@ -1,0 +1,385 @@
+---
+slug: day-32
+kind: day
+day: 32
+week: 6
+weekTitle: 无监督学习
+weekBlurb: K-Means、层次聚类、GMM 与降维，从无标注数据里找结构。
+title: 层次聚类与密度聚类
+lead: 'K-Means 只能找出球形簇，还需要预设 $k$。今天两种方法各解决一个问题：**层次聚类**给出完整的"聚类树"，**密度聚类**能找出任意形状的簇。'
+sourcePath: Week06_无监督学习/Day2_层次聚类与DBSCAN.md
+---
+
+> 西瓜书第 9 章 9.5–9.6 节 · 南瓜书 9.21–9.35
+
+K-Means 只能找出球形簇，还需要预设 $k$。今天两种方法各解决一个问题：**层次聚类**给出完整的"聚类树"，**密度聚类**能找出任意形状的簇。
+
+---
+
+## 今日目标
+
+1. 掌握 AGNES 自底向上凝聚的流程与三种链接准则；
+2. 理解树状图（dendrogram）的读法与"在哪切"的决策；
+3. 掌握 DBSCAN 的核心点、边界点、噪声点定义与算法流程；
+4. 说清 $\epsilon$ 与 `minPts` 的作用，以及如何用 k-距离图选 $\epsilon$；
+5. 对比三种聚类方法的适用场景。
+
+---
+
+## 知识地图
+
+```
+Week06
+├── Day1 K-Means ✅
+├── Day2 层次聚类与 DBSCAN  ← 你在这里
+├── Day3 高斯混合聚类
+├── Day4 PCA
+└── Day5 流形学习与自编码器
+```
+
+---
+
+## 一、层次聚类
+
+### 1.1 两种方向
+
+| 方向 | 名称 | 过程 |
+| --- | --- | --- |
+| **自底向上** | AGNES（凝聚） | 每个样本先自成一簇，逐步合并最近的簇 |
+| 自顶向下 | DIANA（分裂） | 全部样本一簇，逐步分裂 |
+
+**AGNES 更常用。**
+
+### 1.2 AGNES 流程
+
+```
+1. 把每个样本看作一个簇: C_i = {x_i}, i = 1..m
+2. 计算簇间距离矩阵
+3. 重复:
+     a. 找到距离最近的两个簇 C_i, C_j
+     b. 合并为一个新簇 C_new = C_i ∪ C_j
+     c. 更新距离矩阵（只需计算 C_new 与其他簇的距离）
+4. 直到只剩一个簇
+```
+
+### 1.3 三种链接准则（簇间距离的定义）
+
+| 名称 | 定义 | 特点 |
+| --- | --- | --- |
+| **单链接**（Single Linkage） | $d_{\min}(C_i,C_j) = \min_{\boldsymbol{x}\in C_i,\boldsymbol{z}\in C_j}d(\boldsymbol{x},\boldsymbol{z})$ | 能发现**非球形/长条状**簇；对噪声敏感（**链式效应**：容易把细长的噪声链连成一体） |
+| **全链接**（Complete Linkage） | $\max$ 距离 | 偏好**紧致、等大小**的簇；对离群点敏感 |
+| **平均链接**（Average Linkage） | 所有跨簇样本对的平均距离 | 折中，较稳健 |
+| 质心链接 | 簇中心之间的距离 | 快，但可能"非单调" |
+
+**单链接的链式效应**：
+
+```
+如果有两个真实簇被一串稀疏的中间点连接起来，
+单链接会把这串点也合并进来，最终两个簇被"桥"连成一个。
+```
+
+**可视化直觉**：单链接生成的是**最小生成树**的层次版本。
+
+### 1.4 树状图（Dendrogram）
+
+**横轴**：样本（或簇）；**纵轴**：合并时的距离。
+
+```
+距离
+ ↑
+ |      ┌────────────┐
+ |   ┌──┤            ├──┐
+ |   │  │            │  │
+ | ┌─┤  │            │  ├─┐
+ | │ │  │            │  │ │
+ | x1 x2  x3  x4  x5 x6 x7
+ +------------------------→ 样本
+```
+
+**怎么决定 $k$**：在纵轴某个高度**水平切一刀**，切到的竖线数量就是簇数。
+
+**经验准则**：找"最长的竖直空隙"处切。
+
+### 1.5 AGNES 的复杂度
+
+$$O(m^3) \quad\text{（朴素实现）}, \qquad O(m^2\log m)\ \text{（优化后）}$$
+
+**因此不适合大样本**（$m > 10^4$ 时很慢）。
+
+---
+
+## 二、DBSCAN
+
+### 2.1 核心思想
+
+**簇是"高密度连通区域"。**
+
+三个概念：
+
+| 概念 | 定义 |
+| --- | --- |
+| **$\epsilon$-邻域** | $N_\epsilon(\boldsymbol{x}) = \{\boldsymbol{z} \mid d(\boldsymbol{x},\boldsymbol{z}) \le \epsilon\}$ |
+| **核心点** | 满足 $\vert N_\epsilon(\boldsymbol{x})\vert \ge \text{MinPts}$ 的点 |
+| **密度直达** | $\boldsymbol{z}\in N_\epsilon(\boldsymbol{x})$ 且 $\boldsymbol{x}$ 是核心点 ⇒ $\boldsymbol{z}$ 由 $\boldsymbol{x}$ **密度直达** |
+| **密度可达** | 存在点链 $\boldsymbol{p}_1,\dots,\boldsymbol{p}_n$，相邻两点密度直达 ⇒ 密度可达 |
+| **密度相连** | 存在 $\boldsymbol{o}$ 使 $\boldsymbol{p},\boldsymbol{q}$ 都由 $\boldsymbol{o}$ 密度可达 ⇒ $\boldsymbol{p},\boldsymbol{q}$ 密度相连 |
+
+**簇的定义**：由"密度可达"关系导出的最大集合，即**任意两点密度相连**。
+
+### 2.2 三类点
+
+```
+      ○ ○ ○
+    ○ ●Core ● ○          ● 核心点（邻域内 ≥ MinPts 个点）
+      ● ● ▲             ▲ 边界点（在核心点邻域内，但自己不是核心点）
+        ▲
+                        × 噪声点（既非核心点也非边界点）
+                    ×
+```
+
+### 2.3 算法流程
+
+```
+输入: D, epsilon, MinPts
+初始化: 所有点标为未访问
+for 每个未访问的点 p:
+    标记 p 为已访问
+    N = p 的 epsilon-邻域
+    if |N| < MinPts:
+        p 标为【噪声】(后续可能被改成边界点)
+    else:
+        新建簇 C
+        把 N 中所有点加入种子集合
+        while 种子集合非空:
+            取出点 q
+            if q 未访问:
+                标记 q 已访问
+                Nq = q 的 epsilon-邻域
+                if |Nq| >= MinPts:
+                    把 Nq 中未归属的点加入种子集合
+            if q 不属于任何簇:
+                把 q 加入簇 C
+输出: 簇划分 + 噪声点
+```
+
+### 2.4 $\epsilon$ 与 MinPts 的选择
+
+**经验规则**：
+
+$$\text{MinPts} \approx 2 \times d \quad (d=\text{维度}), \qquad \text{MinPts} \ge 4\ (\text{大数据集})$$
+
+**选 $\epsilon$ 的 k-距离图法**：
+
+```
+1. 对每个点，计算到它第 MinPts 近邻的距离
+2. 把这些距离从小到大排序，画曲线
+3. 曲线"拐点"处的距离即为推荐的 epsilon
+```
+
+```
+k-距离
+ ↑
+ |                    __/
+ |                __/     ← 拐点 ≈ epsilon
+ |          _____/
+ |_________/
+ +------------------------→ 排序后的点
+```
+
+**含义**：$\epsilon$ 应使得大部分点成为核心点（在拐点右侧的区域）。
+
+### 2.5 DBSCAN 的优缺点
+
+| 优点 | 说明 |
+| --- | --- |
+| **任意形状的簇** | 不假设球形 |
+| **不需要预设 $k$** | 簇数由数据决定 |
+| **自动识别噪声** | 能标出离群点 |
+| 对离群点鲁棒 | 离群点被标为噪声而非强行归类 |
+| 只需两个参数 | 且 $\epsilon$ 有可操作的选法 |
+
+| 缺点 | 说明 |
+| --- | --- |
+| 对参数敏感 | $\epsilon$ 稍变结果差异大 |
+| 密度不均匀时失效 | 全局单一 $\epsilon$ 无法适应不同密度的簇 |
+| 高维效果差 | 维度灾难（$d>10$ 时 $\epsilon$ 难选） |
+| 大数据慢 | 朴素实现 $O(m^2)$，需空间索引加速 |
+
+**改进**：
+
+- **OPTICS**：不固定 $\epsilon$，输出"可达距离图"，可从中提取不同密度的簇；
+- **HDBSCAN**：层次版 DBSCAN，自适应密度，工程上很受欢迎。
+
+---
+
+## 三、三种聚类方法对比
+
+| 维度 | K-Means | AGNES | DBSCAN |
+| --- | --- | --- | --- |
+| 簇形状 | 球形 | 取决于链接准则 | **任意** |
+| 需要 $k$ | | （需切树） | |
+| 噪声处理 | 强行归类 | 强行归类 | **自动识别** |
+| 复杂度 | $O(mkdT)$ | $O(m^3)$ | $O(m\log m)$（有索引）|
+| 大数据 | 好 | 差 | 中 |
+| 结果稳定性 | 依赖初始化 | **确定** | 依赖参数 |
+| 概率输出 | | | （可用 GMM）|
+
+**选择建议**：
+
+```
+簇是球形 + 数据大            -> K-Means
+需要看层次结构 / 小数据       -> AGNES
+簇形状任意 + 有噪声           -> DBSCAN / HDBSCAN
+未知且不想定 k，要概率         -> GMM（Day3）
+```
+
+---
+
+## 四、代码实践
+
+```python
+import numpy as np
+
+def agnes(X, linkage="average"):
+    """返回合并顺序与每次合并的距离"""
+    m = len(X)
+    clusters = [[i] for i in range(m)]
+    D = np.sqrt(((X[:, None, :] - X[None, :, :]) ** 2).sum(axis=2))
+    np.fill_diagonal(D, np.inf)
+
+    merges, heights = [], []
+    while len(clusters) > 1:
+        best, best_d = None, np.inf
+        for i in range(len(clusters)):
+            for j in range(i + 1, len(clusters)):
+                sub = D[np.ix_(clusters[i], clusters[j])]
+                d = {"single": sub.min, "complete": sub.max,
+                     "average": sub.mean}[linkage]()
+                if d < best_d:
+                    best, best_d = (i, j), d
+        i, j = best
+        merges.append((clusters[i], clusters[j]))
+        heights.append(best_d)
+        clusters[i] = clusters[i] + clusters[j]
+        del clusters[j]
+    return merges, heights
+```
+
+```python
+def dbscan(X, eps, min_pts):
+    """返回标签数组，-1 表示噪声"""
+    m = len(X)
+    labels = np.full(m, -1)
+    visited = np.zeros(m, dtype=bool)
+    D = np.sqrt(((X[:, None, :] - X[None, :, :]) ** 2).sum(axis=2))
+
+    def neighbors(i):
+        return np.where(D[i] <= eps)[0]
+
+    cluster_id = 0
+    for i in range(m):
+        if visited[i]:
+            continue
+        visited[i] = True
+        nb = neighbors(i)
+        if len(nb) < min_pts:
+            continue                      # 暂时标为噪声
+        labels[i] = cluster_id
+        seeds = list(nb)
+        while seeds:
+            q = seeds.pop()
+            if not visited[q]:
+                visited[q] = True
+                nq = neighbors(q)
+                if len(nq) >= min_pts:
+                    seeds.extend(nq.tolist())
+            if labels[q] == -1:
+                labels[q] = cluster_id
+        cluster_id += 1
+    return labels
+```
+
+完整版本见 `code/day2_hier_dbscan.py`，包含：
+
+1. 从零实现 AGNES（三种链接）并画出**文本版树状图**；
+2. **单链接的链式效应**演示（构造两个簇被一条"桥"连接的数据）；
+3. 从零实现 DBSCAN，在**月牙形 / 环形 / 螺旋**数据上与 K-Means 对比；
+4. **k-距离图**选 $\epsilon$（文本版曲线）；
+5. **密度不均匀**时 DBSCAN 的失败演示；
+6. 与 `sklearn.cluster.AgglomerativeClustering` / `DBSCAN` 对照。
+
+---
+
+## 五、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 层次聚类不做标准化 | 同 K-Means，量纲主导 |
+| 单链接用于含噪声数据 | 链式效应会把噪声连成簇 |
+| 认为层次聚类能给确定簇数 | 它给树，$k$ 仍需自己切 |
+| $\epsilon$ 设得太大 | 所有点合成一个簇 |
+| $\epsilon$ 设得太小 | 所有点都成噪声 |
+| 忽略 `minPts` 与维度的关系 | 高维需更大 `minPts` |
+| DBSCAN 用于密度差异大的数据 | 单一 $\epsilon$ 无法兼顾；改用 HDBSCAN/OPTICS |
+| 认为 DBSCAN 输出概率 | 它是硬分配 |
+
+---
+
+## 六、练习题
+
+**基础**
+
+1. 写出三种链接准则的定义。
+2. 说明核心点、边界点、噪声点的区别。
+3. 某点邻域内有 MinPts-1 个点，它是哪类点？（提示：取决于它是否落在某个核心点的邻域内）
+
+**进阶**
+
+4. 证明"密度相连"是一个等价关系（满足自反、对称、传递），从而可以把数据集划分为互斥的簇。
+5. 说明为什么 DBSCAN 不需要预设 $k$。
+6. 设计一个数据集，使得 K-Means 失败而 DBSCAN 成功；再设计一个使得 DBSCAN 失败而 K-Means 成功。
+7. 写出 AGNES 的复杂度分析（朴素实现为什么是 $O(m^3)$）。
+
+**思考题**
+
+8. 为什么单链接等价于"最小生成树的层次化"？
+9. HDBSCAN 如何解决"密度不均匀"的问题？请描述其核心思路。
+10. 如果聚类结果要用于下游业务（如用户分群），你会优先选哪种聚类方法？为什么？
+
+<details>
+<summary>第 3 题答案</summary>
+
+| 情形 | 类型 |
+| --- | --- |
+| 邻域点数 $\ge$ MinPts | 核心点 |
+| 邻域点数 &lt; MinPts，但落在某个核心点的邻域内 | **边界点** |
+| 邻域点数 &lt; MinPts，且不落在任何核心点邻域内 | 噪声点 |
+
+所以"邻域点数 &lt; MinPts"本身不能确定是边界点还是噪声点，还要看它是否被某核心点"覆盖"。
+</details>
+
+<details>
+<summary>第 6 题答案要点</summary>
+
+**K-Means 失败、DBSCAN 成功**：两个同心圆环（或月牙）。
+
+- K-Means 会把每个环切成若干段（因为它在找球形簇）；
+- DBSCAN 把整个环识别为一个连通的高密度区域。
+
+**DBSCAN 失败、K-Means 成功**：两个簇密度差异悬殊（一个非常密，一个非常稀疏）。
+
+- 若 $\epsilon$ 大：稀疏簇被识别，但密集簇周围可能并入其他点/噪声；
+- 若 $\epsilon$ 小：密集簇OK，稀疏簇全被标为噪声；
+- K-Means 则不受密度差异影响（它只看距离）。
+</details>
+
+---
+
+## 七、一句话总结
+
+**层次聚类给你一棵完整的树（切哪里由你决定），DBSCAN 给你任意形状的簇与自动噪声标注（但依赖 $\epsilon$ 选得好）。** 两者共同的关键是：**先想清楚"簇"在你的业务里到底是什么意思**。
+
+---
+
+**明日预告**：Day3 用 Week05 的 EM 算法做概率聚类——它既能给出软分配，又能自动拟合椭球形状的簇。
+

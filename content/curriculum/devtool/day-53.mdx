@@ -1,0 +1,223 @@
+---
+slug: day-53
+kind: day
+day: 53
+week: 8
+weekTitle: 终端与命令行
+weekBlurb: Shell、常用命令行工具与终端复用，把日常操作脚本化。
+title: 搜索与查找工具教程（ripgrep / fd / fzf）
+sourcePath: 08-终端与命令行/05-搜索与查找.md
+---
+
+## 一、为什么换掉 grep / find
+
+| 老工具 | 问题 | 替代 |
+| --- | --- | --- |
+| grep -r | 慢、默认不忽略 .gitignore、正则语法繁琐 | **ripgrep（rg）** |
+| find | 语法古怪、慢 | **fd** |
+| 手动翻目录 | 效率低 | **fzf** |
+
+三者组合 = 命令行搜索的现代标准。
+
+## 二、ripgrep（rg）
+
+### 安装
+
+```powershell
+winget install BurntSushi.ripgrep.MSVC
+# macOS
+brew install ripgrep
+# Ubuntu
+sudo apt install ripgrep
+```
+
+### 基本用法
+
+```powershell
+rg "TODO"                      # 当前目录递归搜索（自动忽略 .gitignore）
+rg "TODO" src/                 # 指定目录
+rg -i "todo"                   # 忽略大小写
+rg -w "user"                   # 整词匹配
+rg -t ts "interface"           # 只搜 TS 文件
+rg -T test "flaky"             # 排除测试文件
+rg -g "*.json" "version"       # 按 glob 过滤
+rg --hidden "secret"           # 包含隐藏文件
+rg -uuu "keyword"              # 不忽略任何东西（含 .gitignore、隐藏、二进制）
+```
+
+### 输出与控制
+
+```powershell
+rg "function" -l               # 只列文件名
+rg "function" -c               # 每个文件匹配数
+rg "old" -r "new" --passthru   # 预览替换效果（不改文件）
+rg "error" -A 3 -B 1           # 显示后 3 行、前 1 行
+rg "error" -C 2                # 前后各 2 行
+rg "TODO" --stats              # 显示统计
+```
+
+### 替换文件内容
+
+```powershell
+rg "foo" -l | ForEach-Object { (Get-Content $_) -replace "foo","bar" | Set-Content $_ }
+# Linux/macOS
+rg "foo" -l | xargs sed -i 's/foo/bar/g'
+```
+
+### 配置（`RIPGREP_CONFIG_PATH`）
+
+`~/.ripgreprc`：
+
+```
+--smart-case
+--hidden
+--glob=!.git/*
+--glob=!node_modules/*
+--max-columns=150
+```
+
+### 常用类型表
+
+`rg --type-list` 查看；常用 `js, ts, py, rust, go, json, yaml, md, html, css`。
+
+## 三、fd（find 的现代替代）
+
+### 安装
+
+```powershell
+winget install sharkdp.fd
+# macOS
+brew install fd
+# Ubuntu
+sudo apt install fd-find   # 命令名是 fdfind，可 alias fd=fdfind
+```
+
+### 基本用法
+
+```powershell
+fd                          # 列出当前目录所有文件（递归，忽略 gitignore）
+fd config                   # 文件名含 config 的
+fd -e ts                    # 只列 .ts 文件
+fd -e ts -e tsx             # 多扩展名
+fd -t d                     # 只列目录
+fd -t f -x wc -l            # 对每个文件执行命令
+fd -H                       # 包含隐藏文件
+fd -I                       # 不忽略 gitignore
+fd "^test_"                 # 正则匹配文件名
+fd --changed-within 2d      # 最近 2 天修改过的
+fd --changed-before 1h
+fd -x rm                     # 删除所有匹配（危险，先确认）
+fd -0 | xargs -0 wc -l       # 配合 xargs
+fd -e png -x convert {} {.}.webp   # 批量转格式
+```
+
+### 常用选项
+
+| 选项 | 含义 |
+| --- | --- |
+| `-e ext` | 扩展名 |
+| `-t f/d/l` | 类型：文件/目录/符号链接 |
+| `-x cmd` | 对结果并行执行命令（`{}` = 路径，`{.}` = 去扩展名） |
+| `-X cmd` | 一次传入所有结果 |
+| `-d depth` | 最大深度 |
+| `-E pattern` | 排除 |
+| `--exec-batch` | 批量执行 |
+
+### fd vs find 对照
+
+```bash
+# find 写法
+find . -name "*.ts" -not -path "*/node_modules/*" -type f
+# fd 写法
+fd -e ts
+```
+
+## 四、fzf（模糊查找）
+
+### 安装
+
+```powershell
+winget install junegunn.fzf
+# macOS
+brew install fzf
+# 安装 shell 集成（键绑定）
+fzf --install     # 或按官方文档 source 对应脚本
+```
+
+### 基本用法
+
+```powershell
+fzf                                  # 从标准输入模糊筛选
+fd -e ts | fzf                       # 选文件
+git branch | fzf                     # 选分支
+fzf --preview 'bat --color=always {}'   # 带预览选文件
+```
+
+交互操作：
+- 输入即模糊匹配；
+- `Enter` 确认，`Esc` 取消；
+- `Ctrl+J/K` 上下移动；
+- `Tab` 多选（`-m` 模式）。
+
+### 与常用命令组合
+
+```powershell
+# 打开选中的文件
+code (fd -e ts | fzf)
+
+# 切换到选中分支
+git checkout (git branch | fzf | ForEach-Object { $_.Trim() })
+
+# 杀掉选中进程
+Get-Process | Where-Object { $_.Name -like "*node*" } | ForEach-Object { $_.Id.ToString() + " " + $_.Name } | fzf
+
+# 在选中文件中搜索内容（rg + fzf 联动）
+rg -l "TODO" | fzf --preview "rg -n --color=always TODO {}"
+```
+
+### Shell 集成后的快捷键（bash/zsh）
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `Ctrl+T` | 在当前目录模糊选文件并插入路径 |
+| `Alt+C` | 模糊选目录并 cd 进去 |
+| `Ctrl+R` | 模糊搜索历史命令（替代原生） |
+
+> `Ctrl+R` 历史搜索是 fzf **最常用的功能**，装好后立刻可用。
+
+### 主题与默认选项
+
+```powershell
+$env:FZF_DEFAULT_OPTS = "--height 40% --layout=reverse --border --preview 'bat --color=always {}'"
+```
+
+## 五、三者组合实战
+
+| 任务 | 命令 |
+| --- | --- |
+| 在项目中找某段代码 | `rg "handleSubmit" -C 2` |
+| 找一个叫 config 的文件 | `fd config` |
+| 交互式选择文件并打开 | `code (fd -e tsx \| fzf --preview 'bat {}')` |
+| 全局搜索并跳转 | `rg -l "TODO" \| fzf` |
+| 快速切目录 | `Alt+C`（fzf） |
+| 找最近改的文件 | `fd --changed-within 1h` |
+| 批量删除 .log | `fd -e log -x rm` |
+
+## 六、常见问题
+
+| 问题 | 解决 |
+| --- | --- |
+| rg 搜不到 node_modules 里的内容 | 默认忽略，用 `-uuu` 或 `--no-ignore` |
+| 中文搜索乱码 | 终端设为 UTF-8 |
+| fd 在 Windows 上别名冲突 | PowerShell 中 `Set-Alias fd fd.exe`；Ubuntu 用 `fdfind` |
+| fzf 快捷键不生效 | 确认 shell 集成脚本已 source（在 `.zshrc`/`config.fish`/`$PROFILE`） |
+| rg 正则与 PCRE 不同 | 需要高级正则加 `-P`（look-behind 等） |
+| 想把 rg 当作 grep 用 | `alias grep='rg'`（注意输出格式变了） |
+
+## 七、参考
+
+- ripgrep：https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md
+- fd：https://github.com/sharkdp/fd
+- fzf：https://github.com/junegunn/fzf
+- 速查表：https://github.com/junegunn/fzf#key-bindings
+
