@@ -6,11 +6,35 @@
   <link href="https://LuVisage.github.io/blog/" rel="alternate"/>
   <link href="https://LuVisage.github.io/blog/atom.xml" rel="self"/>
   <id>https://LuVisage.github.io/blog/</id>
-  <updated>2026-09-12T00:00:00.000Z</updated>
+  <updated>2026-09-16T00:00:00.000Z</updated>
   <author>
     <name>Baron_Zhang</name>
     <email>1977928878@qq.com</email>
   </author>
+  <entry>
+    <title>Coding Agent 横向测评：从 Claude Code 到 Qoder，十一款工具我各用了一个月</title>
+    <link href="https://LuVisage.github.io/blog/posts/vibe-coding-agent-comparison/"/>
+    <id>https://LuVisage.github.io/blog/posts/vibe-coding-agent-comparison/</id>
+    <published>2026-09-16T00:00:00.000Z</published>
+    <updated>2026-09-16T00:00:00.000Z</updated>
+    <summary>同一组任务跑遍 Claude Code、Codex CLI、OpenCode、Windsurf、Trae、Qoder、CodeBuddy、Comate，以及作为引擎与基础设施的 DeepSeek、智谱 Z Code 与 OpenRouter：五个维度横评、按人群选型表，和「工具与引擎解耦」的双轨组合策略。</summary>
+    <author>
+      <name>Baron_Zhang</name>
+      <email>1977928878@qq.com</email>
+    </author>
+  </entry>
+  <entry>
+    <title>Vibe Coding 实战入门：让 AI 打字，把验收留给自己</title>
+    <link href="https://LuVisage.github.io/blog/posts/vibe-coding-workflow/"/>
+    <id>https://LuVisage.github.io/blog/posts/vibe-coding-workflow/</id>
+    <published>2026-09-16T00:00:00.000Z</published>
+    <updated>2026-09-16T00:00:00.000Z</updated>
+    <summary>Vibe Coding 不是「不写代码」，是把注意力从打字挪到规格、验收与架构。这篇讲清开工前的三件准备、一套可复用的工作流、四种提示词模式，以及我踩过的坑：哪些环节可以放心交给 agent，哪些一步都不能让。</summary>
+    <author>
+      <name>Baron_Zhang</name>
+      <email>1977928878@qq.com</email>
+    </author>
+  </entry>
   <entry>
     <title>RAG 检索优化实战：从「一本正经地胡说」到每句都有出处</title>
     <link href="https://LuVisage.github.io/blog/posts/rag-retrieval-optimization/"/>

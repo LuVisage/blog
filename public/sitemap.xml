@@ -67,6 +67,18 @@
     <changefreq>yearly</changefreq>
   </url>
   <url>
+    <loc>https://LuVisage.github.io/blog/posts/vibe-coding-agent-comparison/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <priority>0.85</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/posts/vibe-coding-workflow/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <priority>0.85</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
     <loc>https://LuVisage.github.io/blog/posts/rag-retrieval-optimization/</loc>
     <lastmod>2026-09-12</lastmod>
     <priority>0.85</priority>
@@ -87,7 +99,7 @@
   <url>
     <loc>https://LuVisage.github.io/blog/posts/hello-world/</loc>
     <lastmod>2026-07-13</lastmod>
-    <priority>0.85</priority>
+    <priority>0.75</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
@@ -1735,6 +1747,72 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
+    <loc>https://LuVisage.github.io/blog/tags/Vibe%20Coding/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/Claude%20Code/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/Codex/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/CodeBuddy/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/Trae/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/Qoder/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/%E5%B7%A5%E5%85%B7%E6%B5%8B%E8%AF%84/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/AI%20%E7%BC%96%E7%A8%8B/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/Agent/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/%E5%B7%A5%E4%BD%9C%E6%B5%81/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/tags/Prompt/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
     <loc>https://LuVisage.github.io/blog/tags/RAG/</loc>
     <lastmod>2026-09-15</lastmod>
     <priority>0.4</priority>
@@ -1766,12 +1844,6 @@
   </url>
   <url>
     <loc>https://LuVisage.github.io/blog/tags/LLM/</loc>
-    <lastmod>2026-09-15</lastmod>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://LuVisage.github.io/blog/tags/Agent/</loc>
     <lastmod>2026-09-15</lastmod>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
@@ -1846,6 +1918,12 @@
     <loc>https://LuVisage.github.io/blog/categories/Blog/</loc>
     <lastmod>2026-09-15</lastmod>
     <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://LuVisage.github.io/blog/series/Vibe%20Coding%20%E5%AE%9E%E6%88%98/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.5</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
