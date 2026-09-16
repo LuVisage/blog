@@ -118,8 +118,10 @@ const worker = {
     // 白名单里的 base 自带各家的版本段（openai 是 /v1、智谱是 /v4），所以只能拼掉本地版本段的后缀。
     const resource = path.replace(/^\/v1(?=\/)/, '')
 
+    /* Bearer 令牌只允许可打印 ASCII 且无空白：把 CRLF 头注入挡在这里，
+       而不是留给上游 fetch 去抛一个未处理异常。 */
     const auth = request.headers.get('authorization') || ''
-    if (!/^Bearer\s+\S/i.test(auth)) return reject(headers, 401, '缺少 API Key。Key 存在你自己的浏览器里，由你填入。')
+    if (!/^Bearer\s+[!-~]+$/.test(auth)) return reject(headers, 401, '缺少 API Key。Key 存在你自己的浏览器里，由你填入。')
 
     const base = upstreamOf(request.headers.get('x-upstream-base'), list(env.UPSTREAM_ALLOWLIST, DEFAULT_UPSTREAMS))
     if (!base) return reject(headers, 403, '这个上游地址不在允许列表里。')
