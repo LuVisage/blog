@@ -37,3 +37,10 @@ tsconfig.tsbuildinfo
 
 # agent scratch: kept-aside files, local probes, junctions into out/
 .qoder-scratch/
+
+# CodeBuddy 工作区数据
+.codebuddy/
+
+# 构建缓存改名让位的备份（构建时环境批量删除保护所致）
+.next.bak.*/
+out.bak.*/

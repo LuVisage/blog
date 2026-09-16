@@ -34,6 +34,7 @@ export const metadata: Metadata = {
   },
   twitter: { card: 'summary_large_image', title: SITE.title, description: SITE.description, images: [siteUrl('og-default.svg')] },
   robots: { index: true, follow: true },
+  icons: [{ url: basePathUrl('/favicon.svg'), type: 'image/svg+xml' }],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

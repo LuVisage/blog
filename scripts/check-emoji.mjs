@@ -13,8 +13,6 @@ import { join, extname, relative } from 'node:path'
 const ROOT = join(import.meta.dirname, '..')
 const SKIP = new Set([
   'node_modules',
-  '.next',
-  'out',
   'dist',
   '.git',
   '.qoder-scratch',
@@ -24,6 +22,12 @@ const SKIP = new Set([
   '.claude',
   '.agents',
 ])
+/** 构建产物及其改名备份（.next / out / .next.bak.* / out.bak.*）一律不看。 */
+const SKIP_PREFIX = ['.next', 'out.', 'out', '.git']
+
+function skipped(name) {
+  return SKIP.has(name) || name.startsWith('.git') || SKIP_PREFIX.some((p) => name.startsWith(p))
+}
 const CODE_EXT = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.css', '.json', '.yaml', '.yml'])
 const TEXT_EXT = new Set(['.mdx', '.md'])
 const FENCE = /^(\s*)(```|~~~)/
@@ -33,7 +37,7 @@ const EMOJI = /[\u{1F000}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-
 
 function walk(dir, acc = []) {
   for (const name of readdirSync(dir)) {
-    if (SKIP.has(name) || name.startsWith('.git')) continue
+    if (skipped(name)) continue
     const p = join(dir, name)
     if (statSync(p).isDirectory()) walk(p, acc)
     else acc.push(p)
@@ -45,6 +49,8 @@ const findings = []
 
 for (const file of walk(ROOT)) {
   const ext = extname(file)
+  const base = [...file.split(/[\\/]/)].pop()
+  if (skipped(base)) continue
   if (!CODE_EXT.has(ext) && !TEXT_EXT.has(ext)) continue
   const rel = relative(ROOT, file).replace(/\\/g, '/')
   let inside = false
