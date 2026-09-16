@@ -65,7 +65,7 @@ async function call(path, opts = {}) {
   }
   if (opts.upstream !== null) headers['x-upstream-base'] = opts.upstream ?? 'https://api.openai.com/v1'
   const request = makeRequest(path, { method: opts.method, headers, body: opts.body, cf: opts.cf })
-  return worker.default.fetch(request, ENV)
+  return worker.default.fetch(request, opts.env ?? ENV)
 }
 
 const chatBody = { model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'hey' }] }
@@ -271,7 +271,40 @@ const upstreamHeaderKeys = Object.keys(sent[0]?.init.headers || {})
 check('访客自定义头与 Cookie 不会转发到上游', !upstreamHeaderKeys.includes('x-evil-header') && !upstreamHeaderKeys.includes('cookie'), upstreamHeaderKeys.join(','))
 
 /* ============================================================
- * 7. 源码级断言：安全性质必须是代码事实，不是注释
+ * 7. 响应头：每一类响应都该携带同一套安全头部
+ * ============================================================ */
+
+const headOf = (r) => Object.fromEntries([...r.headers].map(([k, v]) => [k.toLowerCase(), v]))
+
+const rHead = await call('/v1/chat/completions', { body: chatBody })
+const h200 = headOf(rHead)
+check('成功响应带 HSTS', (h200['strict-transport-security'] || '').includes('max-age=31536000'), h200['strict-transport-security'])
+check('成功响应禁止被嵌框', h200['x-frame-options'] === 'DENY', h200['x-frame-options'])
+check('成功响应 CSP 关闭一切加载', (h200['content-security-policy'] || '').includes("default-src 'none'"), h200['content-security-policy'])
+check('代理端点不被搜索引擎收录', (h200['x-robots-tag'] || '').includes('noindex'), h200['x-robots-tag'])
+
+const h403 = headOf(await call('/v1/chat/completions', { origin: 'https://evil.example' }))
+check('来源拒绝响应同样携带安全头部', h403['x-frame-options'] === 'DENY' && (h403['strict-transport-security'] || '').includes('max-age=31536000'), `${h403['x-frame-options']} / ${h403['strict-transport-security']}`)
+
+const rPreflight = await call('/v1/chat/completions', { method: 'OPTIONS', authorization: null, upstream: null })
+check('预检响应也带安全头部', rPreflight.status === 204 && rPreflight.headers.get('x-frame-options') === 'DENY', `${rPreflight.status} / ${rPreflight.headers.get('x-frame-options')}`)
+
+/* ============================================================
+ * 8. 边缘限流绑定：跨实例洪水闸优先进程内预算
+ * ============================================================ */
+
+const edgeDeny = { ...ENV, RATE_LIMITER: { limit: async () => ({ success: false }) } }
+sent = []
+const rEdgeDeny = await call('/v1/chat/completions', { body: chatBody, env: edgeDeny })
+check('边缘限流拒绝时 429 且不打上游', rEdgeDeny.status === 429 && sent.length === 0, `${rEdgeDeny.status} / ${sent.length}`)
+
+const edgeAllow = { ...ENV, RATE_LIMITER: { limit: async () => ({ success: true }) } }
+sent = []
+const rEdgeOk = await call('/v1/chat/completions', { body: chatBody, env: edgeAllow })
+check('边缘限流放行时正常转发', rEdgeOk.status === 200 && sent.length === 1, `${rEdgeOk.status} / ${sent.length}`)
+
+/* ============================================================
+ * 9. 源码级断言：安全性质必须是代码事实，不是注释
  * ============================================================ */
 
 /* 先剥掉注释再断言——注释里"no D1"这类否定句不是代码事实。 */

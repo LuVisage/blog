@@ -30,6 +30,23 @@ const list = (value, fallback) =>
     .filter(Boolean)
     .concat(value ? [] : fallback)
 
+/**
+ * Edge-side coarse gate: the ratelimit binding counts across instances per
+ * location, which the in-process Map below cannot do — a flood spread over
+ * isolates used to reset each bucket on contact. Absent binding (dashboard
+ * deploy, local tests) returns null and the in-process budget stays the only
+ * line of defence.
+ *
+ * Keyed by IP: an anonymous visitor has no other stable identity. Shared NAT
+ * IPs will feel this — for a proxy that spends visitors' own money, tighten
+ * beats loose.
+ */
+async function edgeGate(env, ip) {
+  if (!env.RATE_LIMITER || typeof env.RATE_LIMITER.limit !== 'function') return null
+  const result = await env.RATE_LIMITER.limit({ key: ip })
+  return result.success ? { ok: true } : { ok: false, retry: 60 }
+}
+
 /** Best-effort, per-isolate. Enough to stop a stray script; not a WAF. */
 const buckets = new Map()
 
@@ -50,17 +67,27 @@ function spend(ip, cap, perDay) {
   return { ok: true }
 }
 
+/** Every response this Worker emits — 200, 403, 429 — carries these, whatever the route. */
+const SECURE = {
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'no-referrer',
+  'x-frame-options': 'DENY',
+  'content-security-policy': "default-src 'none'; frame-ancestors 'none'",
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
+  /* The proxy URL is infrastructure, not content — keep it out of search results. */
+  'x-robots-tag': 'noindex, nofollow',
+}
+
 function cors(origin, allowed) {
   if (!origin || !allowed.includes(origin.toLowerCase())) return null
   return {
+    ...SECURE,
     'access-control-allow-origin': origin,
     'access-control-allow-methods': 'GET, POST, OPTIONS',
     'access-control-allow-headers': 'authorization, content-type, x-upstream-base',
     'access-control-max-age': '600',
     vary: 'Origin',
     'cache-control': 'no-store',
-    'x-content-type-options': 'nosniff',
-    'referrer-policy': 'no-referrer',
   }
 }
 
@@ -110,7 +137,7 @@ const worker = {
   async fetch(request, env = {}) {
     const allowedOrigins = list(env.ALLOWED_ORIGINS, ['https://luvisage.github.io']).map((o) => o.toLowerCase())
     const headers = cors(request.headers.get('origin') || '', allowedOrigins)
-    if (!headers) return new Response('origin not allowed', { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+    if (!headers) return new Response('origin not allowed', { status: 403, headers: { ...SECURE, 'content-type': 'text/plain; charset=utf-8' } })
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
 
     const path = new URL(request.url).pathname.replace(/\/+$/, '')
@@ -126,7 +153,10 @@ const worker = {
     const base = upstreamOf(request.headers.get('x-upstream-base'), list(env.UPSTREAM_ALLOWLIST, DEFAULT_UPSTREAMS))
     if (!base) return reject(headers, 403, '这个上游地址不在允许列表里。')
 
-    const gate = spend(clientIp(request), Number(env.REQUESTS_PER_MINUTE) || 10, Number(env.REQUESTS_PER_DAY) || 200)
+    const ip = clientIp(request)
+    /* Edge gate first when the binding exists; the per-isolate budget stacks
+       on top of it for the finer per-minute/per-day cost caps. */
+    const gate = (await edgeGate(env, ip)) ?? spend(ip, Number(env.REQUESTS_PER_MINUTE) || 10, Number(env.REQUESTS_PER_DAY) || 200)
     if (!gate.ok) {
       return reject(headers, 429, `这个 IP 的请求太频繁了，请 ${gate.retry} 秒后再试。`, gate.retry)
     }

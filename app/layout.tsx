@@ -54,6 +54,37 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        {/*
+         * GitHub Pages 不允许自定义响应头，能落地的头部加固就只剩 meta：
+         *   - CSP：真正起作用的是 default/frame/object/base-uri/form-action 这些
+         *     「结构性」指令 —— 就算哪天混进一枚注入脚本，它也开不出新框架、
+         *     加载不了插件、改不了 base。script/style 里的 'unsafe-inline' 是
+         *     Next 静态导出的内联启动脚本与内联样式所迫，属于已知的弱化。
+         *   - connect-src 保留 https: 通配，因为「接口设置」允许访客把代理
+         *     指到任意域名（BYOK 的前提）；Ollama 模式还要放行 localhost。
+         * 换到 Cloudflare 托管后，应把这份策略升级为真实响应头（含
+         * frame-ancestors 与 script nonce），meta 里写不了那两条。
+         */}
+        <meta
+          httpEquiv="Content-Security-Policy"
+          content={[
+            "default-src 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "form-action 'self'",
+            'frame-src https://giscus.app',
+            "script-src 'self' 'unsafe-inline' https://giscus.app https://www.googletagmanager.com",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "font-src 'self' data: https://fonts.gstatic.com",
+            "img-src 'self' data: blob: https:",
+            "media-src 'self' blob: https:",
+            "connect-src 'self' https: http://localhost:* http://127.0.0.1:*",
+            "worker-src 'self' blob:",
+            'upgrade-insecure-requests',
+          ].join('; ')}
+        />
+        {/* 评论 iframe 等跨源引用只送 origin，不给完整 URL。 */}
+        <meta name="referrer" content="strict-origin-when-cross-origin" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />

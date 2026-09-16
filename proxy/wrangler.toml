@@ -16,3 +16,15 @@ MAX_BODY_BYTES = "65536"
 EMBED_BATCH = "32"
 REQUESTS_PER_MINUTE = "10"
 REQUESTS_PER_DAY = "200"
+
+# Edge-side flood gate: counts across Worker instances per location, which the
+# in-process budget cannot do. Needs Wrangler >= 4.36.0 to deploy. Absent this
+# binding (dashboard-pasted deploys), the in-process budget stays the only gate.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+[ratelimits.simple]
+# Coarse burst cap only — the fine per-minute/per-day quotas stay in [vars] above.
+limit = 30
+period = 60

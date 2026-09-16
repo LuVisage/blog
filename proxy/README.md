@@ -41,9 +41,17 @@ npx wrangler deploy         # 结束后打印 https://agent-learn-proxy.<你的�
 | 请求体上限 | 64 KB | `MAX_BODY_BYTES` |
 | 一次向量化条数 | 32 | `EMBED_BATCH` |
 | 单 IP 频率 | 10 次/分钟、200 次/天 | `REQUESTS_PER_MINUTE`、`REQUESTS_PER_DAY` |
+| 边缘洪水闸 | 30 次/分钟，跨实例计数 | `wrangler.toml` 的 `[[ratelimits]]` |
 
-频率计数住在 Worker 实例的内存里，是尽力而为的防刷，不是精确账单 —— 真要限死成本，请在
+频率计数分两层：`[[ratelimits]]` 限流绑定在 Cloudflare 边缘按节点跨实例计数（需 Wrangler
+≥ 4.36.0，控制台粘贴部署没有它），挡住分散到多个实例的洪水；进程内预算再做更细的每分钟/
+每天花费限额。绑定的 key 是 IP —— 匿名访客没有更稳定的标识，共享 NAT 会误伤，对花访客
+自己钱的代理宁可收紧。进程内计数是尽力而为的防刷，不是精确账单 —— 真要限死成本，请在
 服务商侧给这个 Key 单独设额度上限（那才是花钱的地方）。
+
+另外每个响应（含 403/429/预检）都带 `X-Frame-Options: DENY`、`CSP: default-src 'none';
+frame-ancestors 'none'`、HSTS、`X-Robots-Tag: noindex` —— 代理地址是基础设施，不进搜索引擎，
+也不许被别站嵌框。
 
 ## 本地跑
 
