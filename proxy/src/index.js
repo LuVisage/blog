@@ -59,6 +59,8 @@ function cors(origin, allowed) {
     'access-control-max-age': '600',
     vary: 'Origin',
     'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'no-referrer',
   }
 }
 

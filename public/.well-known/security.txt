@@ -1,0 +1,6 @@
+Contact: mailto:1977928878@qq.com
+Contact: https://github.com/LuVisage/blog/issues
+Expires: 2027-09-16T00:00:00.000Z
+Preferred-Languages: zh, en
+Canonical: https://luvisage.github.io/blog/.well-known/security.txt
+Policy: https://luvisage.github.io/blog/terms/

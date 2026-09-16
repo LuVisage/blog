@@ -1,3 +1,44 @@
+# ============================================================
+# 本站爬虫协议 / 君子协定
+# 完整使用规范：https://luvisage.github.io/blog/terms/
+# 安全联系方式：https://luvisage.github.io/blog/.well-known/security.txt
+# ============================================================
+
+# —— 搜索引擎：欢迎，正常抓即可 ——
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: DuckDuckBot
+User-agent: Baiduspider
+User-agent: Sogou web spider
+User-agent: YisouSpider
+User-agent: 360Spider
+Allow: /
+
+# —— AI 搜索与实时引用类：允许，请保持慢速 ——
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: PerplexityBot
+User-agent: ClaudeBot
+User-agent: Claude-User
+Allow: /
+Crawl-delay: 10
+
+# —— AI 训练与数据挖掘类：不允许 ——
+User-agent: GPTBot
+User-agent: CCBot
+User-agent: Google-Extended
+User-agent: Bytespider
+User-agent: Amazonbot
+User-agent: FacebookBot
+User-agent: meta-externalagent
+User-agent: anthropic-ai
+Disallow: /
+
+# —— 其余一切爬虫：公开页面可抓，请遵守下方频率约定 ——
+# 持续速率请不超过 1 请求/秒；突发不超过 60 请求/分钟。
+# 违反本协议的抓取将被列入封禁名单并通报托管方，详见使用规范。
 User-agent: *
 Allow: /
-Sitemap: https://LuVisage.github.io/blog/sitemap.xml
+Crawl-delay: 5
+
+Sitemap: https://luvisage.github.io/blog/sitemap.xml

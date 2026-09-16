@@ -71,6 +71,12 @@ export function Footer() {
           </p>
           <div className="flex items-center gap-5">
             <Link
+              href="/terms"
+              className="meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
+            >
+              条款
+            </Link>
+            <Link
               href="/privacy"
               className="meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
             >
