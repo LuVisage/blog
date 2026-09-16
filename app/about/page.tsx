@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { SITE, ABOUT, SOCIAL_LINKS } from '@/lib/constants'
+import { SITE, ABOUT, SOCIAL_LINKS, EMAIL_OBFUSCATED } from '@/lib/constants'
+import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 import { AvatarImage } from '@/components/avatar-image'
 import { PageMasthead } from '@/components/page-masthead'
 import { AnimatedContent } from '@/components/ui/animated-content'
@@ -150,8 +151,9 @@ export default function AboutPage() {
                 </a>
               )}
               {SOCIAL_LINKS.email && (
-                <a
-                  href={`mailto:${SOCIAL_LINKS.email}`}
+                <ObfuscatedEmailIcon
+                  encoded={EMAIL_OBFUSCATED}
+                  label="邮件"
                   className="btn-secondary justify-between h-10 text-sm"
                 >
                   <span className="inline-flex items-center gap-2">
@@ -159,7 +161,7 @@ export default function AboutPage() {
                     邮件
                   </span>
                   <IconArrowRight size={14} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />
-                </a>
+                </ObfuscatedEmailIcon>
               )}
               <Link href="/posts" className="btn-ghost h-10 justify-between px-3 text-sm">
                 浏览文章

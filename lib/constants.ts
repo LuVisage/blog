@@ -66,6 +66,14 @@ export const SOCIAL_LINKS = {
   email: '1977928878@qq.com',
 } as const
 
+/**
+ * 防收割密文：SITE.author.email 的 base64。站点是纯静态托管，HTML 里任何明文
+ * 邮箱（mailto: 链接或正文）都会被收割机器人原样捡走，所以页面上只出现这串
+ * 密文，由 components/obfuscated-email.tsx 在浏览器挂载后解码。换邮箱时
+ * 改上面两处即可，这串会跟着重算。
+ */
+export const EMAIL_OBFUSCATED = btoa(SOCIAL_LINKS.email)
+
 /** Giscus configuration */
 export const GISCUS_CONFIG = {
   repo: 'LuVisage/blog' as `${string}/${string}`,

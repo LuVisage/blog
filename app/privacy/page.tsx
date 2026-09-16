@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { SITE } from '@/lib/constants'
+import { SITE, EMAIL_OBFUSCATED } from '@/lib/constants'
+import { ObfuscatedEmail } from '@/components/obfuscated-email'
 import { PageMasthead } from '@/components/page-masthead'
 import { AnimatedContent } from '@/components/ui/animated-content'
 
@@ -54,7 +55,7 @@ export default function PrivacyPage() {
           <h2>6. 联系</h2>
           <p>
             如有任何关于隐私的问题，请联系：{' '}
-            <a href={`mailto:${SITE.author.email}`}>{SITE.author.email}</a>
+            <ObfuscatedEmail encoded={EMAIL_OBFUSCATED} className="underline underline-offset-2" />
           </p>
         </div>
       </AnimatedContent>

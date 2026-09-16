@@ -83,6 +83,19 @@ function walk(dir, acc = []) {
 
 const files = walk(OUT)
 
+/* ── 1.5. 站长邮箱明文扫描：页面只应出现 base64 密文（防收割）── */
+function auditEmailPlaintext() {
+  const constants = readFileSync(join(process.cwd(), 'lib', 'constants.ts'), 'utf8')
+  const match = constants.match(/email:\s*'([^']+)'/)
+  if (!match) return
+  const email = match[1]
+  for (const file of files.filter((f) => extname(f) === '.html' || f.endsWith('.xml'))) {
+    const text = readFileSync(file, 'utf8')
+    if (text.includes(email)) fail(`站长邮箱明文出现在 out/${relative(OUT, file).replace(/\\/g, '/')}（应只放 EMAIL_OBFUSCATED 密文）`)
+  }
+}
+auditEmailPlaintext()
+
 /* ── 1. 秘密扫描（文本类产物）── */
 let scanned = 0
 for (const file of files) {

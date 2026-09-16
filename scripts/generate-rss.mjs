@@ -87,7 +87,6 @@ function generateAtom(posts) {
     <summary>${escapeXml(post.description)}</summary>
     <author>
       <name>${escapeXml(SITE.author.name)}</name>
-      <email>${escapeXml(SITE.author.email)}</email>
     </author>
   </entry>`
     )
@@ -104,7 +103,6 @@ function generateAtom(posts) {
   <updated>${posts[0]?.date?.toISOString() || new Date().toISOString()}</updated>
   <author>
     <name>${escapeXml(SITE.author.name)}</name>
-    <email>${escapeXml(SITE.author.email)}</email>
   </author>
 ${entries}
 </feed>`

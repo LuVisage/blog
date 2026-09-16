@@ -1,22 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { SITE, ABOUT, SOCIAL_LINKS, basePathUrl } from '@/lib/constants'
+import { SITE, ABOUT, SOCIAL_LINKS, EMAIL_OBFUSCATED, basePathUrl } from '@/lib/constants'
 import { CurrentYear } from '@/components/ui/current-year'
+import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 import { IconBrandGithub, IconMail, IconRss } from '@tabler/icons-react'
 
+/* 邮箱不进静态 HTML（防收割），所以它单独走 ObfuscatedEmailIcon，不进这个数组。 */
 const social = [
   SOCIAL_LINKS.github && {
     href: SOCIAL_LINKS.github,
     label: 'GitHub',
     external: true,
     icon: <IconBrandGithub size={15} strokeWidth={1.75} />,
-  },
-  SOCIAL_LINKS.email && {
-    href: `mailto:${SOCIAL_LINKS.email}`,
-    label: '邮件',
-    external: false,
-    icon: <IconMail size={15} strokeWidth={1.75} />,
   },
   {
     href: basePathUrl('/rss.xml'),
@@ -47,6 +43,16 @@ export function Footer() {
           </div>
 
           <div className="flex items-center gap-2">
+            {SOCIAL_LINKS.email && (
+              <ObfuscatedEmailIcon
+                encoded={EMAIL_OBFUSCATED}
+                label="邮件"
+                className="chip w-9 h-9 justify-center cursor-pointer hover:text-[var(--accent-text)] transition-colors"
+                style={{ color: 'var(--muted)', borderRadius: 8 }}
+              >
+                <IconMail size={15} strokeWidth={1.75} />
+              </ObfuscatedEmailIcon>
+            )}
             {social.map((item) => (
               <a
                 key={item.label}

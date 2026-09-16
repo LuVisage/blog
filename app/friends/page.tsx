@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { SITE, FRIENDS } from '@/lib/constants'
+import { SITE, FRIENDS, EMAIL_OBFUSCATED } from '@/lib/constants'
+import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 import { PageMasthead } from '@/components/page-masthead'
 import { LedgerRow, Ledger } from '@/components/ledger-row'
 import { AnimatedContent } from '@/components/ui/animated-content'
@@ -85,13 +86,14 @@ export default function FriendsPage() {
           </div>
           <div className="flex items-center gap-2 mt-8">
             <IconLink size={15} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />
-            <a
-              href={`mailto:${SITE.author.email}`}
+            <ObfuscatedEmailIcon
+              encoded={EMAIL_OBFUSCATED}
+              label="邮件"
               className="body-sm underline underline-offset-2 transition-colors hover:text-[var(--accent-text)]"
               style={{ color: 'var(--accent-text)' }}
             >
               发邮件给我
-            </a>
+            </ObfuscatedEmailIcon>
           </div>
         </section>
       </AnimatedContent>

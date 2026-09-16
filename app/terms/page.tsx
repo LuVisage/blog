@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { SITE, SOCIAL_LINKS } from '@/lib/constants'
+import { SITE, EMAIL_OBFUSCATED } from '@/lib/constants'
+import { ObfuscatedEmail } from '@/components/obfuscated-email'
 import { PageMasthead } from '@/components/page-masthead'
 import { AnimatedContent } from '@/components/ui/animated-content'
 
@@ -117,7 +118,7 @@ export default function TermsPage() {
           <h2>5. 豁免与联系</h2>
           <p>
             学术研究、公益项目或希望以更高频率同步本站内容的，欢迎邮件{' '}
-            <a href={`mailto:${SOCIAL_LINKS.email}`}>{SOCIAL_LINKS.email}</a>{' '}
+            <ObfuscatedEmail encoded={EMAIL_OBFUSCATED} className="underline underline-offset-2" />{' '}
             说明用途与预期频率，通常会给到白名单待遇。安全漏洞请通过{' '}
             <a href="/.well-known/security.txt">security.txt</a> 中的渠道负责任地披露。
           </p>
