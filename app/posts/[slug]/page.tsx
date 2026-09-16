@@ -217,7 +217,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
         {/* Desktop TOC — sticky rail, no card */}
         <aside className="hidden xl:flex xl:flex-col xl:w-56 xl:flex-shrink-0">
-          <div className="sticky top-24 self-start w-full py-5" style={{ maxHeight: 'calc(100vh - 7rem)', cursor: 'default' }}>
+          <div className="sticky top-24 self-start flex flex-col w-full max-h-[calc(100vh-8rem)] py-5">
             <TableOfContents />
           </div>
         </aside>

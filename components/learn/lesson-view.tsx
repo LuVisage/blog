@@ -202,14 +202,13 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
 
         <aside className="hidden xl:flex xl:flex-col xl:w-56 xl:flex-shrink-0 xl:self-stretch">
           <div
-            className="sticky top-24 self-start w-full py-5"
-            style={{ maxHeight: 'calc(100vh - 7rem)', overflowY: 'auto', cursor: 'default' }}
+            className="sticky top-24 self-start flex flex-col w-full max-h-[calc(100vh-8rem)] py-5"
           >
             <TableOfContents />
             {next && (
               <Link
                 href={lessonHref(course, next.slug)}
-                className="btn-secondary mt-6 w-full inline-flex items-center justify-between gap-2 px-3 py-2 text-xs transition-colors"
+                className="btn-secondary mt-6 w-full inline-flex items-center justify-between gap-2 px-3 py-2 text-xs transition-colors flex-none"
                 style={{ color: 'var(--body)' }}
               >
                 下一课
