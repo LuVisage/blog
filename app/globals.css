@@ -78,6 +78,9 @@
   --scrim: rgba(11, 11, 17, 0.32);
   /* 浮层面板的投影：命令面板、下拉菜单这类抬离页面的层都用它。 */
   --shadow-pop: 0 24px 60px -18px rgba(11, 11, 17, 0.6);
+  /* 卡片级弥散投影。阴影色取画布色而不是纯黑（Linear 的手法）：
+     暗色下阴影与背景同调，不会泛出发灰的黑边。 */
+  --shadow-card: 0 4px 32px rgba(11, 11, 17, 0.6);
 
   --ink: #F5F4F9;
   --body: #ABA9BC;
@@ -104,6 +107,23 @@
   /* ── Motion ── */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Duration tiers from the Linear DNA（base 175ms / slow 400ms / fast 档
+     80–120ms）：交互反馈统一走 base，入场与主题切换类 300–500ms 保持独立值
+     —— 那是跨站统计里「较大位移或入场」的主流区间。 */
+  --duration-fast: 120ms;
+  --duration-base: 175ms;
+  --duration-slow: 400ms;
+
+  /* ── Radius ── 控件 2/4/5/6、卡片 8/10/12（Linear DNA 圆角阶梯）。
+     现有字面值已全部落在档位内（仅一处 3px 并入 4px），存量样式不批量改写，
+     这组 token 供新组件与后续收敛使用。 */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
 }
 
 /* Light-mode overrides. hsl() lightness is not perceptual luminance, so the
@@ -140,6 +160,8 @@
   --surface-3: #EDEAE3;
   --overlay: rgba(255, 255, 255, 0.78);
   --scrim: rgba(21, 20, 28, 0.16);
+  /* 纸面模式下阴影同样取墨色调，强度压低（白底上弥散阴影要轻）。 */
+  --shadow-card: 0 4px 32px rgba(21, 20, 28, 0.10);
 
   --ink: #15141C;
   --body: #45424F;
@@ -266,7 +288,7 @@
     font-size: 14px;
     border-radius: 8px;
     text-decoration: none;
-    transition: top 200ms var(--ease);
+    transition: top var(--duration-base) var(--ease);
   }
   .skip-to-content:focus { top: 12px; }
 
@@ -304,7 +326,7 @@
     border-radius: 12px;
   }
   .surface-hover {
-    transition: border-color 240ms var(--ease), background 240ms var(--ease), transform 240ms var(--ease);
+    transition: border-color var(--duration-base) var(--ease), background var(--duration-base) var(--ease), transform var(--duration-base) var(--ease);
   }
   .surface-hover:hover {
     background: var(--surface-2);
@@ -324,7 +346,7 @@
     border: 1px solid var(--line);
     border-radius: 9999px;
     background: transparent;
-    transition: border-color 200ms var(--ease), color 200ms var(--ease), background 200ms var(--ease);
+    transition: border-color var(--duration-base) var(--ease), color var(--duration-base) var(--ease), background var(--duration-base) var(--ease);
   }
   .chip:hover { border-color: var(--accent-line); }
 
@@ -333,7 +355,7 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 12px;
-    transition: border-color 260ms var(--ease), background 260ms var(--ease);
+    transition: border-color var(--duration-base) var(--ease), background var(--duration-base) var(--ease);
   }
   .glass-liquid:hover { border-color: var(--line-strong); }
 }
@@ -448,7 +470,7 @@
     border-radius: 8px;
     cursor: pointer;
     text-decoration: none;
-    transition: transform 200ms var(--ease), filter 200ms var(--ease), box-shadow 200ms var(--ease);
+    transition: transform var(--duration-base) var(--ease), filter var(--duration-base) var(--ease), box-shadow var(--duration-base) var(--ease);
     box-shadow: 0 0 0 0 var(--accent-glow);
   }
   .btn-primary:hover {
@@ -473,7 +495,7 @@
     border-radius: 8px;
     cursor: pointer;
     text-decoration: none;
-    transition: border-color 200ms var(--ease), background 200ms var(--ease), transform 200ms var(--ease);
+    transition: border-color var(--duration-base) var(--ease), background var(--duration-base) var(--ease), transform var(--duration-base) var(--ease);
   }
   .btn-secondary:hover {
     border-color: var(--accent-line);
@@ -496,7 +518,7 @@
     border-radius: 8px;
     cursor: pointer;
     text-decoration: none;
-    transition: color 180ms var(--ease), background 180ms var(--ease);
+    transition: color var(--duration-base) var(--ease), background var(--duration-base) var(--ease);
   }
   .btn-ghost:hover { color: var(--ink); background: var(--surface-2); }
 }
@@ -569,7 +591,7 @@
   text-decoration-color: var(--accent-line);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-  transition: text-decoration-color 180ms var(--ease);
+  transition: text-decoration-color var(--duration-base) var(--ease);
 }
 .prose a:hover { text-decoration-color: var(--accent-text); }
 
@@ -691,7 +713,7 @@
   color: var(--body);
 }
 .prose tbody tr:last-child td { border-bottom: none; }
-.prose tbody tr { transition: background 160ms var(--ease); }
+.prose tbody tr { transition: background var(--duration-base) var(--ease); }
 .prose tbody tr:hover { background: var(--surface-2); }
 
 /* ── Shiki dual theme ──
@@ -807,12 +829,13 @@ figure[data-rehype-pretty-code-figure] pre { background: var(--surface) !importa
    9. Utilities
    ============================================== */
 .hover-lift {
-  transition: transform 220ms var(--ease), border-color 220ms var(--ease), box-shadow 220ms var(--ease);
+  transition: transform var(--duration-base) var(--ease), border-color var(--duration-base) var(--ease), box-shadow var(--duration-base) var(--ease);
 }
 .hover-lift:hover {
   transform: translateY(-2px);
   border-color: var(--line-strong);
-  box-shadow: 0 12px 28px -18px rgba(0, 0, 0, 0.9);
+  /* 画布调色弥散阴影（Linear DNA 的 --shadow-2xl 图案），取代发灰的重黑投影。 */
+  box-shadow: var(--shadow-card);
 }
 
 .accent-dot {
@@ -929,7 +952,7 @@ figure[data-rehype-pretty-code-figure] pre { background: var(--surface) !importa
    ============================================== */
 .skeleton-line {
   display: block;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background:
     linear-gradient(90deg, transparent, var(--surface-3), transparent) 0 0 / 45% 100% no-repeat,
     var(--surface-2);
