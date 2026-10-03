@@ -125,7 +125,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
               setPlaying(false)
             }}
             className="chip px-2.5 py-1 text-[11px]"
-            style={{ color: 'var(--accent-text)', borderColor: 'var(--accent-line)', borderRadius: 6 }}
+            style={{ color: 'var(--accent-text)', borderColor: 'var(--accent-line)', borderRadius: 'var(--radius-xs)' }}
           >
             检查点：第 {resume.index + 1} 步之后 · 回到最初
           </button>
@@ -135,7 +135,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
         </span>
       </div>
 
-      <div className="mt-4 px-3 py-2 text-xs font-mono overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 7, color: 'var(--muted)' }}>
+      <div className="mt-4 px-3 py-2 text-xs font-mono overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)', color: 'var(--muted)' }}>
         {fixture.edges.map((edge) => `${edge.from} → ${edge.to}`).join('   ')}
         {fixture.router && (
           <>
@@ -179,7 +179,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
       {paused && (
         <div
           className="mt-4 p-4"
-          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--gold)', borderRadius: 8 }}
+          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--gold)', borderRadius: 'var(--radius-xs)' }}
         >
           <div className="eyebrow mb-2.5" style={{ color: 'var(--gold)' }}>
             图停在 {paused} —— 等待人工输入
@@ -216,7 +216,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
       {run.status === 'limit' && (
         <div
           className="mt-4 p-4"
-          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--danger)', borderRadius: 8 }}
+          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--danger)', borderRadius: 'var(--radius-xs)' }}
         >
           <div className="eyebrow" style={{ color: 'var(--danger)' }}>
             触发步数上限，图被强制停止
@@ -238,7 +238,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
               style={{
                 border: '1px solid ' + (active ? 'var(--accent-line)' : 'var(--line)'),
                 borderLeft: `2px solid ${active ? 'var(--accent)' : 'var(--line-strong)'}`,
-                borderRadius: 8,
+                borderRadius: 'var(--radius-xs)',
                 background: active ? 'var(--accent-soft)' : 'transparent',
               }}
             >
@@ -251,7 +251,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
                 </span>
                 <span className="eyebrow">{step.summary}</span>
                 {step.branch && step.branch !== '__end__' && (
-                  <span className="chip px-2 py-0.5 text-[11px]" style={{ color: 'var(--accent-text)', borderColor: 'var(--accent-line)', borderRadius: 6 }}>
+                  <span className="chip px-2 py-0.5 text-[11px]" style={{ color: 'var(--accent-text)', borderColor: 'var(--accent-line)', borderRadius: 'var(--radius-xs)' }}>
                     分支 → {step.branch}
                   </span>
                 )}
@@ -282,7 +282,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
       </ol>
 
       {shown >= total && total > 0 && run.status !== 'limit' && currentStep && (
-        <div className="mt-4 p-3.5" style={{ border: '1px solid var(--line-strong)', borderRadius: 8, background: 'var(--surface)' }}>
+        <div className="mt-4 p-3.5" style={{ border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-xs)', background: 'var(--surface)' }}>
           <div className="flex items-baseline gap-2">
             <span className="eyebrow" style={{ color: 'var(--accent-text)' }}>
               最终状态

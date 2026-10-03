@@ -40,7 +40,7 @@ export default function ArchivePage() {
       />
 
       <AnimatedContent direction="up">
-        <div className="mb-14">
+        <div className="mb-16">
           <div className="eyebrow mb-5">总览</div>
           <StatsTileRow>
             <StatsTile value={totalPosts} label="文章总数" />

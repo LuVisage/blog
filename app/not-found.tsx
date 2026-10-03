@@ -12,7 +12,7 @@ export default function NotFound() {
         <span className="eyebrow eyebrow-accent">此路不通</span>
       </div>
 
-      <div className="pt-10 sm:pt-12 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-12 lg:gap-14 items-start">
+      <div className="pt-12 sm:pt-16 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-12 lg:gap-16 items-start">
         <div>
           <h1
             className="font-serif font-bold"

@@ -168,7 +168,7 @@ export function SearchPage() {
         ) : (
           <kbd
             className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-mono flex-shrink-0"
-            style={{ border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 6 }}
+            style={{ border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 'var(--radius-xs)' }}
           >
             <IconCommand size={11} strokeWidth={2} />K
           </kbd>

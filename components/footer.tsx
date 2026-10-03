@@ -30,7 +30,7 @@ const social = [
 export function Footer() {
   return (
     <footer className="relative z-10 mt-auto" style={{ borderTop: '1px solid var(--line-strong)' }}>
-      <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
           <div>
             <span
@@ -48,7 +48,7 @@ export function Footer() {
                 encoded={EMAIL_OBFUSCATED}
                 label="邮件"
                 className="chip w-9 h-9 justify-center cursor-pointer hover:text-[var(--accent-text)] transition-colors"
-                style={{ color: 'var(--muted)', borderRadius: 8 }}
+                style={{ color: 'var(--muted)', borderRadius: 'var(--radius-xs)' }}
               >
                 <IconMail size={15} strokeWidth={1.75} />
               </ObfuscatedEmailIcon>
@@ -59,7 +59,7 @@ export function Footer() {
                 href={item.href}
                 {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 className="chip w-9 h-9 justify-center cursor-pointer hover:text-[var(--accent-text)] transition-colors"
-                style={{ color: 'var(--muted)', borderRadius: 8 }}
+                style={{ color: 'var(--muted)', borderRadius: 'var(--radius-xs)' }}
                 aria-label={item.label}
               >
                 {item.icon}
@@ -69,7 +69,7 @@ export function Footer() {
         </div>
 
         <div
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-9 pt-5"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-10 pt-5"
           style={{ borderTop: '1px solid var(--line)' }}
         >
           <p className="meta">

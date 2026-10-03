@@ -55,7 +55,7 @@ export function MusicPlayerFAB() {
         <div className="fixed bottom-24 z-40 flex flex-col items-end gap-1.5" style={{ right: 'var(--music-panel-edge)' }}>
           {showChip && (
             <div
-              className="px-3 py-1.5 rounded-xl text-xs animate-fade-up glass-liquid max-w-[180px]"
+              className="px-3 py-1.5 rounded text-xs animate-fade-up surface max-w-[180px]"
               style={{ color: error ? 'var(--danger)' : 'var(--body)' }}
             >
               {error ? status : autoplayBlocked && !isPlaying ? '自动播放被拦截，点击继续' : '点击查看黑胶唱片'}
@@ -65,7 +65,7 @@ export function MusicPlayerFAB() {
           <button
             ref={triggerRef}
             onClick={() => toggleExpanded(true)}
-            className={`w-11 h-11 rounded-full glass-liquid flex items-center justify-center cursor-pointer transition-all duration-300 relative ${isPlaying ? 'animate-glow-pulse' : ''}`}
+            className="w-11 h-11 rounded-full surface flex items-center justify-center cursor-pointer transition-all duration-300 relative"
             aria-label="打开音乐播放器"
             title={status}
           >

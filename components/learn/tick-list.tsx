@@ -68,7 +68,7 @@ export function TickList({ eyebrow, items, checked, onToggle, doneNote }: TickLi
                   style={{
                     width: 18,
                     height: 18,
-                    borderRadius: 3,
+                    borderRadius: 'var(--radius-xs)',
                     border: `1px solid ${active ? 'var(--accent)' : 'var(--line-strong)'}`,
                     background: active ? 'var(--accent)' : 'transparent',
                   }}

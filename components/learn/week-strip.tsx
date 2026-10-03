@@ -37,7 +37,7 @@ export function WeekStrip({ course, current, week, weekTitle, lessons }: WeekStr
                 title={lesson.title}
                 className="chip px-2.5 py-1 transition-colors"
                 style={{
-                  borderRadius: 7,
+                  borderRadius: 'var(--radius-xs)',
                   color: active ? 'var(--ink)' : 'var(--muted)',
                   borderColor: active ? 'var(--accent-line)' : 'var(--line)',
                   background: active ? 'var(--accent-soft)' : 'transparent',

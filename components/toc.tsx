@@ -133,7 +133,7 @@ export function TableOfContents() {
               color: active ? 'var(--ink)' : 'var(--muted)',
               borderColor: active ? 'var(--accent)' : 'var(--line)',
               fontWeight: active ? 600 : 400,
-              paddingLeft: level === 3 ? 22 : 12,
+              paddingLeft: level === 3 ? 24 : 12,
             }}
           >
             {text}
@@ -164,7 +164,7 @@ export function TableOfContents() {
           onClick={() => setIsOpen(!isOpen)}
           aria-expanded={isOpen}
           className="surface surface-hover flex items-center gap-2 w-full px-4 py-3"
-          style={{ borderRadius: 10 }}
+          style={{ borderRadius: 'var(--radius-xs)' }}
         >
           <span className="eyebrow" style={{ color: 'var(--ink)' }}>
             文章目录 · {headings.length} 节
@@ -178,7 +178,7 @@ export function TableOfContents() {
         </button>
 
         {isOpen && (
-          <div className="mt-2 surface p-3 animate-scale-in" style={{ borderRadius: 10 }}>
+          <div className="mt-2 surface p-3 animate-scale-in" style={{ borderRadius: 'var(--radius-xs)' }}>
             <ul
               ref={mobileListRef}
               className={`relative max-h-[60vh] overflow-y-auto ${SCROLLBAR_HIDDEN}`}

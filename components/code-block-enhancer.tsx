@@ -40,7 +40,7 @@ export function CodeBlockEnhancer({ children }: { children: React.ReactNode }) {
       if (lang) {
         const label = document.createElement('span')
         label.className =
-          'absolute top-2 left-3 z-10 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider pointer-events-none'
+          'absolute top-2 left-3 z-10 px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider pointer-events-none'
         label.style.backgroundColor = 'var(--accent-soft)'
         label.style.color = 'var(--faint)'
         label.textContent = lang
@@ -50,7 +50,7 @@ export function CodeBlockEnhancer({ children }: { children: React.ReactNode }) {
       // ── Copy button (top-right) ──
       const btn = document.createElement('button')
       btn.className =
-        'absolute top-2 right-2 z-10 p-1.5 rounded-md opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-150'
+        'absolute top-2 right-2 z-10 p-1.5 rounded opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-200'
       btn.style.backgroundColor = 'var(--accent-soft)'
       btn.style.color = 'var(--faint)'
       btn.addEventListener('mouseenter', () => {

@@ -18,10 +18,7 @@ export function FeatureCard({ post }: { post: PostMeta }) {
   return (
     <Link
       href={`/posts/${post.slug}`}
-      data-spotlight=""
-      data-tilt="2"
-      className="group surface surface-hover grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] overflow-hidden"
-      style={{ borderRadius: 14 }}
+      className="group surface surface-hover hover-zoom grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] overflow-hidden"
     >
       <div
         className="relative min-h-[190px] sm:min-h-[280px] bg-cover bg-center"
@@ -30,16 +27,13 @@ export function FeatureCard({ post }: { post: PostMeta }) {
         <span className="absolute top-4 left-4 eyebrow eyebrow-accent">精选</span>
       </div>
 
-      <div className="p-6 sm:p-9 flex flex-col">
+      <div className="p-6 sm:p-10 flex flex-col">
         <div className="flex items-center gap-3 mb-4">
           {post.category && <span className="eyebrow">{post.category}</span>}
           <span className="meta">{shortDate(post.date)}</span>
         </div>
 
-        <h3
-          className="heading-2 mb-3 transition-colors group-hover:text-[var(--accent-text)]"
-          style={{ fontSize: 'clamp(22px, 3.2vw, 30px)', lineHeight: 1.28 }}
-        >
+        <h3 className="heading-2 mb-3 transition-colors group-hover:text-[var(--accent-text)]">
           {post.title}
         </h3>
 
@@ -113,15 +107,13 @@ function GridCard({ post }: { post: PostMeta }) {
   return (
     <Link
       href={`/posts/${post.slug}`}
-      data-spotlight=""
-      data-tilt="4"
-      className="group surface surface-hover flex flex-col overflow-hidden"
+      className="group surface surface-hover hover-zoom flex flex-col overflow-hidden"
     >
       <div
-        className="h-28 sm:h-32 bg-cover bg-center transition-transform duration-500 group-hover:scale-[1.04]"
+        className="h-28 sm:h-32 bg-cover bg-center transition-transform duration-500 group-hover:scale-[1.05]"
         style={{ backgroundImage: `url("${cover.url}")` }}
       />
-      <div className="p-5 flex flex-col flex-1">
+      <div className="p-6 flex flex-col flex-1">
         <div className="flex items-center gap-2 mb-2.5">
           {post.category && <span className="eyebrow">{post.category}</span>}
           <span className="meta ml-auto">{shortDate(post.date)}</span>
@@ -170,7 +162,7 @@ export function PostList({ posts, layout = 'index', lead = false, emptyHref }: P
       {lead && <FeatureCard post={first} />}
 
       {layout === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {(lead ? rest : posts).map((post) => <GridCard key={post.slug} post={post} />)}
         </div>
       ) : (

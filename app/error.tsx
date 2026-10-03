@@ -20,7 +20,7 @@ export default function Error({
         <span className="eyebrow" style={{ color: 'var(--danger)' }}>渲染失败</span>
       </div>
 
-      <div className="pt-10 sm:pt-12 max-w-xl">
+      <div className="pt-12 sm:pt-16 max-w-xl">
         <h1 className="heading-1 mb-5">这一页没能渲染出来。</h1>
         <p className="body-md mb-8">
           构建或渲染时抛出了异常。重试通常就够了；如果一直失败，

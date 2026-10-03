@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
-const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)'
 
 /** Runs `onRouteChange` for every navigation, but not for the first paint. */
 function useRouteChange(onRouteChange: () => void) {
@@ -35,7 +35,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
         { opacity: 0, transform: 'translateY(10px)' },
         { opacity: 1, transform: 'translateY(0)' },
       ],
-      { duration: 420, easing: EASE }
+      { duration: 400, easing: EASE }
     )
   })
 
@@ -52,7 +52,7 @@ export function PageSweep() {
         { opacity: 1, transform: 'scaleX(1)', offset: 0.55 },
         { opacity: 0, transform: 'scaleX(1)' },
       ],
-      { duration: 620, easing: EASE }
+      { duration: 500, easing: EASE }
     )
   })
 

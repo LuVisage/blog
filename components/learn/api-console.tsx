@@ -45,7 +45,7 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
       >
         <IconSettings size={13} strokeWidth={1.7} />
         接口设置
-        <span className="chip px-2 py-0.5 text-[11px]" style={{ color: ready ? 'var(--success)' : 'var(--muted)', borderColor: 'var(--line-faint)', borderRadius: 6 }}>
+        <span className="chip px-2 py-0.5 text-[11px]" style={{ color: ready ? 'var(--success)' : 'var(--muted)', borderColor: 'var(--line-faint)', borderRadius: 'var(--radius-xs)' }}>
           {ready ? (settings.mode === 'ollama' ? `本机 ${settings.ollamaModel}` : `代理 ${maskKey(settings.apiKey)}`) : '未配置'}
         </span>
         <span className="meta" style={{ color: 'var(--muted)' }}>
@@ -71,7 +71,7 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
                     onClick={() => set('mode', option.value)}
                     className="chip px-3 py-1.5 text-xs"
                     style={{
-                      borderRadius: 7,
+                      borderRadius: 'var(--radius-xs)',
                       color: on ? 'var(--ink)' : 'var(--muted)',
                       borderColor: on ? 'var(--accent-line)' : 'var(--line)',
                       background: on ? 'var(--accent-soft)' : 'transparent',
@@ -106,7 +106,7 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
                   value={ALLOWED_BASES.includes(draft.baseUrl as (typeof ALLOWED_BASES)[number]) ? draft.baseUrl : 'other'}
                   onChange={(e) => set('baseUrl', e.target.value === 'other' ? 'https://' : e.target.value)}
                   className="w-full px-3 py-2 text-sm surface"
-                  style={{ borderRadius: 8, color: 'var(--ink)' }}
+                  style={{ borderRadius: 'var(--radius-xs)', color: 'var(--ink)' }}
                 >
                   {ALLOWED_BASES.map((base) => (
                     <option key={base} value={base}>
@@ -134,7 +134,7 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
                   spellCheck={false}
                   aria-label="API Key"
                   className="w-full px-3 py-2 text-sm surface"
-                  style={{ borderRadius: 8, color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}
+                  style={{ borderRadius: 'var(--radius-xs)', color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}
                 />
               </ControlRow>
             </>

@@ -83,7 +83,7 @@ export function PostsCalendar({ posts }: Props) {
                       width: DAY_SIZE,
                       height: DAY_SIZE,
                       ...(isFuture ? { background: 'transparent' } : getCellStyle(hasPost, dayPosts.length > 1)),
-                      borderRadius: 3,
+                      borderRadius: 'var(--radius-xs)',
                       cursor: hasPost ? 'pointer' : 'default',
                     }}
                     className="transition-transform hover:scale-150 hover:z-10 relative"
@@ -109,7 +109,7 @@ export function PostsCalendar({ posts }: Props) {
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 overlay rounded-[10px] px-3.5 py-2.5 text-xs pointer-events-none animate-scale-in"
+          className="fixed z-50 overlay rounded px-3.5 py-2.5 text-xs pointer-events-none animate-scale-in"
           style={{ left: tooltip.x + 16, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
         >
           <p className="font-semibold mb-1" style={{ color: 'var(--ink)' }}>
@@ -129,13 +129,13 @@ export function PostsCalendar({ posts }: Props) {
         style={{ borderTop: '1px solid var(--line)' }}
       >
         <span className="flex items-center gap-2">
-          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-0)', borderRadius: 3 }} /> 未更新
+          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-0)', borderRadius: 'var(--radius-xs)' }} /> 未更新
         </span>
         <span className="flex items-center gap-2">
-          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-1)', borderRadius: 3 }} /> 1 篇
+          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-1)', borderRadius: 'var(--radius-xs)' }} /> 1 篇
         </span>
         <span className="flex items-center gap-2">
-          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-2)', borderRadius: 3 }} /> 多篇
+          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-2)', borderRadius: 'var(--radius-xs)' }} /> 多篇
         </span>
         <span className="ml-auto">{posts.length} 篇</span>
       </div>

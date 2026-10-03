@@ -123,7 +123,7 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
                   <span
                     key={file}
                     className="chip px-2.5 py-1 text-xs font-mono"
-                    style={{ color: 'var(--body)', borderRadius: 6 }}
+                    style={{ color: 'var(--body)', borderRadius: 'var(--radius-xs)' }}
                   >
                     {file.replace(/^examples\//, '')}
                   </span>

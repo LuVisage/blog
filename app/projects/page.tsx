@@ -40,7 +40,7 @@ export default function ProjectsPage() {
                   <div className="min-w-0">
                     <h3
                       className="font-serif font-bold truncate transition-colors group-hover:text-[var(--accent-text)]"
-                      style={{ fontSize: 19, lineHeight: 1.4, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+                      style={{ fontSize: 'var(--text-h3)', lineHeight: 1.4, color: 'var(--ink)', letterSpacing: 'var(--tracking-heading)' }}
                     >
                       <a
                         href={project.url}

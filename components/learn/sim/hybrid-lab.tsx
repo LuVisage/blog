@@ -17,7 +17,7 @@ interface Column {
 
 function RankColumn({ column, vectorRank }: { column: Column; vectorRank?: Map<number, number> }) {
   return (
-    <div className="surface p-3.5" style={{ borderRadius: 9 }}>
+    <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
       <div className="heading-3 text-sm" style={{ color: 'var(--ink)' }}>
         {column.title}
       </div>

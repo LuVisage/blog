@@ -133,7 +133,7 @@ export function ChunkLab() {
         {chunks.map((chunk, i) => {
           const shared = i > 0 ? sharedRun(chunks[i - 1], chunk) : ''
           return (
-            <li key={i} className="surface p-3.5" style={{ borderRadius: 9 }}>
+            <li key={i} className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
               <div className="flex items-baseline gap-2 mb-1.5">
                 <span className="meta tabular-nums" style={{ color: 'var(--accent-text)' }}>
                   {String(i + 1).padStart(2, '0')}
@@ -162,7 +162,7 @@ export function ChunkLab() {
 
       <div
         className="mt-5 p-4"
-        style={{ border: '1px solid var(--line-strong)', borderRadius: 8 }}
+        style={{ border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-xs)' }}
       >
         <div className="eyebrow mb-2" style={{ color: 'var(--muted)' }}>
           课文三组参数的真实输出
@@ -197,7 +197,7 @@ export function ChunkLab() {
       {broken.length > 0 && (
         <div
           className="mt-5 p-4"
-          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--gold)', borderRadius: 8 }}
+          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--gold)', borderRadius: 'var(--radius-xs)' }}
         >
           <div className="eyebrow mb-2" style={{ color: 'var(--gold)' }}>
             这些整句没有完整落在任何一块里

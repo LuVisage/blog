@@ -23,16 +23,16 @@ export default function HomePage() {
   return (
     <div>
       {/* ════════════ Masthead ════════════ */}
-      <section className="mb-16 sm:mb-20">
+      <section className="mb-24 sm:mb-32">
         <div
-          className="flex items-center justify-between gap-4 py-2.5"
+          className="flex items-center justify-between gap-4 py-3"
           style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
         >
           <span className="eyebrow">{SITE.author.name} — 个人志</span>
           <span className="eyebrow eyebrow-accent">AI / Agent / LLM</span>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-10 lg:gap-14 pt-10 sm:pt-12 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-10 lg:gap-16 pt-12 sm:pt-16 items-start">
           <AnimatedContent direction="up" distance={14} duration={0.55}>
             <div>
               <h1 className="display">{SITE.title}</h1>
@@ -75,7 +75,7 @@ export default function HomePage() {
             <div className="flex lg:flex-col items-center lg:items-start gap-5 lg:gap-0">
               <div
                 className="w-20 h-20 lg:w-32 lg:h-32 flex-shrink-0 overflow-hidden"
-                style={{ border: '1px solid var(--line-strong)', borderRadius: 4 }}
+                style={{ border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-xs)' }}
               >
                 <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
               </div>
@@ -95,7 +95,7 @@ export default function HomePage() {
         {/* Ledger strip */}
         <AnimatedContent direction="up" distance={10} duration={0.5} delay={0.18}>
           <div
-            className="mt-12 sm:mt-14 py-7"
+            className="mt-16 py-8"
             style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
           >
             <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
@@ -116,7 +116,7 @@ export default function HomePage() {
       {/* ════════════ Lead story ════════════ */}
       {lead && (
         <AnimatedContent direction="up">
-          <section className="mb-16 sm:mb-20">
+          <section className="mb-24 sm:mb-32">
             <div className="flex items-end justify-between gap-4 mb-6">
               <div>
                 <div className="eyebrow mb-2">头条</div>
@@ -133,7 +133,7 @@ export default function HomePage() {
       )}
 
       {/* ════════════ Index + trending ════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-12 lg:gap-14 mb-16 sm:mb-20">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-12 lg:gap-16 mb-24 sm:mb-32">
         <AnimatedContent direction="up" delay={0.05}>
           <section>
             <div className="eyebrow mb-2">目录</div>
@@ -154,8 +154,8 @@ export default function HomePage() {
                     <Link
                       key={tag}
                       href={`/tags/${tag}`}
-                      className="chip px-3 py-1.5 text-xs hover:text-[var(--accent-text)] transition-colors"
-                      style={{ color: 'var(--body)', borderRadius: 999 }}
+                      className="chip px-3 py-1.5 text-xs transition-colors"
+                      style={{ color: 'var(--body)' }}
                     >
                       {tag}
                       <span className="meta">{count}</span>

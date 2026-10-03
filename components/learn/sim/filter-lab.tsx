@@ -89,13 +89,13 @@ function MetadataFilter() {
 
       <div
         className="mt-5 px-3 py-2 text-xs font-mono"
-        style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 7, color: 'var(--accent-text)' }}
+        style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)', color: 'var(--accent-text)' }}
       >
         expr = {expr || '""（不过滤）'}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-        <div className="surface p-3.5" style={{ borderRadius: 9 }}>
+        <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
           <div className="eyebrow mb-1">不过滤</div>
           <ul>
             {scored.map((row) => (
@@ -110,7 +110,7 @@ function MetadataFilter() {
             ))}
           </ul>
         </div>
-        <div className="surface p-3.5" style={{ borderRadius: 9 }}>
+        <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
           <div className="eyebrow mb-1">过滤后</div>
           {kept.length ? (
             <ul>
@@ -190,7 +190,7 @@ function ParentDocument() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
-        <div className="surface p-3.5" style={{ borderRadius: 9 }}>
+        <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
           <div className="eyebrow mb-2">索引层命中的子块</div>
           <ul>
             {hits.map((hit, rank) => (
@@ -204,7 +204,7 @@ function ParentDocument() {
             ))}
           </ul>
         </div>
-        <div className="surface p-3.5" style={{ borderRadius: 9 }}>
+        <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
           <div className="eyebrow mb-2">交给模型的上下文</div>
           {mode === 'child'
             ? hits.map((hit) => (

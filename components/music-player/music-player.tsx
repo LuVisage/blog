@@ -319,7 +319,7 @@ function ProgressBar({ onSeek }: { onSeek: (t: number) => void }) {
 
   return (
     <div className="flex items-center gap-1.5 w-full">
-      <span className="text-[10px] tabular-nums w-9 text-right" style={{ color: 'var(--muted)' }}>{formatTime(shown)}</span>
+      <span className="text-[11px] tabular-nums w-9 text-right" style={{ color: 'var(--muted)' }}>{formatTime(shown)}</span>
       <div
         ref={trackRef}
         role="slider"
@@ -355,7 +355,7 @@ function ProgressBar({ onSeek }: { onSeek: (t: number) => void }) {
           style={{ left: `${pct}%`, background: 'var(--accent)', boxShadow: '0 0 0 2px var(--surface)' }}
         />
       </div>
-      <span className="text-[10px] tabular-nums w-9" style={{ color: 'var(--muted)' }}>{seekable ? formatTime(duration) : '--:--'}</span>
+      <span className="text-[11px] tabular-nums w-9" style={{ color: 'var(--muted)' }}>{seekable ? formatTime(duration) : '--:--'}</span>
     </div>
   )
 }
@@ -436,7 +436,7 @@ function PlaylistInput({ currentId, onLoad }: { currentId: string; onLoad: (id: 
             // Leave the panel alone: closing the bubble is the whole request here.
             if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close() }
           }}
-          className="absolute right-0 top-full mt-2 p-3 rounded-xl glass-liquid z-50 flex items-center gap-2 shadow-lg"
+          className="absolute right-0 top-full mt-2 p-3 rounded surface z-50 flex items-center gap-2"
           style={{ minWidth: 220 }}
         >
           <input
@@ -576,7 +576,7 @@ export function MusicPlayer({ onClose, ref }: { onClose: () => void; ref?: React
       aria-label="音乐播放器"
       tabIndex={-1}
       onKeyDown={onKeyDown}
-      className="glass-liquid rounded-2xl overflow-hidden flex flex-col focus:outline-none"
+      className="surface rounded overflow-hidden flex flex-col focus:outline-none"
       style={{
         width: 'min(var(--music-panel-w), calc(100vw - 40px))',
         maxHeight: 'calc(100vh - 160px)',
@@ -593,9 +593,16 @@ export function MusicPlayer({ onClose, ref }: { onClose: () => void; ref?: React
         </div>
       </div>
 
-      {/* Loading line — the shell stays up while a playlist is swapped in. */}
+      {/* Loading line — the shell stays up while a playlist is swapped in.
+          §7 否定性规律：不用渐变，退化成一条纯强调色实线。 */}
       {(isLoading || isBuffering) && (
-        <div className="animate-shimmer h-0.5 w-full flex-shrink-0" role="progressbar" aria-label="加载中" aria-valuetext="加载中" />
+        <div
+          className="h-0.5 w-full flex-shrink-0"
+          style={{ background: 'var(--color-primary)' }}
+          role="progressbar"
+          aria-label="加载中"
+          aria-valuetext="加载中"
+        />
       )}
 
       {/* Body */}
@@ -634,7 +641,7 @@ export function MusicPlayer({ onClose, ref }: { onClose: () => void; ref?: React
 
                 {/* Square cover — in front, covers left half of disc */}
                 <div
-                  className="absolute rounded-xl overflow-hidden shadow-xl"
+                  className="absolute rounded overflow-hidden"
                   style={{
                     width: 56,
                     height: 56,

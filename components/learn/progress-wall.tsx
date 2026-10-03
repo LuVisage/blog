@@ -55,7 +55,7 @@ export function ProgressWall({ course, lessons }: { course: CourseId; lessons: L
               title={`Day ${lesson.day} · ${lesson.title}`}
               className="group relative aspect-square grid place-items-center transition-transform duration-200 hover:scale-[1.18] hover:z-10"
               style={{
-                borderRadius: 4,
+                borderRadius: 'var(--radius-xs)',
                 border: `1px solid ${state === 'done' ? 'var(--accent)' : 'var(--line)'}`,
                 background:
                   state === 'done'
@@ -66,7 +66,7 @@ export function ProgressWall({ course, lessons }: { course: CourseId; lessons: L
               }}
             >
               <span
-                className="text-[10px] font-mono tabular-nums transition-colors"
+                className="text-[11px] font-mono tabular-nums transition-colors"
                 style={{ color: state === 'done' ? 'var(--on-accent)' : state === 'started' ? 'var(--faint)' : 'var(--muted)' }}
               >
                 {lesson.day}

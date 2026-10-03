@@ -104,7 +104,7 @@ function McpTrace() {
           const outgoing = message.dir === '→'
           const payload = JSON.stringify(message.body, null, 2)
           return (
-            <li key={message.method} className="p-3" style={{ border: '1px solid var(--line)', borderRadius: 8 }}>
+            <li key={message.method} className="p-3" style={{ border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)' }}>
               <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                 <span className="meta tabular-nums" style={{ color: 'var(--muted)' }}>
                   {String(index + 1).padStart(2, '0')}
@@ -114,7 +114,7 @@ function McpTrace() {
                 </span>
                 <span
                   className="chip px-2 py-0.5 text-[11px] font-mono"
-                  style={{ color: outgoing ? 'var(--accent-text)' : 'var(--success)', borderColor: 'var(--line-faint)', borderRadius: 6 }}
+                  style={{ color: outgoing ? 'var(--accent-text)' : 'var(--success)', borderColor: 'var(--line-faint)', borderRadius: 'var(--radius-xs)' }}
                 >
                   {outgoing ? 'client → server' : 'server → client'}
                 </span>
@@ -124,7 +124,7 @@ function McpTrace() {
               </p>
               <pre
                 className="mt-2 px-3 py-2 text-[11.5px] leading-relaxed overflow-x-auto"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 7, color: 'var(--body)' }}
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)', color: 'var(--body)' }}
               >
                 {payload}
               </pre>
@@ -176,7 +176,7 @@ function LangSmithTrace() {
                 paddingLeft: 12 + span.depth * 22,
                 border: '1px solid ' + (active ? 'var(--accent-line)' : 'transparent'),
                 borderLeft: `1px solid ${failed ? 'var(--danger)' : 'var(--line-strong)'}`,
-                borderRadius: 7,
+                borderRadius: 'var(--radius-xs)',
                 background: active ? 'var(--accent-soft)' : 'transparent',
               }}
             >
@@ -197,13 +197,13 @@ function LangSmithTrace() {
                   {span.ms} ms
                 </span>
               </div>
-              <div className="mt-1.5 h-1 w-full" style={{ background: 'var(--surface-2)', borderRadius: 999 }}>
+              <div className="mt-1.5 h-1 w-full" style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-pill)' }}>
                 <div
                   className="h-full"
                   style={{
                     width: `${Math.max(1, (span.ms / root.ms) * 100)}%`,
                     background: failed ? 'var(--danger)' : 'var(--accent)',
-                    borderRadius: 999,
+                    borderRadius: 'var(--radius-pill)',
                   }}
                 />
               </div>

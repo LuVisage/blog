@@ -59,7 +59,7 @@ export function StatsTile({ value, label, suffix = '' }: StatsTileProps) {
     <div ref={ref}>
       <div
         className="font-serif font-bold leading-none tabular-nums"
-        style={{ fontSize: 30, color: 'var(--ink)', letterSpacing: '-0.02em' }}
+        style={{ fontSize: 'var(--text-h2)', color: 'var(--ink)', letterSpacing: 'var(--tracking-heading)' }}
       >
         {isNumber ? displayValue : value}
         {suffix}

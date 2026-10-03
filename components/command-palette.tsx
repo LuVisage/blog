@@ -19,7 +19,6 @@ import {
   IconSparkles,
   IconSun,
   IconMoon,
-  IconLayoutGrid,
   IconFileText,
   IconHome,
   IconArchive,
@@ -31,14 +30,6 @@ import {
   IconLink,
 } from '@tabler/icons-react'
 import { NAV_LINKS, SITE } from '@/lib/constants'
-import {
-  visibleAccents,
-  visibleBackgrounds,
-  hasSecretUnlocked,
-  type AccentId,
-  type BackgroundId,
-} from '@/lib/accents'
-import { useAppearance } from '@/components/appearance-provider'
 import { useToast } from '@/components/ui/toast'
 import { ACHIEVEMENTS, readUnlockedAchievements } from '@/lib/achievements'
 
@@ -59,9 +50,9 @@ export interface PaletteLesson {
   title: string
 }
 
-type Group = '操作' | '导航' | '文章' | '教程' | '主题色' | '背景'
+type Group = '操作' | '导航' | '文章' | '教程'
 
-const GROUP_ORDER: Group[] = ['操作', '导航', '文章', '教程', '主题色', '背景']
+const GROUP_ORDER: Group[] = ['操作', '导航', '文章', '教程']
 
 interface Item {
   id: string
@@ -129,11 +120,9 @@ export function PaletteProvider({
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const [mounted, setMounted] = useState(false)
-  const [unlocked, setUnlocked] = useState(false)
 
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const { accent, background, setAccent, setBackground } = useAppearance()
   const toast = useToast()
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -141,16 +130,6 @@ export function PaletteProvider({
   const restoreFocus = useRef<HTMLElement | null>(null)
 
   useEffect(() => setMounted(true), [])
-
-  useEffect(() => {
-    if (open) setUnlocked(hasSecretUnlocked())
-  }, [open])
-
-  useEffect(() => {
-    const onUnlock = () => setUnlocked(true)
-    window.addEventListener('site:unlock', onUnlock)
-    return () => window.removeEventListener('site:unlock', onUnlock)
-  }, [])
 
   const toggle = useCallback(() => {
     setOpen((current) => {
@@ -288,39 +267,8 @@ export function PaletteProvider({
       run: () => go(`/learn/${lesson.course}/${lesson.slug}`),
     }))
 
-    const accents: Item[] = visibleAccents(unlocked).map((option) => ({
-      id: `accent${option.id}`,
-      group: '主题色',
-      label: option.label,
-      hint: option.id === accent ? '当前' : undefined,
-      keywords: `accent 主题色 颜色 ${option.label} ${option.id}`,
-      icon: (
-        <span
-          className="w-3 h-3 rounded-full block"
-          style={{ background: option.hsl, boxShadow: 'inset 0 0 0 1px var(--line-strong)' }}
-        />
-      ),
-      run: () => {
-        setAccent(option.id as AccentId)
-        setOpen(false)
-      },
-    }))
-
-    const backgrounds: Item[] = visibleBackgrounds(unlocked).map((option) => ({
-      id: `bg${option.id}`,
-      group: '背景',
-      label: option.label,
-      hint: option.id === background ? '当前' : option.hint,
-      keywords: `background 背景 底纹 ${option.label} ${option.id} ${option.hint}`,
-      icon: <IconLayoutGrid size={15} strokeWidth={1.75} />,
-      run: () => {
-        setBackground(option.id as BackgroundId)
-        setOpen(false)
-      },
-    }))
-
-    return [...actions, ...nav, ...articles, ...learn, ...accents, ...backgrounds]
-  }, [accent, background, go, lessons, posts, setAccent, setBackground, setTheme, theme, toast, unlocked])
+    return [...actions, ...nav, ...articles, ...learn]
+  }, [go, lessons, posts, setTheme, theme, toast])
 
   const results = useMemo(() => {
     const q = query.trim()
@@ -394,9 +342,7 @@ export function PaletteProvider({
           <div
             className="surface w-full max-w-[560px] mt-[12vh] flex flex-col overflow-hidden animate-scale-in"
             style={{
-              borderRadius: 14,
               borderColor: 'var(--line-strong)',
-              boxShadow: 'var(--shadow-pop)',
               maxHeight: 'min(600px, 76vh)',
             }}
             role="dialog"
@@ -436,7 +382,7 @@ export function PaletteProvider({
                       onClick={() => runRow(index)}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left cursor-pointer transition-colors"
                       style={{
-                        background: active === index ? 'var(--accent-soft)' : 'transparent',
+                        background: active === index ? 'var(--surface-2)' : 'transparent',
                         color: active === index ? 'var(--ink)' : 'var(--body)',
                       }}
                     >

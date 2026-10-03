@@ -179,7 +179,7 @@ export function AIHotNews() {
                   {repo.full_name}
                 </p>
                 {repo.language && (
-                  <span className="chip px-1.5 py-0.5 text-[10px] flex-shrink-0" style={{ color: 'var(--muted)' }}>
+                  <span className="chip px-2 py-1 text-[11px] flex-shrink-0" style={{ color: 'var(--muted)' }}>
                     {repo.language}
                   </span>
                 )}
@@ -192,8 +192,8 @@ export function AIHotNews() {
                   {repo.topics.slice(0, 3).map((t) => (
                     <span
                       key={t}
-                      className="text-[10px] px-1.5 py-0.5 font-mono"
-                      style={{ color: 'var(--faint)', border: '1px solid var(--line-faint)', borderRadius: 4 }}
+                      className="text-[11px] px-2 py-1 font-mono"
+                      style={{ color: 'var(--faint)', border: '1px solid var(--line-faint)', borderRadius: 'var(--radius-xs)' }}
                     >
                       {t}
                     </span>

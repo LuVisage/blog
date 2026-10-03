@@ -1,35 +1,58 @@
-# Design DNA 升级追溯（2026-10）
+# Design DNA 改造台账（2026-10-03 · Anthropic 暖调纸感）
 
-依据本地设计知识库 `C:\Users\lusha\Desktop\UI_skill\design-dna`（91 个参考站点的逆向工程 + 跨站统计）对博客设计做的增量升级。遵循 design-dna-builder 铁律：**文档数值为法律，代码是判决；缺口显式标注，不脑补。**
+依据本地设计知识库 `C:\Users\lusha\Desktop\UI_skill\design-dna` 对博客做的一次**全站视觉重构**，遵循 design-dna-builder 铁律：**文档数值为法律，代码是判决；缺口显式标注，不脑补。**
+
+> 上一轮（2026-10）基于 Linear DNA 的增量台账已被本轮替代：那轮只动了时长 / 圆角 / 阴影三个 token，本轮连同色彩、排版、形状、装饰与主题轴一并重做。
 
 ## 参考来源
 
 | 文档 | 用途 |
 | --- | --- |
-| `CROSS_SITE_PATTERNS.md` | 91 站聚合统计：间距/排版/色彩/形状/动效/断点的共同做法 |
-| `11-linear/DESIGN_DNA.md` | 主参照（暗色玻璃拟态同路）：token 总表、圆角阶梯、阴影纪律、动效时长 |
-| `65-stripe-press/theme.css`、`19-superhuman/theme.css`、`42-stripe-docs/theme.css` | 交叉验证动效与 token 结构 |
+| `22-anthropic/DESIGN_DNA.md` | 主参照：§2.1 token 总表、§3 色彩、§7 形状与否定性规律、§8 组件配方、§11 动效、§12 模仿指南、§13 合规 |
+| `22-anthropic/theme.css` | 基础层与组件层实现（`.container` / `.btn` / `.card` / `.input` / `h1..h4`） |
+| `22-anthropic/facts.json`、`tokens-report.md` | 数字来源交叉核对 |
+| `CROSS_SITE_PATTERNS.md` | 跨站统计（判断状态覆盖、reduced-motion 等主流做法） |
 
-## 台账 → 改动映射
+## 决策（用户确认）
 
-| # | 文档依据 | 发现的缺口 | 落地改动（均在 `app/globals.css`） |
+| 项 | 决定 |
+| --- | --- |
+| 设计方向 | Anthropic 暖调纸感（象牙白 + 陶土橙 + 衬线标题 + 大留白） |
+| 主题轴 | 保留亮 / 暗双模式；移除 6 种强调色与 4 种背景换肤 |
+| 覆盖范围 | 全站：主站 + `/learn` 课程页 + 音乐播放器 + 命令面板 + Pagefind 搜索 |
+| 改动深度 | 允许重排区块与组件结构，功能与数据层不变 |
+
+## 文档依据 → 发现缺口 → 落地改动
+
+| # | 文档依据 | 发现的缺口 | 落地改动 |
 | --- | --- | --- | --- |
-| 1 | Linear §2.1/§11.1：`--duration-base: 175ms`、`--duration-slow: 400ms`、fast 档 80–120ms；跨站 §5：150–300ms 为主流 | 动效时长未 token 化：11 处交互过渡散落 160/180/200/220/240/260ms 字面值 | 新增 `--duration-fast/base/slow`（120/175/400ms）；11 处过渡收敛到 `var(--duration-base)`：`.surface-hover`、`.chip`、`.glass-liquid`、`.btn-primary/secondary/ghost`、`.skip-to-content`、`.prose a`、`.prose tbody tr`、`.hover-lift` |
-| 2 | Linear §2.1 圆角阶梯 2/4/5/6/8/10/12px | 圆角无 token 层，25 处字面值（含一处 3px 落在档外） | 新增 `--radius-xs..3xl` 七档；`3px`（skeleton-line）并入 `var(--radius-sm)`；其余字面值已全部落在档内，不批量改写（见决策 3） |
-| 3 | Linear §3.4：阴影色复用画布色（`0 4px 32px #08090a99`），阴影与背景同调不发灰 | 卡片 hover 用重黑投影 `0 12px 28px -18px rgba(0,0,0,0.9)`，与画布不同调 | 新增 `--shadow-card`：暗色 `0 4px 32px rgba(11,11,17,0.6)`（画布调色）、纸面模式 `0 4px 32px rgba(21,20,28,0.10)`（墨色调、强度压低）；`.hover-lift:hover` 接入 |
-| 4 | 跨站 §10.6：`prefers-reduced-motion` 是 98% 参考站点漏掉的加分项 | — | **已有**（globals.css §12 全局守卫，此前建站时已落），本轮确认无缺口 |
-| 5 | Linear §12.1.3：等宽字体承担标签与元信息是「工程感」核心 | — | **已有**（`.eyebrow`/`.meta` 均为 `--font-mono`），本轮确认无缺口 |
-| 6 | 跨站 §10.2：正文 16px、层级跨度 2.5–3.5×；§10.3：强调色 1–3 个且低面积占比 | — | **已有**（正文 16px/1.7、标题负字距 -0.012~-0.028em、单一 violet 强调族），确认无缺口 |
+| 1 | §2.1 token 总表（18 个色彩变量 + 字体/间距/圆角/时长/断点） | 站点旧 token 是 violet + HSL 换色轴体系，与文档无一处同值 | `app/globals.css` §1 整节重写：DNA 原值 + 语义别名层（`--canvas`/`--ink`/`--line` 等指向 DNA token），68 个组件无需逐个改写 |
+| 2 | §3.3 明暗模式：只确认存在切换、默认亮色 | **暗色方案未给** | `:root` 为 DNA 亮色，`.dark` 由 §3.2 的暖黑 `#141413` 与暖灰 `#87867f` 推导整块，逐条标 `[推断]`（台账 §1.2） |
+| 3 | §7 / §14 圆角 `3px` / `24px` / `50%`，阴影 0 条 | theme.css 基础层写的是 `8px`，站点有 40 余处字面量圆角（3–14px、999） | 以正文阶梯为准：`tailwind.config.ts` 把 `sm..3xl` 整组映射到 3px，并把组件里的 `borderRadius: N` 一次性收口到 `var(--radius-xs)` / `var(--radius-pill)` |
+| 4 | §7 否定性规律：不用渐变、毛玻璃、发光、大圆角 | 站点有光晕、网格、暗角、噪点预设、粒子、光标光斑、3D 倾斜、渐变边框、扫光渐变 | 删除 `background-decor` / `ui/particles` / `pointer-feedback` 三个文件与全部相关 CSS；`[data-spotlight]` 只保留台账行的 2px 强调色指示线；页面顶部的掃光改为纯色 1px |
+| 5 | §8.3 卡片 hover = `scale(1.05)` + `200ms ease` | 旧卡片 hover 用位移 + 画布色投影 | 新增 `.hover-zoom`，卡片与网格卡接入；`--shadow-card/--shadow-pop` 置为 `none` |
+| 6 | §11.1 时长档 200 / 300 / 400 / 500（+ 800 / 1200） | 站点散落 120 / 150 / 160 / 175 / 260 / 380 / 420 / 620 / 1150 / 1500ms | 过渡统一到 `--duration-fast/base/slow`；光标闪烁与骨架扫光取 §11.1 实测的 `1200ms`；`page-transition` 的 WAAPI 时长改 400 / 500ms，缓动改 `cubic-bezier(.16,1,.3,1)` |
+| 7 | §12.1 必须复现：象牙白画布 / 近黑暖正文 / 单一强调色 / 衬线标题 + 无衬线正文 / 大留白 ≥96px 与 65–75 字符行长 | 站点是暗色优先、字体分工相反（无衬线标题）、行长 68ch、区块间距 48–80px | 画布与文字改 DNA 值；`--font-serif` 换 Newsreader（替代专有字体）+ Noto Serif SC 并接管全部标题；`.prose` 行长改 `--measure: 38em`（中文 34–40 全角折算）；首页与各页区块节奏提到 96 / 128px |
+| 8 | §4.2 字号阶梯「未观察到」 | 无阶梯可抄 | 由 theme.css 基础层（40 / 28 / 20 / 16）与站点既有档位外推 12 档，全站收敛（含把 `0.855em`、`12.5px`、`9px`、`10px` 等越界值改回档位），标 `[推断]` |
+| 9 | §13 不可复制项（logo / 品牌名 / 专有字体 / 专有插画 / 文案） | 站点需替换字体并避免照搬文案 | 仅采用开源字体（Newsreader / Noto Serif SC / Inter / Noto Sans SC / JetBrains Mono，域名仍在 CSP 白名单内）；未引入任何 Anthropic 品牌元素与文案 |
+| 10 | §11.4 `prefers-reduced-motion` 未观察到 | — | 站点既有全局守卫保留（跨站加分项），本轮确认无缺口 |
+| 11 | §12.4 自检「只有一个强调色」 | 站点有 `--gold`（星标 / 火焰）等第二强调色 | `--gold` 并入 `--color-primary`；星标、火焰、成就图标统一走陶土橙 |
 
 ## 决策与假设清单（未脑补的部分）
 
-1. **160–260ms → 175ms 的归一**是值变更（差 ≤85ms，感知极小）：依据 Linear 的时长纪律「0–175ms 承担全部交互反馈」，换来自治的 token 体系。入场/主题切换类（300/320/420ms、pagefind 面板滑入 380ms）**保留原值**——它们属「较大位移或入场」，在跨站 300–500ms 主流区间内，且主题圆形揭示是站点签名动效。
-2. **圆角字面值不批量替换**：全部已落在文档阶梯内，替换是零视觉收益的纯回归风险；token 层供新组件使用，后续渐进收敛。
-3. **音乐播放器内部节奏**（914/920/1056 行 160–380ms）不收敛：独立子系统，且已自带 JS 层 `prefers-reduced-motion` 处理，隔离改动风险。
-4. **`::selection` 保持全 accent 底**（`background: var(--accent)`）而非 Linear 的 40% 透明：站点既有签名样式，非缺口。
-5. **`--shadow-card` 纸面值 0.10 强度**为 `[推断]`：文档只给了暗色模式图案，纸面白底上按弥散阴影惯例压低强度并改墨色调。
+1. **暗色整套配色为 `[推断]`**：文档只给了亮色与「html 上有切换机制」。推导只用文档已记载的颜色（`#141413` / `#faf9f5` / `#87867f`）加同色相提亮档，新增值逐条记在台账 §1.2。
+2. **字号阶梯为 `[推断]`**：§4.2 明确「未观察到」，因此以 theme.css 基础层为锚点外推 12 档，并让全站（含组件内联 `fontSize`）只使用这些档位。
+3. **间距允许中间档**：§5.1 的实阶梯只有 4 / 8 / 24，但 §1 与 §12.1 要求区块 ≥96px，两者无法同时满足「只有三档」；故拆成「微阶梯」与「区块节奏」两段，中间档 12/16/20/32/40/48/64 标 `[推断]`。
+4. **按钮文字取暖黑而非白**：theme.css 用白字配陶土橙底（对比度约 3.1:1，未达 AA）。改用 §3.2 已记载的 `#141413`（约 5.9:1），不引入新色 —— 属可访问性取舍，非值变更。
+5. **`:focus-visible` 具体值补齐**：文档该规则存在但为空，取 §3.1 的 `--color-focus-ring` 与 `--color-primary` 落地。
+6. **音乐播放器内部工艺保留**：唱片纹路与高光叠在封面上（挂在作品而非主题上），仍为字面 rgba，但它们归入 `#000000` / `#ffffff` 两个已声明色，不产生新色值；徽标与频谱尺寸不动。
+7. **课程模拟器只换视觉**：`components/learn/sim/*` 的 canvas / SVG 尺寸与算法状态一字未改，只做圆角与配色收敛。
+8. **搜索与评论第三方 CSS**：Pagefind 只改 `--pagefind-ui-*` 映射（圆角 10px → 3px），选择器不动；giscus 是站点外 iframe，不介入。
 
 ## 验证
 
-- `npm run check` 全绿（typecheck / lint / emoji / 双代理测试 / env 审计）
-- `npm run build` 326 页静态导出 + pagefind + 产物审计通过
+- `npm run typecheck` / `npm run lint` / `npm run check:emoji` 全绿（`npm run check` 链路通过）
+- `npm run build`：`Compiled successfully` → 类型与 lint 通过 → 静态页面 **326 / 326** 全部生成；仅在收尾清理**旧** `out/` 目录时被 IDE 的批量删除守卫拦下（见 README 已知限制）
+- `audit_build.py`（范围＝站点自有样式源 `app/globals.css`，基线＝`SPEC_LEDGER.tokens.json`）：
+  **自创颜色 0 · 未落地颜色 0 · 越界字号 0 · 越界圆角 0 · 越界时长 0 · 越界断点 0**
+- 人工核对：`fidelity-checklist.md` §3.1–3.7 逐条过；唯一未闭环项是 §3.8 的「构建产物替换」，原因见上

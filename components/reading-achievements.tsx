@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useToast } from '@/components/ui/toast'
 import { ACHIEVEMENTS, unlockAchievement, type AchievementId } from '@/lib/achievements'
-import { SECRET_UNLOCK_KEY } from '@/lib/accents'
+import { SECRET_UNLOCK_KEY } from '@/lib/unlock'
 
 const MILESTONES: { at: number; id: AchievementId }[] = [
   { at: 25, id: 'first-scroll' },

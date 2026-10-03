@@ -4,7 +4,7 @@ export function TagBadge({ tag, count }: { tag: string; count?: number }) {
   return (
     <Link
       href={`/tags/${tag}`}
-      className="chip px-2.5 py-1 text-xs transition-colors hover:border-[var(--accent-line)] hover:text-[var(--accent-text)]"
+      className="chip px-3 py-1 text-xs transition-colors"
       style={{ color: 'var(--body)' }}
     >
       #{tag}

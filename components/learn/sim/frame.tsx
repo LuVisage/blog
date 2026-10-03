@@ -31,7 +31,7 @@ export function SimFrame({ label, hint, source, tone = 'local', children }: SimF
         </span>
         <span
           className="chip ml-auto px-2.5 py-1 text-[11px]"
-          style={{ color: 'var(--muted)', borderRadius: 6 }}
+          style={{ color: 'var(--muted)', borderRadius: 'var(--radius-xs)' }}
         >
           {BADGES[tone]}
         </span>
@@ -107,7 +107,7 @@ export function TextField({ value, onChange, placeholder, label }: TextFieldProp
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       className="w-full px-3 py-2 text-sm surface"
-      style={{ borderRadius: 8, color: 'var(--ink)' }}
+      style={{ borderRadius: 'var(--radius-xs)', color: 'var(--ink)' }}
     />
   )
 }
@@ -130,7 +130,7 @@ export function Pills({ items, active, onPick }: PillsProps) {
             onClick={() => onPick(item.value)}
             className="chip px-2.5 py-1 text-xs transition-colors"
             style={{
-              borderRadius: 7,
+              borderRadius: 'var(--radius-xs)',
               color: on ? 'var(--ink)' : 'var(--muted)',
               borderColor: on ? 'var(--accent-line)' : 'var(--line)',
               background: on ? 'var(--accent-soft)' : 'transparent',
@@ -147,7 +147,7 @@ export function Pills({ items, active, onPick }: PillsProps) {
 export function ScoreBar({ ratio }: { ratio: number }) {
   const clamped = Math.max(0, Math.min(1, ratio))
   return (
-    <span className="block h-1 w-full overflow-hidden" style={{ background: 'var(--surface-2)', borderRadius: 999 }}>
+    <span className="block h-1 w-full overflow-hidden" style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-pill)' }}>
       <span
         className="block h-full transition-[width] duration-300"
         style={{ width: `${clamped * 100}%`, background: 'var(--accent)' }}

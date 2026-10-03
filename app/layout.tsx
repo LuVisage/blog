@@ -1,19 +1,15 @@
 import type { Metadata } from 'next'
 import { SITE, basePathUrl, siteUrl } from '@/lib/constants'
 import { ThemeProvider } from '@/components/theme-provider'
-import { BackgroundDecor } from '@/components/background-decor'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { Analytics } from '@/components/analytics'
-import { Particles } from '@/components/ui/particles'
 import { BackToTop } from '@/components/back-to-top'
 import { GSAPProvider } from '@/components/gsap-provider'
 import { MusicPlayerProvider, MusicPlayerFAB } from '@/components/music-player'
-import { AppearanceProvider } from '@/components/appearance-provider'
 import { ToastProvider } from '@/components/ui/toast'
 import { PaletteProvider } from '@/components/command-palette'
 import { KonamiEasterEgg } from '@/components/reading-achievements'
-import { PointerFeedback } from '@/components/pointer-feedback'
 import { PageTransition, PageSweep } from '@/components/page-transition'
 import { getAllPosts } from '@/lib/posts'
 import { COURSE_IDS, getAllLessons, getReferencePages } from '@/lib/curriculum'
@@ -87,23 +83,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="referrer" content="strict-origin-when-cross-origin" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+        {/* 展示衬线用开源替代（DESIGN_DNA §13：Anthropic Serif 属专有字体），
+            域名仍在 CSP 与字体白名单内，无需改动策略。 */}
+        <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400..700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+        {/* 参照站默认亮色（§3.3），所以无存储时跟随系统：
+            只有显式选过暗色才预置 .dark，避免亮色画布先闪一下墨色。 */}
         <script dangerouslySetInnerHTML={{ __html: `
           try {
             const stored = localStorage.getItem('theme')
             const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-            let isDark
-            if (stored === 'light') isDark = false
-            else if (stored === 'dark') isDark = true
-            else if (stored === 'system') isDark = systemDark
-            else isDark = true
+            const isDark = stored === 'dark' || (stored !== 'light' && systemDark)
             if (isDark) document.documentElement.classList.add('dark')
-          } catch(e) {}
-          try {
-            const accent = localStorage.getItem('site-accent')
-            if (accent && accent !== 'violet') document.documentElement.setAttribute('data-accent', accent)
-            const bg = localStorage.getItem('site-background')
-            if (bg && bg !== 'editorial') document.documentElement.setAttribute('data-bg', bg)
           } catch(e) {}
         `}} />
         <link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href={basePathUrl('/rss.xml')} />
@@ -114,18 +104,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex flex-col min-h-screen relative bg-body">
         <a href="#main-content" className="skip-to-content">跳到主要内容</a>
         <ThemeProvider>
-          <AppearanceProvider>
           <ToastProvider>
           <MusicPlayerProvider>
           <GSAPProvider>
           <PaletteProvider posts={palettePosts} lessons={paletteLessons}>
-          {/* Subtle floating particles — just enough for atmosphere */}
-          <Particles />
-          <BackgroundDecor />
           <PageSweep />
-          <PointerFeedback />
           <Header />
-          <main id="main-content" data-pagefind-body className="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10">
+          {/* §2.1 容器 1200px；§1 区块留白按 96px 档展开。 */}
+          <main id="main-content" data-pagefind-body className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24 relative z-10">
             <PageTransition>{children}</PageTransition>
           </main>
           <Footer />
@@ -137,7 +123,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </GSAPProvider>
           </MusicPlayerProvider>
           </ToastProvider>
-          </AppearanceProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -31,18 +31,18 @@ function CellBox({ cell }: { cell: Cell }) {
           minHeight: 30,
           padding: '2px 5px',
           border: `1px solid ${tone.border}`,
-          borderRadius: 6,
+          borderRadius: 'var(--radius-xs)',
           background: tone.background ?? 'transparent',
           color: tone.color,
           fontWeight: tone.weight ?? 400,
           fontFamily: 'var(--font-mono)',
-          fontSize: 12.5,
+          fontSize: 12,
           lineHeight: 1.25,
         }}
       >
         {cell.t}
         {cell.mark && (
-          <span style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 0.02 }}>{cell.mark}</span>
+          <span style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 0.02 }}>{cell.mark}</span>
         )}
       </span>
     </td>
@@ -146,7 +146,7 @@ export function AlgoLab({ algo }: { algo: string }) {
                 onClick={() => set(field.key, !input[field.key])}
                 className="chip px-2.5 py-1 text-xs transition-colors"
                 style={{
-                  borderRadius: 7,
+                  borderRadius: 'var(--radius-xs)',
                   color: input[field.key] ? 'var(--ink)' : 'var(--muted)',
                   borderColor: input[field.key] ? 'var(--accent-line)' : 'var(--line)',
                   background: input[field.key] ? 'var(--accent-soft)' : 'transparent',
@@ -224,7 +224,7 @@ export function AlgoLab({ algo }: { algo: string }) {
       {step && (
         <div
           className="mt-4 px-4 py-3.5"
-          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--accent)', borderRadius: 8 }}
+          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--accent)', borderRadius: 'var(--radius-xs)' }}
         >
           <p className="body-sm" style={{ color: 'var(--ink)' }}>
             {step.text}
@@ -232,7 +232,7 @@ export function AlgoLab({ algo }: { algo: string }) {
           {step.expr && (
             <p
               className="mt-2.5 px-3 py-2 text-xs overflow-x-auto whitespace-pre"
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 7, color: 'var(--body)', fontFamily: 'var(--font-mono)' }}
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)', color: 'var(--body)', fontFamily: 'var(--font-mono)' }}
             >
               {step.expr}
             </p>
@@ -267,7 +267,7 @@ export function AlgoLab({ algo }: { algo: string }) {
       {shown >= total && total > 0 && (
         <p
           className="mt-4 px-4 py-3 text-sm"
-          style={{ border: '1px solid var(--line)', borderRadius: 8, background: 'var(--surface-2)', color: 'var(--body)' }}
+          style={{ border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)', background: 'var(--surface-2)', color: 'var(--body)' }}
         >
           {run.verdict}
         </p>

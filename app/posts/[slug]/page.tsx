@@ -66,7 +66,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
       <ReadingProgress />
       <ReadingAchievements />
 
-      <div className="xl:flex xl:gap-14">
+      <div className="xl:flex xl:gap-16">
         <article className="flex-1 min-w-0">
           {/* Mobile TOC */}
           <div className="xl:hidden mb-6"><TableOfContents /></div>
@@ -118,7 +118,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
               <Link
                 href={`/series/${post.series}`}
                 className="chip inline-flex mt-7 px-3 py-1.5 text-xs hover:text-[var(--accent-text)] transition-colors"
-                style={{ color: 'var(--body)', borderRadius: 999 }}
+                style={{ color: 'var(--body)', borderRadius: 'var(--radius-pill)' }}
               >
                 <span className="eyebrow">系列</span>
                 {post.series}
@@ -138,7 +138,8 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </header>
 
           {/* Article content — no card, text sits on the canvas */}
-          <div className="prose mx-0 max-w-[68ch] mb-14">
+          {/* 行长由 .prose 的 --measure（38em，对应中文 34-40 全角）决定，这里不再覆盖。 */}
+          <div className="prose mx-0 mb-16">
             <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
           </div>
 

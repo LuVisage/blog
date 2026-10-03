@@ -78,7 +78,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={toast.id}
             className="surface animate-fade-up pointer-events-auto flex items-start gap-3 px-4 py-3.5"
-            style={{ borderRadius: 10 }}
+            style={{ borderRadius: 'var(--radius-xs)' }}
           >
             <span className="mt-0.5 flex-shrink-0">
               <ToneIcon tone={toast.tone} />
@@ -87,12 +87,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <div className="eyebrow">{toast.label}</div>
               <p
                 className="font-serif font-bold mt-1"
-                style={{ fontSize: 15, lineHeight: 1.4, color: 'var(--ink)' }}
+                style={{ fontSize: 'var(--text-reading-sm)', lineHeight: 1.4, color: 'var(--ink)' }}
               >
                 {toast.title}
               </p>
               {toast.description && (
-                <p className="body-sm mt-1" style={{ fontSize: 13 }}>{toast.description}</p>
+                <p className="body-sm mt-1" style={{ fontSize: 'var(--text-code)' }}>{toast.description}</p>
               )}
             </div>
             <button

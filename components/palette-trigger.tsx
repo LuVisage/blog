@@ -17,7 +17,7 @@ export function PaletteTrigger() {
     <button
       onClick={() => setOpen(true)}
       className="group surface surface-hover flex items-center gap-2 h-10 pl-3 pr-2.5 cursor-pointer"
-      style={{ borderRadius: 10, color: 'var(--muted)' }}
+      style={{ borderRadius: 'var(--radius-xs)', color: 'var(--muted)' }}
       aria-label="打开命令面板"
       title="命令面板"
     >
@@ -27,9 +27,9 @@ export function PaletteTrigger() {
         className="meta hidden md:inline px-1.5 py-0.5"
         style={{
           border: '1px solid var(--line)',
-          borderRadius: 5,
+          borderRadius: 'var(--radius-xs)',
           color: 'var(--faint)',
-          fontSize: 10,
+          fontSize: 'var(--text-eyebrow)',
         }}
       >
         {mac ? '⌘K' : '^K'}

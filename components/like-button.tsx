@@ -40,7 +40,7 @@ export function LikeButton({ slug }: LikeButtonProps) {
   return (
     <button
       onClick={handleLike}
-      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 glass-liquid ${
+      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded surface text-sm font-medium transition-all duration-200 ${
         animating ? 'scale-110' : ''
       }`}
       style={{

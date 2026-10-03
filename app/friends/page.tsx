@@ -33,7 +33,7 @@ export default function FriendsPage() {
 
       {FRIENDS.length > 0 ? (
         <AnimatedContent direction="up">
-          <div className="mb-14">
+          <div className="mb-16">
             <div className="eyebrow mb-5">站点</div>
             <Ledger>
               {FRIENDS.map((friend, i) => (
@@ -48,7 +48,7 @@ export default function FriendsPage() {
                     friend.avatar ? (
                       <span
                         className="block w-9 h-9 overflow-hidden"
-                        style={{ border: '1px solid var(--line-strong)', borderRadius: 4 }}
+                        style={{ border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-xs)' }}
                       >
                         <img src={friend.avatar} alt="" className="w-full h-full object-cover" />
                       </span>
@@ -71,7 +71,7 @@ export default function FriendsPage() {
         <section>
           <div className="eyebrow mb-2">交换</div>
           <h2 className="section-title mb-6">交换友链</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-10 lg:gap-14 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-10 lg:gap-16 items-start">
             <p className="body-md max-w-xl">
               如果你也在写 AI、Agent 或工程实践方向的博客，欢迎交换友链。
               把站点的名称、简介和 RSS 发给我，我会连同你的信息一起登记在下面这份资料里。

@@ -51,7 +51,7 @@ function Area({ value, onChange, label, rows = 3 }: { value: string; onChange: (
       aria-label={label}
       onChange={(event) => onChange(event.target.value)}
       className="surface w-full resize-y px-3 py-2 text-sm"
-      style={{ borderRadius: 8, color: 'var(--ink)', lineHeight: 1.75 }}
+      style={{ borderRadius: 'var(--radius-xs)', color: 'var(--ink)', lineHeight: 1.75 }}
     />
   )
 }
@@ -69,7 +69,7 @@ function Block({ children, name }: { children: string; name?: string }) {
         style={{
           background: 'var(--surface-2)',
           border: '1px solid var(--line)',
-          borderRadius: 7,
+          borderRadius: 'var(--radius-xs)',
           color: 'var(--muted)',
           fontFamily: 'var(--font-mono)',
           lineHeight: 1.7,
@@ -323,7 +323,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
         {armed && !running && (
           <div
             className="p-3.5"
-            style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--gold)', borderRadius: 8 }}
+            style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--gold)', borderRadius: 'var(--radius-xs)' }}
           >
             <p className="body-sm" style={{ color: 'var(--body)' }}>
               {settings.mode === 'ollama'
@@ -355,7 +355,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
           <div
             className="p-3.5"
             aria-live="polite"
-            style={{ border: '1px solid var(--line-strong)', borderRadius: 8, background: 'var(--surface)' }}
+            style={{ border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-xs)', background: 'var(--surface)' }}
           >
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <span className="eyebrow" style={{ color: 'var(--accent-text)' }}>
@@ -398,7 +398,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
         {failure && (
           <div
             className="p-3.5"
-            style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--danger)', borderRadius: 8 }}
+            style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--danger)', borderRadius: 'var(--radius-xs)' }}
           >
             <div className="flex items-start gap-2">
               <IconAlertTriangle size={14} strokeWidth={1.7} className="mt-0.5" style={{ color: 'var(--danger)' }} />

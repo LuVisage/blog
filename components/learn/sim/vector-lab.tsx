@@ -70,7 +70,7 @@ export function VectorLab({ presets = false }: { presets?: boolean }) {
 
       <ol className="mt-5 space-y-2.5">
         {hits.map((hit, rank) => (
-          <li key={hit.doc.id} className="surface" style={{ borderRadius: 9 }}>
+          <li key={hit.doc.id} className="surface" style={{ borderRadius: 'var(--radius-xs)' }}>
             <button
               type="button"
               onClick={() => setOpen(open === hit.index ? null : hit.index)}
@@ -111,7 +111,7 @@ export function VectorLab({ presets = false }: { presets?: boolean }) {
                         key={`${term.term}-${i}`}
                         className="chip px-2 py-0.5 text-[11px] font-mono"
                         style={{
-                          borderRadius: 6,
+                          borderRadius: 'var(--radius-xs)',
                           color: term.weight >= 0 ? 'var(--accent-text)' : 'var(--danger)',
                           borderColor: 'var(--line-faint)',
                         }}
@@ -135,7 +135,7 @@ export function VectorLab({ presets = false }: { presets?: boolean }) {
           <div className="eyebrow mb-2">留在库里的 {missed.length} 块</div>
           <div className="flex flex-wrap gap-1.5">
             {missed.map((hit) => (
-              <span key={hit.doc.id} className="chip px-2.5 py-1 text-xs" style={{ color: 'var(--muted)', borderRadius: 6 }}>
+              <span key={hit.doc.id} className="chip px-2.5 py-1 text-xs" style={{ color: 'var(--muted)', borderRadius: 'var(--radius-xs)' }}>
                 {hit.doc.heading} · {hit.score.toFixed(3)}
               </span>
             ))}

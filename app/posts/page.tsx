@@ -29,7 +29,7 @@ export default function PostsPage() {
         counter={`${posts.length} 篇 · 最近 ${posts[0]?.date.slice(0, 10) ?? '—'}`}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-14 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-16 items-start">
         <AnimatedContent direction="up" className="min-w-0">
           <PostList posts={posts} emptyHref={`${SITE.repo}/new/main/content/posts/`} />
         </AnimatedContent>

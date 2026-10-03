@@ -32,10 +32,7 @@ export function LedgerRow({
 
       <span className="min-w-0 block">
         {label && <span className="eyebrow block mb-1.5">{label}</span>}
-        <span
-          className="font-serif font-bold truncate block transition-colors group-hover:text-[var(--accent-text)]"
-          style={{ fontSize: 19, lineHeight: 1.4, color: 'var(--ink)', letterSpacing: '-0.01em' }}
-        >
+        <span className="heading-3 truncate block transition-colors group-hover:text-[var(--accent-text)]">
           {title}
         </span>
         {desc && <span className="body-sm line-clamp-2 block mt-1.5">{desc}</span>}

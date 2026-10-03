@@ -41,7 +41,7 @@ export function FontSizeControl() {
 
   if (!mounted) return null
 
-  const baseBtnClass = 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150'
+  const baseBtnClass = 'px-2.5 py-1 rounded text-xs font-medium transition-colors duration-200'
 
   return (
     <div className="flex items-center gap-1.5">

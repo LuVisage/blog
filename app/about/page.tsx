@@ -36,11 +36,11 @@ export default function AboutPage() {
         counter={`${ABOUT.focusAreas.length} 个方向 · ${ABOUT.skills.length} 项技术`}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-12 lg:gap-14">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-12 lg:gap-16">
         {/* ── Column ── */}
         <div className="min-w-0">
           <AnimatedContent direction="up">
-            <section className="mb-14">
+            <section className="mb-16">
               <div className="eyebrow mb-2">自述</div>
               <h2 className="section-title mb-6">写作与探索</h2>
               <div className="prose">
@@ -55,7 +55,7 @@ export default function AboutPage() {
           </AnimatedContent>
 
           <AnimatedContent direction="up" delay={0.06}>
-            <section className="mb-14">
+            <section className="mb-16">
               <div className="eyebrow mb-2">方向</div>
               <h2 className="section-title mb-6">主要关注</h2>
               <ul>
@@ -85,7 +85,7 @@ export default function AboutPage() {
           </AnimatedContent>
 
           <AnimatedContent direction="up" delay={0.12}>
-            <section className="mb-14">
+            <section className="mb-16">
               <div className="eyebrow mb-2">工具</div>
               <h2 className="section-title mb-6">技术栈</h2>
               <div className="flex flex-wrap gap-2">
@@ -126,7 +126,7 @@ export default function AboutPage() {
           <aside className="lg:sticky lg:top-28">
             <div
               className="w-full aspect-square overflow-hidden mb-5"
-              style={{ border: '1px solid var(--line-strong)', borderRadius: 4 }}
+              style={{ border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-xs)' }}
             >
               <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
             </div>

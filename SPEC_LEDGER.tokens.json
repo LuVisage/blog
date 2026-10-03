@@ -1,0 +1,90 @@
+{
+  "site": "Baron_Zhang Blog — Anthropic 暖调纸感重构",
+  "source_docs": [
+    "C:/Users/lusha/Desktop/UI_skill/design-dna/22-anthropic/DESIGN_DNA.md",
+    "C:/Users/lusha/Desktop/UI_skill/design-dna/22-anthropic/theme.css",
+    "C:/Users/lusha/Desktop/UI_skill/design-dna/22-anthropic/facts.json",
+    "C:/Users/lusha/Desktop/UI_skill/design-dna/CROSS_SITE_PATTERNS.md"
+  ],
+  "colors": [
+    "#faf9f5",
+    "#faf9f0",
+    "#ffffff",
+    "#ededea",
+    "#e4e3df",
+    "#a09f9c",
+    "#87867f",
+    "#999999",
+    "#666666",
+    "#000000",
+    "#141413",
+    "#cc785c",
+    "#d38b73",
+    "#f9efeb",
+    "#16a34a",
+    "#d97757",
+    "#1c1b18",
+    "#2a2925",
+    "#34332e",
+    "#6b6961",
+    "#b9b6ad",
+    "#2b211d",
+    "rgb(204, 120, 92)",
+    "rgba(204, 120, 92, 0.45)",
+    "rgba(250, 249, 245, 0.78)",
+    "rgba(250, 249, 245, 0.5)",
+    "rgba(20, 20, 19, 0.72)",
+    "rgba(20, 20, 19, 0.32)",
+    "rgba(20, 20, 19, 0.16)",
+    "rgba(204, 120, 92, 0.34)",
+    "rgba(204, 120, 92, 0.68)",
+    "rgba(204, 120, 92, 0.09)"
+  ],
+  "font_sizes_px": [11, 12, 13, 14, 15, 16, 17, 18, 20, 28, 40, 56],
+  "spacing_px": [4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 96, 128, 160],
+  "radii_px": [3, 24],
+  "shadows": [],
+  "durations_ms": [200, 300, 400, 500, 800, 1200],
+  "breakpoints_px": [640, 768, 896, 1024, 1280],
+  "font_families": [
+    "Newsreader",
+    "Noto Serif SC",
+    "Microsoft YaHei",
+    "Inter",
+    "Noto Sans SC",
+    "JetBrains Mono",
+    "Fira Code",
+    "ui-monospace",
+    "inherit",
+    "Georgia",
+    "serif",
+    "sans-serif"
+  ],
+  "notes": {
+    "confirmed": [
+      "#faf9f5 #ffffff #000000 #666666 #999999 #ededea #e4e3df #a09f9c #cc785c #d38b73 #f9efeb #16a34a #d97757 #87867f #141413 #faf9f0（DESIGN_DNA §2.1/§3.1/§3.2）",
+      "间距基准 4px、微阶梯 4/8/24（§5.1）；区块节奏 96-160px（§1 / §12.1）",
+      "圆角 3/24/50%（§7/§14）；阴影 0 条（§7/§14）",
+      "时长 200/300/400/500ms、缓动 ease 与 cubic-bezier(.16,1,.3,1)（§11.1）",
+      "断点 896px（§6.1）；容器 1200px（§2.1）",
+      "字体分工：衬线展示标题 + 无衬线正文（§12.1）"
+    ],
+    "inferred": [
+      "暗色整套配色（#1c1b18 #2a2925 #34332e #6b6961 #b9b6ad #2b211d）— 依据暖黑 #141413 与 §3.2 灰阶推导",
+      "字号阶梯 11/12/13/14/15/16/17/18/20/28/40/56 — §4.2 未观察到，由 theme.css 基础层（h1 40 / h2 28 / h3 20 / body 16）与站点既有档位外推",
+      "间距中间档 12/16/20/32/40/48/64/128/160 — 4px 基准外推",
+      "中文行长 34-40 全角 — 由 §12.1 的 65-75 拉丁字符按 CJK 双宽折算",
+      "focus-visible 具体值 — 文档该规则为空，取 §3.1 的 --color-focus-ring"
+    ],
+    "not_observed": [
+      "字号阶梯（§4.2）",
+      "暗色模式配色方案（§3.3 仅确认存在切换机制与默认亮色）",
+      "正文容器宽度（§2.1 为 —）",
+      "prefers-reduced-motion（§11.4）— 站点既有实现保留，属跨站加分项"
+    ],
+    "radius_note": "50%（圆形）不参与数值比对；旧值 9999px / 8px / 10px 统一收敛到 3px 与 24px 两档",
+    "accent_count": 1,
+    "dark_mode": true,
+    "skin_axes_removed": ["[data-accent]（6 色）", "[data-bg]（4 背景）"]
+  }
+}
