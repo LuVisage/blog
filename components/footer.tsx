@@ -78,19 +78,19 @@ export function Footer() {
           <div className="flex items-center gap-5">
             <Link
               href="/terms"
-              className="meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
+              className="link-underline pressable meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
             >
               条款
             </Link>
             <Link
               href="/privacy"
-              className="meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
+              className="link-underline pressable meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
             >
               隐私
             </Link>
             <a
               href={basePathUrl('/rss.xml')}
-              className="meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
+              className="link-underline pressable meta inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors no-underline cursor-pointer"
             >
               RSS
             </a>

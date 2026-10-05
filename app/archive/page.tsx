@@ -64,7 +64,7 @@ export default function ArchivePage() {
           {archive.map(({ year, months }, yearIdx) => {
             const yearCount = months.reduce((sum, m) => sum + m.posts.length, 0)
             return (
-              <AnimatedContent key={year} direction="up" delay={yearIdx * 0.05}>
+              <AnimatedContent key={year} direction="up" delay={yearIdx * 0.04}>
                 <section>
                   <div
                     className="flex items-end justify-between gap-4 pb-3 mb-2"
@@ -73,9 +73,9 @@ export default function ArchivePage() {
                     <h2
                       className="font-serif font-bold"
                       style={{
-                        fontSize: 'clamp(30px, 5vw, 46px)',
+                        fontSize: 'clamp(var(--text-h2), 5vw, var(--text-h1))',
                         lineHeight: 1,
-                        letterSpacing: '-0.03em',
+                        letterSpacing: 'var(--tracking-heading)',
                         color: 'var(--ink)',
                       }}
                     >
@@ -90,13 +90,13 @@ export default function ArchivePage() {
                       className="grid grid-cols-1 md:grid-cols-[92px_minmax(0,1fr)] gap-x-10"
                     >
                       <div className="eyebrow pt-6 md:pt-[26px]">{MONTH_NAMES[month - 1]}</div>
-                      <div>
+                      <div className="stagger">
                         {posts.map((post) => (
                           <Link
                             key={post.slug}
                             href={`/posts/${post.slug}`}
                             data-spotlight="row"
-                            className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-4 sm:gap-6 py-4 rule"
+                            className="pressable group grid grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-4 sm:gap-6 py-4 rule"
                           >
                             <time
                               className="meta tabular-nums w-9 text-right transition-colors group-hover:text-[var(--accent-text)]"

@@ -36,7 +36,8 @@ export function StatsTile({ value, label, suffix = '' }: StatsTileProps) {
     const rect = el.getBoundingClientRect()
     if (rect.top < window.innerHeight && rect.bottom > 0) {
       animated.current = true
-      animateCount(0, numValue, 600, setDisplayValue)
+      // 计数时长取文档 §11.1 的实测档：首屏 500ms、进入视口 800ms。
+      animateCount(0, numValue, 500, setDisplayValue)
       return
     }
 
@@ -44,7 +45,7 @@ export function StatsTile({ value, label, suffix = '' }: StatsTileProps) {
       ([entry]) => {
         if (entry?.isIntersecting && !animated.current) {
           animated.current = true
-          animateCount(0, numValue, 900, setDisplayValue)
+          animateCount(0, numValue, 800, setDisplayValue)
           observer.disconnect()
         }
       },

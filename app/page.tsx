@@ -33,7 +33,8 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-10 lg:gap-16 pt-12 sm:pt-16 items-start">
-          <AnimatedContent direction="up" distance={14} duration={0.55}>
+          {/* parallax 是 [文档外] 签名动效（位移封顶 48px，见 SPEC_LEDGER §1.8.4） */}
+          <AnimatedContent direction="up" distance={14} duration={0.4} parallax={32}>
             <div>
               <h1 className="display">{SITE.title}</h1>
 
@@ -71,7 +72,7 @@ export default function HomePage() {
           </AnimatedContent>
 
           {/* Author card */}
-          <AnimatedContent direction="up" distance={14} duration={0.55} delay={0.12}>
+          <AnimatedContent direction="up" distance={14} duration={0.4} delay={0.12}>
             <div className="flex lg:flex-col items-center lg:items-start gap-5 lg:gap-0">
               <div
                 className="w-20 h-20 lg:w-32 lg:h-32 flex-shrink-0 overflow-hidden"
@@ -93,7 +94,7 @@ export default function HomePage() {
         </div>
 
         {/* Ledger strip */}
-        <AnimatedContent direction="up" distance={10} duration={0.5} delay={0.18}>
+        <AnimatedContent direction="up" distance={10} duration={0.4} delay={0.18}>
           <div
             className="mt-16 py-8"
             style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
@@ -149,7 +150,7 @@ export default function HomePage() {
             {tags.length > 0 && (
               <div className="mt-12 pt-8" style={{ borderTop: '1px solid var(--line)' }}>
                 <div className="eyebrow mb-4">主题</div>
-                <div className="flex flex-wrap gap-2">
+                <div className="stagger flex flex-wrap gap-2">
                   {tags.slice(0, 12).map(({ tag, count }) => (
                     <Link
                       key={tag}
@@ -179,7 +180,7 @@ export default function HomePage() {
       <AnimatedContent direction="up" delay={0.15}>
         <nav
           aria-label="站点栏目"
-          className="grid grid-cols-2 sm:grid-cols-4 py-8"
+          className="stagger grid grid-cols-2 sm:grid-cols-4 py-8"
           style={{ borderTop: '1px solid var(--line-strong)' }}
         >
           {[

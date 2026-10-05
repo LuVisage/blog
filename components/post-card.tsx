@@ -21,7 +21,7 @@ export function FeatureCard({ post }: { post: PostMeta }) {
       className="group surface surface-hover hover-zoom grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] overflow-hidden"
     >
       <div
-        className="relative min-h-[190px] sm:min-h-[280px] bg-cover bg-center"
+        className="relative min-h-[190px] sm:min-h-[280px] bg-cover bg-center media-zoom"
         style={{ backgroundImage: `url("${cover.url}")` }}
       >
         <span className="absolute top-4 left-4 eyebrow eyebrow-accent">精选</span>
@@ -110,7 +110,7 @@ function GridCard({ post }: { post: PostMeta }) {
       className="group surface surface-hover hover-zoom flex flex-col overflow-hidden"
     >
       <div
-        className="h-28 sm:h-32 bg-cover bg-center transition-transform duration-500 group-hover:scale-[1.05]"
+        className="h-28 sm:h-32 bg-cover bg-center media-zoom"
         style={{ backgroundImage: `url("${cover.url}")` }}
       />
       <div className="p-6 flex flex-col flex-1">
@@ -162,14 +162,16 @@ export function PostList({ posts, layout = 'index', lead = false, emptyHref }: P
       {lead && <FeatureCard post={first} />}
 
       {layout === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {(lead ? rest : posts).map((post) => <GridCard key={post.slug} post={post} />)}
         </div>
       ) : (
         <div>
-          {(lead ? rest : posts).map((post, i) => (
-            <IndexRow key={post.slug} post={post} ordinal={i + 1} />
-          ))}
+          <div className="stagger">
+            {(lead ? rest : posts).map((post, i) => (
+              <IndexRow key={post.slug} post={post} ordinal={i + 1} />
+            ))}
+          </div>
           <div className="rule" />
         </div>
       )}

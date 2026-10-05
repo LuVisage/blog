@@ -128,14 +128,17 @@ export function TableOfContents() {
             }}
             title={text}
             aria-current={active ? 'true' : undefined}
-            className="block text-sm py-1.5 line-clamp-1 border-l transition-colors duration-200"
+            className={`pressable relative block text-sm py-1.5 line-clamp-1 transition-colors${active ? ' is-active' : ''}`}
             style={{
               color: active ? 'var(--ink)' : 'var(--muted)',
-              borderColor: active ? 'var(--accent)' : 'var(--line)',
+              borderLeft: `1px solid ${active ? 'var(--line-strong)' : 'var(--line)'}`,
               fontWeight: active ? 600 : 400,
               paddingLeft: level === 3 ? 24 : 12,
+              transitionDuration: 'var(--duration-fast)',
             }}
           >
+            {/* 激活项由一条 2px 强调色短标滑动进入（SPEC_LEDGER §1.8.2 的 300ms 档） */}
+            <span aria-hidden="true" className="indicator-bar indicator-bar--lead" />
             {text}
           </a>
         </li>

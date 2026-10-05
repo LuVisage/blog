@@ -42,7 +42,7 @@ export function TickList({ eyebrow, items, checked, onToggle, doneNote }: TickLi
                 aria-checked={active}
                 onClick={() => onToggle(i, items.length)}
                 data-spotlight="row"
-                className="group w-full text-left grid grid-cols-[26px_minmax(0,1fr)_auto] items-start gap-3 py-4 cursor-pointer"
+                className="pressable group w-full text-left grid grid-cols-[26px_minmax(0,1fr)_auto] items-start gap-3 py-4 cursor-pointer"
               >
                 <span
                   className="meta tabular-nums pt-0.5 transition-colors"

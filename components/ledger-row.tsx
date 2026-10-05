@@ -52,7 +52,7 @@ export function LedgerRow({
     </>
   )
 
-  const cls = 'group grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 sm:gap-6 py-5 rule'
+  const cls = 'pressable group grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 sm:gap-6 py-5 rule'
 
   if (external) {
     return (
@@ -71,7 +71,8 @@ export function LedgerRow({
 export function Ledger({ children }: { children: React.ReactNode }) {
   return (
     <div>
-      {children}
+      {/* 台账行分级入场：单条 400ms、步进 40ms（SPEC_LEDGER §1.8.3） */}
+      <div className="stagger">{children}</div>
       <div className="rule" />
     </div>
   )

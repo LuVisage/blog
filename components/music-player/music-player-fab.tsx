@@ -65,7 +65,7 @@ export function MusicPlayerFAB() {
           <button
             ref={triggerRef}
             onClick={() => toggleExpanded(true)}
-            className="w-11 h-11 rounded-full surface flex items-center justify-center cursor-pointer transition-all duration-300 relative"
+            className="pressable w-11 h-11 rounded-full surface flex items-center justify-center cursor-pointer transition-all duration-300 relative"
             aria-label="打开音乐播放器"
             title={status}
           >

@@ -158,6 +158,64 @@
 | 其余断点 | `640 / 768 / 1024 / 1280` | Tailwind 既有断点；站内 1280 为音乐播放器侧栏 gutter 专用 | [默认] |
 | 导航 | `position: sticky; top: 0` | §8.2 | 已确认 |
 
+### 1.8 交互语汇（2026-10-03 增补）
+
+本轮不动配色、字体、版式与形状，只把「交互与动效」这一层补齐并对齐到文档档位。**不新增任何时长或缓动值**：下面所有效果都复用 §1.6 已有的 `--duration-fast/base/slow` 与 `--ease` / `--ease-out`。
+
+#### 1.8.1 契约（全部来自文档，已确认）
+
+| 项 | 值 | 来源 |
+| --- | --- | --- |
+| 时长白名单 | `200 / 300 / 400 / 500 / 800 / 1200ms` | §11.1 实测档位 |
+| 缓动白名单 | `ease`、`cubic-bezier(0.16, 1, 0.3, 1)` | §11.1 频次最高的两条 |
+| 属性白名单 | `transform` / `opacity` / `color`（含 `border-color`、`background-color`） | §11.1 过渡属性偏好 + §12.4 自检；`background-color` 另有 §11.2 hover 证据 |
+| 状态三件套 | `hover` / `focus-visible` / `active` | §11.2 状态覆盖度表（`:hover` 7、`:focus-visible` 2、`:focus` 2）；`active` 未在该表出现 → 按下态为 `[推断]` |
+| 禁用态 | `:disabled` / `[aria-disabled]` | §11.2（`:disabled` ×2） |
+| 层级手法 | 0 阴影、无渐变、无发光，层级只用 1px 发丝线与留白 | §7 / §14 |
+
+#### 1.8.2 效果 → 档位映射（本轮落地的统一语汇）
+
+| 交互 | 时长 | 缓动 | 属性 |
+| --- | --- | --- | --- |
+| 悬停变色（文字、边框、底色） | `--duration-fast` 200ms | `--ease` | `color` / `border-color` / `background-color` |
+| 按下反馈（按钮、标签、行、面板项） | `--duration-fast` 200ms | `--ease` | `transform: scale(0.98)` |
+| 链接下划线展开 | `--duration-fast` 200ms | `--ease` | `transform: scaleX`（`transform-origin: left`，不用 `width` 以免重排） |
+| 指示条滑动（导航、目录激活项、面板选中行） | `--duration-base` 300ms | `--ease` | `transform: translateX` / `scaleY` |
+| 浮层与抽屉进入 | `--duration-base` 300ms | `--ease-out` | `transform` + `opacity` |
+| 内容入场（区块、卡片） | `--duration-slow` 400ms | `--ease-out` | `transform: translateY` + `opacity` |
+| 大位移与图片渐显 | 500ms / `--duration-slow` | `--ease-out` | `transform` / `opacity` |
+| 循环类（光标、骨架、频谱） | 800 / 1200ms | `--ease` | `opacity` / `height`（播放器内部工艺） |
+
+#### 1.8.3 交互基元（`app/globals.css` §9e，全站复用）
+
+| 基元 | 作用 | 参数 |
+| --- | --- | --- |
+| `.pressable` | 统一下按反馈 | `:active` → `transform: scale(0.98)`，200ms |
+| `.link-underline` | 下划线自左向右展开 | `::after` 1px 强调色线，`scaleX(0→1)`，200ms |
+| `.indicator-bar` | 指示条滑动 | 2px 强调色，`scaleY/translateX`，300ms |
+| `.stagger` | 分级入场 | 子项 `--i` 派生 `animation-delay`，步进 40ms、单条 400ms、总窗口 ≤500ms |
+| `.media-fade` | 图片/封面渐显 | `opacity 0→1`，400ms（`[文档外]`，见 1.8.4） |
+
+#### 1.8.4 文档外签名动效（用户已授权，逐条依据）
+
+用户明确选择「允许少量文档外签名动效」。以下每一项都在 README 的缺口与假设清单里同步登记，并在审计中作为「已解释的自创项」出现。
+
+| # | 效果 | 实现约束 | 依据与理由 |
+| --- | --- | --- | --- |
+| 1 | 首页刊头滚动视差 | 位移上限 `48px`、只动 `transform` + 轻微 `opacity`，ScrollTrigger `scrub`；`prefers-reduced-motion` 下不注册 | §12.2 允许「配图与插画的呈现方式」自由变化；文档未描述滚动编排，故不冒充文档事实；位移上限取 `48px`（= §1.4 外推档，非新档位） |
+| 2 | 封面图与头像渐显 | `opacity 0→1`、`--duration-slow` 400ms、`--ease-out`；不触发布局 | §10「图像处理：未观察到 aspect-ratio / object-fit」属文档缺口；实现严格落在 §12.4「只动 transform / opacity / color」内 |
+| 3 | 列表分级入场（stagger） | 步进 40ms、单条 400ms、总窗口 ≤500ms，只播一次 | §9.1 只给区块顺序、未给入场编排（文档缺口）；时长与属性均在 §11.1 / §12.4 白名单内 |
+| 4 | 卡片悬停手法调整 | 封面 `transform: scale(1.05)`（保留 §8.3 原值），卡片本体只留极轻微 `scale(1.005)`，边框转 `--line-strong`，标题转强调色 | §8.3 的实测配方作用在图片上（`.g_visual_img`）；整卡缩放会让文字模糊与抖动，属对文档配方的忠实还原而非改写 |
+
+#### 1.8.5 无障碍与偏好
+
+| 项 | 处理 |
+| --- | --- |
+| `prefers-reduced-motion` | CSS 全局守卫（§12 节，已有）把 `animation-duration` / `transition-duration` 归零；`components/gsap-provider.tsx` 的 `timeScale(0)` 保留；视差在该偏好下**不注册** ScrollTrigger |
+| 键盘可达 | 所有交互元素保留 `:focus-visible`（2px 强调色 + 2px offset，§1.1 的 `--color-focus-ring` 用于控件内环） |
+| 触控目标 | 保持既有 ≥40px 的控件高与 ≥24px 的行内控件点击区（不因动效收紧） |
+| 新增 token 值 | **无**：全部复用 §1.6 已声明的时长与缓动，`SPEC_LEDGER.tokens.json` 基线不变 |
+
 ---
 
 ## 2. 组件清单

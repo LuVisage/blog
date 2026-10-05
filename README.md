@@ -57,6 +57,62 @@ npm run check      # typecheck + lint + 禁 emoji + 代理测试 + env 审计
 - **删除**：`components/appearance-provider.tsx`、`components/appearance-picker.tsx`、`components/background-decor.tsx`、`components/pointer-feedback.tsx`、`components/ui/particles.tsx`、`lib/accents.ts`
 - **样式收敛**：`tailwind.config.ts`（字体族 + 圆角组）与约 40 个组件 / 页面（圆角、时长、字号、装饰类、`glass-liquid` 等旧材质名）
 
+## 第 2 轮：交互与动效打磨（2026-10-05）
+
+不动配色、字体、版式、圆角与零阴影纪律，只把「交互与动效」这一层补齐并对齐文档档位。
+
+### 文档内：动效语汇（`app/globals.css` §9e + `SPEC_LEDGER.md` §1.8）
+
+| 交互 | 时长 | 缓动 | 属性 |
+| --- | --- | --- | --- |
+| 悬停变色（文字 / 边框 / 底色） | 200ms | `ease` | `color` / `border-color` / `background-color` |
+| 按下反馈 | 200ms | `ease` | `transform: scale(0.98)` |
+| 下划线展开 | 200ms | `ease` | `transform: scaleX` |
+| 指示条滑动 | 300ms | `ease` | `transform: translateX` / `scaleY` |
+| 浮层与抽屉进入 | 300ms | `cubic-bezier(.16,1,.3,1)` | `transform` + `opacity` |
+| 内容入场 | 400ms | `cubic-bezier(.16,1,.3,1)` | `transform: translateY` + `opacity` |
+| 列表分级入场 | 单条 400ms / 步进 40ms | 同上 | `transform` + `opacity` |
+| 提示条退场 | 200ms | `ease` | `opacity` + `transform` |
+
+新增基元：`.pressable`、`.link-underline`、`.indicator-bar`（含 `.indicator-bar--lead`）、`.stagger`、`.media-zoom`、`.media-fade`、`.field-rule`，以及 `slideDown`、`fadeOut` 两个关键帧。
+
+### 还原的越档值（原实现不在文档档位上）
+
+| 位置 | 改造前 | 改造后 | 依据 |
+| --- | --- | --- | --- |
+| `components/ui/animated-content.tsx` | 默认 `0.6s`（600ms）、`ease: 'power2.out'` | `0.4s`（400ms）、`cubic-bezier(0.16, 1, 0.3, 1)`（GSAP 侧用 CustomEase 对齐同一曲线） | §11.1 时长档与缓动 |
+| `components/ui/stats-tile.tsx` | 计数 `600ms` / `900ms` | `500ms` / `800ms` | §11.1 |
+| `app/page.tsx` 入场 | `0.55s` / `0.5s` | `0.4s` | §11.1 |
+| `app/archive/page.tsx` 年份组延迟 | `yearIdx * 0.05` | `yearIdx * 0.04`（40ms 步进） | 本文件 §上述语汇 |
+| 归档年份标题字号 | `clamp(30px, 5vw, 46px)` | `clamp(--text-h2, 5vw, --text-h1)` | `SPEC_LEDGER` §1.3 阶梯 |
+| 卡片悬停 | 整卡 `scale(1.05)`（文字会跟着缩放模糊） | 封面 `scale(1.05)`（§8.3 原值）+ 卡片本体 `scale(1.005)` | §8.3 实测选择器作用在图片上 |
+| `.btn-secondary` / `.btn-ghost` / `.chip` | 只有 hover | 补 `:active` 按下态与 `:disabled` | §11.2 状态覆盖表 |
+
+### 文档外签名动效（用户授权，逐条依据）
+
+| 效果 | 约束 | 依据 |
+| --- | --- | --- |
+| 首页刊头滚动视差 | 位移封顶 `48px`（台账外推档）、只动 `transform`、`scrub` 驱动、减少动态效果下不注册 | §12.2 允许自由变化；文档未描述滚动编排，故不冒充文档事实 |
+| 封面与头像加载渐显 | `opacity 0→1`、400ms | §10「图像处理」为文档缺口；实现严格落在 §12.4 的 `transform / opacity / color` 白名单内 |
+| 列表分级入场 | 步进 40ms、单条 400ms、总窗口 ≤500ms、只播一次 | §9.1 只给区块顺序，未给入场编排 |
+
+### 接入面（本轮改动文件）
+
+导航（指示线 + 按下态 + 抽屉 300ms 滑入）、页脚链接（下划线展开）、卡片（封面缩放 + 渐显 + 极轻微内缩）、台账行 / 归档 / 搜索结果 / 相关文章（分级入场 + 按下态）、文章目录与命令面板（2px 强调色短标滑动）、提示条（退场动画）、音乐播放器与课程控件（统一按下态）、搜索输入行（聚焦转强调色）、头像（渐显）。
+
+### 双模式视觉复核
+
+对**真实构建产物**（`out/`，挂在 `/blog` 前缀下用本地 HTTP 服务）用系统自带 Chrome 的无头模式截图，零新增依赖：
+
+```powershell
+chrome --headless=new --disable-gpu --hide-scrollbars --blink-settings=preferredColorScheme=1 `
+  --virtual-time-budget=6000 --window-size=1440,1500 --screenshot=home-light.png http://localhost:4321/blog/
+```
+
+结论：亮色为象牙白画布 + 陶土橙强调色 + 衬线标题 + 发丝线分层；暗色为暖黑画布、同一套语汇与强调色；截图中未出现阴影、渐变或第二强调色。**悬停 / 按下 / 聚焦三种状态未逐帧截图**（CLI 截图无法注入指针与键盘事件），改以 CSS 规范与状态覆盖表核对（`AUDIT.md`：`:hover` 13 / `:focus-visible` 5 / `:active` 3 / `disabled` 1）。
+
+说明：本机 `browser-use` 需 Chrome 开启远程调试（`chrome://inspect/#remote-debugging`）才能驱动，故未用它做交互态截图。
+
 ## 缺口与假设清单
 
 文档没有写、由本轮推断或默认的每一处（依据均记在 `SPEC_LEDGER.md`）：
@@ -76,6 +132,9 @@ npm run check      # typecheck + lint + 禁 emoji + 代理测试 + env 审计
 | `prefers-reduced-motion` | §11.4 未观察到 | 保留站点既有全局守卫 | 既有实现 |
 | 换色 / 换背景轴 | 文档体系里不存在 | 按用户决策整体移除（删除 4 个文件与内联脚本分支） | 产品取舍 |
 | `--gold` 第二强调色 | §12.4 自检要求只有一个强调色 | 并入陶土橙（星标、火焰、成就图标） | `[推断]` |
+| 滚动编排 / 视差 | §9.1 只给区块顺序，无滚动动效 | 仅首页刊头一处，位移封顶 48px，减少动态效果下关闭 | `[文档外]` |
+| 图片加载呈现 | §10「图像处理：未观察到」 | 封面与头像改为 `opacity` 渐显（400ms），不触发布局 | `[文档外]` |
+| 列表入场编排 | 文档未描述 | `.stagger` 分级入场，步进 40ms、总窗口 ≤500ms | `[文档外]` |
 
 ## 合规替换说明（DESIGN_DNA §13）
 

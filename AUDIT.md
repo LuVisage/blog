@@ -102,10 +102,10 @@
 
 | 状态 | 代码中出现次数 |
 | --- | --- |
-| `:hover` | 13 |
-| `:focus-visible` | 5 |
-| `:active` | 3 |
-| `disabled` | 1 |
+| `:hover` | 17 |
+| `:focus-visible` | 6 |
+| `:active` | 7 |
+| `disabled` | 3 |
 
 ---
 

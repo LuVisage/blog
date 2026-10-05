@@ -1,15 +1,26 @@
 ---
 name: Baron_Zhang Blog
-version: 5.0.0
+version: 5.1.0
 codename: Paper
-updated: 2026-10-03
+updated: 2026-10-05
 ---
 
-# Baron_Zhang Blog — Paper Design System v5.0
+# Baron_Zhang Blog — Paper Design System v5.1
 
 > 唯一事实来源：`C:\Users\lusha\Desktop\UI_skill\design-dna\22-anthropic\DESIGN_DNA.md`（Anthropic 设计 DNA 逆向工程，14 章）。
 > 本文件是该 DNA 在本站的落地规范：值取自文档原文，文档未覆盖处全部标注 `[推断]`。
 > 逐条来源、冲突裁决与缺口清单见 `SPEC_LEDGER.md`；机器比对结果见 `AUDIT.md`。
+
+## Changelog v5.1 (2026-10-05)
+
+**交互与动效打磨（不动配色 / 字体 / 版式）**：
+
+- 动效语汇收敛到文档档位：`AnimatedContent` 默认 600ms 改 400ms、缓动 `power2.out` 改 §11.1 的 `cubic-bezier(0.16, 1, 0.3, 1)`（GSAP 侧用 CustomEase 对齐同一曲线）；`StatsTile` 计数 600/900ms 改 500/800ms
+- 新增五个交互基元：`.pressable`（按下 scale .98）、`.link-underline`（下划线自左向右展开）、`.indicator-bar`（导航 / 目录 / 面板选中项的 2px 强调色指示条）、`.stagger`（列表分级入场，步进 40ms）、`.media-zoom` / `.media-fade`（封面缩放与渐显）
+- 状态补齐：`.btn-secondary` / `.btn-ghost` 补 `:active` 与 `:disabled`；`.chip` 补按下态；导航、页脚、台账行、目录、命令面板、提示条、音乐播放器、课程控件接入统一语汇
+- 卡片悬停改为「封面 `scale(1.05)`（§8.3 原值）+ 卡片本体 `scale(1.005)` + 边框变色」，避免整卡缩放导致文字模糊
+- 三处 `[文档外]` 签名动效（用户授权，依据见 `SPEC_LEDGER` §1.8.4）：首页刊头滚动视差（位移封顶 48px）、封面与头像加载渐显、列表分级入场编排
+- 提示条补退场动画（200ms），搜索输入行聚焦时下划线转强调色，正文链接 hover 抬升下划线偏移
 
 ## Changelog v5.0 (2026-10-03)
 
@@ -110,22 +121,55 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 - 动效时长：`200ms`（交互反馈）/ `300ms` / `400ms`（入场）/ `500ms`（大位移）；循环类 `800ms` / `1200ms`（§11.1）
 - 缓动：`ease`、`cubic-bezier(0.16, 1, 0.3, 1)`（§11.1）
 - 过渡属性：只动 `opacity` / `transform` / `color`（§12.4）
-- 卡片 hover：`transform: scale(1.05)` + `200ms ease`（§8.3 原文配方）
-- `prefers-reduced-motion`：全局守卫（§11.4 未观察到，属站点既有加分项，保留）
+- 卡片 hover：`transform: scale(1.05)` + `200ms ease`（§8.3 原文配方，作用在封面图上）
+- `prefers-reduced-motion`：全局守卫（§11.4 未观察到，属站点既有加分项，保留），视差不注册 ScrollTrigger
+
+### 5.1 交互语汇（v5.1 增补）
+
+时长只用 `200 / 300 / 400 / 500 / 800 / 1200ms`，缓动只用 `ease` 与 `cubic-bezier(0.16, 1, 0.3, 1)`，属性只动 `transform / opacity / color`（含 `border-color`、`background-color`）。
+
+| 交互 | 时长 | 缓动 | 属性 |
+| --- | --- | --- | --- |
+| 悬停变色（文字、边框、底色） | 200ms | `ease` | `color` / `border-color` / `background-color` |
+| 按下反馈 | 200ms | `ease` | `transform: scale(0.98)` |
+| 下划线展开 | 200ms | `ease` | `transform: scaleX`（`transform-origin: left`） |
+| 指示条滑动 | 300ms | `ease` | `transform: translateX` / `scaleY` |
+| 浮层与抽屉进入 | 300ms | `--ease-out` | `transform` + `opacity` |
+| 内容入场 | 400ms | `--ease-out` | `transform: translateY` + `opacity` |
+| 大位移与图片渐显 | 400–500ms | `--ease-out` | `transform` / `opacity` |
+
+基元（`app/globals.css` §9e）：`.pressable`、`.link-underline`、`.indicator-bar`（含 `.indicator-bar--lead`）、`.stagger`、`.media-zoom`、`.media-fade`、`.field-rule`。
+
+### 5.2 文档外签名动效（用户授权，逐条留档）
+
+| 效果 | 约束 | 依据 |
+| --- | --- | --- |
+| 首页刊头滚动视差 | 位移封顶 `48px`（台账外推档）、只动 `transform`，`scrub` 驱动 | §12.2 允许自由变化；文档未描述滚动编排，故不冒充事实 |
+| 封面与头像渐显 | `opacity 0→1`、400ms | §10「图像处理」为文档缺口；实现落在 §12.4 白名单内 |
+| 列表分级入场 | 步进 40ms、单条 400ms、总窗口 ≤500ms | §9.1 只给区块顺序，未给入场编排 |
+
+> 这三项在 `SPEC_LEDGER.md` §1.8.4 与 `README.md` 的假设清单里各有一条依据；审计脚本不会把它们报成「无解释的自创值」。
 
 ## 6. Components
 
 | 组件 | 变体 | 状态 | 关键 token |
 |---|---|---|---|
 | `.btn-primary` | 实心 | hover 变 `--color-primary-hover`、active `scale(.98)`、disabled `opacity .45` | `--radius-xs`, `--duration-fast` |
-| `.btn-secondary` | 描边 | hover 描边转强调色 + `--color-primary-subtle` 浅底 | `--line-strong` |
-| `.btn-ghost` | 无框 | hover 转 `--ink` + `--surface-2` | `--muted` |
+| `.btn-secondary` | 描边 | hover 描边转强调色 + `--color-primary-subtle` 浅底、active `scale(.98)`、disabled `opacity .45` | `--line-strong` |
+| `.btn-ghost` | 无框 | hover 转 `--ink` + `--surface-2`、active `scale(.98)`、disabled `opacity .45` | `--muted` |
 | `.surface` / `.surface-hover` | 卡片 / 行 | hover 换 `--surface-2` 与 `--line-strong` | `--radius-xs` |
 | `.overlay` | 吸顶条 / 浮层 | — | `--color-overlay` |
-| `.chip` | 药丸 | hover 转强调色描边与文字 | `--radius-pill` |
-| `.hover-zoom` | 卡片缩放 | hover `scale(1.05)` | `--duration-fast` |
+| `.chip` | 药丸 | hover 转强调色描边与文字、active `scale(.98)` | `--radius-pill` |
+| `.pressable` | 通用按下态 | active `scale(.98)`（200ms） | `--duration-fast` |
+| `.link-underline` | 单行链接 | hover / focus-visible 下划线 `scaleX(0→1)` | `--color-primary` |
+| `.indicator-bar`（含 `--lead`） | 导航 / 目录 / 面板选中项 | 当前项 `scaleY(0→1)`（300ms） | `--color-primary` |
+| `.stagger` | 列表容器 | 子项按 `nth-child` 步进 40ms 入场（单条 400ms） | `--duration-slow` |
+| `.media-zoom` | 封面图 | 悬停 `scale(1.05)` + 进场淡入 | `--duration-fast` / `--duration-slow` |
+| `.media-fade` | 头像等真实图片 | `.is-loaded` 时 `opacity 0→1` | `--duration-slow` |
+| `.field-rule` | 下划线式输入行 | `:focus-within` 线色转强调色、光标同色 | `--color-primary` |
+| `.hover-zoom` | 卡片本体 | hover `scale(1.005)` + 边框 `--line-strong` | `--duration-fast` |
 | `[data-spotlight='row']` | 台账行提示 | hover 出现左侧 2px 强调色指示线 | `--color-primary` |
-| `.prose` | 阅读面 | 链接下划线转实、引用块 2px 强调色左线、表格发丝线 | `--measure` |
+| `.prose` | 阅读面 | 链接下划线转实并抬升偏移、引用块 2px 强调色左线、表格发丝线 | `--measure` |
 
 聚焦环：`2px solid var(--color-primary)` + `offset 2px`（§3.1 的 `--color-focus-ring` 用于按钮与滑块的柔化环）。
 

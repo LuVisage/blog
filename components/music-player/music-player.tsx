@@ -380,7 +380,7 @@ const VolumeControl = memo(function VolumeControl({ volume, onChange, onToggleMu
   return (
     <div className="flex items-center gap-1 w-full">
       <button
-        className="p-2 rounded-md cursor-pointer hover:bg-[var(--accent-soft)] transition-colors"
+        className="pressable p-2 rounded-md cursor-pointer hover:bg-[var(--accent-soft)] transition-colors"
         onClick={onToggleMute}
         aria-pressed={volume === 0}
         aria-label={volume === 0 ? '取消静音' : '静音'}
@@ -423,7 +423,7 @@ function PlaylistInput({ currentId, onLoad }: { currentId: string; onLoad: (id: 
     <div ref={wrapRef} className="relative">
       <button
         onClick={() => setShow(!show)}
-        className="p-2 rounded-md cursor-pointer hover:bg-[var(--accent-soft)] transition-colors"
+        className="pressable p-2 rounded-md cursor-pointer hover:bg-[var(--accent-soft)] transition-colors"
         aria-label="切换歌单"
         aria-expanded={show}
       >
@@ -446,7 +446,7 @@ function PlaylistInput({ currentId, onLoad }: { currentId: string; onLoad: (id: 
             className="flex-1 px-3 py-1.5 text-sm rounded-lg border outline-none"
             style={{ background: 'transparent', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
-          <button type="submit" className="p-2 rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }} aria-label="加载">
+          <button type="submit" className="pressable p-2 rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }} aria-label="加载">
             <IconSearch size={15} strokeWidth={2} />
           </button>
         </form>
@@ -508,7 +508,7 @@ const PlaylistList = memo(function PlaylistList({ playlist, currentIndex, onPlay
             data-track-index={index}
             onClick={() => onPlay(index)}
             aria-current={index === currentIndex ? 'true' : undefined}
-            className="w-full text-left px-2 min-h-6 py-1.5 rounded-lg text-xs truncate transition-colors cursor-pointer"
+            className="pressable w-full text-left px-2 min-h-6 py-1.5 rounded-lg text-xs truncate transition-colors cursor-pointer"
             style={{
               color: index === currentIndex ? 'var(--accent-text)' : 'var(--body)',
               background: index === currentIndex ? 'var(--accent-soft)' : 'transparent',
@@ -587,7 +587,7 @@ export function MusicPlayer({ onClose, ref }: { onClose: () => void; ref?: React
         <span className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>背景音乐</span>
         <div className="flex items-center gap-1">
           <PlaylistInput currentId={playlistId} onLoad={loadPlaylist} />
-          <button onClick={onClose} className="p-2 rounded-md cursor-pointer hover:bg-[var(--accent-soft)] transition-colors" aria-label="关闭">
+          <button onClick={onClose} className="pressable p-2 rounded-md cursor-pointer hover:bg-[var(--accent-soft)] transition-colors" aria-label="关闭">
             <IconX size={15} style={{ color: 'var(--body)' }} strokeWidth={1.5} />
           </button>
         </div>
@@ -679,7 +679,7 @@ export function MusicPlayer({ onClose, ref }: { onClose: () => void; ref?: React
               <button
                 onClick={cycleRepeat}
                 aria-pressed={repeat !== 'off'}
-                className="p-2 rounded-lg cursor-pointer hover:bg-[var(--accent-soft)] transition-colors"
+                className="pressable p-2 rounded-lg cursor-pointer hover:bg-[var(--accent-soft)] transition-colors"
                 style={{ color: repeat === 'off' ? 'var(--body)' : 'var(--accent-text)' }}
                 aria-label={`循环模式：${repeatLabel}`}
                 title={`循环模式：${repeatLabel} (R)`}
@@ -687,7 +687,7 @@ export function MusicPlayer({ onClose, ref }: { onClose: () => void; ref?: React
                 <RepeatIcon size={16} strokeWidth={1.7} />
               </button>
 
-              <button onClick={prev} className="p-2 rounded-lg cursor-pointer hover:bg-[var(--accent-soft)] transition-colors" aria-label="上一首" title="上一首 (P)">
+              <button onClick={prev} className="pressable p-2 rounded-lg cursor-pointer hover:bg-[var(--accent-soft)] transition-colors" aria-label="上一首" title="上一首 (P)">
                 <IconPlayerSkipBackFilled size={18} style={{ color: 'var(--body)' }} />
               </button>
 
@@ -705,14 +705,14 @@ export function MusicPlayer({ onClose, ref }: { onClose: () => void; ref?: React
                 )}
               </button>
 
-              <button onClick={next} className="p-2 rounded-lg cursor-pointer hover:bg-[var(--accent-soft)] transition-colors" aria-label="下一首" title="下一首 (N)">
+              <button onClick={next} className="pressable p-2 rounded-lg cursor-pointer hover:bg-[var(--accent-soft)] transition-colors" aria-label="下一首" title="下一首 (N)">
                 <IconPlayerSkipForwardFilled size={18} style={{ color: 'var(--body)' }} />
               </button>
 
               <button
                 onClick={toggleShuffle}
                 aria-pressed={shuffle}
-                className="p-2 rounded-lg cursor-pointer hover:bg-[var(--accent-soft)] transition-colors"
+                className="pressable p-2 rounded-lg cursor-pointer hover:bg-[var(--accent-soft)] transition-colors"
                 style={{ color: shuffle ? 'var(--accent-text)' : 'var(--body)' }}
                 aria-label={shuffle ? '随机播放：开启' : '随机播放：关闭'}
                 title={`${shuffle ? '随机播放：开启' : '随机播放：关闭'} (S)`}

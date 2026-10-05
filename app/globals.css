@@ -315,12 +315,14 @@
     border: 1px solid var(--line);
     border-radius: var(--radius-pill);
     background: transparent;
-    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
   }
   .chip:hover {
     border-color: var(--color-primary);
     color: var(--color-primary);
   }
+  /* 按下反馈：只动 transform（§12.4 白名单），200ms 落在 §11.1 实测档。 */
+  .chip:active { transform: scale(0.98); }
 }
 
 /* ==============================================
@@ -463,12 +465,18 @@
     border-radius: var(--radius-xs);
     cursor: pointer;
     text-decoration: none;
-    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
   }
   .btn-secondary:hover {
     border-color: var(--color-primary);
     color: var(--color-primary);
     background: var(--color-primary-subtle);
+  }
+  .btn-secondary:active { transform: scale(0.98); }
+  .btn-secondary[disabled], .btn-secondary[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   .btn-ghost {
@@ -487,9 +495,15 @@
     border-radius: var(--radius-xs);
     cursor: pointer;
     text-decoration: none;
-    transition: color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+    transition: color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
   }
   .btn-ghost:hover { color: var(--ink); background: var(--surface-2); }
+  .btn-ghost:active { transform: scale(0.98); }
+  .btn-ghost[disabled], .btn-ghost[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
 }
 
 /* ==============================================
@@ -563,7 +577,11 @@
   text-underline-offset: 3px;
   transition: text-decoration-color var(--duration-fast) var(--ease);
 }
-.prose a:hover { text-decoration-color: var(--accent-text); }
+/* 正文链接：下划线与字色一起过渡（只动 color 与 text-decoration-color，不触发布局） */
+.prose a:hover {
+  text-decoration-color: var(--color-primary);
+  text-underline-offset: 4px;
+}
 
 .prose strong { font-weight: 650; color: var(--ink); }
 
@@ -744,6 +762,20 @@ figure[data-rehype-pretty-code-figure] pre { background: var(--surface) !importa
 }
 .animate-fade-up { animation: fadeUp var(--duration-slow) var(--ease-out) both; }
 
+/* 抽屉/下拉：300ms 档（浮层进入，见 SPEC_LEDGER §1.8.2） */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down { animation: slideDown var(--duration-base) var(--ease-out) both; }
+
+/* 提示条退场：200ms 档（SPEC_LEDGER §1.8.2 的 fast 档） */
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(6px); }
+}
+.animate-fade-out { animation: fadeOut var(--duration-fast) var(--ease) both; }
+
 /* Blinking terminal caret */
 @keyframes caret {
   0%, 45% { opacity: 1; }
@@ -783,11 +815,14 @@ figure[data-rehype-pretty-code-figure] pre { background: var(--surface) !importa
    9. Utilities
    §8.3：卡片 hover 用 scale(1.05) + 200ms ease，而不是位移或投影。
    ============================================== */
+/* 卡片悬停。§8.3 / §11.2 实测的选择器是 `.card:has(a):hover .g_visual_img`，
+   即 scale(1.05) 作用在**封面图**上（见 §9e 的 .media-zoom）。
+   卡片本体只留极轻微的 1.005 内缩：整卡 1.05 会让文字跟着缩放产生模糊与抖动。 */
 .hover-zoom {
   transition: transform var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
 }
 .hover-zoom:hover {
-  transform: scale(1.05);
+  transform: scale(1.005);
   border-color: var(--line-strong);
 }
 
@@ -862,6 +897,113 @@ figure[data-rehype-pretty-code-figure] pre { background: var(--surface) !importa
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton-line { animation: none; }
+}
+
+/* ==============================================
+   9e. Interaction primitives — 全站交互语汇
+   契约见 SPEC_LEDGER §1.8：时长只用 --duration-fast/base/slow（200/300/400ms），
+   缓动只用 --ease / --ease-out，属性只动 transform / opacity / color。
+   ============================================== */
+
+/* 按下反馈：按钮、标签、台账行、面板行共用。 */
+.pressable {
+  transition: transform var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease);
+}
+.pressable:active { transform: scale(0.98); }
+
+/* 下划线自左向右展开（单行链接：页脚、刊头、导航项）。
+   用 scaleX 而不是 width，避免触发布局。 */
+.link-underline { position: relative; }
+.link-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 1px;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--duration-fast) var(--ease);
+}
+.link-underline:hover::after,
+.link-underline:focus-visible::after { transform: scaleX(1); }
+
+/* 指示条：导航激活项、目录激活项、命令面板选中行共用一条滑动语汇。
+   默认收起（scaleY 0），父级命中 hover 或标记为当前项时展开。 */
+.indicator-bar {
+  background: var(--color-primary);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform var(--duration-base) var(--ease);
+}
+.is-active > .indicator-bar,
+[aria-current='page'] > .indicator-bar,
+.pressable:hover > .indicator-bar { transform: scaleY(1); }
+
+/* 行首短标：目录激活项与命令面板选中行共用（2px 强调色，竖向居中不靠 translate，
+   避免与 transform 上的 scaleY 争抢同一属性）。 */
+.indicator-bar--lead {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 2px;
+  height: 16px;
+}
+
+/* 下划线式输入（搜索页的「一条线」输入行）：聚焦时线色转强调色，光标同色。
+   只动 color / border-color，200ms（SPEC_LEDGER §1.8.2）。 */
+.field-rule {
+  border-bottom: 2px solid var(--ink);
+  transition: border-color var(--duration-fast) var(--ease);
+}
+.field-rule:focus-within { border-bottom-color: var(--color-primary); }
+.field-rule input { caret-color: var(--color-primary); }
+
+/* 分级入场：索引台账、归档条目、卡片网格。
+   单条 400ms、步进 40ms、最多 12 项（总窗口 440ms，落在 §11.1 的 500ms 档内），只播一次。
+   fill-mode 用 backwards（而不是 both）：只固定起始态，结束后把 transform 交还给
+   元素自身，否则会盖住兄弟规则里的悬停缩放。 */
+.stagger > * { animation: fadeUp var(--duration-slow) var(--ease-out) backwards; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; }
+.stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 200ms; }
+.stagger > *:nth-child(7) { animation-delay: 240ms; }
+.stagger > *:nth-child(8) { animation-delay: 280ms; }
+.stagger > *:nth-child(9) { animation-delay: 320ms; }
+.stagger > *:nth-child(10) { animation-delay: 360ms; }
+.stagger > *:nth-child(11) { animation-delay: 400ms; }
+.stagger > *:nth-child(12) { animation-delay: 440ms; }
+
+/* 封面图与头像：进场淡入 + 悬停缩放。
+   scale(1.05) 是 §8.3 的实测配方（作用在图片上）；淡入属 [文档外] 签名动效，
+   依据见 SPEC_LEDGER §1.8.4（只动 opacity，不触发布局）。 */
+.media-zoom {
+  animation: mediaFade var(--duration-slow) var(--ease-out) both;
+  transition: transform var(--duration-fast) var(--ease);
+}
+a:hover > .media-zoom,
+.group:hover .media-zoom { transform: scale(1.05); }
+
+@keyframes mediaFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 真实 <img> 的加载渐显（头像这类能拿到 load 事件的图）：由 .is-loaded 触发。
+   属 [文档外] 签名动效，依据见 SPEC_LEDGER §1.8.4。 */
+.media-fade {
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+.media-fade.is-loaded { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger > * { animation: none; }
+  .media-zoom { animation: none; }
 }
 
 /* ==============================================

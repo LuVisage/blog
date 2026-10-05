@@ -37,7 +37,7 @@ export function TagFilter({ posts, tags }: Props) {
         <div className="flex flex-wrap gap-2 pb-8" style={{ borderBottom: '1px solid var(--line)' }}>
           <button
             onClick={() => setSelectedTag(null)}
-            className="chip px-3.5 py-1.5 text-xs transition-colors"
+            className="chip px-3.5 py-1.5 text-xs"
             style={
               selectedTag === null
                 ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600 }
@@ -53,7 +53,7 @@ export function TagFilter({ posts, tags }: Props) {
               <button
                 key={tag}
                 onClick={() => setSelectedTag(active ? null : tag)}
-                className="chip px-3.5 py-1.5 text-xs transition-colors hover:border-[var(--accent-line)]"
+                className="chip px-3.5 py-1.5 text-xs"
                 style={
                   active
                     ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600 }

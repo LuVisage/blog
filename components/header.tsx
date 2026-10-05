@@ -71,7 +71,7 @@ export function Header() {
           {/* Wordmark */}
           <Link
             href="/"
-            className="flex items-center gap-2.5 no-underline flex-shrink-0"
+            className="pressable flex items-center gap-2.5 no-underline flex-shrink-0"
             aria-label={SITE.title}
           >
             <span className="accent-dot" aria-hidden="true" />
@@ -89,7 +89,7 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className="relative px-3 py-2 text-sm font-medium transition-colors cursor-pointer"
+                  className="pressable relative px-3 py-2 text-sm font-medium transition-colors cursor-pointer"
                   style={{
                     color: isActive ? 'var(--ink)' : 'var(--muted)',
                     transitionDuration: 'var(--duration-fast)',
@@ -119,7 +119,7 @@ export function Header() {
             <ThemeToggle />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden w-10 h-10 flex items-center justify-center cursor-pointer"
+              className="pressable md:hidden w-10 h-10 flex items-center justify-center cursor-pointer"
               style={{ color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)' }}
               aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
               aria-expanded={mobileMenuOpen}
@@ -151,7 +151,7 @@ export function Header() {
       {/* Mobile menu — hairline rows, no radius (抽屉菜单) */}
       {mobileMenuOpen && (
         <nav
-          className="md:hidden relative z-50 animate-fade-up"
+          className="md:hidden relative z-50 animate-slide-down"
           aria-label="移动端导航"
           style={{ background: 'var(--canvas)', borderBottom: '1px solid var(--line-strong)' }}
         >
@@ -163,7 +163,7 @@ export function Header() {
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 aria-current={isActive ? 'page' : undefined}
-                className="relative block px-4 sm:px-6 py-3.5 text-sm font-medium transition-colors cursor-pointer"
+                className="pressable relative block px-4 sm:px-6 py-3.5 text-sm font-medium transition-colors cursor-pointer"
                 style={{
                   color: isActive ? 'var(--ink)' : 'var(--muted)',
                   borderTop: '1px solid var(--line)',

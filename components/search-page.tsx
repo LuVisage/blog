@@ -136,8 +136,8 @@ export function SearchPage() {
         counter="⌘K 随时可用"
       />
 
-      {/* Query field — a ruled line, not a pill */}
-      <div className="relative flex items-center gap-4 pb-4" style={{ borderBottom: '2px solid var(--ink)' }}>
+      {/* Query field — a ruled line, not a pill；聚焦时线色转强调色 */}
+      <div className="field-rule relative flex items-center gap-4 pb-4">
         <IconSearch size={20} strokeWidth={1.75} style={{ color: 'var(--muted)' }} className="flex-shrink-0" />
         <input
           type="text"
@@ -200,13 +200,13 @@ export function SearchPage() {
             <div className="eyebrow">结果</div>
             <span className="meta">{results.length} 条</span>
           </div>
-          <div>
+          <div className="stagger">
             {results.map((result, i) => (
               <a
                 key={result.url}
                 href={result.url}
                 data-spotlight="row"
-                className="group grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-4 sm:gap-6 py-5 rule"
+                className="pressable group grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-4 sm:gap-6 py-5 rule"
               >
                 <span className="meta tabular-nums transition-colors group-hover:text-[var(--accent-text)]">
                   {String(i + 1).padStart(2, '0')}

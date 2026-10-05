@@ -380,12 +380,14 @@ export function PaletteProvider({
                       data-row={index}
                       onMouseMove={() => setActive(index)}
                       onClick={() => runRow(index)}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left cursor-pointer transition-colors"
+                      className={`pressable relative w-full flex items-center gap-3 px-4 py-2.5 text-left cursor-pointer transition-colors${active === index ? ' is-active' : ''}`}
                       style={{
                         background: active === index ? 'var(--surface-2)' : 'transparent',
                         color: active === index ? 'var(--ink)' : 'var(--body)',
                       }}
                     >
+                      {/* 选中行由左侧 2px 强调色短标滑动进入（SPEC_LEDGER §1.8.2 的 300ms 档） */}
+                      <span aria-hidden="true" className="indicator-bar indicator-bar--lead" />
                       <span
                         className="flex-shrink-0 flex items-center justify-center w-5"
                         style={{ color: active === index ? 'var(--accent-text)' : 'var(--faint)' }}

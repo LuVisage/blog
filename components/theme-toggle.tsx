@@ -35,7 +35,7 @@ export function ThemeToggle() {
 
   const isDark = theme === 'dark'
   return (
-    <button ref={btnRef} onClick={toggleTheme} className="w-10 h-10 sm:w-11 sm:h-11 surface surface-hover flex items-center justify-center cursor-pointer" style={{ borderRadius: 'var(--radius-xs)' }} aria-label={isDark ? '切换到亮色模式' : '切换到暗色模式'}>
+    <button ref={btnRef} onClick={toggleTheme} className="pressable w-10 h-10 sm:w-11 sm:h-11 surface surface-hover flex items-center justify-center cursor-pointer" style={{ borderRadius: 'var(--radius-xs)' }} aria-label={isDark ? '切换到亮色模式' : '切换到暗色模式'}>
       {isDark ? <IconSun size={16} strokeWidth={1.75} style={{ color: 'var(--accent-text)' }} /> : <IconMoon size={16} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />}
     </button>
   )

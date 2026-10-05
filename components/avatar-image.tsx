@@ -10,6 +10,7 @@ import { basePathUrl } from '@/lib/constants'
  */
 export function AvatarImage({ src, alt }: { src: string; alt: string }) {
   const [failed, setFailed] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   if (failed) {
     return (
@@ -27,7 +28,8 @@ export function AvatarImage({ src, alt }: { src: string; alt: string }) {
     <img
       src={fullSrc}
       alt={alt}
-      className="w-full h-full object-cover"
+      className={`w-full h-full object-cover media-fade${loaded ? ' is-loaded' : ''}`}
+      onLoad={() => setLoaded(true)}
       onError={() => setFailed(true)}
     />
   )

@@ -17,6 +17,8 @@ export interface ToastInput {
 interface ToastRecord extends Required<Omit<ToastInput, 'description'>> {
   id: number
   description?: string
+  /** 退场中：先播 200ms 淡出，再从列表里摘掉。 */
+  leaving?: boolean
 }
 
 const TONE_DURATION: Record<ToastTone, number> = {
@@ -45,12 +47,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const dismiss = useCallback((id: number) => {
-    setToasts((current) => current.filter((t) => t.id !== id))
+    // 先标记退场（CSS 200ms 淡出，见 SPEC_LEDGER §1.8.2 的 fast 档），再摘除节点。
+    setToasts((current) => current.map((t) => (t.id === id ? { ...t, leaving: true } : t)))
     const timer = timers.current.get(id)
     if (timer) {
       clearTimeout(timer)
       timers.current.delete(id)
     }
+    const removal = setTimeout(() => {
+      setToasts((current) => current.filter((t) => t.id !== id))
+      timers.current.delete(id)
+    }, 200)
+    timers.current.set(id, removal)
   }, [])
 
   const push = useCallback(
@@ -77,7 +85,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="surface animate-fade-up pointer-events-auto flex items-start gap-3 px-4 py-3.5"
+            className={`surface ${toast.leaving ? 'animate-fade-out' : 'animate-fade-up'} pointer-events-auto flex items-start gap-3 px-4 py-3.5`}
             style={{ borderRadius: 'var(--radius-xs)' }}
           >
             <span className="mt-0.5 flex-shrink-0">
@@ -97,7 +105,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             </div>
             <button
               onClick={() => dismiss(toast.id)}
-              className="flex-shrink-0 -mr-1.5 -mt-1.5 p-1.5 cursor-pointer transition-colors hover:text-[var(--ink)]"
+              className="pressable flex-shrink-0 -mr-1.5 -mt-1.5 p-1.5 cursor-pointer transition-colors hover:text-[var(--ink)]"
               style={{ color: 'var(--faint)' }}
               aria-label="关闭提示"
             >
