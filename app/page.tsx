@@ -5,6 +5,7 @@ import { AIHotNews } from '@/components/ai-hot-news'
 import { AvatarImage } from '@/components/avatar-image'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { StatsTile, StatsTileRow } from '@/components/ui/stats-tile'
+import { Marquee } from '@/components/ui/marquee'
 import { TerminalGreeting } from '@/components/ui/terminal-greeting'
 import {
   IconBook, IconBrandGithub, IconRss, IconArrowRight, IconExternalLink,
@@ -150,19 +151,20 @@ export default function HomePage() {
             {tags.length > 0 && (
               <div className="mt-12 pt-8" style={{ borderTop: '1px solid var(--line)' }}>
                 <div className="eyebrow mb-4">主题</div>
-                <div className="stagger flex flex-wrap gap-2">
-                  {tags.slice(0, 12).map(({ tag, count }) => (
+                {/* 单行内容带：悬停暂停，减少动态效果时静止并换行（文档 §11.2 / §11.3 有 marquee 实测痕迹） */}
+                <Marquee label="主题标签">
+                  {tags.slice(0, 16).map(({ tag, count }) => (
                     <Link
                       key={tag}
                       href={`/tags/${tag}`}
-                      className="chip px-3 py-1.5 text-xs transition-colors"
+                      className="chip px-3 py-1.5 text-xs whitespace-nowrap transition-colors"
                       style={{ color: 'var(--body)' }}
                     >
                       {tag}
                       <span className="meta">{count}</span>
                     </Link>
                   ))}
-                </div>
+                </Marquee>
               </div>
             )}
           </section>

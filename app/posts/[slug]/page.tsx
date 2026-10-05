@@ -83,8 +83,8 @@ export default async function PostPage({ params }: { params: PageParams }) {
             <FontSizeControl />
           </div>
 
-          {/* Article header */}
-          <header className="pt-10 sm:pt-14 pb-8">
+          {/* Article header — 元信息 / 标题 / 摘要 / 系列 / 标签逐级入场（.stagger，见 SPEC_LEDGER §1.8.3） */}
+          <header className="stagger pt-10 sm:pt-14 pb-8">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 eyebrow">
               {post.category && (
                 <Link

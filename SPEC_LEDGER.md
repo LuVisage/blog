@@ -193,7 +193,8 @@
 | `.pressable` | 统一下按反馈 | `:active` → `transform: scale(0.98)`，200ms |
 | `.link-underline` | 下划线自左向右展开 | `::after` 1px 强调色线，`scaleX(0→1)`，200ms |
 | `.indicator-bar` | 指示条滑动 | 2px 强调色，`scaleY/translateX`，300ms |
-| `.stagger` | 分级入场 | 子项 `--i` 派生 `animation-delay`，步进 40ms、单条 400ms、总窗口 ≤500ms |
+| `.stagger` | 分级入场 | 用 `nth-child` 派生 `animation-delay`：步进 40ms、最多 12 项（错落跨度 ≤440ms），单条 400ms |
+| `.marquee` | 单行内容带 | 只动 `transform` 平移，悬停/聚焦暂停，周期 `--marquee-duration`（见 1.8.6） |
 | `.media-fade` | 图片/封面渐显 | `opacity 0→1`，400ms（`[文档外]`，见 1.8.4） |
 | `.media-frame` | 封面容器 | 加载前铺一层 `--surface-2` 平色占位（无渐变、无阴影），`img` 撑满裁切 |
 | `.focus-line` | 自绘控件的键盘聚焦提示 | 容器 `:focus-within` 时 `border-color` 转强调色，200ms（输入框自身 outline 被清掉时的替代提示） |
@@ -222,7 +223,17 @@
 | 命中区扩展 | 行内控件用 `padding` 扩展命中区（不改视觉尺寸），保证 24px 下限 |
 | 命令面板语义 | 输入框 `role="combobox"` + `aria-controls` + `aria-activedescendant`；结果容器 `role="listbox"`；行 `role="option"` + `aria-selected` + `tabIndex={-1}`（焦点留在输入框，Tab 不必走完三百多条结果） |
 | 键盘与鼠标同态 | 指示条同时响应 `:hover` 与 `:focus-visible`；自绘控件用 `.focus-line` 补聚焦提示 |
-| 新增 token 值 | **无**：全部复用 §1.6 已声明的时长与缓动，`SPEC_LEDGER.tokens.json` 基线不变 |
+| 新增 token 值 | 仅一个：`--marquee-duration`（循环内容带的周期，见 1.8.6）。其余全部复用 §1.6 已声明的时长与缓动 |
+
+#### 1.8.6 内容带（marquee）—— 文档内有据的新语汇
+
+| 项 | 处理 | 依据 |
+| --- | --- | --- |
+| 关键帧 `marquee` | 单行内容带用 `transform: translateX(0 → -50%)` 做无缝平移 | §11.3 的关键帧清单里明确列有 `marquee`，§11.2 还实测到 `.logo_marquee:hover { animation-play-state: paused }` |
+| 悬停 / 键盘聚焦暂停 | `.marquee:hover`、`.marquee:focus-within` → `animation-play-state: paused` | 同上（原文实测规则） |
+| 边缘淡出 | 用 `mask-image` 做功能性遮罩（不是装饰性渐变填充） | §7 禁的是「作为设计元素的渐变」；遮罩不产生可见色彩 |
+| 循环周期 `--marquee-duration: 40s` | `[推断]`：§11.1 的档位描述的是交互反馈与入场时长，连续平移的周期由内容宽度决定，无法套用 200–1200ms 档 | 已在 README 的缺口与假设清单登记 |
+| 减少动态效果 | 去掉遮罩、停掉平移、允许换行读完整内容 | 站点既有 `prefers-reduced-motion` 守卫的延伸 |
 
 ---
 

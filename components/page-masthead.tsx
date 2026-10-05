@@ -12,7 +12,8 @@ interface PageMastheadProps {
 
 export function PageMasthead({ eyebrow, title, lead, counter, actions }: PageMastheadProps) {
   return (
-    <header className="mb-12 sm:mb-16">
+    /* 刊头分两级入场：先计量条，再标题块（.stagger，见 SPEC_LEDGER §1.8.3） */
+    <header className="stagger mb-16 sm:mb-20">
       <div
         className="flex items-center justify-between gap-4 py-2.5"
         style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
@@ -42,7 +43,7 @@ interface SectionHeadProps {
 
 export function SectionHead({ label, title, href, hrefLabel, count }: SectionHeadProps) {
   return (
-    <div className="flex items-end justify-between gap-4 mb-6">
+    <div className="stagger flex items-end justify-between gap-4 mb-6">
       <div>
         <div className="eyebrow mb-2">{label}</div>
         <h2 className="section-title">

@@ -134,6 +134,28 @@ chrome --headless=new --disable-gpu --hide-scrollbars --blink-settings=preferred
 | `dark-home.png` | 暗色模式（`prefers-color-scheme` 模拟） | 暖黑画布、同一强调色与语汇 |
 | `reduced-motion.png` | 减少动态效果 | 全页内容完整可见，无元素停留在隐藏初态 |
 
+### 第 3 轮：参考开源组件库做的增补（2026-10-05）
+
+参照你给的五个来源，只挑与「纸感 + 发丝线 + 单强调色」相容、且有文档依据的做法。
+
+| 来源 | 采纳的做法 | 落点 |
+| --- | --- | --- |
+| React Bits / Aceternity UI（Infinite Moving Cards 思路） | 单行内容带：无缝平移 + 悬停暂停 + 边缘遮罩淡出 | `components/ui/marquee.tsx` + `.marquee`，首页「主题」标签区 |
+| Aceternity UI（Text Generate Effect 思路） | 分级入场复用到刊头与文章头：计量条 → 标题块／元信息 → 标题 → 摘要 → 系列 → 标签 | `.stagger` 接入 `page-masthead.tsx` 与文章页 `header` |
+| Aceternity（Stateful Button）/ Uiverse.io（小元素微交互） | 复制按钮状态机：复制 → 已复制（图标切换 + 强调色 + 300ms 缩放进入），并对读屏同步 `aria-label` | `components/code-block-enhancer.tsx` |
+| awesome-design-md（9 章式 DESIGN.md） | 设计文档补第 8 章「Responsive Behavior」与第 9 章「Agent Prompt Guide」 | `DESIGN.md` |
+| Originkit | 仅借鉴「编辑器式可调参数」的思路（内容带周期做成 token `--marquee-duration`） | `app/globals.css` §1 / §9f |
+
+**明确不采纳的做法（与文档的否定性规律冲突，或超出属性白名单）**
+
+| 类别 | 代表 | 原因 |
+| --- | --- | --- |
+| WebGL / 着色器背景 | React Bits 的 Aurora、Beams、Grainient；Originkit 的 Ascii 系列与玻璃着色器 | 依赖渐变、发光与 canvas 常驻渲染，违反 §7「不用渐变、不用发光、不用科技装饰」，且增加体积与耗电 |
+| 光晕 / 玻璃 / 3D 卡片 | Aceternity 的 Spotlight、Glare Card、3D Card；Uiverse 的 Glassmorphism 分类 | 同上 |
+| 滤镜类效果 | Squiggly Text（SVG turbulence）、Gooey Input、Focus Cards 的模糊 | `filter` 不在 §12.4 的「只动 transform / opacity / color」白名单内 |
+| 光标跟随 / 磁吸按钮 / 镜头放大 | Following Pointer、Magnetic Button、Lens、Originkit 的 Aura Cursor | 本站此前已按文档删掉光标光斑，重新引入会与 §7 冲突；且用户已确认要克制 |
+| 付费组件 | Originkit 约一半条目标记为付费 | 授权与合规风险，且其能力（WebGL 特效）本就不在采纳范围内 |
+
 ## 缺口与假设清单
 
 文档没有写、由本轮推断或默认的每一处（依据均记在 `SPEC_LEDGER.md`）：
@@ -159,6 +181,8 @@ chrome --headless=new --disable-gpu --hide-scrollbars --blink-settings=preferred
 | 阅读面段落级渐入 | §9.1 未描述段落编排 | `ProseReveal` 分批进场（批上限 4、步进 40ms），减少动态效果时不设初态 | `[文档外]` |
 | 图片加载策略 | §10「图像处理：未观察到」 | 封面改真实 `img` + 原生懒加载 + `alt=""`（装饰性）+ 平色占位 | `[文档外]` |
 | 面板键盘语义 | 文档未涉及 ARIA | 命令面板按组合框模式标注（`combobox`/`listbox`/`option` + `aria-activedescendant`） | `[推断]` |
+| 内容带循环周期 | §11.1 的档位只覆盖交互反馈与入场 | `--marquee-duration: 40s`（`[推断]`，周期由内容宽度决定，见 `SPEC_LEDGER` §1.8.6） | `[推断]` |
+| 边缘遮罩淡出 | §7 禁的是作为设计元素的渐变 | 内容带两端用 `mask-image` 做功能性遮罩，不产生可见色彩 | `[推断]` |
 
 ## 合规替换说明（DESIGN_DNA §13）
 

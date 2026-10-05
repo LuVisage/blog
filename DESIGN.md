@@ -1,6 +1,6 @@
 ---
 name: Baron_Zhang Blog
-version: 5.1.0
+version: 5.2.0
 codename: Paper
 updated: 2026-10-05
 ---
@@ -10,6 +10,13 @@ updated: 2026-10-05
 > 唯一事实来源：`C:\Users\lusha\Desktop\UI_skill\design-dna\22-anthropic\DESIGN_DNA.md`（Anthropic 设计 DNA 逆向工程，14 章）。
 > 本文件是该 DNA 在本站的落地规范：值取自文档原文，文档未覆盖处全部标注 `[推断]`。
 > 逐条来源、冲突裁决与缺口清单见 `SPEC_LEDGER.md`；机器比对结果见 `AUDIT.md`。
+
+## Changelog v5.2 (2026-10-05)
+
+- 新增内容带 `.marquee`（文档 §11.3 列出 `marquee` 关键帧、§11.2 有 hover 暂停实测规则）：首页主题标签改为单行无缝滚动，悬停与键盘聚焦暂停，减少动态效果时静止换行
+- 刊头与文章头改为分级入场（复用 `.stagger`）：计量条 → 标题块／元信息 → 标题 → 摘要 → 系列 → 标签
+- 代码块复制按钮升级为状态机：复制 → 已复制（图标切换 + 强调色 + 300ms 缩放进入），并对读屏同步更新 label
+- `DESIGN.md` 结构对齐业界常见的 9 章式设计文档：补第 8 章「Responsive Behavior」与第 9 章「Agent Prompt Guide」
 
 ## Changelog v5.1 (2026-10-05)
 
@@ -191,7 +198,27 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 - 不引入第二个强调色（金色高光已并入陶土橙）
 - 不再引入换色 / 换背景轴（v5.0 已移除该功能）
 
-## 8. 出处与校验
+## 8. Responsive Behavior
+
+- **断点**：`896px` 为设计断点（§6.1）；`640 / 768 / 1024 / 1280` 沿用 Tailwind 既有断点（其中 1280 是音乐播放器侧栏 gutter 专用）
+- **收拢策略**：896px 以下导航收进抽屉（300ms 滑入）；索引台账由网格降为单列；文章页侧栏目录折叠为可展开块
+- **触控目标**：控件高 40px；行内控件用 `padding` 扩到 24px 下限；不因动效收紧命中区
+- **内容带**：窄屏同样单行平移（周期固定）；系统开启减少动态效果时改为换行读完
+- **阅读面**：正文窄栏（`--measure` 38em）在窄屏自然收缩为满宽
+- **图片**：封面 `object-fit: cover`，容器固定高度（首屏 190 / 280px、网格卡 112 / 128px）
+
+## 9. Agent Prompt Guide
+
+给后续 AI 代理的最短提示（复制即可生成同风格界面）：
+
+- 画布 `#faf9f5`、正文 `#141413`、标题 `#000000`、唯一强调色 `#cc785c`、发丝线 `#ededea` / `#e4e3df`
+- 衬线标题（Newsreader + Noto Serif SC）／无衬线正文（Inter + Noto Sans SC）／等宽元信息（JetBrains Mono）
+- 圆角只有 `3 / 24 / 50%` 三档；**0 阴影**；层级一律用 1px 发丝线与留白表达
+- 动效只动 `transform / opacity / color`；时长 `200/300/400/500ms`（循环类 `800/1200ms`）；缓动 `ease` 或 `cubic-bezier(.16, 1, .3, 1)`
+- 可点元素必须三态齐全（hover / focus-visible / active），并优先复用基元：`.pressable`、`.link-underline`、`.indicator-bar`、`.stagger`、`.marquee`、`.media-frame`、`.field-rule`
+- 禁项：渐变、毛玻璃、发光、投影、第二强调色、emoji（`npm run check:emoji` 守卫）
+
+## 10. 出处与校验
 
 | 内容 | 文件 |
 |---|---|

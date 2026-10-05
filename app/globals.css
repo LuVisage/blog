@@ -181,6 +181,9 @@
   --duration-fast: 200ms;
   --duration-base: 300ms;
   --duration-slow: 400ms;
+  /* 内容带的循环时长 [推断]：§11.1 的档位描述的是交互反馈与入场，
+     连续平移的周期由内容宽度决定，单列在台账 §1.8.6 说明。 */
+  --marquee-duration: 40s;
 
   /* ── 布局（§2.1 容器 1200px；§6.1 断点 896px） ── */
   --container-max: 1200px;
@@ -979,6 +982,55 @@ figure[data-rehype-pretty-code-figure] pre { background: var(--surface) !importa
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* ==============================================
+   9f. Marquee — 单行内容带
+   DESIGN_DNA §11.3 的关键帧清单里有 `marquee`，§11.2 也实测到
+   `.logo_marquee:hover { animation-play-state: paused }`，
+   所以这条语汇是文档内的：只动 transform，悬停与键盘聚焦时暂停。
+   边缘用 mask 做淡出（功能性的遮罩，不是装饰性渐变）。
+   ============================================== */
+.marquee {
+  overflow: hidden;
+  padding-block: var(--space-16);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent);
+}
+.marquee__track {
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  width: max-content;
+  animation: marquee var(--marquee-duration) linear infinite;
+}
+.marquee__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  flex-shrink: 0;
+}
+.marquee:hover .marquee__track,
+.marquee:focus-within .marquee__track { animation-play-state: paused; }
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* 减少动态效果：静止、去掉遮罩、允许换行阅读全量内容 */
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    -webkit-mask-image: none;
+    mask-image: none;
+    overflow: visible;
+  }
+  .marquee__track { animation: none; }
+  .marquee__track,
+  .marquee__group { flex-wrap: wrap; width: auto; }
+  .marquee__group[aria-hidden='true'] { display: none; }
 }
 
 /* 分级入场：索引台账、归档条目、卡片网格。
