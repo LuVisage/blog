@@ -350,7 +350,9 @@ export function PaletteProvider({
             aria-label="命令面板"
             onKeyDown={onKeyDown}
           >
-            <div className="flex items-center gap-3 px-4 h-14 flex-shrink-0" style={{ borderBottom: '1px solid var(--line)' }}>
+            {/* 组合框语义：焦点始终留在输入框，用 aria-activedescendant 播报当前行
+                （行本身 tabIndex 为 -1，Tab 不会把三百多条结果逐条走一遍）。 */}
+            <div className="focus-line flex items-center gap-3 px-4 h-14 flex-shrink-0" style={{ borderBottom: '1px solid var(--line)' }}>
               <IconSearch size={16} strokeWidth={1.75} style={{ color: 'var(--faint)' }} />
               <input
                 ref={inputRef}
@@ -362,11 +364,15 @@ export function PaletteProvider({
                 aria-label="命令面板搜索"
                 autoComplete="off"
                 spellCheck={false}
+                role="combobox"
+                aria-expanded
+                aria-controls="palette-listbox"
+                aria-activedescendant={rows.length ? `palette-row-${active}` : undefined}
               />
               <kbd className="meta hidden sm:inline" style={{ color: 'var(--faint)' }}>esc</kbd>
             </div>
 
-            <div ref={listRef} className="flex-1 overflow-y-auto py-2">
+            <div ref={listRef} id="palette-listbox" role="listbox" aria-label="命令面板结果" className="flex-1 overflow-y-auto py-2">
               {rows.length === 0 ? (
                 <p className="body-sm px-4 py-10 text-center">没有匹配「{query}」的结果</p>
               ) : (
@@ -377,6 +383,10 @@ export function PaletteProvider({
                     )}
                     <button
                       type="button"
+                      id={`palette-row-${index}`}
+                      role="option"
+                      aria-selected={active === index}
+                      tabIndex={-1}
                       data-row={index}
                       onMouseMove={() => setActive(index)}
                       onClick={() => runRow(index)}

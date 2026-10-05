@@ -103,7 +103,7 @@
 | 状态 | 代码中出现次数 |
 | --- | --- |
 | `:hover` | 17 |
-| `:focus-visible` | 6 |
+| `:focus-visible` | 7 |
 | `:active` | 7 |
 | `disabled` | 3 |
 

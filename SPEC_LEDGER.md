@@ -195,6 +195,9 @@
 | `.indicator-bar` | 指示条滑动 | 2px 强调色，`scaleY/translateX`，300ms |
 | `.stagger` | 分级入场 | 子项 `--i` 派生 `animation-delay`，步进 40ms、单条 400ms、总窗口 ≤500ms |
 | `.media-fade` | 图片/封面渐显 | `opacity 0→1`，400ms（`[文档外]`，见 1.8.4） |
+| `.media-frame` | 封面容器 | 加载前铺一层 `--surface-2` 平色占位（无渐变、无阴影），`img` 撑满裁切 |
+| `.focus-line` | 自绘控件的键盘聚焦提示 | 容器 `:focus-within` 时 `border-color` 转强调色，200ms（输入框自身 outline 被清掉时的替代提示） |
+| `ProseReveal`（组件） | 阅读面段落级渐入 | 直接子元素分批进场：单条 400ms、批内步进 40ms、批大小上限 4；初态只在 JS 里设置 |
 
 #### 1.8.4 文档外签名动效（用户已授权，逐条依据）
 
@@ -206,6 +209,8 @@
 | 2 | 封面图与头像渐显 | `opacity 0→1`、`--duration-slow` 400ms、`--ease-out`；不触发布局 | §10「图像处理：未观察到 aspect-ratio / object-fit」属文档缺口；实现严格落在 §12.4「只动 transform / opacity / color」内 |
 | 3 | 列表分级入场（stagger） | 步进 40ms、单条 400ms、总窗口 ≤500ms，只播一次 | §9.1 只给区块顺序、未给入场编排（文档缺口）；时长与属性均在 §11.1 / §12.4 白名单内 |
 | 4 | 卡片悬停手法调整 | 封面 `transform: scale(1.05)`（保留 §8.3 原值），卡片本体只留极轻微 `scale(1.005)`，边框转 `--line-strong`，标题转强调色 | §8.3 的实测配方作用在图片上（`.g_visual_img`）；整卡缩放会让文字模糊与抖动，属对文档配方的忠实还原而非改写 |
+| 5 | 阅读面段落级渐入 | 批内步进 40ms、单条 400ms、批大小上限 4；只动 `opacity` + `transform`；无 JS 或减少动态效果时不设置初态（正文照常完全可见） | §9.1 只给区块顺序、未描述段落级编排（文档缺口）；时长与属性锁在 §11.1 / §12.4 白名单内 |
+| 6 | 封面改用真实 `img` | `loading="eager"`（首屏 LCP 封面）/ `loading="lazy"`（网格卡）+ `decoding="async"` + `alt=""`（装饰性封面），容器 `.media-frame` 先铺平色占位 | §10 未观察到图像处理方式（文档缺口）；改用 `img` 后可获得原生懒加载与解码提示，同时保留 `scale(1.05)` 悬停配方 |
 
 #### 1.8.5 无障碍与偏好
 
@@ -214,6 +219,9 @@
 | `prefers-reduced-motion` | CSS 全局守卫（§12 节，已有）把 `animation-duration` / `transition-duration` 归零；`components/gsap-provider.tsx` 的 `timeScale(0)` 保留；视差在该偏好下**不注册** ScrollTrigger |
 | 键盘可达 | 所有交互元素保留 `:focus-visible`（2px 强调色 + 2px offset，§1.1 的 `--color-focus-ring` 用于控件内环） |
 | 触控目标 | 保持既有 ≥40px 的控件高与 ≥24px 的行内控件点击区（不因动效收紧） |
+| 命中区扩展 | 行内控件用 `padding` 扩展命中区（不改视觉尺寸），保证 24px 下限 |
+| 命令面板语义 | 输入框 `role="combobox"` + `aria-controls` + `aria-activedescendant`；结果容器 `role="listbox"`；行 `role="option"` + `aria-selected` + `tabIndex={-1}`（焦点留在输入框，Tab 不必走完三百多条结果） |
+| 键盘与鼠标同态 | 指示条同时响应 `:hover` 与 `:focus-visible`；自绘控件用 `.focus-line` 补聚焦提示 |
 | 新增 token 值 | **无**：全部复用 §1.6 已声明的时长与缓动，`SPEC_LEDGER.tokens.json` 基线不变 |
 
 ---

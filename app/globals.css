@@ -939,7 +939,9 @@ figure[data-rehype-pretty-code-figure] pre { background: var(--surface) !importa
 }
 .is-active > .indicator-bar,
 [aria-current='page'] > .indicator-bar,
-.pressable:hover > .indicator-bar { transform: scaleY(1); }
+.pressable:hover > .indicator-bar,
+/* 键盘用户与鼠标用户看到同一套定位语汇 */
+.pressable:focus-visible > .indicator-bar { transform: scaleY(1); }
 
 /* 行首短标：目录激活项与命令面板选中行共用（2px 强调色，竖向居中不靠 translate，
    避免与 transform 上的 scaleY 争抢同一属性）。 */
@@ -959,6 +961,25 @@ figure[data-rehype-pretty-code-figure] pre { background: var(--surface) !importa
 }
 .field-rule:focus-within { border-bottom-color: var(--color-primary); }
 .field-rule input { caret-color: var(--color-primary); }
+
+/* 聚焦线（轻量版）：自绘控件（命令面板输入行等）把焦点态画在自己的发丝线上，
+   因为输入框自身的 outline 被清掉了，键盘用户需要别的位置提示。 */
+.focus-line { transition: border-color var(--duration-fast) var(--ease); }
+.focus-line:focus-within { border-color: var(--color-primary); }
+
+/* 封面容器：加载前先铺一层平静的浅底（不用渐变与阴影），图片加载完自然覆盖。
+   img 用 object-fit 撑满，悬停缩放由 .media-zoom 负责。 */
+.media-frame {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.media-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 /* 分级入场：索引台账、归档条目、卡片网格。
    单条 400ms、步进 40ms、最多 12 项（总窗口 440ms，落在 §11.1 的 500ms 档内），只播一次。

@@ -113,6 +113,27 @@ chrome --headless=new --disable-gpu --hide-scrollbars --blink-settings=preferred
 
 说明：本机 `browser-use` 需 Chrome 开启远程调试（`chrome://inspect/#remote-debugging`）才能驱动，故未用它做交互态截图。
 
+### 第 2 轮补充（同日）
+
+在既有语汇上再补三件事，仍不动配色与版式：
+
+| 项 | 做法 | 标注 |
+| --- | --- | --- |
+| 阅读面段落级渐入 | 新增 `components/ui/prose-reveal.tsx`：正文直接子元素随滚动分批进场（单条 400ms、批内步进 40ms、批大小上限 4），无 JS 或系统开启减少动态效果时**不设置初态**，正文照常完全可见 | `[文档外]` |
+| 封面改用真实 `img` | 首屏封面 `loading="eager"`（LCP 元素），网格卡 `loading="lazy"` + `decoding="async"` + `alt=""`（装饰性封面）；容器 `.media-frame` 先铺 `--surface-2` 平色占位（不用渐变） | `[文档外]` |
+| 键盘导航态细化 | 指示条同时响应 `:focus-visible`（键盘与鼠标看到同一套定位语汇）；命令面板补 `role="combobox" / "listbox" / "option"` 与 `aria-activedescendant`，结果行 `tabIndex={-1}`（焦点留在输入框）；新增 `.focus-line` 给自绘控件补聚焦提示 | `[推断]` |
+
+交互态截图复核（CDP 驱动真实浏览器，非无头 CLI，覆盖鼠标与键盘路径）：
+
+| 截图 | 核对项 | 结果 |
+| --- | --- | --- |
+| `home-focus.png` | 键盘 Tab 后的焦点环 | 词标出现 2px 强调色焦点环 + 偏移，符合 §1.1 的 focus-ring |
+| `palette-keyboard.png` | 命令面板方向键选中 | 选中行浅底 + 左侧 2px 强调色短标，图标转强调色 |
+| `home-row-hover.png` | 台账行悬停 | 左侧强调色短标出现、行标题转强调色 |
+| `article-toc.png` | 文章目录激活项 | 激活项加粗 + 左侧 2px 强调色短标；正文表格发丝线正常 |
+| `dark-home.png` | 暗色模式（`prefers-color-scheme` 模拟） | 暖黑画布、同一强调色与语汇 |
+| `reduced-motion.png` | 减少动态效果 | 全页内容完整可见，无元素停留在隐藏初态 |
+
 ## 缺口与假设清单
 
 文档没有写、由本轮推断或默认的每一处（依据均记在 `SPEC_LEDGER.md`）：
@@ -135,6 +156,9 @@ chrome --headless=new --disable-gpu --hide-scrollbars --blink-settings=preferred
 | 滚动编排 / 视差 | §9.1 只给区块顺序，无滚动动效 | 仅首页刊头一处，位移封顶 48px，减少动态效果下关闭 | `[文档外]` |
 | 图片加载呈现 | §10「图像处理：未观察到」 | 封面与头像改为 `opacity` 渐显（400ms），不触发布局 | `[文档外]` |
 | 列表入场编排 | 文档未描述 | `.stagger` 分级入场，步进 40ms、总窗口 ≤500ms | `[文档外]` |
+| 阅读面段落级渐入 | §9.1 未描述段落编排 | `ProseReveal` 分批进场（批上限 4、步进 40ms），减少动态效果时不设初态 | `[文档外]` |
+| 图片加载策略 | §10「图像处理：未观察到」 | 封面改真实 `img` + 原生懒加载 + `alt=""`（装饰性）+ 平色占位 | `[文档外]` |
+| 面板键盘语义 | 文档未涉及 ARIA | 命令面板按组合框模式标注（`combobox`/`listbox`/`option` + `aria-activedescendant`） | `[推断]` |
 
 ## 合规替换说明（DESIGN_DNA §13）
 

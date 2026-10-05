@@ -10,6 +10,7 @@ import { SocialShare } from '@/components/social-share'
 import { RelatedPosts } from '@/components/related-posts'
 import { FontSizeControl } from '@/components/font-size-control'
 import { ReadingProgress } from '@/components/ui/reading-progress'
+import { ProseReveal } from '@/components/ui/prose-reveal'
 import { ReadingAchievements } from '@/components/reading-achievements'
 import { CodeBlockEnhancer } from '@/components/code-block-enhancer'
 import { LikeButton } from '@/components/like-button'
@@ -138,10 +139,11 @@ export default async function PostPage({ params }: { params: PageParams }) {
           </header>
 
           {/* Article content — no card, text sits on the canvas */}
-          {/* 行长由 .prose 的 --measure（38em，对应中文 34-40 全角）决定，这里不再覆盖。 */}
-          <div className="prose mx-0 mb-16">
+          {/* 行长由 .prose 的 --measure（38em，对应中文 34-40 全角）决定，这里不再覆盖。
+              ProseReveal 让正文按段落随滚动分批渐入（[文档外] 签名动效，见 SPEC_LEDGER §1.8.4）。 */}
+          <ProseReveal className="prose mx-0 mb-16">
             <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
-          </div>
+          </ProseReveal>
 
           {/* Prev / next — ledger row, not cards */}
           <nav className="grid grid-cols-1 sm:grid-cols-2 mb-12">

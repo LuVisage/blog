@@ -20,10 +20,9 @@ export function FeatureCard({ post }: { post: PostMeta }) {
       href={`/posts/${post.slug}`}
       className="group surface surface-hover hover-zoom grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] overflow-hidden"
     >
-      <div
-        className="relative min-h-[190px] sm:min-h-[280px] bg-cover bg-center media-zoom"
-        style={{ backgroundImage: `url("${cover.url}")` }}
-      >
+      <div className="media-frame relative min-h-[190px] sm:min-h-[280px]">
+        {/* 首屏封面用 eager + 同步解码：它是 LCP 元素；占位色由 .media-frame 铺在下面 */}
+        <img src={cover.url} alt="" loading="eager" decoding="async" className="media-zoom" />
         <span className="absolute top-4 left-4 eyebrow eyebrow-accent">精选</span>
       </div>
 
@@ -109,10 +108,10 @@ function GridCard({ post }: { post: PostMeta }) {
       href={`/posts/${post.slug}`}
       className="group surface surface-hover hover-zoom flex flex-col overflow-hidden"
     >
-      <div
-        className="h-28 sm:h-32 bg-cover bg-center media-zoom"
-        style={{ backgroundImage: `url("${cover.url}")` }}
-      />
+      <div className="media-frame h-28 sm:h-32">
+        {/* 网格卡多在首屏之外：懒加载 + 异步解码，占位色先撑住版面 */}
+        <img src={cover.url} alt="" loading="lazy" decoding="async" className="media-zoom" />
+      </div>
       <div className="p-6 flex flex-col flex-1">
         <div className="flex items-center gap-2 mb-2.5">
           {post.category && <span className="eyebrow">{post.category}</span>}
