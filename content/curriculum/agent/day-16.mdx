@@ -1,0 +1,201 @@
+---
+slug: day-16
+day: 16
+week: 4
+weekTitle: LangGraph 图编程
+weekBlurb: State / Node / Edge、条件边与循环、人在回路、持久化与子图。
+title: LangGraph 核心 —— 图编程：State、Node、Edge
+lead: '理解"为什么 LCEL 不够用"，掌握 LangGraph 三要素（状态/节点/边），写出并跑通第一个图。'
+examples:
+  - examples/day16_basic_graph.py
+sourcePath: week-04-langgraph/day-16.md
+---
+
+---
+
+## 16.1 为什么需要"图"？（LCEL 的极限）
+
+第 1 周你用 `|` 搭流水线：清洗 → 模板 → 模型 → 解析。**直线流程**，LCEL 完美胜任。
+
+但 Agent 的流程不是直线：
+
+```
+用户提问 ──► 模型思考 ──► 需要查资料？──是──► 检索 ──┐
+                  ▲                                │
+                  └──────── 把结果喂回去 ◄──────────┘  （循环！）
+                  │
+                  └──否──► 需要人审批？──是──► 暂停等审批（中断！）
+                                │
+                                └──否──► 输出答案（结束）
+```
+
+**循环、条件分支、暂停等待**——这些用"管道"表达要么极其别扭，要么根本做不到。于是有了 **LangGraph**：用"图"描述程序流程。LangGraph 是 LangChain 官方出品的编排引擎，**第 5 周你用的 `create_agent` 底层就是它**，今天开始直捣黄龙。
+
+## 16.2 图的三个要素（今天唯一要背的概念）
+
+一个图 = **状态（State）+ 节点（Node）+ 边（Edge）**：
+
+| 要素 | 类比 | 说明 |
+|---|---|---|
+| **State（状态）** | 全体工人的共享白板 | 一个数据结构（TypedDict），所有节点读写它。图运行期间的"记忆" |
+| **Node（节点）** | 工位上的工人 | 一个 Python 函数：读 State → 干活 → 返回要更新的字段 |
+| **Edge（边）** | 传送带 | 决定执行顺序：A 完了去 B，还是按条件去 B/C |
+
+**执行模型**（朗朗上口的三句话）：
+
+1. 图从 `START` 出发，沿边走；
+2. 走到一个节点，就执行它的函数：函数收到**整个 State**，返回**要更新的字段字典**（自动合并回 State）；
+3. 走到 `END`，图结束，返回最终 State。
+
+## 16.3 第一个图：三工位流水线
+
+```python
+from typing import TypedDict
+from langgraph.graph import StateGraph, START, END
+
+# ① 定义状态：图的"白板"
+class State(TypedDict):
+    text: str
+    steps: list[str]        # 记录每个工位的名字（方便看执行顺序）
+
+# ② 定义节点：三个普通函数，输入 State，输出"更新字典"
+def node_upper(state: State) -> dict:
+    return {"text": state["text"].upper(), "steps": state["steps"] + ["upper"]}
+
+def node_reverse(state: State) -> dict:
+    return {"text": state["text"][::-1], "steps": state["steps"] + ["reverse"]}
+
+def node_stars(state: State) -> dict:
+    return {"text": f"*** {state['text']} ***", "steps": state["steps"] + ["stars"]}
+
+# ③ 组装图
+graph = StateGraph(State)          # 用 State 类型创建图
+graph.add_node("upper", node_upper)     # 注册节点（名字 → 函数）
+graph.add_node("reverse", node_reverse)
+graph.add_node("stars", node_stars)
+graph.add_edge(START, "upper")     # 边：开始 → upper
+graph.add_edge("upper", "reverse") # 边：upper → reverse
+graph.add_edge("reverse", "stars") # 边：reverse → stars
+graph.add_edge("stars", END)       # 边：stars → 结束
+
+app = graph.compile()              # 编译成可运行的应用（重要！）
+
+result = app.invoke({"text": "hello", "steps": []})
+print(result)
+# {'text': '*** OLLEH ***', 'steps': ['upper', 'reverse', 'stars']}
+```
+
+**逐行拆解**：
+
+- `State(TypedDict)`：白板上有 `text` 和 `steps` 两个字段。**节点只能改这里声明过的字段**；
+- 节点函数签名固定：`(state) -> dict`。返回的 dict **不需要包含全部字段**，只写要改的；
+- `add_node("名字", 函数)`：给函数起个图内名字；`add_edge(起点, 终点)`：连接它们；
+- **`START` 和 `END` 是虚拟节点**，表示图的入口/出口；
+- `compile()` 把"图纸"变成"可运行的应用"——忘记 compile 是新手第一坑。
+
+**数据流全景**（运行时可打印 state 观察）：
+
+```
+START ──► upper ──► reverse ──► stars ──► END
+State:  {'text':'hello'} → {'text':'HELLO'} → {'text':'OLLEH'} → {'text':'*** OLLEH ***'}
+```
+
+## 16.4 节点的返回规则（新手最容易晕的点）
+
+**规则一：返回 dict，只写要改的字段。**
+
+```python
+def node_a(state: State) -> dict:
+    return {"text": "新的文本"}        # 只改 text，steps 原样保留
+```
+
+**规则二：默认"覆盖"，不是"追加"。**
+
+```python
+# 如果两个节点都返回 {"text": ...}，后执行的覆盖先执行的
+```
+
+**规则三：想让字段"累加"，得自己读自己加**（如 16.3 的 `state["steps"] + [...]`）。Day 17 会学到 `Annotated` 的 reducer 让追加自动化。
+
+## 16.5 图也是 Runnable！
+
+还记得 Day 4 的"一切皆 Runnable"吗？编译后的图 **本身就是 Runnable**：
+
+```python
+app.invoke({"text": "a", "steps": []})            # 同步
+result = await app.ainvoke({...})                 # 异步
+for chunk in app.stream({"text": "a", "steps": []}):   # 流式：逐步吐每个节点后的状态
+    print(chunk)
+```
+
+`stream` 对图特别有用——你能看到**每个节点执行完的状态快照**，这是调试图的第一利器。第 5 周做 Agent 流式输出也靠它。
+
+## 16.6 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-04-langgraph\examples
+python day16_basic_graph.py
+```
+
+## 16.7 案例逐行讲解：`day16_basic_graph.py`
+
+```python
+"""Day 16 案例：LangGraph 三要素 —— 状态、节点、边（纯 Python 可跑）"""
+from typing import TypedDict
+from langgraph.graph import StateGraph, START, END
+
+# ① 状态：白板
+class State(TypedDict):
+    text: str
+    steps: list[str]
+
+# ② 四个节点：每步都记录自己的名字
+def node_upper(state: State) -> dict:
+    print(f"    执行 upper：{state['text']!r}")       # !r 打印原始字符串
+    return {"text": state["text"].upper(), "steps": state["steps"] + ["upper"]}
+
+def node_reverse(state: State) -> dict:
+    print(f"    执行 reverse：{state['text']!r}")
+    return {"text": state["text"][::-1], "steps": state["steps"] + ["reverse"]}
+
+def node_stars(state: State) -> dict:
+    print(f"    执行 stars：{state['text']!r}")
+    return {"text": f"*** {state['text']} ***", "steps": state["steps"] + ["stars"]}
+
+# ③ 组装：注意边的连接顺序就是执行顺序
+graph = StateGraph(State)
+graph.add_node("upper", node_upper)
+graph.add_node("reverse", node_reverse)
+graph.add_node("stars", node_stars)
+graph.add_edge(START, "upper")
+graph.add_edge("upper", "reverse")
+graph.add_edge("reverse", "stars")
+graph.add_edge("stars", END)
+app = graph.compile()
+
+# ④ 运行 + 观察
+print("── invoke（一次跑完）──")
+result = app.invoke({"text": "hello", "steps": []})
+print("最终状态：", result)
+
+print("\n── stream（逐步观察）──")
+for chunk in app.stream({"text": "hi", "steps": []}):
+    print("  流式块：", chunk)
+# 每个 chunk 形如 {'upper': {'text': 'HI', 'steps': ['upper']}}
+```
+
+**要点**：
+
+- `!r` 打印原始字符串（含引号），能看出大小写变化；
+- **stream 的每个块是一个 dict**：键是节点名，值是该节点返回的更新。`{'upper': {...}}` 表示"upper 节点刚更新了这些字段"——这就是图执行的可视化日志；
+- 感受一下：**没有一行代码规定"先 upper 后 reverse"**，顺序完全由 `add_edge` 表达。改顺序 = 改边，节点函数一字不动。这就是图编程的威力。
+
+## 16.8 今日自测
+
+<Quiz items={["加一个 `node_exclaim` 节点（文本末尾加\"！\"），插在 stars 之后，跑通。","把边的顺序改成 upper → stars → reverse，观察结果变化（体会\"逻辑在边上\"）。","新建一个 `MathState`（两个数字字段），写 add/subtract 两个节点，跑 `app.invoke({\"a\": 10, \"b\": 3})`。","用 `app.stream` 观察你的 MathState 图的逐步变化。","`notes/day16.md`：画出今天第一个图的结构，标注 START/END、节点名、每条边。"]} />
+
+## 16.9 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`TypeError: 'StateGraph' object is not callable`","cause":"忘了 `compile()`","fix":"必须 `app = graph.compile()` 后再 invoke"},{"symptom":"节点报 `KeyError`","cause":"读了 State 里没声明的字段","fix":"在 TypedDict 里加字段声明"},{"symptom":"状态没被更新","cause":"节点没返回 dict / 返回了 None","fix":"节点必须 return 要更新的字段"},{"symptom":"执行顺序不对","cause":"边的方向连反了","fix":"`add_edge(起点, 终点)` 方向=数据流向"},{"symptom":"字段被意外清空","cause":"两个节点改了同一字段（覆盖）","fix":"记住\"默认覆盖\"，累加要自己拼"}]} />
+
+<DayComplete day={16} recap={"你已经会搭图了。明天学流程控制：条件分支、循环、并行——Agent 的\"智能\"骨架。"} />

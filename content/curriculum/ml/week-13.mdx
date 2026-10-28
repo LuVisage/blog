@@ -1,0 +1,131 @@
+---
+slug: week-13
+kind: reference
+day: 14
+week: 13
+weekTitle: 循环神经网络
+weekBlurb: RNN / BPTT、LSTM / GRU，序列建模与字符级文本生成。
+title: 循环神经网络与序列建模
+lead: '前面 12 周处理的数据都有一个共同点：**样本之间独立**。一张图片、一条表格记录，输入输出没有先后关系。'
+sourcePath: Week13_循环神经网络/README.md
+---
+
+> 鱼书第 8 章（循环神经网络）· 花书第 10 章（序列建模）
+
+前面 12 周处理的数据都有一个共同点：**样本之间独立**。一张图片、一条表格记录，输入输出没有先后关系。
+
+这一周开始处理**序列**：文本、语音、时间序列、股票价格 —— 这些数据的特点是**顺序本身就是信息**。"我爱你"和"你爱我"用的是同样的词，含义完全不同。
+
+---
+
+## 本周目标
+
+学完本周，你应该能够：
+
+1. 手写 RNN 的前向传播与 BPTT（时间反向传播）；
+2. 说清 RNN 在时间维度上"参数共享"的含义与代价；
+3. 从连乘的角度分析 RNN 的梯度消失/爆炸，并说出 LSTM 的三门如何解决它；
+4. 手写 LSTM 的一个时间步，并与 `nn.LSTM` 逐位对比验证；
+5. 用 `nn.RNN` / `nn.LSTM` / `nn.GRU` 完成序列分类任务，并对比三者；
+6. 掌握 `pack_padded_sequence` 处理变长序列的正确用法；
+7. 用字符级语言模型生成文本，并说清"温度采样"的作用。
+
+---
+
+## 书籍对照
+
+| 天 | 主题 | 鱼书 | 花书 | 其他 |
+| --- | --- | --- | --- | --- |
+| Day1 | RNN 原理与 BPTT | 第 8 章前段 | 10.1–10.2 | Week10 Day4（梯度问题） |
+| Day2 | LSTM 与 GRU | 8.3 节 | 10.10 | 原论文 |
+| Day3 | PyTorch 序列建模 | 8.4 节 | — | 官方文档 |
+| Day4 | 序列分类实战 | 第 8 章 | 10.3 | — |
+| Day5 | 字符级文本生成 | 8.4 节 | 10.4 | — |
+
+---
+
+## 时间安排
+
+| 天 | 内容 | 文档 | 代码 | 建议时长 |
+| --- | --- | --- | --- | --- |
+| Day1 | RNN 原理与 BPTT | [Day1_RNN原理与BPTT.md](/learn/ml/day-66) | `code/day1_rnn_basics.py` | 4h |
+| Day2 | LSTM 与 GRU | [Day2_LSTM与GRU.md](/learn/ml/day-67) | `code/day2_lstm_gru.py` | 4h |
+| Day3 | PyTorch 序列建模 | [Day3_PyTorch序列建模.md](/learn/ml/day-68) | `code/day3_pytorch_rnn.py` | 3.5h |
+| Day4 | 序列分类实战 | [Day4_序列分类实战.md](/learn/ml/day-69) | `code/day4_sequence_classify.py` | 3.5h |
+| Day5 | 字符级文本生成 | [Day5_字符级文本生成.md](/learn/ml/day-70) | `code/day5_char_lm.py` | 3.5h |
+
+---
+
+## 本周核心公式
+
+**RNN 前向**：
+
+$$\boldsymbol{h}_t = \tanh\left(\mathbf{W}_{hh}\boldsymbol{h}_{t-1} + \mathbf{W}_{xh}\boldsymbol{x}_t + \boldsymbol{b}_h\right)$$
+$$\boldsymbol{y}_t = \mathbf{W}_{hy}\boldsymbol{h}_t + \boldsymbol{b}_y$$
+
+**BPTT 的连乘**：
+
+$$\frac{\partial \mathcal{L}}{\partial \boldsymbol{h}_1} = \frac{\partial \mathcal{L}}{\partial \boldsymbol{h}_T}\prod_{t=2}^{T}\left(\mathbf{W}_{hh}^\top \text{diag}\left(1 - \boldsymbol{h}_t^2\right)\right)$$
+
+> **这个连乘就是 RNN 一切问题的根源**：因子小于 1 就消失、大于 1 就爆炸（呼应 Week10 Day4）。
+
+**LSTM 的三门**：
+
+$$\boldsymbol{f}_t = \sigma(\mathbf{W}_f[\boldsymbol{h}_{t-1},\boldsymbol{x}_t]) \quad\text{（遗忘门）}$$
+$$\boldsymbol{i}_t = \sigma(\mathbf{W}_i[\boldsymbol{h}_{t-1},\boldsymbol{x}_t]) \quad\text{（输入门）}$$
+$$\boldsymbol{o}_t = \sigma(\mathbf{W}_o[\boldsymbol{h}_{t-1},\boldsymbol{x}_t]) \quad\text{（输出门）}$$
+$$\boldsymbol{c}_t = \boldsymbol{f}_t\odot\boldsymbol{c}_{t-1} + \boldsymbol{i}_t\odot\tanh(\mathbf{W}_c[\boldsymbol{h}_{t-1},\boldsymbol{x}_t])$$
+$$\boldsymbol{h}_t = \boldsymbol{o}_t\odot\tanh(\boldsymbol{c}_t)$$
+
+---
+
+## 本周检查清单
+
+- [ ] 我能手写 RNN 的前向与 BPTT，并用梯度检查验证
+- [ ] 我能说清"参数共享"在时间维度上的含义
+- [ ] 我能用连乘公式解释为什么普通 RNN 记不住长距离依赖
+- [ ] 我能手写 LSTM 一个时间步，与 `nn.LSTM` 数值对比
+- [ ] 我知道 LSTM 的**细胞状态**为什么能缓解梯度消失（加法而非乘法）
+- [ ] 我会用 `pack_padded_sequence` + `pad_packed_sequence` 处理变长序列
+- [ ] 我知道 RNN 训练必须加梯度裁剪，并会选 `max_norm`
+- [ ] 我能说清"多层 RNN / 双向 RNN"的区别与适用场景
+- [ ] 我能用温度参数控制生成文本的多样性
+- [ ] 我知道 RNN 的继任者是谁（Week14 的 Transformer）
+
+---
+
+## 为什么这一周是"承前启后"
+
+```
+Week07-12  空间数据（图像）    「看得见」
+                │
+                ▼
+Week13     序列数据            「有先后」      ★ 本周
+  ├─ RNN：把"记忆"引入神经网络
+  ├─ LSTM：用门控解决长期依赖
+  └─ 但仍有瓶颈：串行计算、长程依赖仍会衰减
+                │
+                ▼
+Week14     Transformer          「彻底抛弃循环，用注意力直接建模任意距离」
+```
+
+**理解 RNN 的局限，才能真正理解 Transformer 为什么这样设计。** 这是本周最重要的价值。
+
+---
+
+## 环境准备
+
+```bash
+pip install torch torchvision numpy matplotlib
+```
+
+**数据说明**：本周不依赖外部数据集下载。
+
+- Day1–Day3 用**合成序列**（可控、便于观察梯度行为）；
+- Day4 把 MNIST 的每一行当作一个时间步（28 步 × 28 维），做成序列分类任务；
+- Day5 用内置文本做字符级语言模型。
+
+---
+
+**下一篇**：[Day1_RNN原理与BPTT.md](/learn/ml/day-66)
+

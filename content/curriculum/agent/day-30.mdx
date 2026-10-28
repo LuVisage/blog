@@ -1,0 +1,173 @@
+---
+slug: day-30
+day: 30
+week: 6
+weekTitle: LangSmith 可观测
+weekBlurb: 全链路追踪、调试与标注、Datasets 离线评估、在线监控告警。
+title: 项目日 —— 生产级复盘：全量接入 LangSmith（第 6 周毕业作品）
+lead: '**从空白文件开始**，把你最得意的 Agent（RAG 或旅行规划）升级成"生产级"：追踪 + 评估集 + 反馈 + 监控四件套配齐。'
+sourcePath: week-06-langsmith/day-30.md
+---
+
+> 参考实现：`examples/day30_production_agent.py`（写完再对照）
+
+---
+
+## 30.1 项目需求：把"玩具"变成"产品"
+
+选一个你前 5 周的作品（推荐 **Day 25 旅行 Agent** 或 **Day 10 知识库机器人**），完成以下升级：
+
+1. **全链路追踪**：`.env` 开启 tracing，所有调用带 `user_id/session_id/version` 三件套 metadata；
+2. **评估集**：为它建一个 ≥5 条的回归评估集（覆盖正常/边界/错误路径）；
+3. **代码级 + LLM 评委**：至少 2 个 evaluator；
+4. **在线反馈**：模拟用户 /写回 trace；
+5. **坏 case 回流**：把模拟中发现的坏 case 加进评估集。
+
+**验收标准**：在 LangSmith 里能看到——完整 Run 树、一次成功 Experiment、带反馈的 trace、按 user_id 可过滤。
+
+## 30.2 设计要点（动手前必读）
+
+### ① metadata 三件套怎么加才不重复？
+
+每个 invoke 都写一遍太啰嗦。写个包装函数：
+
+```python
+import uuid
+
+def call_agent(question: str, user_id: str, session_id: str) -> dict:
+    """统一入口：带标准 metadata 调用 agent"""
+    return agent.invoke(
+        {"messages": [{"role": "user", "content": question}]},
+        config={"metadata": {"user_id": user_id,
+                             "session_id": session_id,
+                             "version": VERSION}},
+    )
+```
+
+**生产铁律：Agent 只能通过这个入口被调用**（不然有人会忘打标签）。
+
+### ② 评估集设计的"三明治"结构
+
+```
+正常路径（3 条）：标准问题，必须有标准答案
+边界路径（1 条）：模糊问题/多意图
+错误路径（1 条）：会触发工具异常/无数据的问题
+```
+
+### ③ evaluator 组合
+
+- `code_evaluator`：关键词/数字匹配（便宜、确定）；
+- `llm_judge`：整体质量判断（贵、适合开放问题）。
+
+两个都挂上，Experiment 成绩单里两列分。
+
+## 30.3 动手：项目验收流程
+
+1. **先自己写**（60~90 分钟），复用 Day 25 的 Agent + Day 28 的评估代码；
+2. **测试**：
+   - 跑 3 个模拟用户各 2 个问题（含 1 个坏 case）；
+   - 建评估集并跑一次 Experiment；
+   - 给坏 case 写 反馈；
+3. **UI 验收**：trace 可过滤、Experiment 有分、反馈可见；
+4. **自查**：metadata 三件套齐全；评估集 ≥5 条；两个 evaluator 都生效。
+
+## 30.4 参考实现骨架：`day30_production_agent.py`
+
+```python
+"""Day 30 项目：生产级 Agent —— 追踪 + 评估 + 反馈四件套"""
+import os
+import uuid
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langsmith import Client, evaluate
+
+VERSION = "v2.0-prod"
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+# ── ① Agent（复用你的 Day 25 作品，此处简化）────────
+@tool
+def get_weather(city: str) -> str:
+    """查询城市天气。当用户询问某地天气时使用。"""
+    return {"北京": "晴 25°C", "上海": "小雨 22°C"}.get(city, f"暂无{city}数据")
+
+agent = create_agent(model=model, tools=[get_weather],
+                     system_prompt="你是天气助手，回答简洁。")
+
+# ── ② 统一调用入口（metadata 三件套）──────────────
+def call_agent(question: str, user_id: str, session_id: str):
+    return agent.invoke(
+        {"messages": [{"role": "user", "content": question}]},
+        config={"metadata": {"user_id": user_id, "session_id": session_id,
+                             "version": VERSION}},
+    )
+
+# ── ③ 模拟生产流量 + 用户反馈 ─────────────────────
+client = Client()
+traffic = [
+    ("user-1", "北京天气怎么样？", 1.0),    # 正常 → 用户点赞
+    ("user-2", "上海天气怎么样？", 1.0),
+    ("user-3", "杭州天气怎么样？", 0.0),    # 无数据城市 → 用户点踩（坏 case！）
+]
+for user_id, q, score in traffic:
+    r = call_agent(q, user_id, str(uuid.uuid4()))
+    run_id = r.get("__run_id")
+    if run_id:
+        client.create_feedback(run_id=run_id, key="user_satisfaction",
+                               score=score, comment="模拟用户反馈")
+    print(f"[{user_id}] {q} → {r['messages'][-1].content[:30]}")
+
+# ── ④ 评估集 + 实验 ─────────────────────────────
+ds_name = "天气助手-生产回归集"
+try:
+    ds = client.create_dataset(dataset_name=ds_name)
+    items = [("北京天气怎么样？", "25"), ("上海天气怎么样？", "22"),
+             ("杭州天气怎么样？", "暂无"), ("广州天气怎么样？", "暂无"),
+             ("今天适合出门吗？", "天气")]
+    client.create_examples(
+        inputs=[{"messages": [{"role": "user", "content": q}]} for q, _ in items],
+        outputs=[{"answer": a} for _, a in items], dataset_id=ds.id)
+    print(f"✅ 评估集已建：{ds_name}")
+except Exception:
+    print(f"评估集 {ds_name} 已存在，复用")
+
+def code_evaluator(run, example) -> dict:
+    expected = example.outputs["answer"]
+    actual = run.outputs.get("messages", [{}])[-1].content or ""
+    return {"key": "keyword_match", "score": 1.0 if expected in actual else 0.0}
+
+evaluate(target=agent, data=ds_name, evaluators=[code_evaluator],
+         experiment_prefix=f"{VERSION}-回归")
+print("✅ 实验已提交，去 LangSmith 查看成绩单")
+```
+
+## 30.5 加餐挑战
+
+1. 加 LLM 评委评估器（"回答是否礼貌且简洁"）。
+2. 把"杭州/广州天气"两个坏 case 的教训写进 system prompt（"没有数据就说没有，不要编造"），重跑实验对比分数。
+3. 配置一条 Alert Rule：`user_satisfaction` 平均分 &lt; 0.5 时通知你。
+4. 用 `client.list_runs` + filter 写一个"坏 case 自动收集器"：把所有 trace 的问题导出成评估集条目。
+
+## 30.6 今日自测
+
+<Quiz items={["UI 里按 `metadata.version=v2.0-prod` 过滤，看到几条 trace？","评估集几条数据？Experiment 平均分多少？","坏 case 的反馈（）是否出现在对应 trace 上？","`notes/day30.md`：本周复盘——LangSmith 给你带来的最大改变是什么？"]} />
+
+## 第 6 周完成！复盘
+
+六周了。回头看你拥有了什么：
+
+```
+第1-2周：RAG 与 LangChain 组件（会造轮子）
+第3周：检索优化与评估（会把轮子造好）
+第4周：LangGraph（会造会拐弯的轮子）
+第5周：Agent 全家桶（会造自动驾驶的车）
+第6周：LangSmith（给车装上了仪表盘、行车记录仪和年检制度）
+```
+
+**下周预告**：MCP——让 Agent 接入全世界（标准化地连接任何工具服务器）；Multi-agent——让多个 Agent 分工协作。这是 Agent 工程的最前沿。
+

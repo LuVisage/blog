@@ -1,0 +1,177 @@
+---
+slug: day-31
+day: 31
+week: 7
+weekTitle: MCP 与多智能体
+weekBlurb: MCP 协议与适配器、Supervisor 主管路由、Swarm 交接模式。
+title: 'MCP 原理 —— Agent 世界的"USB-C 接口"'
+lead: 理解 MCP（Model Context Protocol）的动机、架构与三种原语，能读懂 MCP 的 JSON-RPC 报文。
+sourcePath: week-07-mcp-multiagent/day-31.md
+---
+
+> 配套文件：`examples/mcp_math_server.py`（一个最小 MCP 服务器，明天的主角）
+
+---
+
+## 31.1 先看痛点：N 个工具就要写 N 份接入代码
+
+你现在给 Agent 加工具的方式：`@tool` 装饰器 + 写死逻辑。想象这些场景：
+
+- 接 GitHub：要学 GitHub API，写 token 管理、分页、限流；
+- 接数据库：要写连接池、SQL 封装；
+- 接浏览器自动化：要学 Playwright 全家桶；
+- 团队里 3 个 Agent（Python 的、TypeScript 的、别人家的），**每个都要重复接一遍**。
+
+100 个工具 = 100 份胶水代码。**MCP 就是为了消灭这些胶水**。
+
+**MCP（Model Context Protocol，模型上下文协议）**：由 Anthropic 于 2024 年底提出、2025 年成为行业事实标准的开放协议。它定义了一套**统一接口**：任何工具/数据源按 MCP 标准封装成"服务器"，任何 Agent 框架用统一的"客户端"接入——**一次封装，处处使用**。
+
+```
+         ┌──────────────────────────────────────┐
+         │  你的 Agent（LangChain/LangGraph）     │  ← Host（宿主）
+         │        └─ MCP Client（统一客户端）     │
+         └──────────────┬───────────────────────┘
+                        │ MCP 协议（JSON-RPC）
+        ┌───────────────┼───────────────┬───────┐
+        ▼               ▼               ▼       ▼
+   ┌─────────┐    ┌─────────┐    ┌─────────┐ ┌─────────┐
+   │GitHub   │    │ 数据库   │    │ 浏览器   │ │ 自建工具 │  ← MCP Servers
+   │MCP Server│   │MCP Server│   │MCP Server│ │MCP Server│
+   └─────────┘    └─────────┘    └─────────┘ └─────────┘
+```
+
+**类比**：USB-C。以前每种设备一种接口（胶水代码），现在一个口全插。工具厂商只写一个 MCP Server，全世界所有 Agent 框架都能用。
+
+## 31.2 三个角色与两种传输
+
+| 角色 | 谁 | 干什么 |
+|---|---|---|
+| **Host** | 你的应用（ChatGPT Desktop、Claude、LangChain Agent） | 发起连接、调度工具 |
+| **MCP Client** | 协议客户端（`langchain-mcp-adapters`） | 与 Server 通信 |
+| **MCP Server** | 工具提供方 | 暴露工具/资源/提示词 |
+
+**两种传输方式**（决定 Server 跑在哪）：
+
+| 传输 | 说明 | 适用 |
+|---|---|---|
+| **stdio** | Server 是本机子进程，通过标准输入输出通信 | 本地工具、CLI 工具（明天案例用它） |
+| **Streamable HTTP / SSE** | Server 是远程 HTTP 服务 | 云端服务、团队共享工具 |
+
+## 31.3 三种原语：tools / resources / prompts
+
+MCP Server 能暴露三种东西：
+
+| 原语 | 是什么 | 例子 |
+|---|---|---|
+| **tools** | 可执行的操作（模型可调用） | 查天气、发邮件、执行 SQL |
+| **resources** | 可读取的数据（模型可引用） | 文件内容、数据库记录、知识库 |
+| **prompts** | 可复用的提示词模板 | "代码审查模板""翻译模板" |
+
+> 与你的已有知识映射：**MCP tools ≈ Day 5 的 `@tool`**——只是把"工具定义"从你的代码里搬到了独立进程，并标准化了通信格式。**你前 5 周学的工具调用循环（ReAct）完全不变**，变的是"工具从哪来"。
+
+## 31.4 通信格式：JSON-RPC 2.0（今天要看懂的东西）
+
+MCP 的底层通信是 **JSON-RPC 2.0**：客户端和服务器互发 JSON 消息。看一次真实的"发现工具"对话：
+
+### 客户端 → 服务器："你有什么工具？"
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+### 服务器 → 客户端："我有这两个"
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "name": "add",
+        "description": "计算两个数的和",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "a": {"type": "number"},
+            "b": {"type": "number"}
+          },
+          "required": ["a", "b"]
+        }
+      }
+    ]
+  }
+}
+```
+
+### 客户端 → 服务器："调用 add(3, 5)"
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {"name": "add", "arguments": {"a": 3, "b": 5}}
+}
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {"content": [{"type": "text", "text": "8"}]}
+}
+```
+
+**三个观察**：
+
+1. **`inputSchema` 就是 JSON Schema**——和你 Day 3 的 Pydantic schema、Day 5 的工具参数注解**同一套东西**。MCP 工具 ≈ LangChain 工具，只是描述格式是纯 JSON（所以跨语言）；
+2. 方法名是标准化的（`tools/list`、`tools/call`、`resources/read`……），任何实现方都要遵守；
+3. 整个对话**与编程语言无关**——Python 的 Client 可以调 Node.js 写的 Server。这就是"一次封装，处处使用"的底气。
+
+## 31.5 动手：创建你的第一个 MCP Server
+
+今天的作业不跑 Agent，**先看 Server 长什么样**。创建 `examples/mcp_math_server.py`：
+
+```python
+"""Day 31/32 共用：一个最小 MCP 服务器（数学工具）"""
+from mcp.server.fastmcp import FastMCP
+
+# 创建服务器实例（名字会显示在客户端日志里）
+mcp = FastMCP("math-server")
+
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    """计算两个整数的和"""
+    return a + b
+
+@mcp.tool()
+def multiply(a: int, b: int) -> int:
+    """计算两个整数的乘积"""
+    return a * b
+
+if __name__ == "__main__":
+    # 以 stdio 传输运行：等客户端通过标准输入输出对话
+    mcp.run()
+```
+
+**要点**：
+
+- `FastMCP` 是 mcp 官方 Python SDK 的便捷封装——`@mcp.tool()` 和 LangChain 的 `@tool` 惊人相似（好设计殊途同归）；
+- 这个文件**自己不能直接跑出什么**——它跑起来后就"待机"，等 MCP 客户端来连（明天你的 Agent 就来连它）；
+- 想象这个文件是"GitHub 官方写的工具包"——你完全不用懂它内部怎么实现，协议保证你能用。
+
+## 31.6 今日自测
+
+<Quiz items={["用 3 句话向朋友解释 MCP（提示：痛点、协议、类比 USB-C）。","运行 `python mcp_math_server.py`，观察它\"待机\"的状态（Ctrl+C 退出）——理解\"Server 是独立进程\"。","手写一遍 31.4 的 JSON-RPC 对话（tools/list → tools/call），加深记忆。","去 https://github.com/modelcontextprotocol/servers 浏览官方 Server 列表（GitHub、Google Maps、Postgres……），挑 3 个你最想接的。","`notes/day31.md`：画出 MCP 三角色图，标注 stdio 与 HTTP 两种传输的位置。"]} />
+
+## 31.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"跑 server 没反应","cause":"正常！stdio server 就是待机状态","fix":"等客户端连接（明天）"},{"symptom":"概念混淆","cause":"MCP 不是模型也不是工具本身","fix":"它是\"连接工具与 Agent 的协议\""},{"symptom":"Server 端口连不上","cause":"用了 stdio 却当 HTTP 连","fix":"stdio 是进程通信，没有端口"},{"symptom":"想找现成工具","cause":"不知道生态在哪","fix":"GitHub modelcontextprotocol/servers + MCP Registry"}]} />
+
+<DayComplete day={31} recap={"协议原理在手。明天实战：用 langchain-mcp-adapters 让你的 Agent 连上 MCP Server——见证\"一次封装，处处使用\"。"} />

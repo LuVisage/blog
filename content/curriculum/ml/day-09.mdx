@@ -1,0 +1,445 @@
+---
+slug: day-09
+kind: day
+day: 9
+week: 1
+weekTitle: 数学地基与环境
+weekBlurb: 开发环境收尾后补齐线性代数、概率、梯度与信息论——后面所有公式都建立在这上面。
+title: 微积分与梯度
+lead: '深度学习的全部训练过程，就是**反复计算梯度并沿梯度反方向走一步**。今天把梯度、链式法则、Jacobian、Hessian 讲透——这是 Week07 反向传播的全部数学前提。'
+sourcePath: Week01_数学地基与环境/Day4_微积分与梯度.md
+---
+
+> 花书第 4 章 4.1–4.3 节 · 南瓜书附录 C
+
+深度学习的全部训练过程，就是**反复计算梯度并沿梯度反方向走一步**。今天把梯度、链式法则、Jacobian、Hessian 讲透——这是 Week07 反向传播的全部数学前提。
+
+---
+
+## 今日目标
+
+1. 理解导数、偏导数、方向导数与梯度的区别与联系；
+2. 掌握梯度下降的几何直觉，能解释学习率过大/过小的后果；
+3. 熟练运用链式法则的三种形式（标量链、向量链、矩阵链）；
+4. 掌握 Jacobian 矩阵与 Hessian 矩阵的定义及维度规律；
+5. 理解泰勒展开与二阶近似在优化中的作用；
+6. 掌握凸集、凸函数、凸优化的判定与"局部极小即全局极小"的结论；
+7. 会用拉格朗日乘子法处理带约束的优化（为 Week05 SVM 铺路）。
+
+---
+
+## 知识地图
+
+```
+Week01 Day4 微积分
+├─ 梯度与梯度下降  → Week03 所有模型的训练、Week08 优化算法
+├─ 链式法则        → Week07 反向传播
+├─ Jacobian/Hessian→ Week08 二阶优化、Week09 梯度问题
+├─ 凸性            → Week03 线性模型、Week05 SVM
+└─ 拉格朗日乘子    → Week05 SVM 对偶问题
+```
+
+---
+
+## 一、导数与偏导数
+
+### 1.1 导数
+
+$$f'(x) = \lim_{h\to 0}\frac{f(x+h)-f(x)}{h}$$
+
+含义：$f$ 在 $x$ 处的**瞬时变化率**，也是切线斜率。
+
+### 1.2 偏导数
+
+对多元函数 $f(x_1, \dots, x_n)$：
+
+$$\frac{\partial f}{\partial x_i} = \lim_{h\to 0}\frac{f(\dots, x_i + h, \dots) - f(\dots,x_i,\dots)}{h}$$
+
+含义：**只让 $x_i$ 变化，其余保持不变**时的变化率。
+
+### 1.3 梯度
+
+$$\nabla_{\boldsymbol{x}} f = \left[\frac{\partial f}{\partial x_1},\ \frac{\partial f}{\partial x_2},\ \dots,\ \frac{\partial f}{\partial x_n}\right]^\top \in \mathbb{R}^n$$
+
+**梯度就是所有偏导数拼成的向量。**
+
+### 1.4 方向导数
+
+沿单位向量 $\boldsymbol{u}$ 的方向导数：
+
+$$D_{\boldsymbol{u}}f(\boldsymbol{x}) = \nabla f(\boldsymbol{x})^\top \boldsymbol{u} = \|\nabla f\|\,\|\boldsymbol{u}\|\cos\theta = \|\nabla f\|\cos\theta$$
+
+- 当 $\theta = 0$（$\boldsymbol{u}$ 与梯度同向）时取**最大值** $\|\nabla f\|$；
+- 当 $\theta = \pi$（反向）时取**最小值** $-\|\nabla f\|$。
+
+> **结论**：**梯度是函数增长最快的方向，负梯度是下降最快的方向。** 这就是梯度下降的合法性来源。
+
+---
+
+## 二、梯度下降
+
+### 2.1 一阶泰勒展开的视角
+
+由泰勒展开，当步长 $\epsilon$ 很小时：
+
+$$f(\boldsymbol{x} - \epsilon \nabla f) \approx f(\boldsymbol{x}) - \epsilon \|\nabla f\|^2 \le f(\boldsymbol{x})$$
+
+所以沿负梯度方向走一小步，函数值**必然下降**（只要 $\epsilon$ 足够小）。
+
+### 2.2 迭代公式
+
+$$\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t - \eta \nabla_{\boldsymbol{\theta}} L(\boldsymbol{\theta}_t)$$
+
+$\eta$ 为**学习率**。
+
+### 2.3 学习率的影响
+
+| 学习率 | 现象 | 曲线特征 |
+| --- | --- | --- |
+| 太小 | 收敛极慢，可能卡在平原区 | 损失下降极其缓慢 |
+| 合适 | 快速稳定收敛 | 平滑下降至平台 |
+| 太大 | 震荡、发散 | 损失上下跳甚至 NaN |
+| 超大 | 直接发散 | 损失爆炸为 inf/nan |
+
+**几何直觉**：想象在山谷里下坡。学习率是每次跨出的步长。步子太小走不到谷底，步子太大可能一步跨过谷底冲到对面的山坡上（甚至越冲越高）。
+
+### 2.4 与凸性的关系
+
+- **凸函数**：梯度下降（在合适学习率下）收敛到**全局最优**；
+- **非凸函数**：只能保证收敛到**驻点**（梯度为 0 的点），可能是局部极小、鞍点或平台。
+
+---
+
+## 三、链式法则
+
+链式法则是一切反向传播的基础。
+
+### 3.1 标量链
+
+$$y = f(u), \quad u = g(x) \quad\Rightarrow\quad \frac{dy}{dx} = \frac{dy}{du}\cdot\frac{du}{dx}$$
+
+### 3.2 向量链（出现求和）
+
+设 $\boldsymbol{u} = g(\boldsymbol{x}) \in \mathbb{R}^k$，$y = f(\boldsymbol{u}) \in \mathbb{R}$：
+
+$$\frac{\partial y}{\partial x_i} = \sum_{j=1}^{k}\frac{\partial y}{\partial u_j}\frac{\partial u_j}{\partial x_i}$$
+
+写成向量形式：
+
+$$\nabla_{\boldsymbol{x}} y = \left(\frac{\partial \boldsymbol{u}}{\partial \boldsymbol{x}}\right)^\top \nabla_{\boldsymbol{u}} y$$
+
+其中 $\frac{\partial \boldsymbol{u}}{\partial \boldsymbol{x}}$ 是 $k\times n$ 的 Jacobian 矩阵。
+
+**维度检查法**（强烈推荐）：$\underbrace{(n\times k)}_{J^\top}\cdot\underbrace{(k\times 1)}_{\nabla_u y} = \underbrace{(n\times 1)}_{\nabla_x y}$
+
+### 3.3 矩阵链（深度学习常用）
+
+设 $\mathbf{Y} = \mathbf{X}\mathbf{W}$：
+
+$$\frac{\partial L}{\partial \mathbf{W}} = \mathbf{X}^\top \frac{\partial L}{\partial \mathbf{Y}}, \qquad \frac{\partial L}{\partial \mathbf{X}} = \frac{\partial L}{\partial \mathbf{Y}}\mathbf{W}^\top$$
+
+**维度检查**（$\mathbf{X}\in\mathbb{R}^{m\times d}$，$\mathbf{W}\in\mathbb{R}^{d\times p}$，$\mathbf{Y}\in\mathbb{R}^{m\times p}$）：
+
+- $\mathbf{X}^\top (d\times m) \cdot \frac{\partial L}{\partial\mathbf{Y}}(m\times p) = (d\times p)$ 与 $\mathbf{W}$ 同形
+- $\frac{\partial L}{\partial\mathbf{Y}}(m\times p)\cdot \mathbf{W}^\top(p\times d) = (m\times d)$ 与 $\mathbf{X}$ 同形
+
+> **梯度一定与变量同形**——这是检查推导是否出错的最快方法。
+
+---
+
+## 四、Jacobian 与 Hessian
+
+### 4.1 Jacobian 矩阵
+
+对向量函数 $\boldsymbol{f}:\mathbb{R}^n \to \mathbb{R}^m$：
+
+$$\mathbf{J} = \frac{\partial \boldsymbol{f}}{\partial \boldsymbol{x}} \in \mathbb{R}^{m\times n}, \qquad J_{ij} = \frac{\partial f_i}{\partial x_j}$$
+
+- 第 $i$ 行是 $f_i$ 的梯度（转置）；
+- 标量函数的 Jacobian 就是梯度的转置（$1\times n$ 行向量）。
+
+### 4.2 Hessian 矩阵
+
+二阶偏导组成的方阵：
+
+$$\mathbf{H} = \nabla^2_{\boldsymbol{x}} f \in \mathbb{R}^{n\times n}, \qquad H_{ij} = \frac{\partial^2 f}{\partial x_i \partial x_j}$$
+
+- **对称**（当二阶偏导连续）；
+- 特征值决定曲率方向的正负。
+
+### 4.3 Hessian 的三大用途
+
+**（1）判定驻点类型**（二阶充分条件）
+
+设 $\nabla f(\boldsymbol{x}^*) = \boldsymbol{0}$：
+
+| Hessian | 结论 |
+| --- | --- |
+| 正定（全部 $\lambda_i > 0$） | 局部极小 |
+| 负定 | 局部极大 |
+| 不定（有正有负） | 鞍点 |
+
+**（2）牛顿法**（二阶优化）
+
+$$\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t - \mathbf{H}^{-1}\nabla L$$
+
+收敛更快（二次收敛），但计算 $\mathbf{H}^{-1}$ 代价是 $O(n^3)$，深度学习参数动辄上亿，因此**不实用**。Week08 的 Adam 等方法可以理解为"用一阶信息近似二阶"。
+
+**（3）判断病态（ill-conditioning）**
+
+Hessian 的条件数 $\kappa = \lambda_{\max}/\lambda_{\min}$ 很大时，等高线是**狭长椭圆**，梯度下降会在"峡谷"里来回震荡，收敛极慢。
+
+```
+条件数小（圆润）        条件数大（狭长峡谷）
+     ○                       ↘
+    ○ ○                    ↘↙↘↙↘
+     ○                       ↘↙↘
+  一步到位               来回震荡，收敛极慢
+```
+
+> 这也是 BatchNorm（Week08）、自适应学习率方法能加速收敛的根本原因：它们调整了优化问题的**条件数**。
+
+---
+
+## 五、泰勒展开
+
+### 5.1 一维泰勒级数
+
+$$f(x) = \sum_{k=0}^\infty \frac{f^{(k)}(x_0)}{k!}(x-x_0)^k$$
+
+### 5.2 一阶近似（梯度下降的来源）
+
+$$f(\boldsymbol{x}) \approx f(\boldsymbol{x}_0) + \nabla f(\boldsymbol{x}_0)^\top(\boldsymbol{x}-\boldsymbol{x}_0)$$
+
+用超平面（切平面）近似函数——这就是"用局部线性代替非线性"的思路。
+
+### 5.3 二阶近似（牛顿法、信赖域方法的来源）
+
+$$f(\boldsymbol{x}) \approx f(\boldsymbol{x}_0) + \nabla f(\boldsymbol{x}_0)^\top \boldsymbol{d} + \frac{1}{2}\boldsymbol{d}^\top \mathbf{H} \boldsymbol{d}, \quad \boldsymbol{d} = \boldsymbol{x}-\boldsymbol{x}_0$$
+
+对 $\boldsymbol{d}$ 求导置零，得 $\boldsymbol{d} = -\mathbf{H}^{-1}\nabla f$，即牛顿步。
+
+---
+
+## 六、凸性
+
+### 6.1 凸集
+
+$C$ 是凸集，若 $\forall \boldsymbol{x},\boldsymbol{y}\in C,\ \forall t\in[0,1]$：
+
+$$t\boldsymbol{x} + (1-t)\boldsymbol{y} \in C$$
+
+直观：集合中任意两点连线上的点都还在集合里（"没有凹陷"）。
+
+### 6.2 凸函数
+
+$f$ 是凸函数，若定义域是凸集且：
+
+$$f(t\boldsymbol{x} + (1-t)\boldsymbol{y}) \le t f(\boldsymbol{x}) + (1-t)f(\boldsymbol{y})$$
+
+直观：函数图像在任意两点连线（弦）的**下方**。
+
+**判定方法**：
+
+| 维度 | 条件 |
+| --- | --- |
+| 一维 | $f''(x) \ge 0$ 恒成立 |
+| 多维 | Hessian $\mathbf{H} \succeq 0$（半正定）恒成立 |
+| 组合 | 非负线性组合、仿射变换、$f(\mathbf{A}\boldsymbol{x}+\boldsymbol{b})$ 保凸 |
+
+**保凸运算速查**：
+
+- $f_1 + f_2$ 保凸（$f_1, f_2$ 凸）
+- $cf$ 保凸（$c \ge 0$，凸）
+- $f(\mathbf{A}\boldsymbol{x}+\boldsymbol{b})$ 保凸（$f$ 凸）
+- $\max_i f_i$ 保凸（$f_i$ 凸）
+- $f(g(\boldsymbol{x}))$ 保凸（$f$ 凸非减、$g$ 凸）
+
+### 6.3 凸优化的价值
+
+$$\min_{\boldsymbol{x} \in C} f(\boldsymbol{x}), \quad f \text{ 凸},\ C \text{ 凸}$$
+
+**核心定理**：凸问题的**任何局部极小都是全局极小**。且 $\nabla f(\boldsymbol{x}^*) = \boldsymbol{0}$ 是全局最优的**充要条件**。
+
+**ML 中的凸问题**：
+
+| 问题 | 是否凸 |
+| --- | --- |
+| 线性回归（MSE） | 凸（二次函数） |
+| 逻辑回归（交叉熵） | 凸 |
+| SVM（软间隔） | 凸（二次规划） |
+| Lasso | 凸（但不可导，用次梯度） |
+| 神经网络 | 非凸 |
+
+> 所以神经网络不追求"全局最优"，而是追求"足够好的局部最优 + 好的泛化"。
+
+---
+
+## 七、拉格朗日乘子法与 KKT
+
+### 7.1 等式约束
+
+$$\min_{\boldsymbol{x}} f(\boldsymbol{x}) \quad \text{s.t.}\quad h(\boldsymbol{x}) = 0$$
+
+构造拉格朗日函数：
+
+$$\mathcal{L}(\boldsymbol{x}, \lambda) = f(\boldsymbol{x}) + \lambda h(\boldsymbol{x})$$
+
+最优解满足：
+
+$$\nabla_{\boldsymbol{x}} \mathcal{L} = \boldsymbol{0}, \qquad \frac{\partial \mathcal{L}}{\partial \lambda} = h(\boldsymbol{x}) = 0$$
+
+### 7.2 不等式约束与 KKT 条件
+
+$$\min_{\boldsymbol{x}} f(\boldsymbol{x}) \quad \text{s.t.}\quad g_i(\boldsymbol{x}) \le 0$$
+
+$$L(\boldsymbol{x}, \boldsymbol{\alpha}) = f(\boldsymbol{x}) + \sum_i \alpha_i g_i(\boldsymbol{x}), \quad \alpha_i \ge 0$$
+
+**KKT 条件**（凸问题下的充要条件）：
+
+| 条件 | 表达式 |
+| --- | --- |
+| 平稳性 | $\nabla_{\boldsymbol{x}} L = \boldsymbol{0}$ |
+| 原始可行 | $g_i(\boldsymbol{x}) \le 0$ |
+| 对偶可行 | $\alpha_i \ge 0$ |
+| 互补松弛 | $\alpha_i g_i(\boldsymbol{x}) = 0$ |
+
+**互补松弛的含义**：若某约束未被激活（$g_i(\boldsymbol{x}) < 0$），则其乘子必须为 0；只有**紧约束**（落在边界上，$g_i = 0$）才有 $\alpha_i > 0$。
+
+> **Week05 会用到**：SVM 中只有**支持向量**对应的 $\alpha_i > 0$，其余样本 $\alpha_i = 0$——这正是互补松弛的直接结果。
+
+### 7.3 弱对偶与强对偶
+
+原问题 $p^* = \min_{\boldsymbol{x}}\max_{\boldsymbol{\alpha}\ge 0} L$，对偶问题 $d^* = \max_{\boldsymbol{\alpha}\ge 0}\min_{\boldsymbol{x}} L$。
+
+- 恒有 $d^* \le p^*$（弱对偶）；
+- 若 Slater 条件成立（凸问题 + 存在严格可行点），则 $d^* = p^*$（强对偶）。
+
+---
+
+## 八、代码实践
+
+```python
+import numpy as np
+
+# 1. 数值梯度验证解析梯度
+def f(x):
+    return x[0]**2 + 3*x[1]**2 + 2*x[0]*x[1]     # 二次型
+
+def grad_f(x):
+    return np.array([2*x[0] + 2*x[1],
+                     6*x[1] + 2*x[0]])
+
+def numerical_grad(fn, x, eps=1e-5):
+    g = np.zeros_like(x)
+    for i in range(len(x)):
+        e = np.zeros_like(x); e[i] = eps
+        g[i] = (fn(x + e) - fn(x - e)) / (2 * eps)   # 中心差分，误差 O(eps^2)
+    return g
+
+x0 = np.array([1.0, 2.0])
+print("解析梯度:", grad_f(x0))
+print("数值梯度:", numerical_grad(f, x0))
+
+# 2. Hessian（解析）
+H = np.array([[2., 2.],
+              [2., 6.]])
+print("Hessian 特征值:", np.linalg.eigvalsh(H))   # 全正 → 正定 → 严格凸
+
+# 3. 梯度下降求最小值
+def gradient_descent(fn, grad_fn, x, lr=0.1, steps=100):
+    hist = [x.copy()]
+    for _ in range(steps):
+        x = x - lr * grad_fn(x)
+        hist.append(x.copy())
+    return x, np.array(hist)
+
+xmin, hist = gradient_descent(f, grad_f, np.array([5.0, -3.0]), lr=0.1, steps=50)
+print("极小点:", xmin)      # 应为 [0, 0]
+print("函数值:", f(xmin))
+
+# 4. 学习率过大 → 发散
+_, hist_bad = gradient_descent(f, grad_f, np.array([5.0, -3.0]), lr=0.5, steps=20)
+print("lr=0.5 最后一步:", hist_bad[-1], "| 值:", f(hist_bad[-1]))   # 越来越大
+
+# 5. 拉格朗日乘子：min x^2+y^2 s.t. x+y=2  → 解 (1,1)
+#    L = x^2+y^2 + λ(x+y-2)
+#    ∂L/∂x = 2x+λ = 0, ∂L/∂y = 2y+λ = 0, x+y=2
+A = np.array([[2., 0., 1.],
+              [0., 2., 1.],
+              [1., 1., 0.]])
+b = np.array([0., 0., 2.])
+sol = np.linalg.solve(A, b)
+print(f"拉格朗日解: x={sol[0]:.3f}, y={sol[1]:.3f}, λ={sol[2]:.3f}")
+```
+
+完整版本见 `code/day4_gradient.py`。
+
+---
+
+## 九、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 忘记转置导致维度不匹配 | **梯度必须与变量同形**，用它自检 |
+| 学习率对所有参数用同一个值 | 不同参数尺度差异大时应考虑自适应方法（Week08） |
+| 用一阶梯度判断梯度消失 | 要看**链式连乘**后是否趋于 0（Week10 详解） |
+| 把鞍点当成局部极小 | 高维空间中鞍点远多于局部极小，靠噪声/动量逃离 |
+| 认为非凸就没法优化 | 实践中 SGD 找到的解泛化通常很好 |
+| 数值梯度步长取 1e-3 | 太大精度差，太小有浮点相消误差；推荐 **1e-5 的中心差分** |
+
+---
+
+## 十、练习题
+
+**基础**
+
+1. 求 $f(x,y) = x^2 y + e^{xy}$ 的梯度与 Hessian。
+2. 求 $f(\boldsymbol{x}) = \|\mathbf{A}\boldsymbol{x} - \boldsymbol{b}\|_2^2$ 的梯度（提示：展开成二次型）。
+3. 判断 $f(x) = x^4$ 是否为凸函数；$f(x) = x^3$ 呢？
+
+**进阶**
+
+4. 用 KKT 条件求解：$\min_{x} (x-2)^2$，s.t. $x \le 1$。（提示：先检查约束是否紧，再看乘子符号）
+5. 对 $L(\boldsymbol{w}) = \frac{1}{2}\|\mathbf{X}\boldsymbol{w}-\boldsymbol{y}\|^2 + \frac{\lambda}{2}\|\boldsymbol{w}\|^2$（岭回归），求 $\nabla_{\boldsymbol{w}}L$ 并解出 $\hat{\boldsymbol{w}}$。
+6. 【核心】给定 $\boldsymbol{z} = \mathbf{W}\boldsymbol{x} + \boldsymbol{b}$，$L$ 为标量损失，已知 $\frac{\partial L}{\partial \boldsymbol{z}}$。用维度检查法推导 $\frac{\partial L}{\partial \mathbf{W}}$、$\frac{\partial L}{\partial \boldsymbol{b}}$、$\frac{\partial L}{\partial \boldsymbol{x}}$。
+
+**思考题**
+
+7. 为什么牛顿法收敛快却不能在深度学习中使用？请从时间复杂度和内存复杂度两方面分析（参数规模 $n = 10^8$ 时）。
+8. 一阶泰勒近似只在大步长时失效。梯度下降步长 $\epsilon$ 要满足什么条件，才能保证 $f(\boldsymbol{x}-\epsilon\nabla f) \le f(\boldsymbol{x})$？（提示：考虑 Lipschitz 连续的光滑性假设 $\|\nabla f(\boldsymbol{x})-\nabla f(\boldsymbol{y})\| \le \beta\|\boldsymbol{x}-\boldsymbol{y}\|$，可得 $\epsilon \le 1/\beta$）
+
+<details>
+<summary>第 5 题答案</summary>
+
+$$\nabla_{\boldsymbol{w}} L = \mathbf{X}^\top(\mathbf{X}\boldsymbol{w}-\boldsymbol{y}) + \lambda \boldsymbol{w} = \boldsymbol{0}$$
+
+$$\Rightarrow (\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})\hat{\boldsymbol{w}} = \mathbf{X}^\top\boldsymbol{y} \Rightarrow \hat{\boldsymbol{w}} = (\mathbf{X}^\top\mathbf{X}+\lambda\mathbf{I})^{-1}\mathbf{X}^\top\boldsymbol{y}$$
+
+注意 $\lambda\mathbf{I}$ 让矩阵**一定可逆**，这是岭回归能处理多重共线性的原因。
+</details>
+
+<details>
+<summary>第 6 题答案</summary>
+
+已知 $\frac{\partial L}{\partial\boldsymbol{z}} \in \mathbb{R}^{m}$（假设 batch 大小 $m$），$\mathbf{W}\in\mathbb{R}^{m\times d}$，$\boldsymbol{x}\in\mathbb{R}^d$，$\boldsymbol{b}\in\mathbb{R}^m$。
+
+$$\frac{\partial L}{\partial \mathbf{W}} = \frac{\partial L}{\partial\boldsymbol{z}}\,\boldsymbol{x}^\top \quad (m\times 1 \cdot 1\times d = m\times d\ )$$
+
+$$\frac{\partial L}{\partial \boldsymbol{b}} = \frac{\partial L}{\partial\boldsymbol{z}} \quad (m\times 1\ )$$
+
+$$\frac{\partial L}{\partial \boldsymbol{x}} = \mathbf{W}^\top\frac{\partial L}{\partial\boldsymbol{z}} \quad (d\times m \cdot m\times 1 = d\times 1\ )$$
+
+这三个公式是 **Week07 反向传播的全部内容**。
+</details>
+
+---
+
+## 十一、一句话总结
+
+**梯度告诉我们"往哪走最快"，链式法则告诉我们"如何把误差一层层传回去"，凸性告诉我们"这条路有没有终点"——三者合起来就是深度学习的训练理论。**
+
+---
+
+**明日预告**：Day5 进入信息论与数值计算。我们会推导一个极其关键的等价关系：**最大似然估计 ⟺ 最小化交叉熵**，并手写数值稳定的 softmax 与 log-sum-exp。
+

@@ -1,0 +1,241 @@
+---
+slug: day-62
+kind: day
+day: 62
+week: 12
+weekTitle: 现代 CNN 与注意力
+weekBlurb: 1x1 瓶颈、深度可分离卷积、注意力机制与高效网络设计。
+title: 深度可分离卷积
+lead: '今日目标：掌握深度可分离卷积的分解方式；推导并验证计算量比值公式 $\frac{1}{C_{out}}+\frac{1}{k^2}$；理解 MobileNet 的设计取舍。'
+sourcePath: Week12_现代CNN与注意力/Day2_深度可分离卷积.md
+---
+
+> 今日目标：掌握深度可分离卷积的分解方式；推导并验证计算量比值公式 $\frac{1}{C_{out}}+\frac{1}{k^2}$；理解 MobileNet 的设计取舍。
+> 配套案例：`code/day2_depthwise.py`
+
+---
+
+## 2.1 知识地图
+
+```
+Day1  1x1 卷积 + 瓶颈结构   ← 省参数的第一条路：压通道
+        │
+        ▼
+Day2（今天）★ 省参数的第二条路：拆卷积
+  ├─ 标准卷积的两个职责
+  ├─ 深度卷积（逐通道，只管空间）
+  ├─ 逐点卷积（1x1，只管通道）
+  └─ 计算量降到 1/9
+        │
+        ▼
+Day3  注意力机制（第三条路：让网络学会"看哪里"）
+```
+
+---
+
+## 2.2 核心洞察：标准卷积在做两件事
+
+一个标准卷积层同时在完成两个任务：
+
+| 任务 | 说明 |
+| --- | --- |
+| **空间聚合** | 在 $k\times k$ 邻域内提取空间模式（边缘、纹理） |
+| **通道融合** | 把所有输入通道加权组合成新的通道 |
+
+**关键问题：这两个任务一定要一起做吗？**
+
+如果拆开做，计算量会怎样变化？
+
+$$k^2 \cdot C_{in} \cdot C_{out} \quad\longrightarrow\quad \underbrace{k^2\cdot C_{in}}_{\text{空间}} + \underbrace{C_{in}\cdot C_{out}}_{\text{通道}}$$
+
+**这就是深度可分离卷积（Depthwise Separable Convolution）。**
+
+---
+
+## 2.3 两个步骤
+
+### 步骤 1：深度卷积（Depthwise Convolution）
+
+**每个输入通道独立地做空间卷积，通道之间不交流。**
+
+```python
+# groups = C_in 时，PyTorch 就执行逐通道卷积
+nn.Conv2d(C_in, C_in, kernel_size=3, padding=1, groups=C_in)
+```
+
+**输入输出通道数相同**：$(C, H, W) \to (C, H_{out}, W_{out})$。
+
+**参数量**：$C_{in}\times k^2$（对比标准卷积的 $C_{in}C_{out}k^2$，少了 $C_{out}$ 倍）。
+
+### 步骤 2：逐点卷积（Pointwise Convolution）
+
+**用 $1\times1$ 卷积完成通道融合**（Day1 学过的）。
+
+```python
+nn.Conv2d(C_in, C_out, kernel_size=1)
+```
+
+**参数量**：$C_{in}\times C_{out}$。
+
+### 合起来
+
+```python
+class DepthwiseSeparableConv(nn.Module):
+    def __init__(self, c_in, c_out, k=3, stride=1, padding=None):
+        super().__init__()
+        padding = k // 2 if padding is None else padding
+        self.depthwise = nn.Conv2d(c_in, c_in, k, stride=stride,
+                                   padding=padding, groups=c_in, bias=False)
+        self.pointwise = nn.Conv2d(c_in, c_out, 1, bias=False)
+
+    def forward(self, x):
+        return self.pointwise(self.depthwise(x))
+```
+
+**注意 `groups=c_in`** —— 这是 PyTorch 里实现深度卷积的唯一方式。当 `groups == in_channels == out_channels` 时，就是逐通道卷积。
+
+---
+
+## 2.4 计算量对比：本周最重要的公式
+
+**标准卷积**：
+
+$$\text{FLOPs}_{\text{std}} = H_{out}W_{out}\cdot C_{out}\cdot C_{in}\cdot k^2$$
+
+**深度可分离卷积**：
+
+$$\text{FLOPs}_{\text{dw}} = \underbrace{H_{out}W_{out}\cdot C_{in}\cdot k^2}_{\text{深度卷积}} + \underbrace{H_{out}W_{out}\cdot C_{in}\cdot C_{out}}_{\text{逐点卷积}}$$
+
+**比值**：
+
+$$\frac{\text{FLOPs}_{\text{dw}}}{\text{FLOPs}_{\text{std}}} = \frac{C_{in}k^2 + C_{in}C_{out}}{C_{in}C_{out}k^2} = \boxed{\frac{1}{C_{out}} + \frac{1}{k^2}}$$
+
+**代入数值**：
+
+| $k$ | $C_{out}$ | 比值 | 相当于 |
+| --- | --- | --- | --- |
+| 3 | 64 | $\frac{1}{64} + \frac{1}{9} = 12.7\%$ | 约 1/8 |
+| 3 | 256 | $\frac{1}{256} + \frac{1}{9} = 11.5\%$ | 约 1/9 |
+| 3 | 1024 | $\frac{1}{1024} + \frac{1}{9} = 11.2\%$ | 约 1/9 |
+| 5 | 256 | $\frac{1}{256} + \frac{1}{25} = 4.4\%$ | 约 1/23 |
+
+**两个重要结论**：
+
+1. **$C_{out}$ 越大，第一项越小** —— 当 $C_{out}\gg k^2$ 时，比值趋近于 $\frac{1}{k^2}$；
+2. **核越大，省得越多** —— 因为深度卷积的 $k^2$ 只作用在单通道上。$5\times5$ 时只花 4.4% 的计算量。
+
+> **这就是为什么 MobileNet 敢在移动端用**：同样的层，计算量降到 1/9。
+
+**参数量对比**：
+
+$$\frac{\text{Params}_{\text{dw}}}{\text{Params}_{\text{std}}} = \frac{C_{in}k^2 + C_{in}C_{out}}{C_{in}C_{out}k^2} = \frac{1}{C_{out}} + \frac{1}{k^2}$$
+
+**形式和 FLOPs 完全一样**（因为参数量与计算量在这里成正比）。
+
+---
+
+## 2.5 MobileNet 的设计
+
+### V1（2017）
+
+**核心**：把标准卷积全部替换成深度可分离卷积。
+
+**两个可调超参数**：
+
+| 参数 | 作用 | 效果 |
+| --- | --- | --- |
+| **宽度乘子** $\alpha$ | 统一缩放所有通道数（0.25 / 0.5 / 0.75 / 1.0） | 参数量 $\propto \alpha^2$ |
+| **分辨率乘子** $\rho$ | 缩放输入分辨率（224 / 192 / 160 / 128） | FLOPs $\propto \rho^2$ |
+
+**这个"两个旋钮"的设计非常工程化**：同一个架构，通过调 $\alpha$ 和 $\rho$ 就能覆盖从高端手机到低端嵌入式的整个谱系。
+
+### V2（2018）：倒残差结构
+
+**V1 的一个问题**：深度卷积的输入通道数太少（因为先降维再深度卷积），导致 ReLU 会把很多值置零，信息损失严重。
+
+**V2 的解决方案 —— 倒残差（Inverted Residual）**：
+
+```
+V1 残差块（ResNet）:  宽 -> 窄 -> 宽      （两头宽、中间窄）
+V2 倒残差（MobileNet）: 窄 -> 宽 -> 窄    （两头窄、中间宽）
+
+具体:
+  1x1 Conv (升维, 6倍)     ← 先扩张
+  Depthwise Conv 3x3       ← 在高维空间做空间卷积
+  1x1 Conv (降维, 回到原维) ← 再压回来
+  + 残差连接
+```
+
+**关键细节：最后的 1×1 后面不加 ReLU**（称为"linear bottleneck"）。
+
+**为什么**：ReLU 会把负值全部置零。在降维后（通道数少），信息本来就很紧凑，再加 ReLU 会不可逆地损失信息。
+
+> **这个洞察很重要**：**ReLU 在高维空间是安全的（信息冗余），在低维空间是危险的（信息瓶颈）。**
+
+### V3（2019）
+
+引入**神经架构搜索（NAS）** + **SE 注意力**（Day3 讲）+ h-swish 激活函数。
+
+---
+
+## 2.6 什么时候不该用深度可分离卷积
+
+这是一个**必须知道的反直觉事实**：
+
+| 场景 | 深度可分离卷积的表现 |
+| --- | --- |
+| 移动端 / 边缘设备 | **大幅加速**（计算量降到 1/9） |
+| 大 batch + 高端 GPU | **可能更慢！** |
+
+**为什么在 GPU 上可能更慢**：
+
+1. **计算强度低**（算术强度 = FLOPs / 访存量）：深度卷积每个通道只有 $k^2$ 次计算，却要读写大量数据 → **受内存带宽限制**而非算力限制；
+2. **GPU 擅长的是大矩阵乘**，深度卷积这种"碎"操作难以充分利用 CUDA 核心；
+3. **框架支持**：标准卷积有 cuDNN 的深度优化（Winograd、FFT），深度卷积的优化没那么成熟。
+
+**实践判断方法**：
+
+```python
+# 不要只看 FLOPs，要看实际延迟
+import time
+torch.cuda.synchronize()
+t0 = time.time()
+for _ in range(100):
+    out = model(x)
+torch.cuda.synchronize()
+print(f"实际延迟: {(time.time() - t0) / 100 * 1000:.2f} ms")
+```
+
+**FLOPs 低 ≠ 延迟低。** 这是工程上最常见的错觉之一。
+
+---
+
+## 2.7 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| `groups` 设错 | `groups` 必须等于 `in_channels` 才是深度卷积 | 检查 `groups == c_in` |
+| 形状对不上 | 深度卷积不改变通道数，逐点卷积才改 | 顺序别搞反 |
+| 深度卷积后没加 BN | 训练不稳定 | `Conv → BN → ReLU` |
+| 精度掉很多 | 通道数太少 + ReLU 损失信息 | 用倒残差（先升维） |
+| GPU 上反而更慢 | 计算强度低，受带宽限制 | 测实际延迟而非 FLOPs |
+| 参数量没降那么多 | 逐点卷积在 $C_{out}$ 小时占比高 | 见 2.4 的公式 |
+
+---
+
+## 2.8 今日自测
+
+1. 手算：$C_{in}=128, C_{out}=256, k=3$ 时，深度可分离卷积的 FLOPs 是标准卷积的百分之几？
+2. 用 `groups` 实现深度卷积，与手写循环版对比验证。
+3. 把 MobileNet V2 的倒残差块实现出来（含"最后不加 ReLU"）。
+4. 在 Fashion-MNIST 上对比标准卷积与深度可分离卷积的参数量与训练时间。
+5. 测试一个深度可分离卷积在 GPU 上的实际延迟，与标准卷积对比，验证"FLOPs 低不等于更快"。
+
+---
+
+## 2.9 一句话总结
+
+**深度可分离卷积把标准卷积的两个职责拆开：深度卷积管空间、逐点卷积管通道，计算量降到 $\frac{1}{C_{out}}+\frac{1}{k^2}$（约 1/9）；但它的计算强度低，在 GPU 上未必更快 —— FLOPs 低不等于延迟低。**
+
+**明日预告**：Day3 讲注意力机制 —— 让网络学会"重点关注哪些通道"，这是 SE-Net 的核心，也是 Transformer 的思想源头。
+

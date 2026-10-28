@@ -1,0 +1,276 @@
+---
+slug: day-76
+kind: day
+day: 76
+week: 15
+weekTitle: 计算机视觉实战
+weekBlurb: OpenCV 基础、滤波与边缘、数据增强、目标检测与迁移学习实战。
+title: OpenCV 基础
+lead: 今日目标：掌握图像的读写与表示；说清 OpenCV（BGR）与 PIL（RGB）的差异；熟练做色彩空间转换与几何变换；能够在 OpenCV / PIL / Tensor 三种格式间正确互转。
+sourcePath: Week15_计算机视觉实战/Day1_OpenCV基础.md
+---
+
+> 今日目标：掌握图像的读写与表示；说清 OpenCV（BGR）与 PIL（RGB）的差异；熟练做色彩空间转换与几何变换；能够在 OpenCV / PIL / Tensor 三种格式间正确互转。
+> 配套案例：`code/day1_opencv_basics.py`
+
+---
+
+## 1.1 知识地图
+
+```
+Week08  数据预处理（pandas / 特征工程）
+Week11-14  图像模型（CNN / ViT）
+        │
+        ▼
+Week15 Day1（今天）★ 从"真实的图片"到"模型能吃的张量"
+  ├─ 图像在内存里是什么
+  ├─ BGR vs RGB（头号坑）
+  ├─ 色彩空间
+  ├─ 几何变换
+  └─ 三种格式互转
+        │
+        ▼
+Day2  滤波与边缘检测
+Day3  数据增强与自定义数据集
+```
+
+---
+
+## 1.2 图像在内存里是什么
+
+**一张图像 = 一个三维数组**（对彩色图）：
+
+```
+形状: (H, W, C)    高度、宽度、通道数
+dtype: uint8       每个像素 0~255
+```
+
+**关键点**：
+
+| 事实 | 说明 |
+| --- | --- |
+| **通道在后** | $(H, W, C)$ —— 这是 OpenCV / PIL / NumPy 的约定 |
+| **PyTorch 通道在前** | $(C, H, W)$ —— 所以要 `permute(2,0,1)` |
+| **0~255 整数** | 模型需要 0~1 的 float，所以要 `/255` |
+
+**Week11 Day1 讲过**：`ToTensor()` 做的三件事之一就是 $(H,W,C)\to(C,H,W)$。
+
+```python
+img = cv2.imread("a.jpg")        # (H, W, 3) uint8, BGR
+tensor = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0   # (3,H,W) [0,1]
+```
+
+---
+
+## 1.3 头号坑：BGR vs RGB
+
+**这是 OpenCV 最著名的"坑"**，也是新手最常见的问题来源。
+
+| 库 | 通道顺序 |
+| --- | --- |
+| **OpenCV (`cv2`)** | **BGR** |
+| **PIL / matplotlib / torchvision** | **RGB** |
+
+**后果**：如果你用 `cv2` 读图，再用 `matplotlib` 显示，**红色和蓝色会互换** —— 人脸会变成蓝色。
+
+**两种解决方式**：
+
+```python
+# 方式 1：读取后立刻转换（推荐，只转一次）
+img = cv2.imread("a.jpg")                    # BGR
+img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)   # -> RGB
+plt.imshow(img)                              # 现在正确了
+
+# 方式 2：显示前转换
+img = cv2.imread("a.jpg")                    # BGR
+plt.imshow(img[:, :, ::-1])                  # 用切片反转通道（快但不够直观）
+```
+
+**为什么 OpenCV 用 BGR**：历史原因。早期 Windows 上的相机采集和显示器接口就是 BGR 排列，OpenCV 沿用了这个约定以保持向后兼容。
+
+> **判断方法**：如果图片看起来"颜色不对但形状对"，八成是 BGR/RGB 搞反了。
+
+---
+
+## 1.4 读写图像
+
+```python
+import cv2
+
+# 读
+img = cv2.imread("a.jpg")                          # 默认读成 BGR 三通道
+img_gray = cv2.imread("a.jpg", cv2.IMREAD_GRAYSCALE)  # 读成灰度
+img_alpha = cv2.imread("a.png", cv2.IMREAD_UNCHANGED) # 保留 alpha 通道
+
+# 写
+cv2.imwrite("out.jpg", img)                        # 注意：JPEG 有损
+cv2.imwrite("out.png", img)                        # PNG 无损
+
+# 注意：cv2.imread 失败时返回 None（不抛异常！）
+if img is None:
+    raise FileNotFoundError("图片读取失败")
+```
+
+**三个必知细节**：
+
+1. **`imread` 失败返回 `None` 而不是抛异常** —— 必须显式检查，否则后面会报莫名其妙的 `AttributeError: 'NoneType' object has no attribute 'shape'`；
+2. **路径不要含中文**（老版本 OpenCV 在 Windows 上有编码问题）—— 用 `cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)` 绕过；
+3. **JPEG 有损** —— 反复读写会累积压缩伪影。需要无损就用 PNG。
+
+---
+
+## 1.5 色彩空间转换
+
+```python
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)     # 灰度（单通道）
+rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)       # RGB
+hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)       # HSV
+lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)       # LAB
+```
+
+| 色彩空间 | 三个分量 | 适用场景 |
+| --- | --- | --- |
+| **BGR / RGB** | 蓝/绿/红 | 显示、模型输入 |
+| **Gray** | 亮度 | 边缘检测、OCR |
+| **HSV** | 色调/饱和度/明度 | **颜色分割、目标跟踪** |
+| **LAB** | 亮度/a/b | 颜色差异度量、颜色迁移 |
+
+**为什么 HSV 更适合做颜色分割**：
+
+在 RGB 里，"红色物体在阴影下"和"红色物体在阳光下"的 RGB 值差异巨大（因为亮度影响了所有三个通道）。但在 HSV 里，**色调（H）几乎不变**，只有明度（V）变化。
+
+```python
+# 用 HSV 提取红色区域（这在 RGB 里很难做）
+hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+mask = cv2.inRange(hsv, (0, 100, 100), (10, 255, 255))    # H 在 0~10
+```
+
+**灰度转换公式**（不是简单平均）：
+
+$$Y = 0.299R + 0.587G + 0.114B$$
+
+**为什么不是 $(R+G+B)/3$**：人眼对绿色最敏感、对蓝色最不敏感。加权系数来自人眼的亮度感知曲线（Rec. 601 标准）。
+
+---
+
+## 1.6 几何变换
+
+### resize
+
+```python
+# 指定绝对尺寸
+img2 = cv2.resize(img, (640, 480))            # 注意: (宽, 高)！不是 (高, 宽)
+
+# 按比例
+img2 = cv2.resize(img, None, fx=0.5, fy=0.5)
+
+# 插值方式（很重要）
+img2 = cv2.resize(img, (640, 480), interpolation=cv2.INTER_LINEAR)
+```
+
+| 插值方式 | 适用 |
+| --- | --- |
+| `INTER_NEAREST` | 最快，但会有锯齿（适合标签图/掩码） |
+| **`INTER_LINEAR`** | 默认，放大缩小都可用 |
+| `INTER_CUBIC` | 更平滑，放大时更好但更慢 |
+| `INTER_AREA` | **缩小时最佳**（避免摩尔纹） |
+
+** 头号坑**：`cv2.resize` 的尺寸参数是 **`(width, height)`**，而 NumPy 的 `shape` 是 **`(height, width)`**。**顺序相反**，这是排序错误的高发区。
+
+### 裁剪
+
+```python
+# NumPy 切片即可（注意是 [y, x] 顺序）
+crop = img[100:300, 200:400]        # [y范围, x范围]
+```
+
+### 旋转与仿射变换
+
+```python
+h, w = img.shape[:2]
+# 绕中心旋转 30 度
+M = cv2.getRotationMatrix2D((w / 2, h / 2), 30, 1.0)     # (中心, 角度, 缩放)
+img_rot = cv2.warpAffine(img, M, (w, h))
+
+# 自定义仿射变换（平移）
+M = np.float32([[1, 0, 50], [0, 1, 30]])                 # x 平移 50，y 平移 30
+img_shift = cv2.warpAffine(img, M, (w, h))
+```
+
+**仿射变换矩阵的形式**：
+
+$$\begin{bmatrix}x'\\y'\end{bmatrix} = \begin{bmatrix}a_{11}&a_{12}&t_x\\a_{21}&a_{22}&t_y\end{bmatrix}\begin{bmatrix}x\\y\\1\end{bmatrix}$$
+
+**透视变换**（`warpPerspective`）是仿射的推广（$3\times3$ 矩阵），能处理"拍照角度倾斜"的场景（如文档扫描矫正）。
+
+---
+
+## 1.7 三种格式互转
+
+**这是工程中最常写的代码**：
+
+```python
+# ① OpenCV(ndarray, BGR) -> PyTorch Tensor(RGB, [0,1], CHW)
+def cv2_to_tensor(img_bgr):
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    tensor = torch.from_numpy(img_rgb).permute(2, 0, 1).float() / 255.0
+    return tensor
+
+# ② PyTorch Tensor -> OpenCV ndarray
+def tensor_to_cv2(tensor):
+    assert tensor.dim() == 3 and tensor.shape[0] == 3
+    arr = (tensor.detach().cpu().permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+    return cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
+
+# ③ PIL -> OpenCV
+def pil_to_cv2(pil_img):
+    return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+
+# ④ OpenCV -> PIL
+from PIL import Image
+def cv2_to_pil(img_bgr):
+    return Image.fromarray(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB))
+```
+
+**统一约定**（强烈建议）：
+
+```
+内部计算一律用 RGB（与 torchvision 一致）
+只有在"用 OpenCV 的函数"时才临时转成 BGR
+```
+
+**一旦确定了约定，就在整个项目里贯彻**。混用是 bug 的温床。
+
+---
+
+## 1.8 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 图像颜色不对（红蓝互换） | BGR/RGB 搞混 | `cv2.cvtColor` 或切片反转 |
+| `'NoneType' object has no attribute 'shape'` | `imread` 失败返回 None | 检查文件路径 + 显式判 None |
+| resize 后形状反了 | 参数是 (w,h)，shape 是 (h,w) | 记住这个差异 |
+| 缩小后出现摩尔纹 | 用了 `INTER_LINEAR` | 缩小用 `INTER_AREA` |
+| 旋转后出现黑边 | 目标尺寸没放大 | 计算旋转后的外接矩形 |
+| 中文路径读不了 | OpenCV 的编码问题 | 用 `imdecode` + `fromfile` |
+| 写入后颜色变了 | 写之前忘了转回 BGR | `imwrite` 期望 BGR |
+| 反复读写后画质下降 | JPEG 有损 | 中间结果用 PNG |
+
+---
+
+## 1.9 今日自测
+
+1. 用 `cv2` 读一张图，用 `matplotlib` 显示，观察颜色是否正确，然后修复它。
+2. 把一张图分别转成 Gray / HSV / LAB，观察三个通道各自的含义。
+3. 实现一个函数：把图像旋转任意角度**且不裁掉任何内容**（提示：计算旋转后的外接矩形）。
+4. 写出 OpenCV / PIL / Tensor 两两互转的四个函数，并用一张图验证往返转换后内容一致。
+5. 验证灰度转换公式 $Y=0.299R+0.587G+0.114B$，与 `cvtColor` 的结果对比误差。
+
+---
+
+## 1.10 一句话总结
+
+**图像就是 $(H,W,C)$ 的 uint8 数组；OpenCV 用 BGR、PIL 用 RGB、PyTorch 用 $(C,H,W)$ 且需要 $[0,1]$ —— 把这三者的转换写成一个函数并固定下来，就能避免 90% 的图像预处理 bug。**
+
+**明日预告**：Day2 讲图像滤波与边缘检测 —— 传统 CV 的经典方法，也是理解卷积神经网络第一层在做什么的钥匙。
+

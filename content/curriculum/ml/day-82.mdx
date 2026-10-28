@@ -1,0 +1,323 @@
+---
+slug: day-82
+kind: day
+day: 82
+week: 16
+weekTitle: 生成模型与大语言模型
+weekBlurb: AE / VAE、GAN、扩散模型到大语言模型——通往 Agent 课程与后端实战的最后一段。
+title: 变分自编码器（VAE）
+lead: '今日目标：理解 VAE 的"把潜空间变成概率分布"这一核心思想；手写重参数化技巧并说清它的必要性；掌握 ELBO 的两项含义；能生成新样本并做潜空间插值。'
+sourcePath: Week16_生成模型与大语言模型/Day2_变分自编码器.md
+---
+
+> 今日目标：理解 VAE 的"把潜空间变成概率分布"这一核心思想；手写重参数化技巧并说清它的必要性；掌握 ELBO 的两项含义；能生成新样本并做潜空间插值。
+> 配套案例：`code/day2_vae.py`
+
+---
+
+## 2.1 知识地图
+
+```
+Day1  自编码器           ← 潜空间散乱、无法采样
+        │
+        ▼
+Day2（今天）★ 给潜空间加上"概率结构"
+  ├─ 从"确定值"到"概率分布"
+  ├─ ELBO: 重构项 + KL 项
+  ├─ 重参数化技巧（核心）
+  ├─ 采样生成与潜空间插值
+  └─ 为什么 VAE 生成的图偏模糊
+        │
+        ▼
+Day3  GAN：用对抗训练解决模糊问题
+Day4  扩散模型：当前最强的生成范式
+```
+
+---
+
+## 2.2 核心思想：潜空间应该是概率分布
+
+**Day1 的问题**：AE 把每个样本映射成潜空间里的**一个点**。点与点之间的区域没有被约束，解码结果毫无意义。
+
+**VAE 的解法**：不映射成一个点，而是映射成**一个概率分布**（高斯）。
+
+$$\text{AE}:\quad x \to z \qquad\qquad \text{VAE}:\quad x \to q(z|x) = \mathcal{N}(\mu(x), \sigma^2(x))$$
+
+**编码器输出两个向量**：均值 $\mu$ 和标准差 $\sigma$。
+
+**生成时**：从标准正态分布 $\mathcal{N}(0, I)$ 采样一个 $z$，喂给解码器。
+
+**为什么这样可行**：因为我们**强制所有样本的分布都靠近标准正态分布**，所以从 $\mathcal{N}(0,I)$ 采样出来的点，一定落在"训练样本覆盖的区域"里。
+
+**这个强制力来自 KL 散度项。**
+
+---
+
+## 2.3 ELBO：损失函数的两项
+
+VAE 的损失（最大化 ELBO 等价于最小化负 ELBO）：
+
+$$\mathcal{L} = \underbrace{\mathbb{E}_{q(z|x)}\left[-\log P(x|z)\right]}_{\text{重构损失}} + \underbrace{\text{KL}\left(q(z|x)\,\|\,P(z)\right)}_{\text{KL 正则}}$$
+
+### 第一项：重构损失
+
+**让解码器能从 $z$ 恢复出 $x$。** 实践中就是 MSE 或 BCE。
+
+### 第二项：KL 散度
+
+**让编码出的分布 $q(z|x)$ 靠近标准正态 $P(z)=\mathcal{N}(0,I)$。**
+
+**KL 散度衡量两个分布的"距离"**（Week01 Day5 讲过）。两个高斯之间的 KL 有闭式解：
+
+$$\text{KL}\left(\mathcal{N}(\mu,\sigma^2)\,\|\,\mathcal{N}(0,1)\right) = -\frac{1}{2}\sum_{j=1}^{J}\left(1 + \log\sigma_j^2 - \mu_j^2 - \sigma_j^2\right)$$
+
+**代码实现**：
+
+```python
+def kl_loss(mu, logvar):
+    # logvar = log(sigma^2)，用 log 保证 sigma > 0 且数值稳定
+    return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+```
+
+**为什么用 `logvar` 而不是 `sigma`**：
+
+| 用 sigma | 用 logvar |
+| --- | --- |
+| 需要 `softplus` / `abs` 保证为正 | **天然为正**（$\sigma = e^{\text{logvar}/2}$） |
+| 数值范围大，梯度不稳 | 数值稳定 |
+| —— | 与 KL 公式的形式匹配 |
+
+### 两项的博弈
+
+| 项 | 想要什么 | 极端情况 |
+| --- | --- | --- |
+| **重构项** | 精确重建 → 潜编码要**有区分度** | $\sigma\to 0$，退化成 AE |
+| **KL 项** | 分布规整 → 所有 $q(z\|x)$ 都靠近 $\mathcal{N}(0,1)$ | $\mu\to 0,\sigma\to 1$，潜编码**丢失信息** |
+
+**这两项是矛盾的**，训练过程就是找平衡：
+
+- KL 权重太大 → 潜编码退化，生成的图糊成一团（**后验坍塌**）；
+- KL 权重太小 → 退化成普通 AE，无法采样生成。
+
+**实践技巧**：可以用 **β-VAE** 给 KL 项加权（$\beta$ 从 0 慢慢升到 1，即 KL annealing），更容易训练。
+
+---
+
+## 2.4 重参数化技巧（VAE 的核心）
+
+### 2.4.1 问题
+
+前向流程是：
+
+$$\mu,\sigma = \text{Encoder}(x), \qquad z\sim\mathcal{N}(\mu,\sigma^2), \qquad \hat{x} = \text{Decoder}(z)$$
+
+**问题**：**"采样"这个操作不可导**。
+
+反向传播需要 $\frac{\partial \mathcal{L}}{\partial \mu}$ 和 $\frac{\partial \mathcal{L}}{\partial \sigma}$，但采样是一个随机操作 —— 梯度无法穿过它。
+
+$$\frac{\partial}{\partial\mu}\left(\text{sample from }\mathcal{N}(\mu,\sigma^2)\right) = ?$$
+
+### 2.4.2 解法：把随机性"移出去"
+
+利用高斯的性质：
+
+$$z\sim\mathcal{N}(\mu,\sigma^2) \quad\Longleftrightarrow\quad z = \mu + \sigma\odot\epsilon, \quad \epsilon\sim\mathcal{N}(0,1)$$
+
+**关键**：现在随机性只存在于 $\epsilon$ 中，而 $\epsilon$ **与参数 $\mu, \sigma$ 无关**。
+
+于是：
+
+$$\frac{\partial z}{\partial \mu} = 1, \qquad \frac{\partial z}{\partial \sigma} = \epsilon$$
+
+**梯度可以正常回传了。**
+
+**代码（只有两行）**：
+
+```python
+def reparameterize(mu, logvar):
+    std = torch.exp(0.5 * logvar)              # sigma = exp(logvar/2)
+    eps = torch.randn_like(std)                # 从标准正态采样
+    return mu + std * eps                      # 重参数化
+```
+
+### 2.4.3 直觉理解
+
+**换个角度想**：与其让网络"输出一个随机值"，不如让它"输出一个确定性变换 + 一个外部噪声"。
+
+```
+错误做法（不可导）:
+    μ, σ ──→ [随机采样器] ──→ z       梯度断了
+
+正确做法（可导）:
+    μ, σ ──┐
+           ├──→ z = μ + σ·ε
+    ε ─────┘                          ε 是"外部输入"，不参与求导
+```
+
+**这与 Dropout 的"训练/推理不一致"问题有相似之处** —— 都是把随机性显式化，让梯度可以绕过它。
+
+---
+
+## 2.5 完整实现
+
+```python
+class VAE(nn.Module):
+    def __init__(self, latent=20):
+        super().__init__()
+        self.enc = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(784, 400), nn.ReLU(),
+            nn.Linear(400, 200), nn.ReLU(),
+        )
+        self.fc_mu = nn.Linear(200, latent)         # 均值
+        self.fc_logvar = nn.Linear(200, latent)     # log 方差
+        self.dec = nn.Sequential(
+            nn.Linear(latent, 200), nn.ReLU(),
+            nn.Linear(200, 400), nn.ReLU(),
+            nn.Linear(400, 784), nn.Sigmoid(),
+        )
+
+    def encode(self, x):
+        h = self.enc(x)
+        return self.fc_mu(h), self.fc_logvar(h)
+
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mu + std * eps
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.dec(z).view(-1, 1, 28, 28), mu, logvar, z
+
+    def sample(self, n, device):
+        z = torch.randn(n, self.latent_dim, device=device)
+        return self.dec(z).view(-1, 1, 28, 28)
+```
+
+**损失函数**：
+
+```python
+def vae_loss(recon, x, mu, logvar, beta=1.0):
+    recon_loss = F.mse_loss(recon, x, reduction="none").flatten(1).sum(1).mean()
+    kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+    return recon_loss + beta * kl, recon_loss.item(), kl.item()
+```
+
+**注意 `reduction="none"` 后 `sum(1)`**：因为 KL 是对所有潜维度求和，重构损失也要按样本求和（而不是取均值），否则两者的量级不匹配。
+
+---
+
+## 2.6 采样与插值
+
+### 2.6.1 采样生成
+
+```python
+z = torch.randn(64, latent_dim)     # 从标准正态采样
+imgs = model.dec(z)
+```
+
+**为什么可以直接从 $\mathcal{N}(0,I)$ 采样**：因为 KL 项已经把 $q(z|x)$ 拉向 $\mathcal{N}(0,I)$，所以标准正态分布覆盖的区域就是"训练样本所在的区域"。
+
+### 2.6.2 潜空间插值（VAE 最漂亮的性质）
+
+**做法**：取两个样本的 $\mu$，线性插值，解码中间点。
+
+```python
+z1 = encode(x1)[0]     # 用均值而不是采样值，结果更稳定
+z2 = encode(x2)[0]
+for t in np.linspace(0, 1, 9):
+    z = z1 * (1 - t) + z2 * t
+    show(decode(z))
+```
+
+**会看到**：图像**平滑地**从一个数字过渡到另一个（比如 1 → 7 的过程中，笔画逐渐"长出来"）。
+
+**这在 AE 上是做不到的** —— AE 的中间点解码出来是噪声（Day1 验证过）。
+
+**这个性质的实际应用**：
+
+| 应用 | 说明 |
+| --- | --- |
+| **人脸属性编辑** | 潜空间中找到"微笑"方向，沿该方向移动 |
+| **图像渐变/动画** | 两帧之间生成平滑过渡 |
+| **数据增强** | 在同类样本之间插值产生新样本 |
+| **药物分子设计** | 在有效分子之间插值探索新结构 |
+
+---
+
+## 2.7 为什么 VAE 生成的图偏模糊
+
+**这是 VAE 最著名的缺点。**
+
+### 原因：重构损失是像素级的
+
+VAE 用 MSE（或逐像素 BCE）作为重构损失：
+
+$$\mathcal{L}_{\text{recon}} = \sum_{i}\left(x_i - \hat{x}_i\right)^2$$
+
+**MSE 的"最优解"是条件均值**：
+
+$$\hat{x} = \mathbb{E}[x\mid z]$$
+
+**问题**：当一个 $z$ 对应多个可能的 $x$（比如"粗细不同的数字 1"），模型输出的最优策略是**取它们的平均** —— 结果就是**模糊的**。
+
+**数学角度**：MSE 惩罚的是偏差平方，它"不敢"做锐利的预测（因为一旦预测错，惩罚很大）。
+
+### 对比 GAN
+
+| | VAE | GAN |
+| --- | --- | --- |
+| 损失 | 像素级 MSE | **对抗损失**（判别器判断"像不像真的"） |
+| 生成结果 | 模糊但稳定 | **锐利**但难训练 |
+| 优化目标 | 逐像素接近 | "整体看起来真" |
+
+**GAN 的判别器不关心像素是否精确，只关心"整体是否像真图"** —— 这让生成器敢于生成锐利的细节。
+
+**Day3 会详述。**
+
+### 缓解 VAE 模糊的方法
+
+| 方法 | 思路 |
+| --- | --- |
+| **β-VAE** | 调整 KL 权重，换取更好的解耦表示 |
+| **使用感知损失** | 用 VGG 特征距离代替像素距离 |
+| **VQ-VAE** | 用离散编码本，配合自回归先验 → 质量大幅提升 |
+| **结合 GAN** | VAE-GAN：加上对抗损失 |
+| **扩散模型** | 彻底换范式（Day4） |
+
+> **现代趋势**：VAE 很少单独用于生成高质量图像，但它的**潜空间 + 重参数化**思想被广泛使用 —— 例如 Stable Diffusion 就是用 VAE 把图像压到潜空间，再在潜空间里做扩散。
+
+---
+
+## 2.8 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 生成全是一样的图（后验坍塌） | KL 项太强 | 用 β-VAE 做 KL annealing |
+| 生成完全随机 | KL 项太弱 / 忘了加 | 检查 KL 项是否真的在损失里 |
+| 训练 loss 为负 | KL 可能为负是正常的 | 看重构项和 KL 分别的变化 |
+| 梯度爆炸 | `exp(0.5*logvar)` 溢出 | 对 logvar 做 clamp |
+| 重构项和 KL 量级差太多 | 一个用 mean、一个用 sum | 统一成 sum 或统一成 mean |
+| 采样结果全是黑图 | 解码器最后一层忘了 Sigmoid | 补上 |
+| 插值结果不连续 | 用采样值而非均值 | 插值用 `mu` |
+
+---
+
+## 2.9 今日自测
+
+1. 手写重参数化，并用梯度检查验证 $\partial z/\partial\mu = 1$。
+2. 分别画"重构项"与"KL 项"随训练的曲线，观察它们的博弈关系。
+3. 用 β = 0.1 / 1.0 / 5.0 训练三个 VAE，对比生成质量与潜空间结构。
+4. 做潜空间插值：从数字 1 到 7，每隔 10% 生成一张，观察过渡是否平滑。
+5. 把 KL 项去掉（$\beta=0$），验证它退化成 AE 且无法采样生成。
+
+---
+
+## 2.10 一句话总结
+
+**VAE 把潜空间从"散乱的点"变成了"受标准正态约束的分布"，配合重参数化让采样可导；代价是像素级重构损失导致生成结果偏模糊 —— 这正是 GAN 和扩散模型要解决的问题。**
+
+**明日预告**：GAN 用"生成器 vs 判别器"的对抗博弈，让生成结果变得锐利 —— 但也带来了训练不稳定的新麻烦。
+

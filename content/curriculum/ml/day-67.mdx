@@ -1,0 +1,217 @@
+---
+slug: day-67
+kind: day
+day: 67
+week: 13
+weekTitle: 循环神经网络
+weekBlurb: RNN / BPTT、LSTM / GRU，序列建模与字符级文本生成。
+title: LSTM 与 GRU
+lead: '今日目标：理解 LSTM 的三门结构与"细胞状态高速公路"；从数学上说清它为什么能缓解梯度消失；手写 LSTM 一个时间步并与 `nn.LSTM` 对比；了解 GRU 的简化设计。'
+sourcePath: Week13_循环神经网络/Day2_LSTM与GRU.md
+---
+
+> 今日目标：理解 LSTM 的三门结构与"细胞状态高速公路"；从数学上说清它为什么能缓解梯度消失；手写 LSTM 一个时间步并与 `nn.LSTM` 对比；了解 GRU 的简化设计。
+> 配套案例：`code/day2_lstm_gru.py`
+
+---
+
+## 2.1 知识地图
+
+```
+Day1  RNN + BPTT      ← 连乘导致梯度消失
+        │
+        ▼
+Day2（今天）★ 用门控和加法打破连乘
+  ├─ LSTM 的三门 + 细胞状态
+  ├─ 为什么加法能缓解梯度消失
+  ├─ GRU 的简化
+  └─ 长序列记忆任务对比
+        │
+        ▼
+Day3  PyTorch 序列建模实践
+Day4  序列分类实战
+```
+
+---
+
+## 2.2 LSTM 的核心设计
+
+**Long Short-Term Memory**（Hochreiter & Schmidhuber, 1997）。
+
+### 2.2.1 两个状态
+
+| 状态 | 符号 | 作用 | 谁可以修改 |
+| --- | --- | --- | --- |
+| **细胞状态** | $\boldsymbol{c}_t$ | 长期记忆的"传送带" | 只通过门控做加法/乘法 |
+| **隐藏状态** | $\boldsymbol{h}_t$ | 短期输出，传给下一步 | 由 $\boldsymbol{c}_t$ 和输出门决定 |
+
+**关键区别**：$c_t$ 是 LSTM 独有的。普通 RNN 只有 $h_t$。
+
+### 2.2.2 三个门
+
+门 = 一个 sigmoid 层，输出 $(0,1)$，表示"放行多少"。
+
+$$\boldsymbol{f}_t = \sigma\left(\mathbf{W}_f[\boldsymbol{h}_{t-1},\boldsymbol{x}_t] + \boldsymbol{b}_f\right) \quad\text{遗忘门}$$
+
+$$\boldsymbol{i}_t = \sigma\left(\mathbf{W}_i[\boldsymbol{h}_{t-1},\boldsymbol{x}_t] + \boldsymbol{b}_i\right) \quad\text{输入门}$$
+
+$$\boldsymbol{o}_t = \sigma\left(\mathbf{W}_o[\boldsymbol{h}_{t-1},\boldsymbol{x}_t] + \boldsymbol{b}_o\right) \quad\text{输出门}$$
+
+### 2.2.3 更新公式
+
+$$\tilde{\boldsymbol{c}}_t = \tanh\left(\mathbf{W}_c[\boldsymbol{h}_{t-1},\boldsymbol{x}_t] + \boldsymbol{b}_c\right) \quad\text{候选记忆}$$
+
+$$\boxed{\boldsymbol{c}_t = \boldsymbol{f}_t\odot\boldsymbol{c}_{t-1} + \boldsymbol{i}_t\odot\tilde{\boldsymbol{c}}_t} \quad\text{细胞状态更新}$$
+
+$$ \boldsymbol{h}_t = \boldsymbol{o}_t\odot\tanh(\boldsymbol{c}_t) \quad\text{隐藏状态输出}$$
+
+（$\odot$ 是逐元素乘）
+
+**直觉理解**：
+
+- $\boldsymbol{f}_t\approx 1,\ \boldsymbol{i}_t\approx 0$ → **保留旧记忆**（"这条路我熟，不用改"）；
+- $\boldsymbol{f}_t\approx 0,\ \boldsymbol{i}_t\approx 1$ → **覆盖成新信息**（"情况变了，重写"）；
+- $\boldsymbol{o}_t$ → **决定这一刻要不要把记忆说出来**。
+
+---
+
+## 2.3 为什么 LSTM 能缓解梯度消失
+
+**这是本周最重要的一个推导。**
+
+### 2.3.1 普通 RNN 的梯度路径
+
+$$\boldsymbol{h}_t = \tanh(\mathbf{W}_{hh}\boldsymbol{h}_{t-1} + \cdots)$$
+
+$$\frac{\partial \boldsymbol{h}_t}{\partial \boldsymbol{h}_{t-1}} = \text{diag}(1-\boldsymbol{h}_t^2)\cdot\mathbf{W}_{hh}^\top$$
+
+**注意这里有矩阵 $\mathbf{W}_{hh}$** —— 它会让梯度在**不同的维度之间混合**，而且它的谱半径通常 $<1$。
+
+### 2.3.2 LSTM 的梯度路径
+
+对细胞状态求导（假设 $c_{t-1}$ 只通过 $c_t$ 影响未来）：
+
+$$\frac{\partial \boldsymbol{c}_t}{\partial \boldsymbol{c}_{t-1}} = \text{diag}(\boldsymbol{f}_t)$$
+
+**只有遗忘门！没有矩阵乘法！**
+
+这意味着：
+
+1. **没有 $\mathbf{W}$ 的连乘** —— 不会因为矩阵谱半径小于 1 而必然衰减；
+2. **每个维度的梯度路径是独立的**（对角矩阵）—— 不会互相干扰；
+3. **只要 $\boldsymbol{f}_t\approx 1$，梯度就能近乎无损地传回去**。
+
+展开 $k$ 步：
+
+$$\frac{\partial \boldsymbol{c}_t}{\partial \boldsymbol{c}_{t-k}} = \prod_{j=0}^{k-1}\text{diag}(\boldsymbol{f}_{t-j})$$
+
+**如果网络学会把 $\boldsymbol{f}$ 保持接近 1（"这段信息很重要，不要忘"），梯度就不会衰减。**
+
+> **一句话总结**：**LSTM 把"梯度必须穿过矩阵连乘"变成了"梯度只需要穿过一条由门控调节的直线"。** 门控是网络自己学的，所以它能主动决定"记多久"。
+
+### 2.3.3 但 LSTM 不是万能的
+
+| 局限 | 说明 |
+| --- | --- |
+| 参数量大 | 4 组权重（3 门 + 1 候选），是普通 RNN 的 4 倍 |
+| 仍然可能梯度爆炸 | 加法通路解决消失，但输出路径上的连乘仍可能放大 |
+| 串行计算 | 时间步之间必须顺序执行，无法并行（这是 Transformer 出现的直接原因） |
+| 长程依赖仍有上限 | 几千步以上仍会失效 |
+
+---
+
+## 2.4 GRU：LSTM 的简化版
+
+**Gated Recurrent Unit**（Cho et al., 2014）。
+
+**两个门，一个状态**：
+
+$$\boldsymbol{z}_t = \sigma(\mathbf{W}_z[\boldsymbol{h}_{t-1},\boldsymbol{x}_t]) \quad\text{更新门（合并了遗忘+输入）}$$
+$$\boldsymbol{r}_t = \sigma(\mathbf{W}_r[\boldsymbol{h}_{t-1},\boldsymbol{x}_t]) \quad\text{重置门}$$
+
+$$\tilde{\boldsymbol{h}}_t = \tanh\left(\mathbf{W}[\boldsymbol{r}_t\odot\boldsymbol{h}_{t-1},\boldsymbol{x}_t]\right)$$
+$$\boldsymbol{h}_t = (1-\boldsymbol{z}_t)\odot\boldsymbol{h}_{t-1} + \boldsymbol{z}_t\odot\tilde{\boldsymbol{h}}_t$$
+
+**与 LSTM 的对比**：
+
+| | LSTM | GRU |
+| --- | --- | --- |
+| 状态数量 | 2（$c$ 和 $h$） | 1（$h$） |
+| 门数量 | 3（遗忘/输入/输出） | 2（更新/重置） |
+| 参数量 | $4\times(dh+h^2)$ | $3\times(dh+h^2)$ |
+| 效果 | 略好（大数据上） | 相当（小数据上常更好） |
+| 速度 | 较慢 | **约快 25%** |
+
+**选择建议**：
+
+- **数据多、追求极限精度** → LSTM；
+- **资源受限、需要速度** → GRU；
+- **不确定** → 两个都试（差异通常很小）。
+
+**注意 $(1-z_t)$ 这个设计**：它保证了两项的系数之和为 1，形成"凸组合"，这比 LSTM 的两个独立门更稳定（不需要额外的约束）。
+
+---
+
+## 2.5 手写 LSTM 一个时间步
+
+```python
+def lstm_step(x_t, h_prev, c_prev, params):
+    """x_t: (d,), h_prev/c_prev: (h,)"""
+    # 拼接后一次矩阵乘（标准实现的效率技巧）
+    z = torch.cat([h_prev, x_t], dim=-1)          # (h+d,)
+
+    # 四个线性变换（可以合并成一个大的矩阵乘）
+    f = torch.sigmoid(z @ params["Wf"].T + params["bf"])
+    i = torch.sigmoid(z @ params["Wi"].T + params["bi"])
+    o = torch.sigmoid(z @ params["Wo"].T + params["bo"])
+    g = torch.tanh(z @ params["Wc"].T + params["bc"])
+
+    c_t = f * c_prev + i * g
+    h_t = o * torch.tanh(c_t)
+    return h_t, c_t
+```
+
+**工程细节**：PyTorch 的 `nn.LSTM` 内部把四个权重**合并成了一个** $(4h)\times(h+d)$ 的大矩阵，一次矩阵乘算完四个门。这样比四次小矩阵乘更快（GPU 上尤其明显）。
+
+**参数命名对应**：
+
+| nn.LSTM 参数 | 形状 | 对应 |
+| --- | --- | --- |
+| `weight_ih_l0` | $(4h, d)$ | 输入的四个门 |
+| `weight_hh_l0` | $(4h, h)$ | 隐藏状态的四个门 |
+| `bias_ih_l0` | $(4h,)$ | 输入偏置 |
+| `bias_hh_l0` | $(4h,)$ | 隐藏偏置 |
+
+**门在 $4h$ 维中的顺序**：PyTorch 是 `[input, forget, cell, output]`（**注意不是 i,f,o,g 的顺序**，这是复现时的常见坑）。
+
+---
+
+## 2.6 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 手写 LSTM 对不上官方结果 | 四个门的顺序搞错 | PyTorch 顺序是 `i, f, g, o` |
+| 忘了 `(h0, c0)` | LSTM 需要两个初始状态 | `nn.LSTM` 返回 `(out, (hn, cn))` |
+| 训练慢 | 时间步串行 | 减小序列长度或用 GRU |
+| 显存爆炸 | 隐藏状态没 detach | 每 batch 重置 |
+| GRU 效果差于 LSTM | 数据量足够大 | 用 LSTM |
+| 长序列仍学不好 | 几千步以上 | 用 Transformer |
+
+---
+
+## 2.7 今日自测
+
+1. 写出 LSTM 的五个更新公式，并标注每个门的维度。
+2. 推导 $\partial c_t/\partial c_{t-1} = \text{diag}(f_t)$，说明它相比 RNN 的优势。
+3. 手写 LSTM 一个时间步，与 `nn.LSTMCell` 逐位对比（注意门的顺序）。
+4. 在 Day1 的记忆任务上跑 RNN / LSTM / GRU，比较能记住的最长序列。
+5. 统计 LSTM 与 GRU 在相同隐藏维度下的参数量比值。
+
+---
+
+## 2.8 一句话总结
+
+**LSTM 用"遗忘门 + 输入门 + 一条细胞状态"把梯度路径从"矩阵连乘"改成了"门控调节的直线"，让网络自己决定记多久；GRU 用两个门做到相近效果，参数量少 25%。但它们都逃不过"串行计算"这个根本限制 —— 这正是 Transformer 的起点。**
+
+**明日预告**：Day3 进入 PyTorch 实践 —— `nn.RNN`/`nn.LSTM`/`nn.GRU` 的用法、`pack_padded_sequence` 处理变长序列、多层与双向的配置。
+

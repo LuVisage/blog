@@ -1,0 +1,504 @@
+---
+slug: day-07
+kind: day
+day: 7
+week: 2
+weekTitle: FastAPI 后端开发
+weekBlurb: HTTP 与 FastAPI、依赖注入与中间件、JWT 鉴权、SSE 流式输出、错误处理与可观测性。
+title: 依赖注入与中间件
+lead: '今日目标：用 `Depends` 实现依赖注入；说清它比全局变量好在哪；写中间件给每个请求分配 `trace_id` 并记录耗时；理解中间件的执行顺序；配好 CORS。'
+sourcePath: Python工程化与后端实战/Week2_FastAPI后端开发/Day2_依赖注入与中间件.md
+---
+
+> 今日目标：用 `Depends` 实现依赖注入；说清它比全局变量好在哪；写中间件给每个请求分配 `trace_id` 并记录耗时；理解中间件的执行顺序；配好 CORS。
+> 配套案例：`code/demo_api/src/demo_service/api/deps.py`、`middleware.py`
+
+---
+
+## 2.1 知识地图
+
+```
+Day1  HTTP 与路由
+        │
+        ▼
+Day2（今天）★ 资源怎么流进路由
+  ├─ 为什么需要依赖注入
+  ├─ Depends 的基本用法
+  ├─ 依赖的嵌套与复用
+  ├─ 依赖覆盖（测试的杀手级功能）
+  ├─ 中间件与执行顺序
+  └─ CORS
+        │
+        ▼
+Day3  鉴权（get_current_user 就是一个依赖）
+Day4  SSE
+Day5  可观测性
+```
+
+---
+
+## 2.2 没有依赖注入时会怎样
+
+```python
+# ✗ 方案一：在路由里自己创建
+@app.post("/chat")
+async def chat(req: ChatRequest):
+    settings = Settings()                    # 每次都重新读配置
+    store = MemoryUserStore()                # ★ 每次都是新的空 store！数据没了
+    llm = DemoLLMClient(settings)
+    ...
+
+# ✗ 方案二：用模块级全局变量
+settings = Settings()
+store = MemoryUserStore()                    # ★ 测试之间会互相污染
+llm = DemoLLMClient(settings)
+
+@app.post("/chat")
+async def chat(req: ChatRequest):
+    ...
+```
+
+| 方案 | 问题 |
+| --- | --- |
+| 路由内创建 | 资源重复创建、状态丢失、无法共享 |
+| 全局变量 | **测试污染**、无法按请求定制、无法优雅释放 |
+
+**再看一个更实际的场景**：数据库会话。
+
+```python
+# ✗ 每个路由都要写一遍
+@app.get("/users/{uid}")
+async def get_user(uid: int):
+    async with SessionLocal() as session:        # 重复代码
+        try:
+            ...
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+@app.post("/users")
+async def create_user(payload: UserCreate):
+    async with SessionLocal() as session:        # 又一遍
+        ...  # 同样的 try/except/finally
+```
+
+**这段样板代码会出现在每一个需要数据库的路由里。**
+
+---
+
+## 2.3 `Depends` 的基本用法
+
+**把"怎么拿到资源"抽成一个函数，路由只声明"我需要它"。**
+
+```python
+from typing import Annotated
+from fastapi import Depends, Request
+
+def get_store(request: Request) -> MemoryUserStore:
+    """从 app.state 拿 store（生命周期里放进去的）"""
+    return request.app.state.store
+
+# ★ 路由只声明"我要一个 store"，不关心它从哪来
+@app.post("/users")
+async def create_user(
+    payload: UserCreate,
+    store: Annotated[MemoryUserStore, Depends(get_store)],
+):
+    user = store.create(payload.username, payload.password)
+    return user
+```
+
+**`Depends(get_store)` 做的事情**：
+
+```
+① FastAPI 看到 store 参数有 Depends
+② 调用 get_store(request)            <- 顺便把 request 也注入了
+③ 把返回值传给 store
+④ 如果 get_store 自己也有 Depends 参数 -> 递归解析
+```
+
+### 数据库会话的标准写法
+
+```python
+async def get_db() -> AsyncIterator[AsyncSession]:
+    """每个请求一个会话，请求结束自动关闭"""
+    async with SessionLocal() as session:
+        try:
+            yield session            # ★ yield 之前的代码 = setup
+            await session.commit()   # 正常结束 -> 提交
+        except Exception:
+            await session.rollback() # 出错 -> 回滚
+            raise
+        # yield 之后的代码 = teardown（自动执行）
+
+@app.post("/users")
+async def create_user(
+    payload: UserCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    db.add(User(**payload.model_dump()))
+    return {"ok": True}
+    # 提交、关闭全部由 get_db 处理
+```
+
+> **`yield` 形式的依赖 = setup + teardown**，与 Week1 Day4 的 `yield` fixture 完全同构。
+> 这不是巧合 —— **pytest 的 fixture 和 FastAPI 的 Depends 是同一个设计模式**。
+
+---
+
+## 2.4 依赖的嵌套与复用
+
+**依赖可以依赖别的依赖**（自动递归解析）：
+
+```python
+def get_settings(request: Request) -> Settings:
+    return request.app.state.settings
+
+def get_store(request: Request) -> MemoryUserStore:
+    return request.app.state.store
+
+def get_current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None,
+                           Depends(bearer_scheme)],
+    store: Annotated[MemoryUserStore, Depends(get_store)],        # ← 依赖 store
+    settings: Annotated[Settings, Depends(get_settings)],         # ← 依赖 settings
+) -> UserInDB:
+    ...
+```
+
+**用类型别名让签名保持干净**：
+
+```python
+CurrentUser = Annotated[UserInDB, Depends(get_current_user)]
+Store = Annotated[MemoryUserStore, Depends(get_store)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+@app.post("/chat")
+async def chat(req: ChatRequest, llm: LLM, user: CurrentUser) -> ChatResponse:
+    ...
+    # 干净、可读、类型安全
+```
+
+**这是大型项目的标准做法** —— 否则签名会长到看不清。
+
+### 依赖的缓存
+
+**同一个请求内，同一个依赖只执行一次**（默认 `use_cache=True`）：
+
+```python
+@app.get("/a")
+async def a(
+    s1: Annotated[Store, Depends(get_store)],
+    s2: Annotated[Store, Depends(get_store)],      # ← 不会重复执行 get_store
+):
+    assert s1 is s2        # 同一个对象
+```
+
+**如果想每次都重新执行**：`Depends(get_store, use_cache=False)`。
+
+---
+
+## 2.5 依赖覆盖：测试的杀手级功能
+
+**这是依赖注入最大的实际价值。**
+
+```python
+# 生产环境：真的调 LLM
+app.dependency_overrides[get_llm] = lambda: RealLLMClient(settings)
+
+# 测试环境：换成假的
+class FakeLLM:
+    async def chat(self, req):
+        return ChatResponse(content="FAKE", model="fake")
+
+app.dependency_overrides[get_llm] = lambda: FakeLLM()
+```
+
+**效果**：
+
+| 好处 | 说明 |
+| --- | --- |
+| **不需要网络** | 测试快且稳定 |
+| **不花钱** | 不会真的调用 LLM API |
+| **结果可控** | 可以构造任意的响应（包括错误） |
+| **不需要改业务代码** | 只是替换依赖 |
+
+**案例代码里的用法**（`tests/test_api.py`）：
+
+```python
+def test_dependency_override_replaces_llm(app) -> None:
+    from demo_service.api.deps import get_llm
+
+    class FakeLLM:
+        async def chat(self, req):
+            return ChatResponse(content="FAKE", model="fake-model")
+
+    app.dependency_overrides[get_llm] = lambda: FakeLLM()
+
+    with TestClient(app) as c:
+        ...              # 所有请求都会用 FakeLLM
+    app.dependency_overrides.clear()
+```
+
+> **没有依赖注入的话，你只能去 monkeypatch 模块级全局变量** —— 那既脆弱又容易漏。
+
+---
+
+## 2.6 中间件
+
+**中间件 = 包裹在每个请求外面的代码。**
+
+```python
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class MyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        # ① 请求进来时
+        start = time.perf_counter()
+
+        response = await call_next(request)      # ② 交给下一个中间件 / 路由
+
+        # ③ 响应出去时
+        elapsed = time.perf_counter() - start
+        response.headers["X-Elapsed"] = f"{elapsed:.3f}"
+        return response
+
+app.add_middleware(MyMiddleware)
+```
+
+**中间件适合做**：
+
+| 场景 | 理由 |
+| --- | --- |
+| **trace_id 分配** | 每个请求都要，且要在最外层 |
+| **耗时统计 / 访问日志** | 横切所有请求 |
+| **限流** | 在进入业务逻辑前拦截 |
+| **CORS** | FastAPI 内置了 |
+| **压缩 / 安全头** | 对所有响应生效 |
+
+** 不要用中间件做的事**：
+
+| 场景 | 应该用 | 理由 |
+| --- | --- | --- |
+| **鉴权** | **依赖** | 中间件拿不到路径参数和 Pydantic 模型 |
+| **业务逻辑** | 路由函数 | 中间件不该知道业务 |
+| **数据库操作** | 依赖 | 需要用 `yield` 管理事务 |
+
+---
+
+## 2.7 中间件的执行顺序（容易搞错）
+
+```python
+app.add_middleware(A)      # 先加
+app.add_middleware(B)      # 后加
+```
+
+**执行顺序**：
+
+```
+请求  ->  A(before) -> B(before) -> 路由 -> B(after) -> A(after)  -> 响应
+         └──────────── 洋葱模型 ────────────┘
+```
+
+**先加的在外层**。所以：
+
+```python
+app.add_middleware(AccessLogMiddleware)                    # 最外层：能记录所有请求
+app.add_middleware(TraceIdMiddleware)                      # 次外：为日志提供 trace_id
+app.add_middleware(RateLimitMiddleware, per_minute=60)     # 里层：限流
+app.add_middleware(CORSMiddleware, ...)                    # 最内：CORS
+```
+
+**为什么这么排**：
+
+- `AccessLog` 在最外 → 连被限流拒绝的请求也会被记录；
+- `TraceId` 在 AccessLog 之内 → 日志里能带上 trace_id；
+- `CORS` 在最内 → 保证正常响应都带 CORS 头。
+
+> **注意**：`add_middleware` 的顺序与直觉相反（**先加的在最外层**）。这是最容易搞错的地方。
+
+---
+
+## 2.8 trace_id 中间件（案例代码的核心）
+
+```python
+class TraceIdMiddleware(BaseHTTPMiddleware):
+    HEADER = "X-Trace-Id"
+
+    async def dispatch(self, request, call_next):
+        # 如果上游已经带了 trace_id 就复用 —— 跨服务的调用链能串起来
+        trace_id = request.headers.get(self.HEADER) or new_trace_id()
+
+        token = trace_id_var.set(trace_id)     # ★ ContextVar，异步安全
+        request.state.trace_id = trace_id
+        try:
+            response = await call_next(request)
+            response.headers[self.HEADER] = trace_id
+            return response
+        finally:
+            trace_id_var.reset(token)
+```
+
+**实测效果**（服务真实运行时）：
+
+```
+Content-Type: text/event-stream
+X-Trace-Id:   66eb2f0702ca
+```
+
+**同一请求期间的所有日志都自带这个 trace_id**：
+
+```json
+{"trace_id":"66eb2f0702ca","msg":"对话请求","user_id":1,"prompt_len":18}
+{"trace_id":"66eb2f0702ca","msg":"耗时","func":"chat","elapsed_ms":52.3}
+{"trace_id":"66eb2f0702ca","msg":"请求完成","status":200,"elapsed_ms":54.1}
+```
+
+**为什么用 `ContextVar` 而不是全局变量**：
+
+```python
+# ✗ 全局变量：并发时串号
+current_trace_id = None
+
+# 请求 A 设置 -> "aaa"
+# 请求 B 设置 -> "bbb"        （A 还没处理完！）
+# 请求 A 打日志 -> 打印出 "bbb" ← 串号了
+
+# ✓ ContextVar：每个异步上下文有独立的值
+trace_id_var: ContextVar[str] = ContextVar("trace_id", default="-")
+```
+
+**Week1 Day4 验证过这一点**：三个并发请求的 trace_id 互不串号。
+
+---
+
+## 2.9 限流中间件
+
+```python
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, per_minute: int = 60):
+        super().__init__(app)
+        self.per_minute = per_minute
+        self._hits: dict[str, list[float]] = {}
+
+    async def dispatch(self, request, call_next):
+        if request.url.path in ("/health", "/docs", "/openapi.json"):
+            return await call_next(request)          # 探活不限制
+
+        key = _client_key(request)
+        now = time.time()
+        window = self._hits.setdefault(key, [])
+        while window and now - window[0] > 60:
+            window.pop(0)                            # 滑动窗口
+
+        if len(window) >= self.per_minute:
+            return Response(
+                content='{"error":"rate_limited","message":"请求过于频繁"}',
+                status_code=429,
+                headers={"Retry-After": str(retry_after)},
+            )
+        window.append(now)
+        ...
+```
+
+**四个设计要点**：
+
+| 要点 | 说明 |
+| --- | --- |
+| **滑动窗口** | 比固定窗口更平滑（不会在窗口边界突发两倍流量） |
+| **排除探活路径** | 否则负载均衡器探活失败会摘掉你的节点 |
+| **返回 429 + Retry-After** | 标准做法，客户端知道等多久 |
+| **返回限流响应头** | `X-RateLimit-Limit` / `X-RateLimit-Remaining` |
+
+** 单机版的根本缺陷**：
+
+```
+部署 3 个实例时:
+  用户请求 ① -> 实例A 计数 +1
+  用户请求 ② -> 实例B 计数 +1     ← 各算各的，实际能发 3 倍请求
+  用户请求 ③ -> 实例C 计数 +1
+```
+
+**Week3 会用 Redis 解决** —— 所有实例共享一个计数器。
+
+---
+
+## 2.10 CORS（跨域）
+
+**问题**：浏览器有**同源策略** —— 页面 `http://localhost:3000` 默认不能请求 `http://localhost:8000`。
+
+**同源 = 协议 + 域名 + 端口 三者完全相同。**
+
+**报错长这样**：
+
+```
+Access to fetch at 'http://localhost:8000/api/v1/chat' from origin
+'http://localhost:3000' has been blocked by CORS policy:
+No 'Access-Control-Allow-Origin' header is present on the requested resource.
+```
+
+**解决**：
+
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,      # ★ 白名单，不要用 ["*"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Trace-Id", "X-RateLimit-Remaining"],   # 前端能读到的自定义头
+)
+```
+
+**四条实战经验**：
+
+| 经验 | 说明 |
+| --- | --- |
+| **不要用 `allow_origins=["*"]`** | 如果同时 `allow_credentials=True`，浏览器会拒绝；而且生产环境不该允许任意源 |
+| **`expose_headers` 别忘了** | 否则前端读不到 `X-Trace-Id`（自定义头默认不可见） |
+| **CORS 是浏览器行为** | Postman / curl / 服务端调用**不受影响** —— 所以 "Postman 能通但前端不通" 是 CORS 问题的经典特征 |
+| **预检请求 OPTIONS** | 复杂请求会先发 OPTIONS，CORSMiddleware 会自动处理 |
+
+> **面试常问**：「CORS 是什么？为什么 Postman 能调通但前端不行？」
+>
+> 答：CORS 是**浏览器的安全机制**（同源策略），不是服务端的限制。Postman 不是浏览器，不受同源策略约束。所以服务端要显式告诉浏览器"我允许这个源来访问我"。
+
+---
+
+## 2.11 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 中间件顺序不对 | `add_middleware` 先加的在**外**层 | 按"最外层先加"的顺序写 |
+| trace_id 在并发下串号 | 用了全局变量 | 用 `ContextVar` |
+| 依赖没生效（拿到旧值） | 默认 `use_cache=True` | 需要新实例时设 `use_cache=False` |
+| 路由里拿不到 `request.state` | 中间件在依赖之后执行 | 检查中间件的添加顺序 |
+| 限流在多实例下失效 | 内存版不跨实例 | 用 Redis（Week3） |
+| 前端读不到 trace_id | 没配 `expose_headers` | 加上 |
+| 探活被限流摘节点 | 没排除 `/health` | 中间件里跳过 |
+| 测试之间数据污染 | 用了全局 store | 用应用工厂 + `lifespan` |
+| 生产环境允许任意源 | `allow_origins=["*"]` | 用白名单 |
+
+---
+
+## 2.12 今日自测
+
+1. 给 `code/demo_api` 加一个 `X-Process-Time` 响应头，值是请求耗时（毫秒）。
+2. 写一个依赖 `get_request_id`，返回请求头里的 `X-Request-Id` 或生成一个，并在路由里用上。
+3. 用 `dependency_overrides` 把 `get_settings` 换成一个限流很低的配置，验证 429。
+4. 调整中间件顺序，观察 `AccessLog` 是否还能记录被限流的请求。
+5. 用 curl（不是浏览器）访问一个跨域接口，验证"没有 CORS 限制"，解释原因。
+
+---
+
+## 2.13 一句话总结
+
+**依赖注入把「怎么拿到资源」从路由里抽出来，让代码可读、可复用，并且让测试可以用 `dependency_overrides` 一键替换真实依赖；中间件处理请求级的横切关注点，注意 `add_middleware` 是「先加在外层」，而 trace_id 必须用 `ContextVar` 才能在并发下不串号。**
+
+**明日预告**：Day3 讲鉴权 —— JWT 是什么、密码为什么要用 bcrypt、401 和 403 的区别。
+

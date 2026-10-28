@@ -1,0 +1,241 @@
+---
+slug: day-13
+day: 13
+week: 3
+weekTitle: RAG 优化与评估
+weekBlurb: 查询改写、混合检索与重排序、父子文档、RAGAS 指标打分。
+title: 知识存储优化 —— 元数据过滤与父文档检索
+lead: '学会给知识"打标签"（元数据）并用它做精确过滤；掌握父子文档检索——小块定位、大块喂模型，兼顾精度与完整。'
+examples:
+  - examples/day13_metadata.py
+  - examples/day13_parent_doc.py
+sourcePath: week-03-rag-optimization/day-13.md
+---
+
+---
+
+## 13.1 元数据：检索前的"门禁"
+
+第 2 周你已经见过 `Document(metadata={"source": "..."})`，但只用来显示来源。**元数据的真正威力是做过滤条件**——在向量检索之前，先把候选范围缩小：
+
+| 场景 | 元数据过滤 |
+|---|---|
+| 公司有 3 个产品线（咖啡/茶饮/烘焙） | `category == "咖啡"` |
+| 只查 2025 年的新版制度 | `year == 2025` |
+| 多租户 SaaS，每家客户数据隔离 | `tenant_id == "客户A"` |
+
+**好处**：① 检索更快更准（范围小了，命中率高）；② 防止串数据（客户 A 的问题绝不可能检索到客户 B 的文档——**安全刚需**）。
+
+## 13.2 langchain-milvus 的元数据过滤（0.4 新 API，本教程已实测）
+
+### 第一步：建库时开启动态字段
+
+```python
+vector_store = Milvus(
+    embedding_function=embeddings,
+    connection_args={"uri": "./milvus_meta.db"},
+    collection_name="docs_v2",
+    auto_id=True,
+    enable_dynamic_field=True,      # ★ 开启后，Document.metadata 的每个 key 自动成为可过滤字段
+)
+```
+
+### 第二步：入库时带上元数据
+
+```python
+docs = [
+    Document(page_content="美式咖啡配方：双份浓缩加水...", metadata={"category": "咖啡", "year": 2025}),
+    Document(page_content="龙井茶冲泡水温 85 度...", metadata={"category": "茶饮", "year": 2024}),
+]
+vector_store.add_documents(docs)
+```
+
+### 第三步：检索时用 `expr` 过滤
+
+```python
+retriever = vector_store.as_retriever(search_kwargs={
+    "k": 3,
+    "expr": 'category == "咖啡" and year == 2025',   # ★ 过滤表达式（Milvus 语法）
+})
+docs = retriever.invoke("美式怎么做")   # 只会命中"咖啡"类 2025 年的文档
+```
+
+**expr 语法速查**（Milvus 过滤表达式）：
+
+| 需求 | 写法 |
+|---|---|
+| 等于（字符串） | `category == "咖啡"` |
+| 等于（数字） | `year == 2025` |
+| 多条件 | `category == "咖啡" and year >= 2024` |
+| 属于集合 | `category in ["咖啡", "茶饮"]` |
+| 不等于 | `category != "烘焙"` |
+
+> **坑 1**：`enable_dynamic_field=True` 时元数据成为**顶级字段**（直接 `category == "咖啡"`），而不是 `metadata["category"]`——这是 0.4 新行为，网上老教程多用后者。
+> **坑 2**：旧参数 `metadata_field` 已弃用（会有 DeprecationWarning），统一用 `enable_dynamic_field`。
+
+## 13.3 父文档检索：解决"小块太碎、大块太糊"的两难
+
+Day 6 说过 chunk 的两难：
+
+- **小块**（200 字）：检索定位准（embedding 主题集中），但喂给模型的上下文**太碎**——答案需要的信息可能散落在相邻 3 块里；
+- **大块**（1000 字）：信息完整，但 embedding 被稀释，检索不准。
+
+**ParentDocumentRetriever（父文档检索器）** 鱼与熊掌兼得——**用小块做检索、用大块做上下文**：
+
+```
+原始文档（父，1000 字/块）
+   ├─ 切出子块（200 字/块）──► 向量化入库（用于检索，准！）
+   └─ 父块存文档仓库（docstore）
+检索时：命中子块 → 通过 id 找到它"爸爸" → 返回完整父块（喂模型，全！）
+```
+
+```python
+from langchain_classic.retrievers import ParentDocumentRetriever
+from langchain_classic.storage import InMemoryStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+parent_splitter = RecursiveCharacterTextSplitter(chunk_size=800)   # 父块：大
+child_splitter = RecursiveCharacterTextSplitter(chunk_size=200)    # 子块：小
+
+retriever = ParentDocumentRetriever(
+    vectorstore=vector_store,        # 子块入库到这里
+    docstore=InMemoryStore(),        # 父块存这里（生产可换 LocalFileStore 落盘）
+    child_splitter=child_splitter,
+    parent_splitter=parent_splitter,
+)
+retriever.add_documents(raw_docs)    # 自动：切父块存仓库 + 切子块入库
+
+big_docs = retriever.invoke("问题")  # 返回的是【父块】！小块只负责找路
+```
+
+> **升级思路**：父-子只是两级，生产系统常用**三级**（段落→章节→全文），或用**上下文扩展**（命中块 + 前后各 1 块一起喂模型）。原理都一样：**检索用精块，生成用全块**。
+
+## 13.4 动手：跑今天的 2 个案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-03-rag-optimization\examples
+python day13_metadata.py
+python day13_parent_doc.py
+```
+
+## 13.5 案例逐行讲解
+
+### `day13_metadata.py` —— 多产品线知识库的过滤检索
+
+```python
+"""Day 13 案例 1：元数据过滤 —— 三产品线知识库互不串扰"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+from langchain_milvus import Milvus
+
+embeddings = OpenAIEmbeddings(model=os.environ["EMBEDDING_MODEL"],
+                              base_url=os.environ["EMBEDDING_BASE_URL"],
+                              api_key=os.environ["EMBEDDING_API_KEY"])
+
+# 三产品线的知识（注意美式咖啡 vs 咖啡味的茶，语义接近但类目不同！）
+docs = [
+    Document(page_content="美式咖啡：双份浓缩咖啡加水，口感清爽。", metadata={"category": "咖啡", "year": 2025}),
+    Document(page_content="拿铁：浓缩咖啡加牛奶，奶泡细腻。", metadata={"category": "咖啡", "year": 2024}),
+    Document(page_content="咖啡味奶茶：红茶底加咖啡浓缩液，茶香浓郁。", metadata={"category": "茶饮", "year": 2025}),
+    Document(page_content="龙井茶：85 度水冲泡，豆香明显。", metadata={"category": "茶饮", "year": 2024}),
+]
+
+vs = Milvus(embedding_function=embeddings, connection_args={"uri": "./milvus_meta.db"},
+            collection_name="menu_docs", auto_id=True, enable_dynamic_field=True)
+if vs.col:
+    vs.drop_collection()
+    vs = Milvus(embedding_function=embeddings, connection_args={"uri": "./milvus_meta.db"},
+                collection_name="menu_docs", auto_id=True, enable_dynamic_field=True)
+vs.add_documents(docs)
+
+question = "咖啡怎么做？"
+
+print("── 不过滤（k=4）──")
+for d in vs.as_retriever(search_kwargs={"k": 4}).invoke(question):
+    print(f"  · {d.page_content}")
+
+print("\n── 过滤 category == '咖啡'（k=4）──")
+coffee_retriever = vs.as_retriever(search_kwargs={
+    "k": 4, "expr": 'category == "咖啡"'})
+for d in coffee_retriever.invoke(question):
+    print(f"  · {d.page_content}")
+
+print("\n── 过滤 category == '咖啡' and year == 2025 ──")
+new_retriever = vs.as_retriever(search_kwargs={
+    "k": 4, "expr": 'category == "咖啡" and year == 2025'})
+for d in new_retriever.invoke(question):
+    print(f"  · {d.page_content}")
+```
+
+**要点**：注意"咖啡味奶茶"——它和"咖啡"语义极近，不过滤时很可能混进结果；加 `category == "咖啡"` 过滤后干净利落。**这就是元数据过滤的价值：用结构化信息兜住语义的模糊。**
+
+### `day13_parent_doc.py` —— 小块找路，大块答全
+
+```python
+"""Day 13 案例 2：父文档检索 —— 检索用子块，生成用父块"""
+# ...（embeddings 配置同案例 1）...
+
+from langchain_milvus import Milvus
+from langchain_classic.retrievers import ParentDocumentRetriever
+from langchain_classic.storage import InMemoryStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+# 一篇文章：知识点分散在全文各处（模拟"答案需要整篇才能答全"）
+full_article = """
+【星尘咖啡会员制度】第一条：会员通过消费累积积分，每消费 1 元积 1 分。
+第二条：积分可在任意门店兑换饮品，500 分兑换中杯，800 分兑换大杯。
+第三条：生日当月消费可享双倍积分。
+第四条：积分有效期为获得之日起 12 个月，过期自动清零。
+"""
+
+vector_store = Milvus(embedding_function=embeddings,
+                      connection_args={"uri": "./milvus_parent.db"},
+                      collection_name="parent_test", auto_id=True)
+
+parent_retriever = ParentDocumentRetriever(
+    vectorstore=vector_store,
+    docstore=InMemoryStore(),                  # 父块仓库（内存版；生产用 LocalFileStore）
+    child_splitter=RecursiveCharacterTextSplitter(chunk_size=50),    # 子块：极小（演示定位准）
+    parent_splitter=RecursiveCharacterTextSplitter(chunk_size=800),  # 父块：大（信息全）
+)
+parent_retriever.add_documents([Document(page_content=full_article)])
+
+question = "积分什么时候会清零？"    # 答案在第四条，但问题用词是"清零"
+
+print("── 父文档检索返回（注意：返回的是大块）──")
+for d in parent_retriever.invoke(question):
+    print(f"  [{len(d.page_content)}字] {d.page_content[:60]}...")
+
+# 对比：直接用小子块检索，命中的碎块只有"过期自动清零"一句，模型拿不到上下文
+print("\n── 对比：普通小 chunk 检索（k=1）──")
+small_store = Milvus(embedding_function=embeddings,
+                     connection_args={"uri": "./milvus_small.db"},
+                     collection_name="small_test", auto_id=True)
+if small_store.col:
+    small_store.drop_collection()
+    small_store = Milvus(embedding_function=embeddings,
+                         connection_args={"uri": "./milvus_small.db"},
+                         collection_name="small_test", auto_id=True)
+small_store.add_documents(RecursiveCharacterTextSplitter(chunk_size=50).split_documents(
+    [Document(page_content=full_article)]))
+for d in small_store.as_retriever(search_kwargs={"k": 1}).invoke(question):
+    print(f"  [{len(d.page_content)}字] {d.page_content}")
+# → 只有半句话，模型难以判断"12 个月"是谁的有效期
+```
+
+**要点**：同一个问题——父文档检索返回 150+ 字的完整父块（含第一条的"积 1 分"、第四条的"12 个月"），普通小 chunk 只给半句"过期自动清零"。**前者的上下文能让模型答出"获得之日起 12 个月"，后者必然答得支离破碎。**
+
+## 13.6 今日自测
+
+<Quiz items={["给 Day 10 的知识库机器人加上元数据过滤：命令行参数 `--category`，只检索指定类目。","在 `day13_parent_doc.py` 里打印父子切分的完整结构（子块列表、父块列表），数清\"1 个父块对应几个子块\"。","把 `InMemoryStore` 换成 `LocalFileStore(\"./parent_store\")`，重启进程验证父块仓库持久化。","设计一个三级检索方案的文字稿（段落→章节→全文怎么存、怎么查），写进 `notes/day13.md`。","思考：过滤条件和向量检索，谁先执行更高效？为什么？（提示：想想 Milvus 内部先过滤再算相似度）"]} />
+
+## 13.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"过滤后结果为空","cause":"expr 语法错（引号、字段名）","fix":"先用 `client.query` 裸查验证表达式"},{"symptom":"元数据字段访问报错","cause":"用了 `metadata[\"xxx\"]` 老语法","fix":"动态字段模式下直接 `xxx == \"值\"`"},{"symptom":"`metadata_field` 警告","cause":"参数已弃用","fix":"换 `enable_dynamic_field=True`"},{"symptom":"父文档检索返回碎块","cause":"传错 splitter（父子颠倒了）","fix":"检查 child/parent_splitter 的 chunk_size 大小关系"},{"symptom":"重启后父块丢失","cause":"用了 InMemoryStore","fix":"生产用 LocalFileStore/Redis"}]} />
+
+<DayComplete day={13} recap={"存储端优化完毕：元数据做门禁、父子文档保完整。明天开始本周高潮——用 RAGAS 给你的系统\"打分\"，把前三天的手感变成数据。"} />

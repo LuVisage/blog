@@ -1,0 +1,257 @@
+---
+slug: day-17
+day: 17
+week: 4
+weekTitle: LangGraph 图编程
+weekBlurb: State / Node / Edge、条件边与循环、人在回路、持久化与子图。
+title: 流程控制 —— 条件边、循环、并行、动态路由
+lead: '掌握 Agent 的四大控制结构：条件路由、循环、并行、节点内动态路由。今天之后，任何"智能流程"你都能画成图。'
+examples:
+  - examples/day17_router_loop.py
+  - examples/day17_parallel.py
+sourcePath: week-04-langgraph/day-17.md
+---
+
+---
+
+## 17.1 条件边：让图"看情况走"
+
+昨天的图是死板的直线。真实流程处处是岔路。**条件边（conditional edge）** 把"下一步去哪"交给一个**路由函数**决定：
+
+```python
+from langgraph.graph import StateGraph, START, END
+
+def router(state: State) -> str:
+    """路由函数：看状态，返回下一个节点【的名字】"""
+    if len(state["text"]) > 10:
+        return "long_handler"      # 长文本走 A
+    return "short_handler"         # 短文本走 B
+
+graph.add_conditional_edges(
+    "checker",                     # 从哪个节点出发
+    router,                        # 路由函数 (state) -> 节点名
+    {                              # 路由返回值 → 目标节点（映射表，必须列全）
+        "long_handler": "long_handler",
+        "short_handler": "short_handler",
+    },
+)
+```
+
+**三个要点**：
+
+1. 路由函数**返回的是节点名字符串**，不是节点本身；
+2. 映射表列出所有可能的分支目标（漏一个运行时就报错）；
+3. 路由函数拿到的 state 是**当前最新状态**——可以基于任何字段做判断。
+
+## 17.2 循环：边指回上游
+
+循环没有专门 API——**把边连回前面的节点就是循环**：
+
+```
+START → draft → checker →（不够好）→ draft → checker →（够好）→ END
+                          └──────────────────────┘ 这条回边就是循环
+```
+
+```python
+graph.add_edge(START, "draft")
+graph.add_edge("draft", "checker")
+graph.add_conditional_edges(
+    "checker",
+    lambda s: "draft" if s["retry_count"] < 3 and not s["approved"] else END,
+    {"draft": "draft", END: END},
+)
+graph.add_edge("draft", "checker")  # 注意这条已经有了
+```
+
+> **循环必须能终止**！图不会自己停——路由函数必须有"放行"条件（重试 3 次就停、分数够了就过）。忘写终止条件的图 = 死循环。**retry_count 这类"循环计数器"一定要放进 State**。
+
+## 17.3 Annotated + reducer：让"追加"自动化
+
+Day 16 每次追加都要写 `state["steps"] + [...]`，麻烦且易错。LangGraph 用 `Annotated` 给字段声明**reducer（合并函数）**：
+
+```python
+from typing import Annotated
+from operator import add
+
+class State(TypedDict):
+    steps: Annotated[list[str], add]      # ★ add = 新值和旧值"相加"（列表拼接）
+    # 其他字段默认覆盖
+```
+
+声明后，节点直接 `return {"steps": ["upper"]}`——LangGraph 自动把 `["upper"]` 追加到旧列表：
+
+```python
+def node_upper(state: State) -> dict:
+    return {"text": "HELLO", "steps": ["upper"]}   # 不再需要读旧值！
+```
+
+| 常用 reducer | 效果 |
+|---|---|
+| `add`（operator.add） | 列表拼接、数字累加、字符串拼接 |
+| 自定义函数 `(旧值, 新值) -> 合并值` | 任意合并逻辑（如取最新、取最大） |
+| 不写 reducer | 覆盖（默认） |
+
+> 后面所有复杂图的 `messages` 字段都是 `Annotated[list, add]`——对话历史自动累加，LangGraph 官方约定。
+
+## 17.4 并行扇出：一分为多
+
+一个节点后连**多条边**，就是并行——所有目标节点同时执行：
+
+```python
+graph.add_edge("source", "branch_a")
+graph.add_edge("source", "branch_b")     # 两条边 = 两个并行分支
+```
+
+执行时 A、B 同时开工，**都完成后**图才继续往下。**LangGraph 1.x 严格规则：并行节点若修改同一个字段，会直接报错 `InvalidUpdateError: Can receive only one value per step`**（不再是老版本的"悄悄覆盖"）。所以并行分支**要么改不同字段，要么给该字段配 reducer**。这是并行编程的黄金法则。
+
+## 17.5 Command：在节点内部决定下一步（高级）
+
+条件边在"节点外面"做路由；`Command` 在"节点里面"直接指定目的地，还能**更新状态**：
+
+```python
+from langgraph.types import Command
+
+def node_with_power(state: State) -> Command:
+    if state["text"] == "走A":
+        return Command(update={"steps": ["chose_A"]}, goto="branch_a")
+    return Command(update={"steps": ["chose_B"]}, goto="branch_b")
+
+# 用了 Command 的节点，不需要再加边（它自己决定去向）
+graph.add_node("decider", node_with_power)
+graph.add_edge(START, "decider")
+graph.add_node("branch_a", ...)
+graph.add_node("branch_b", ...)
+```
+
+`Command(update=..., goto=...)` 两个参数：`update` 是状态更新字典（和普通 return dict 等价），`goto` 是下一个节点名。**适合"节点内部逻辑复杂到外部路由函数写不清"的场景**（Day 18 的人机审批、Day 34 的 Swarm 交接全靠它）。
+
+## 17.6 动手：跑今天的 2 个案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-04-langgraph\examples
+python day17_router_loop.py
+python day17_parallel.py
+```
+
+## 17.7 案例逐行讲解
+
+### `day17_router_loop.py` —— 带重试的"审批流水线"
+
+```python
+"""Day 17 案例 1：条件路由 + 循环重试 —— 模拟'生成→审核→退回重写'"""
+from typing import TypedDict, Annotated
+from operator import add
+from langgraph.graph import StateGraph, START, END
+
+class State(TypedDict):
+    draft: str
+    quality: int                      # 当前稿子质量分
+    retry_count: int
+    log: Annotated[list[str], add]    # ★ reducer：自动追加日志
+
+def draft(state: State) -> dict:
+    # 模拟写作：重试次数越多，稿子越好（演示用）
+    q = 60 + state["retry_count"] * 20
+    return {"draft": f"第{state['retry_count']+1}稿（质量{q}）", "quality": q,
+            "log": [f"写稿→{q}分"]}
+
+def review(state: State) -> dict:
+    verdict = "通过" if state["quality"] >= 80 else f"退回（{state['quality']}<80）"
+    return {"log": [f"审核→{verdict}"]}
+
+def route_after_review(state: State) -> str:
+    if state["quality"] >= 80:
+        return "end"
+    if state["retry_count"] >= 3:     # ★ 终止条件：最多 3 次，防死循环
+        return "end"
+    return "retry"
+
+def retry(state: State) -> dict:
+    return {"retry_count": state["retry_count"] + 1, "log": ["退回重写"]}
+
+graph = StateGraph(State)
+graph.add_node("draft", draft)
+graph.add_node("review", review)
+graph.add_node("retry", retry)
+graph.add_edge(START, "draft")
+graph.add_edge("draft", "review")
+graph.add_conditional_edges(
+    "review", route_after_review,
+    {"end": END, "retry": "retry"},   # 映射表列全两个分支
+)
+graph.add_edge("retry", "draft")      # ★ 回边 = 循环
+app = graph.compile()
+
+result = app.invoke({"draft": "", "quality": 0, "retry_count": 0, "log": []})
+print("最终稿：", result["draft"])
+print("完整日志：", " → ".join(result["log"]))
+```
+
+**要点**：
+
+- 执行路径：draft(60 分) → review(退回) → retry(count=1) → draft(80 分) → review(通过) → END。**循环两次自动收敛**——这就是 Agent 自我修正的雏形；
+- 把 `retry_count >= 3` 改成 `>= 0` 再跑，体会终止条件的重要性；
+- `log` 字段一次没手动拼接，全靠 `Annotated[..., add]`。
+
+### `day17_parallel.py` —— 并行扇出 + Command 动态路由
+
+```python
+"""Day 17 案例 2：并行扇出 + Command 节点内路由"""
+from typing import TypedDict, Annotated
+from operator import add
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import Command
+
+class State(TypedDict):
+    doubled: int        # double 分支的领地
+    plus_tened: int     # plus_ten 分支的领地（不同字段，互不冲突！）
+    log: Annotated[list[str], add]
+
+def double(state: State) -> dict:
+    return {"doubled": state["doubled"] * 2, "log": [f"double→{state['doubled']*2}"]}
+
+def plus_ten(state: State) -> dict:
+    return {"plus_tened": state["plus_tened"] + 10, "log": [f"+10→{state['plus_tened']+10}"]}
+
+def decider(state: State) -> Command:
+    total = state["doubled"] + state["plus_tened"]
+    if total > 50:
+        return Command(update={"log": [f"decider→合计{total}，结束"]}, goto=END)
+    return Command(update={"log": [f"decider→合计{total}，再来一轮"],
+                           "doubled": total, "plus_tened": 0},  # 重置两路，进入下一轮
+                    goto="double")
+
+graph = StateGraph(State)
+graph.add_node("double", double)
+graph.add_node("plus_ten", plus_ten)
+graph.add_node("decider", decider)
+graph.add_edge(START, "double")
+graph.add_edge(START, "plus_ten")     # ★ 两个入口边 = 并行扇出
+graph.add_edge("double", "decider")   # 并行都完成后才到 decider
+graph.add_edge("plus_ten", "decider")
+app = graph.compile()
+
+result = app.invoke({"doubled": 3, "plus_tened": 0, "log": []})
+print("最终：doubled =", result["doubled"], "| plus_tened =", result["plus_tened"])
+print("日志：", " → ".join(result["log"]))
+# 第一轮（START 扇出）：doubled=6, plus_tened=10 → 合计16 → 再来一轮
+# 第二轮（goto 只唤醒 double！）：doubled=32, plus_tened 保持0 → 合计32 → 再来一轮
+# 第三轮：doubled=64 → 合计64 → 结束
+```
+
+**要点**：
+
+- **并行分支改不同字段**（`doubled` vs `plus_tened`）——LangGraph 1.x 的硬性要求，违反即报 `InvalidUpdateError`；
+- **Command 路由 + 状态重置**：`decider` 通过 `goto="double"` 形成循环，同时用 `update` 把两路结果"合并"成下一轮的输入；
+- **`goto` 只唤醒目标节点本身，不会重新触发 START 的并行扇出**！所以第二轮起 `plus_ten` 不再执行（日志里只有 double）。想让每轮都双路并行，`goto` 要指向一个"扇出源"节点，再由它分叉（见自测第 4 题）；
+- 试试把 `doubled`/`plus_tened` 合并成一个字段跑一版，亲眼看那个报错（然后你就永远忘不掉这条规则了）。
+
+## 17.8 今日自测
+
+<Quiz items={["改造 17.7 案例 1：质量阈值改成 90，观察重试 3 次后\"被迫通过\"（终止条件兜底）。","给案例 1 加一个 `final_check` 节点：终止时输出\"最终定稿：xxx\"。","写一个\"猜数字\"图：`guess` 节点随机猜 1-100，`judge` 路由（大了/小了/对了），循环到猜中（设 10 次上限）。","把案例 2 的并行分支改成\"一个改 value、一个改 log\"，观察不再互相干扰。","`notes/day17.md`：画出案例 1 的图（含回边），标出终止条件位置。"]} />
+
+## 17.9 常见坑速查
+
+<GotchaTable rows={[{"symptom":"图无限循环","cause":"循环没有终止条件","fix":"路由函数加计数器/阈值判断"},{"symptom":"映射表报 KeyError","cause":"路由函数返回了映射表外的值","fix":"路由返回值必须全部列进映射表"},{"symptom":"`InvalidUpdateError: Can receive only one value per step`","cause":"并行分支修改了同一字段（LangGraph 1.x 严格模式）","fix":"分支改不同字段 / 给字段配 reducer"},{"symptom":"Command 后还加了边","cause":"Command 与边二选一","fix":"用 Command 就别给该节点加出边"},{"symptom":"列表字段莫名变单值","cause":"忘了 Annotated reducer","fix":"需要追加语义的字段加 `Annotated[..., add]`"}]} />
+
+<DayComplete day={17} recap={"条件、循环、并行、动态路由四大件到手。你已经能描述\"带自我修正的智能流程\"了。明天加最后一块拼图：Human-in-the-loop——让流程在关键时刻**停下来等人**。"} />

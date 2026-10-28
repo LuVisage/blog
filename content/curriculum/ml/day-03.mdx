@@ -1,0 +1,294 @@
+---
+slug: day-03
+kind: day
+day: 3
+week: 0
+weekTitle: 零基础起步
+weekBlurb: 不会写代码从这里开始：环境与命令行、Python 语法、容器函数类、NumPy、数学直觉。
+title: 容器、函数与类
+lead: '今日目标：掌握四种容器（重点是 list 和 dict）、会定义函数、会写简单的类、会用 try/except——学完这些，你就能读懂本教程 90% 的代码结构了。'
+sourcePath: Week00_零基础起步/Day3_容器函数与类.md
+---
+
+> 今日目标：掌握四种容器（重点是 list 和 dict）、会定义函数、会写简单的类、会用 try/except——学完这些，你就能读懂本教程 90% 的代码结构了。
+> 配套代码：`code/day3_structures.py`
+
+---
+
+## 3.1 今日地图
+
+```
+Day2  会判断、会循环
+        ↓
+Day3（今天）
+  ├─ list  列表    ← 一串东西（最重要的容器）
+  ├─ dict  字典    ← 键值对（AI 代码里无处不在）
+  ├─ tuple / set   ← 不可变序列 / 去重集合
+  ├─ 函数 def      ← 把逻辑打包复用
+  ├─ 类 class      ← 把数据和行为打包（够用即止）
+  └─ try/except    ← 出错不崩
+        ↓
+Day4  NumPy（list 的"超级进化版"，专为数值计算而生）
+```
+
+---
+
+## 3.2 list：一串东西
+
+```python
+scores = [90, 85, 77]          # 定义：方括号 + 逗号
+scores.append(60)              # 加一个（加到末尾）→ [90, 85, 77, 60]
+scores[0]                      # 90    ★ 下标从 0 开始！
+scores[-1]                     # 60    负数从末尾数
+len(scores)                    # 4     个数
+scores[1:3]                    # [85, 77]   切片：含头不含尾（同 range）
+sum(scores) / len(scores)      # 平均分 78.0
+```
+
+**五个必须形成肌肉记忆的点**：
+
+1. **下标从 0 开始**——第一个元素是 `scores[0]`；
+2. **切片 `[1:3]` 含头不含尾**——取下标 1 和 2；
+3. `append` 是**原地修改**（list 会变），`sorted(scores)` 是**返回新列表**（原不变）；
+4. `len()` 是函数，`append()` 是方法（`scores.append(x)`）——**为什么不同**：list 是"对象"，`append` 是它自带的技能（这就引出了 3.5 的类）；
+5. `for x in scores:` 直接遍历元素，不需要下标。
+
+```python
+for s in scores:
+    print(s)                   # 90 85 77 60
+
+# 需要下标时用 enumerate（★ 不要手动 i = i + 1）
+for i, s in enumerate(scores):
+    print(f"第{i + 1}个: {s}")
+```
+
+**list 也可以装不同类型**，甚至装 list（Week09 的图像就是"list 套 list"的思路）：
+
+```python
+mixed = [1, "two", 3.0, True]
+matrix = [[1, 2], [3, 4]]      # 2 行 2 列；matrix[1][0] -> 3
+```
+
+---
+
+## 3.3 dict：键值对（AI 代码里最重要的容器）
+
+```python
+student = {"name": "小明", "age": 18, "scores": [90, 85]}
+
+student["name"]                # '小明'      ★ 用键取值，不是下标
+student["age"] = 19            # 改
+student["city"] = "北京"        # 增（新键直接赋值即可）
+student.get("phone")           # None        ★ 键不存在返回 None，不报错
+student.get("phone", "未填写")  # '未填写'    可给默认值
+"name" in student              # True        判断键是否存在
+del student["city"]            # 删
+student.keys()                 # dict_keys(['name','age','scores'])
+student.items()                # 键值对列表，配合 for 使用
+```
+
+**遍历 dict（每天都会写的模式）**：
+
+```python
+for key, value in student.items():
+    print(f"{key}: {value}")
+```
+
+**dict 的两个高频应用**：
+
+```python
+# ① 计数（Week00 Day3 自测、Week08 词频统计同一个模式）
+text = "abracadabra"
+counts = {}
+for ch in text:
+    counts[ch] = counts.get(ch, 0) + 1     # 没有就置 0，有就 +1
+# {'a': 5, 'b': 2, 'r': 2, 'c': 1, 'd': 1}
+
+# ② 传"一堆配置"（Week1 配置、Week2 的 CONFIG 全是这个形状）
+config = {"lr": 0.001, "batch_size": 32, "epochs": 10}
+```
+
+**为什么 AI 代码里 dict 无处不在**：
+函数参数太多时，打包成 dict 传递（`**config`）；JSON 数据天然就是 dict；
+模型的超参数、评估指标（`{"accuracy": 0.95}`）都是 dict。
+
+---
+
+## 3.4 tuple 与 set：各管一件事
+
+```python
+# tuple 元组：定义后【不可修改】——适合"固定结构"的数据
+point = (3, 4)                 # 圆括号
+x, y = point                   # ★ 解包：一次拆给两个变量
+# point[0] = 5                 # TypeError! 不允许改
+# 函数"返回多个值"其实就是返回 tuple（Day3 函数部分）
+
+# set 集合：自动去重 + 快速判断"在不在"
+tags = ["a", "b", "a", "c", "a"]
+unique = set(tags)             # {'a', 'b', 'c'}
+"a" in unique                  # True（set 查这个极快）
+```
+
+**选型口诀**：**有序可改用 list，键值映射用 dict，不变结构用 tuple，去重判断用 set。**
+
+---
+
+## 3.5 函数：把逻辑打包
+
+```python
+def average(scores):                       # def 名字(参数):
+    """计算平均分。三引号里是文档字符串。"""      # 说明这个函数干什么
+    if len(scores) == 0:
+        return 0.0                         # return = 结束并交出结果
+    return sum(scores) / len(scores)
+
+result = average([90, 85, 77])             # 调用
+print(result)                              # 84.0
+```
+
+**函数的四大件**：
+
+| 件 | 说明 |
+| --- | --- |
+| `def 名字(参数):` | 定义 |
+| **参数** | 输入（可多个，可默认值） |
+| `return` | 输出（没有 return 的函数返回 `None`） |
+| **文档字符串** | 三引号说明——`help(average)` 能看到 |
+
+```python
+def greet(name, greeting="你好"):          # greeting 有默认值
+    return f"{greeting}, {name}!"
+
+greet("小明")                  # '你好, 小明!'    默认值生效
+greet("小明", "早上好")          # '早上好, 小明!'
+greet(name="小红")             # 也可以按名字传参
+```
+
+**为什么要函数**（不只是"复用"）：
+
+1. **复用**——写一次用 N 次；
+2. **命名**——`calc_iou(box_a, box_b)` 本身就是文档；
+3. **隔离**——函数内部的变量不影响外面（Week1 的"依赖注入"由此而来）；
+4. **可测试**——Week0 后面的测试、pytest 全是围绕函数/类。
+
+** 变量作用域**：函数内定义的变量**外面看不到**；函数内可以**读**外面的变量，
+但要**改**外面的就得 `global`（尽量避免——数据通过参数进、通过 return 出）。
+
+---
+
+## 3.6 类：把数据和行为打包（够用即止）
+
+```python
+class Student:
+    def __init__(self, name, age):        # __init__ = 创建时自动执行
+        self.name = name                  # self.name 是"这个对象自己的"变量
+        self.age = age
+        self.scores = []
+
+    def add_score(self, score):           # 方法 = 对象自带的函数
+        self.scores.append(score)
+
+    def average(self):
+        if not self.scores:
+            return 0.0
+        return sum(self.scores) / len(self.scores)
+
+s1 = Student("小明", 18)         # 创建实例（不用传 self）
+s1.add_score(90)
+s1.add_score(80)
+print(s1.name, s1.average())     # 小明 85.0
+```
+
+**三个要点**：
+
+| 要点 | 说明 |
+| --- | --- |
+| `__init__` | 初始化——创建对象时自动调用 |
+| `self` | "对象自己"；调用时**不用传**，Python 自动传 |
+| `self.xxx` | 挂在对象上的数据（属性）和行为（方法） |
+
+**本教程里类的三个真实样子**（到时你会觉得亲切）：
+
+- Week01 的 `StandardScaler`（`fit` 存均值，`transform` 用它）；
+- Week09 的 `nn.Module` 子类（`__init__` 定义层，`forward` 定义前向）；
+- Week02 的 `MemoryUserStore`（`__init__` 建空表，方法读写它）。
+
+> **0 基础阶段的要求**：能**读懂**类、会**用**类（创建实例、调方法）即可。
+> "什么时候该设计类"是经验问题，Week01 起边用边体会。
+
+---
+
+## 3.7 try / except：出错不崩
+
+```python
+def safe_divide(a, b):
+    try:
+        return a / b                  # 可能出错的代码放这里
+    except ZeroDivisionError:
+        print("除数不能为 0")
+        return None                   # 出错时的替代方案
+
+print(safe_divide(10, 2))     # 5.0
+print(safe_divide(10, 0))     # 除数不能为 0  → None（程序没崩）
+```
+
+**三条纪律**：
+
+1. **捕获具体的异常类型**（`except ZeroDivisionError:`），不要裸 `except:`
+ ——裸捕获会把真正的 bug 也吞掉；
+2. **不要用 try/except 掩盖错误**——捕获后要么处理、要么记日志、要么重新抛出；
+3. `finally:` 里的代码**无论如何都执行**（收尾用，如关文件）。
+
+```python
+try:
+    risky()
+except ValueError as e:        # as e 把异常对象接住
+    print(f"出错了: {e}")       # 能拿到错误信息
+finally:
+    print("无论如何都会执行")
+```
+
+---
+
+## 3.8 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| `IndexError: list index out of range` | 下标越界 | 记住从 0 开始；先 `len()` |
+| `KeyError: 'xxx'` | dict 没有这个键 | 用 `.get("xxx", 默认值)` |
+| 改了 `scores[0]` 但另一处也变了 | 两个变量指向**同一个** list | `b = a.copy()` 浅拷贝 |
+| 函数没有返回值 | 忘了 `return`（返回 None） | 检查 return |
+| `self` 忘了写 | 方法定义少参数 | 每个方法第一个参数是 self |
+| `TypeError: takes 2 positional arguments but 3 were given` | 调用时多传了 self | 通过实例调用，别 `Student.say(s1)` 手滑 |
+| 裸 `except` 吞了 bug | 捕获范围太大 | 捕获具体类型 |
+
+**"两个变量指向同一个 list"** 详细说一下（0 基础大坑）：
+
+```python
+a = [1, 2, 3]
+b = a                  # b 和 a 是【同一个】列表的两个名字！
+b.append(4)
+print(a)               # [1, 2, 3, 4]  ← a 也变了
+c = a.copy()           # 浅拷贝：c 是新的
+c.append(5)
+print(a)               # [1, 2, 3, 4]  ← a 不变
+```
+
+---
+
+## 3.9 今日自测
+
+1. 用 dict 统计 `"statistics"` 每个字母的出现次数。
+2. 写函数 `top_two(scores)`：返回列表中最大的两个数（组成的 list）。
+3. 写类 `Counter`：`__init__` 从 0 开始，`increment()` 加 1，`value()` 返回当前值。
+4. `safe_int("abc")` 返回 None、`safe_int("42")` 返回 42——用 try/except 实现。
+5. 解释：`a = [1,2]; b = a; b.append(3)` 之后 `a` 是什么？为什么？
+
+---
+
+## 3.10 一句话总结
+
+**list 存序列（下标从 0、切片含头不含尾）、dict 存映射（`.get` 防 KeyError、`items()` 遍历）、函数用 def + return 打包逻辑、类用 `__init__` + self 打包数据与行为、try/except 只捕具体异常——这五件套就是你读懂本教程全部代码结构的钥匙。**
+
+**明日预告**：Day4 的 NumPy——把"循环逐个算"升级成"整体一起算"，这是所有深度学习代码的母语。
+

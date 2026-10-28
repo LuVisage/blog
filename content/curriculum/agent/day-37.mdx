@@ -1,0 +1,134 @@
+---
+slug: day-37
+day: 37
+week: 8
+weekTitle: Chat UI 与毕业项目
+weekBlurb: Agent Chat UI、服务化与部署，综合毕业项目从零到上线。
+title: Agent Chat UI 定制 —— 工具可视化、多会话、配置传递
+lead: 读懂 agent-chat-ui 的代码结构，学会三件定制：展示工具调用过程、多会话切换、把业务参数传给后端 Agent。
+sourcePath: week-08-chatui-capstone/day-37.md
+---
+
+> 配套：昨天生成的前端项目 `agent-chat-ui/` + LangGraph Server（保持运行）
+
+---
+
+## 37.1 前端项目的骨架（先看懂再动手）
+
+昨天 `create-agent-chat-app` 生成的项目，核心文件只有几个：
+
+```
+agent-chat-ui/
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx          # 页面骨架（侧边栏 + 聊天区）
+│   │   └── page.tsx            # 主页面：聊天主逻辑（今天主战场）
+│   │   └── api/chat/route.ts   # 后端代理：前端 ←SSE→ LangGraph Server
+│   ├── components/
+│   │   └── ...                 # 消息组件、侧边栏等
+│   └── lib/
+│       └── types.ts            # 类型定义
+├── .env                        # 前端配置（指向 LangGraph Server）
+└── package.json
+```
+
+**数据流**（对比 Day 36 的架构图）：
+
+```
+浏览器 page.tsx ──useChat──▶ api/chat/route.ts ──HTTP──▶ LangGraph Server ──▶ 你的 Agent
+        ▲                        （Next.js 后端路由）
+        └────────────── SSE 流式响应 ◀──────────────────────┘
+```
+
+`api/chat/route.ts` 是 Next.js 的**后端代理**（BFF 模式）：浏览器不直连 LangGraph Server，而是经过 Next.js 转手——**生产上这是标准做法**（统一鉴权、隐藏内部服务）。
+
+## 37.2 定制一：展示 Agent 的工具调用（今天的重头戏）
+
+用户想看到"Agent 正在查天气"的中间过程。默认模板已自带此能力，但要**看懂原理**。打开 `page.tsx`，找到 `useChat` 的调用：
+
+```tsx
+const { messages, input, handleInputChange, handleSubmit, ... } = useChat({
+  api: "/api/chat",
+  // ...
+});
+```
+
+`useChat` 是 AI SDK 的 React Hook——它自动处理 SSE 流、消息列表、输入框状态。**Agent 的工具调用过程**藏在消息的 `parts` 里（AI SDK 的消息分块：text / tool-invocation）：
+
+```tsx
+{messages.map((message) => (
+  <div key={message.id}>
+    {message.parts.map((part, i) => {
+      if (part.type === "tool-invocation") {
+        // ★ 工具调用块：显示"正在调用 get_weather(北京)"
+        return <ToolCall key={i} part={part} />;   // 模板内置组件
+      }
+      return <Markdown key={i}>{part.text}</Markdown>;   // 普通文本块
+    })}
+  </div>
+))}
+```
+
+**理解**：后端流里不仅有模型回答，还有工具调用事件（Day 21 你在终端打印的那些）——前端把它们渲染成"工具卡片"。**界面上的智能感，就是把这些中间过程可视化。**
+
+> 把 `page.tsx` 里这段代码找到、读懂、改点样式（如给 ToolCall 加个颜色），你就完成了第一次前端定制。
+
+## 37.3 定制二：多会话切换（thread_id 的前端化）
+
+Day 19 你知道了 thread_id 是会话隔离的钥匙。在 UI 里，它化身"侧边栏的历史会话列表"：
+
+- 点"新建会话" → 前端生成新 thread_id → 后续消息都带它 → 后端该会话的记忆独立；
+- 点历史会话 → 用旧 thread_id 继续 → **恢复之前的上下文**。
+
+在 `page.tsx` 里，thread_id 通常这样传给 useChat：
+
+```tsx
+const [threadId, setThreadId] = useState<string | null>(null);
+
+useChat({
+  api: "/api/chat",
+  body: { threadId },          // ★ 每次请求带上当前会话 id
+});
+```
+
+**这就是 Day 19 的 thread_id 在真实产品里的位置**：前端状态 → 请求 body → Next.js 代理 → LangGraph Server 的 thread 参数。前后贯通了。
+
+## 37.4 定制三：把业务参数传给 Agent（config 传递）
+
+真实产品常需要"这个会话用哪个知识库/什么角色"。LangGraph Server 的 API 支持传 config，前端这样带：
+
+```tsx
+useChat({
+  api: "/api/chat",
+  body: {
+    threadId,
+    configurable: { user_id: "u-123", role: "vip" },   // ★ 自定义配置
+  },
+});
+```
+
+后端 Agent 里怎么用？还记得 Day 24 的 `InjectedState`/config 注入吗——在 Agent 图里读 `config["configurable"]` 就能拿到 `user_id`/`role`，用于：
+
+- 记忆命名空间按用户隔离（Day 24 自测 4 的答案）；
+- 切换知识库（不同用户查不同 Milvus 集合，Day 13 的过滤条件）；
+- LangSmith metadata 打标（Day 26）。
+
+**前后端配置通道 = configurable 字典**。今天先在代码里找到这个管道，毕业项目会真正用上。
+
+## 37.5 动手：今天的任务清单
+
+1. **找到并读懂** `page.tsx` 的 useChat 与 messages 渲染段（30 分钟）；
+2. **改样式**：给工具调用卡片加背景色/图标（10 分钟）；
+3. **加问候语**：会话为空时显示"你好，我是天气助手"的欢迎卡片；
+4. **多会话**：开 3 个会话，分别问不同城市，切回第一个会话继续追问——验证记忆隔离（Day 19 的 thread_id 在 UI 上的体现）；
+5. **断网测试**：停掉 LangGraph Server，前端发消息，观察错误如何展示——思考生产环境的错误处理。
+
+## 37.6 今日自测
+
+<Quiz items={["你能说出一次\"用户发消息 → 屏幕打字机输出\"的完整数据链路吗？（浏览器 → … → LLM → … → 浏览器）","工具调用卡片出现时，后端发生了什么？（提示：Day 21 的 updates 流）","三个会话的记忆为什么互不干扰？断点在哪一层？","`notes/day37.md`：画出前端数据流图，标注 SSE 的位置。","思考：如果用户中途关掉页面，Agent 还在跑吗？（提示：LangGraph Server 的 run 是服务端任务，与浏览器断连无关——这引出了\"异步任务\"概念，毕业项目 Day 39 会用到）"]} />
+
+## 37.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"前端报 CORS","cause":"Next.js 代理没配 / 直连了 server","fix":"走 `/api/chat` 代理，不要浏览器直连"},{"symptom":"工具调用不显示","cause":"前端模板版本旧","fix":"更新 create-agent-chat-app 到最新"},{"symptom":"多会话串记忆","cause":"threadId 没传 / 复用","fix":"body 里带 threadId 且新建会话时置空"},{"symptom":"刷新后会话还在","cause":"后端持久化 checkpointer","fix":"生产配 Sqlite/Postgres saver"},{"symptom":"改完前端没生效","cause":"Next.js 缓存","fix":"重启 npm run dev"}]} />
+
+<DayComplete day={37} recap={"你会改官方聊天 UI 了。明天开始毕业项目：三天时间，从需求设计到部署上线，把你 7 周所学全部熔炼成一个真正的产品。"} />

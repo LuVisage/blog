@@ -1,0 +1,162 @@
+---
+slug: day-29
+day: 29
+week: 6
+weekTitle: LangSmith 可观测
+weekBlurb: 全链路追踪、调试与标注、Datasets 离线评估、在线监控告警。
+title: 在线监控 —— 让 LangSmith 持续盯着生产 Agent
+lead: 掌握生产环境的监控三板斧：在线评估、监控看板、告警，让问题在用户投诉前被发现。
+examples:
+  - examples/day29_online_monitor.py
+sourcePath: week-06-langsmith/day-29.md
+---
+
+---
+
+## 29.1 离线评估 vs 在线监控
+
+Day 28 的评估是**离线**的：你主动跑、跑完看分。但生产环境的 Agent 7×24 小时被真实用户调用，问题随时发生。**在线监控** = 给生产流量装上自动质检：
+
+| | 离线评估（Day 28） | 在线监控（今天） |
+|---|---|---|
+| 数据 | 你的评估集 | **真实用户流量** |
+| 时机 | 发布前/定期 | **实时** |
+| 目的 | 防回归 | 发现问题、量化质量 |
+| 手段 | evaluate 跑实验 | 采样自动打分 + 看板 + 告警 |
+
+## 29.2 三板斧之一：在线评估（Online Evaluation）
+
+原理：生产 trace 产生后，**对每条/抽样 trace 自动跑评估器**，把分数作为 feedback 写回 trace。配置方式（LangSmith 平台）：
+
+1. 打开 LangSmith → **Online Evaluators**（或 Deployment 的 Evaluators 配置）；
+2. 选择触发方式：**Sampling**（按比例抽样，如 5%）或全部；
+3. 挂上评估器（自带的有：`correctness`、`hallucination`、`helpfulness` 等 LLM 评委；也可挂你 Day 28 写的自定义评估器）；
+4. 保存后，新产生的 trace 自动带分数。
+
+**Sampling 的意义**：每条都评 = 评估成本可能超过业务成本。抽样 5%~10% 是行业惯例。
+
+> 在线评估的三个典型用途：
+> 1. **质量雷达**：每天看"幻觉率/正确率"曲线，异常即报警；
+> 2. **坏 case 挖掘**：按低分过滤 trace，把坏 case 加进离线评估集（Day 28 的铁律）；
+> 3. **成本核算**：结合 token/费用数据，看哪个场景最烧钱。
+
+## 29.3 三板斧之二：监控看板（Dashboards）
+
+LangSmith → **Dashboards**：把关键指标做成图表，挂在大屏上：
+
+| 看板指标 | 含义 | 健康线（示例） |
+|---|---|---|
+| Trace 量 | 每小时调用量 | 业务量级 |
+| 平均延迟 | 用户等待时间 | &lt; 10s |
+| 错误率 | 失败 trace 占比 | &lt; 1% |
+| Token 消耗 | 成本曲线 | 预算内 |
+| 平均反馈分 | 用户 比例 | > 90% |
+| 幻觉率（在线评估） | 编造答案占比 | &lt; 5% |
+
+**看板的价值**：不用人肉翻数据——每天早上扫一眼，"昨晚错误率飙升"立刻可见。
+
+## 29.4 三板斧之三：告警（Alert Rules）
+
+看板要人看，告警自动盯。LangSmith → **Alert Rules**：
+
+| 告警规则示例 | 触发条件 |
+|---|---|
+| 错误率告警 | 最近 15 分钟错误率 > 5% |
+| 延迟告警 | p95 延迟 > 20 秒 |
+| 成本告警 | 单日 token 消耗 > 预算 |
+| 质量告警 | 在线评估平均分 &lt; 0.6 |
+
+触发后通知到邮箱/Slack/PagerDuty——**问题在用户投诉前 3 小时被发现**，这就是可观测性的价值。
+
+## 29.5 客户端也能干：代码里的"自监控"
+
+平台功能之外，SDK 还支持在代码里主动上报指标：
+
+```python
+from langsmith import Client
+client = Client()
+
+# ① 用户反馈接入：前端点赞/点踩 → 写回 trace
+client.create_feedback(
+    run_id=run_id,
+    key="user_satisfaction",
+    score=1.0,                 # 用户点 👍
+    comment="问题已解决",
+)
+
+# ② 业务指标标注：把"订单转化"等业务结果也标到 trace 上
+client.create_feedback(run_id=run_id, key="order_placed", score=1.0)
+```
+
+**这是监控的闭环**：Agent 回答 → 用户点/→ 反馈写回 trace → 看板统计满意度 → 低分 trace 进评估集 → 改进 Agent。**数据飞轮转起来了。**
+
+## 29.6 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-06-langsmith\examples
+python day29_online_monitor.py
+```
+
+## 29.7 案例逐行讲解：`day29_online_monitor.py`
+
+```python
+"""Day 29 案例：在线监控 —— 模拟生产流量 + 自动写反馈"""
+import os
+import uuid
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langsmith import Client
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+@tool
+def get_weather(city: str) -> str:
+    """查询城市天气。当用户询问某地天气时使用。"""
+    return {"北京": "晴 25°C", "上海": "小雨 22°C"}.get(city, f"暂无{city}数据")
+
+agent = create_agent(model=model, tools=[get_weather],
+                     system_prompt="你是天气助手。")
+client = Client()
+
+# ── 模拟生产流量：10 个"用户"轮番提问 ────────────
+questions = ["北京天气怎么样？"] * 4 + ["上海天气怎么样？"] * 4 + ["广州天气怎么样？"] * 2
+for i, q in enumerate(questions):
+    user_id = f"user-{i % 3}"                       # 3 个用户
+    session_id = str(uuid.uuid4())                  # 每次新会话
+    # ★ 生产 trace 的 metadata 规范：用户、会话、版本
+    result = agent.invoke(
+        {"messages": [{"role": "user", "content": q}]},
+        config={"metadata": {"user_id": user_id, "session_id": session_id,
+                             "version": "v1.0"}},
+    )
+    # 从 LangSmith 拿本次 trace 的 run_id（需要 tracing 开启）
+    run_id = result.get("__run_id") if isinstance(result, dict) else None
+    # 模拟用户反馈：广州问题（工具无数据）答得不好 → 点踩
+    if q.startswith("广州") and run_id:
+        client.create_feedback(run_id=run_id, key="user_satisfaction",
+                               score=0.0, comment="用户点踩：回答不准确")
+    print(f"[{i+1}/10] {user_id} 问'{q[:8]}...' → {result['messages'][-1].content[:30]}")
+```
+
+**要点**：
+
+- **metadata 三件套**：`user_id`（谁）、`session_id`（哪次会话）、`version`（哪个版本）——生产 trace 的标准配置，缺一不可；
+- **反馈闭环**：`create_feedback` 把"用户点踩"写回 trace——几天后你就能在 Dashboard 上看到"满意度曲线"；
+- **run_id 获取**：`result["__run_id"]` 是本次 trace 的 id（LangSmith tracing 开启时自动附带）；
+- 跑完后去 UI：按 `metadata.version=v1.0` 过滤 → 看 10 条 trace → 找广州的两条 → **这就是"坏 case 从生产流回评估集"的起点**（把它们加进 Day 28 的评估集！）。
+
+## 29.8 今日自测
+
+<Quiz items={["在 UI 里用 filter 找出本案例的 10 条 trace，验证 metadata 三件套都在。","找到带 feedback 的 trace，看它的 feedback 详情（score + comment）。","配置一条 Alert Rule（如错误率 > 10% 通知你），故意跑几条出错 trace 看告警是否触发。","把\"广州天气\"这个坏 case 加进 Day 28 的评估集，重跑实验——体验\"坏 case 回流\"闭环。","`notes/day29.md`：画出你理解的\"监控数据飞轮\"（生产 → 反馈 → 评估集 → 改进 → 生产）。"]} />
+
+## 29.9 常见坑速查
+
+<GotchaTable rows={[{"symptom":"拿不到 run_id","cause":"tracing 没开 / 结果里没这个键","fix":"确认 `LANGSMITH_TRACING=true`"},{"symptom":"在线评估不触发","cause":"没在平台配置 Sampling","fix":"Online Evaluators 里设置抽样规则"},{"symptom":"告警收不到","cause":"通知渠道没配","fix":"Alert Rules 里绑定邮箱/Slack"},{"symptom":"看板数据缺失","cause":"没打 metadata（无法分组）","fix":"补 user_id/version 标签"},{"symptom":"反馈写错 trace","cause":"run_id 串了","fix":"每次 invoke 后立即取 run_id 写反馈"}]} />
+
+<DayComplete day={29} recap={"监控闭环打通。明天项目日：把你 5 周来最强的作品（旅行 Agent + RAG）全量接入 LangSmith，做一次完整的\"生产级复盘\"。"} />

@@ -1,0 +1,371 @@
+---
+slug: day-06
+kind: day
+day: 6
+week: 2
+weekTitle: FastAPI 后端开发
+weekBlurb: HTTP 与 FastAPI、依赖注入与中间件、JWT 鉴权、SSE 流式输出、错误处理与可观测性。
+title: HTTP 与 FastAPI 基础
+lead: 今日目标：说清 HTTP 请求/响应的结构；用 FastAPI 写出第一组接口；理解「类型注解 → 自动文档」这条链路；掌握路径参数、查询参数、请求体三种入参方式。
+sourcePath: Python工程化与后端实战/Week2_FastAPI后端开发/Day1_HTTP与FastAPI基础.md
+---
+
+> 今日目标：说清 HTTP 请求/响应的结构；用 FastAPI 写出第一组接口；理解「类型注解 → 自动文档」这条链路；掌握路径参数、查询参数、请求体三种入参方式。
+> 配套案例：`code/demo_api/`
+
+---
+
+## 1.1 知识地图
+
+```
+Week1  包、配置、测试、日志
+        │
+        ▼
+Week2 Day1（今天）★ 让代码能被网络调用
+  ├─ HTTP 协议速览
+  ├─ FastAPI 是什么、为什么快
+  ├─ 三种入参：路径 / 查询 / 请求体
+  ├─ 自动文档（类型注解的回报）
+  └─ 应用工厂模式
+        │
+        ▼
+Day2  依赖注入与中间件
+Day3  鉴权与安全
+Day4  SSE 流式输出（重点）
+Day5  错误处理与可观测性
+```
+
+---
+
+## 1.2 FastAPI 为什么值得学
+
+**先看它解决的三个问题**：
+
+```python
+# 用 Flask 写接口：校验、文档、序列化都要手写
+@app.route("/users/<int:user_id>", methods=["POST"])
+def create_user(user_id):
+    data = request.get_json()                   # ← 自己解析
+    if "name" not in data:                      # ← 自己校验
+        return {"error": "name required"}, 400
+    if len(data["name"]) < 3:                   # ← 自己校验
+        return {"error": "name too short"}, 400
+    if not isinstance(data.get("age"), int):    # ← 自己校验
+        return {"error": "age must be int"}, 400
+    # ... 还有 20 行校验
+    # 文档？自己写。类型定义？不存在的。
+```
+
+```python
+# FastAPI：校验和文档全部来自类型注解
+@app.post("/users/{user_id}")
+async def create_user(user_id: int, payload: UserCreate) -> UserPublic:
+    ...
+    # 校验？Pydantic 做了
+    # 文档？/docs 自动生成
+    # 类型？IDE 全程提示
+```
+
+**三个决定性优势**：
+
+| 优势 | 说明 |
+| --- | --- |
+| **异步原生** | `async def` 路由直接支持，与 Week1 Day3 对接 |
+| **Pydantic 驱动** | 请求校验 + 响应序列化 + **自动生成 OpenAPI 文档** |
+| **依赖注入** | 数据库会话、当前用户、限流器优雅注入 |
+
+**现实证据**：LangServe、vLLM 的 OpenAI 兼容接口、大多数 LLM 应用后端都是 FastAPI。
+
+---
+
+## 1.3 最小可运行的服务
+
+```python
+# main.py
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def root() -> dict:
+    return {"message": "hello"}
+
+@app.get("/health")
+async def health() -> dict:
+    return {"status": "ok"}
+```
+
+```bash
+pip install fastapi uvicorn
+uvicorn main:app --reload --port 8000
+```
+
+**打开 http://localhost:8000/docs** —— 你会看到自动生成的交互式文档。
+
+> **这是 FastAPI 最让人惊艳的地方**：你什么文档都没写，但它已经有了完整的 API 文档，**因为一切信息都来自你的类型注解**（Week1 Day1 的知识在这里兑现了）。
+
+---
+
+## 1.4 三种入参方式
+
+### 1.4.1 路径参数
+
+```python
+@app.get("/users/{user_id}")
+async def get_user(user_id: int) -> dict:
+    return {"user_id": user_id}
+```
+
+**`user_id: int` 会自动做类型转换**：`/users/42` → `user_id = 42`（整数，不是字符串）。
+访问 `/users/abc` 会自动返回 **422**，你不用写一行校验代码。
+
+**带约束的路径参数**：
+
+```python
+from typing import Annotated
+from fastapi import Path
+
+@app.get("/users/{user_id}")
+async def get_user(
+    user_id: Annotated[int, Path(ge=1, le=1_000_000, description="用户 ID")],
+) -> dict:
+    ...
+```
+
+### 1.4.2 查询参数
+
+```python
+from typing import Annotated
+from fastapi import Query
+
+@app.get("/items")
+async def list_items(
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    keyword: str | None = None,
+) -> dict:
+    return {"page": page, "size": size, "keyword": keyword}
+```
+
+访问 `/items?page=2&size=20&keyword=abc`。
+
+**关键规则**：
+
+| 函数参数类型 | FastAPI 如何解释 |
+| --- | --- |
+| 出现在路径里 `{x}` | 路径参数 |
+| **基本类型**（int/str/bool）+ 不在路径里 | **查询参数** |
+| **Pydantic 模型** | **请求体** |
+
+> **这个规则非常重要**，因为它决定了你的参数从哪里取。搞错了会得到 422 而不是你想要的结果。
+
+### 1.4.3 请求体（Pydantic 模型）
+
+```python
+from pydantic import BaseModel, Field
+
+class ChatRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=512, ge=1, le=8192)
+
+@app.post("/chat")
+async def chat(req: ChatRequest) -> dict:
+    return {"echo": req.prompt, "temp": req.temperature}
+```
+
+**一个参数同时做三件事**：
+
+1. **校验**请求体（`min_length` / `ge` / `le`）
+2. **生成文档**（`/docs` 里能看到所有字段和约束）
+3. **序列化响应**（如果声明了 `response_model`）
+
+### 1.4.4 `response_model`：控制输出
+
+```python
+class UserInDB(BaseModel):
+    id: int
+    username: str
+    hashed_password: str        # ← 绝不能返回给客户端
+
+class UserPublic(BaseModel):
+    id: int
+    username: str
+
+@app.get("/me", response_model=UserPublic)
+async def me() -> UserInDB:
+    return UserInDB(id=1, username="alice", hashed_password="xxx")
+    # 返回 {"id": 1, "username": "alice"}
+    # hashed_password 被【过滤掉】了
+```
+
+> **这是防数据泄漏的关键机制**：声明了 `response_model` 后，**即使你的内部对象有多余字段，也不会被返回**。
+
+---
+
+## 1.5 应用工厂模式
+
+**别这样写**（模块级单例）：
+
+```python
+# ✗ 配置被固定了，测试没法用不同配置创建独立实例
+app = FastAPI()
+settings = Settings()
+store = MemoryUserStore()
+```
+
+**应该这样写**：
+
+```python
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or Settings()
+    app = FastAPI(title=..., lifespan=lifespan)
+    app.state.settings = settings
+    app.include_router(router)
+    return app
+
+app = create_app()      # uvicorn 用这个
+```
+
+**为什么要这样**：
+
+| 好处 | 说明 |
+| --- | --- |
+| **可测试** | 每个测试用独立配置创建独立 app，互不污染 |
+| **可配置** | 不同环境（开发/测试/生产）用不同配置 |
+| **可复用** | 一个代码库跑多个服务实例 |
+
+**配 `lifespan` 管理资源**：
+
+```python
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动
+    app.state.store = MemoryUserStore()
+    app.state.llm = DemoLLMClient(app.state.settings)
+    yield
+    # 关闭：优雅释放资源
+    await app.state.llm.close()
+```
+
+> **为什么不用模块级全局变量**：测试时进程会被复用，全局变量会在测试间污染；而且关闭时无法优雅释放连接池。
+
+---
+
+## 1.6 路由组织与版本化
+
+**按业务拆分路由**：
+
+```python
+# routes.py
+router = APIRouter()
+auth = APIRouter(prefix="/auth", tags=["鉴权"])
+chat = APIRouter(prefix="/chat", tags=["对话"])
+
+@auth.post("/login")
+async def login(): ...
+
+@chat.post("")
+async def chat_once(): ...
+
+router.include_router(auth)
+router.include_router(chat)
+
+# app.py
+app.include_router(router, prefix="/api/v1")      # ★ 统一版本前缀
+```
+
+**为什么加 `/api/v1`**：
+
+| 理由 | 说明 |
+| --- | --- |
+| **向后兼容** | 改接口时开 `/api/v2`，老客户端不受影响 |
+| **便于网关路由** | Nginx 可以按前缀分流 |
+| **便于灰度** | 可以同时跑 v1 和 v2 |
+
+**例外**：**健康检查不加版本前缀**（`/health`）—— 负载均衡器和 K8s 探针通常固定访问这个路径。
+
+---
+
+## 1.7 `async def` 还是 `def`
+
+**这是最容易写错的地方。**
+
+```python
+@app.get("/a")
+async def a():
+    return do_something_sync()      # ✗ 如果 do_something_sync 很慢，会阻塞整个服务！
+```
+
+**规则**：
+
+| 路由里做什么 | 用哪个 |
+| --- | --- |
+| **await 异步 I/O**（异步 DB / HTTP / LLM） | **`async def`** |
+| **调用同步阻塞函数**（`requests` / 同步 DB / 大计算） | **`def`**（FastAPI 会丢到线程池） |
+| 纯 CPU 计算 | `def`，或 `async def` + 进程池 |
+
+**为什么**：
+
+- `async def` 路由运行在**事件循环**里。里面任何阻塞调用（如 `time.sleep`、`requests.get`）都会**卡住整个服务**（Week1 Day3 验证过）。
+- `def` 路由会被 FastAPI 自动丢到**线程池**里跑，不会阻塞事件循环。
+
+```python
+# ✗ 灾难：整个服务卡住 3 秒
+@app.get("/bad")
+async def bad():
+    time.sleep(3)
+    return {}
+
+# ✓ 用 def，FastAPI 会丢线程池
+@app.get("/ok")
+def ok():
+    time.sleep(3)
+    return {}
+
+# ✓ 最好：用异步版本
+@app.get("/best")
+async def best():
+    await asyncio.sleep(3)
+    return {}
+```
+
+> **面试高频题**：「FastAPI 里 `async def` 和 `def` 有什么区别？」
+>
+> 答：`async def` 跑在事件循环里，遇到阻塞调用会卡住整个服务；`def` 会被丢到线程池，不会阻塞事件循环。所以**只有在里面全是异步 I/O 时才用 `async def`**。
+
+---
+
+## 1.8 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 查询参数拿不到 | 写成了 Pydantic 模型（那会当请求体） | 基本类型 = 查询参数 |
+| 422 错误看不懂 | 没仔细看 `detail` 里的 `loc` | `loc` 指出是哪个字段 |
+| 响应里出现了密码 | 没声明 `response_model` | 声明 + 用独立的 Public 模型 |
+| 加了 `async def` 但接口卡 | 里面调了阻塞函数 | 改 `def` 或换异步库 |
+| 改了代码不生效 | 没开 `--reload` | 开发时加 `--reload` |
+| 生产用 `--reload` | 性能差且有安全风险 | 明确禁止 |
+| `/docs` 打不开 | 被前面的路由/中间件拦了 | 检查中间件排除列表 |
+| 路由 404 | 前缀写错（`/api/v1` 忘了） | 看 `/openapi.json` 里的实际路径 |
+
+---
+
+## 1.9 今日自测
+
+1. 启动 `code/demo_api`，打开 `/docs`，用界面试一遍注册、登录、对话。
+2. 找出一个参数错误（如 `temperature=5`），观察 422 响应的 `detail` 结构。
+3. 给 `ChatRequest` 加一个 `model_config = ConfigDict(extra="forbid")`，然后传一个多余字段，观察变化。
+4. 写两个路由：一个用 `async def` 调 `time.sleep(3)`，一个用 `def` 调 `time.sleep(3)`。用两个浏览器标签同时请求，观察哪个会卡。
+5. 在 `create_app` 里临时把 `prefix="/api/v1"` 改成 `/api/v2`，观察 `/docs` 的变化。
+
+---
+
+## 1.10 一句话总结
+
+**FastAPI 把类型注解变成了三件事：请求校验、响应过滤、自动文档；它的核心规则是「基本类型参数走查询串、Pydantic 模型走请求体」，而最需要小心的是 `async def` 里绝不能出现阻塞调用 —— 那会卡住整个服务。**
+
+**明日预告**：Day2 讲依赖注入与中间件 —— 让数据库会话、当前用户、trace_id 优雅地流进路由。
+

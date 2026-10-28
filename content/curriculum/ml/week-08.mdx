@@ -1,0 +1,89 @@
+---
+slug: week-08
+kind: reference
+day: 9
+week: 8
+weekTitle: 工具链与数据预处理
+weekBlurb: Pandas / Matplotlib、七种预处理方法、jieba / NLTK 文本处理与特征工程 Pipeline。
+title: 工具链与数据预处理
+lead: '前 7 周我们一直在"用 NumPy 造轮子"。但从真实项目角度看，**80% 的时间花在数据上，而不是模型上**。……'
+sourcePath: Week08_工具链与数据预处理/README.md
+---
+
+> CYC 工具课件 03–07（Numpy / Pandas / Matplotlib / jieba+NLTK / 数据预处理）+ 导学
+
+前 7 周我们一直在"用 NumPy 造轮子"。但从真实项目角度看，**80% 的时间花在数据上，而不是模型上**。这一周补齐数据侧的完整工具链：用 Pandas 处理表格、用 Matplotlib 看图、用 jieba/NLTK 处理文本、用标准流程做特征工程。
+
+---
+
+## 本周目标
+
+学完本周，你应该能够：
+
+1. 熟练使用 Pandas 的 `Series` / `DataFrame` 完成读写、筛选、排序、分组聚合、缺失值处理；
+2. 会用 Matplotlib 画出折线/散点/柱状/直方/箱线图，并掌握"容器层 / 辅助显示层 / 图像层"的三层结构；
+3. 完整掌握 7 种数据预处理方法：均值移除、范围缩放、归一化、二值化、独热编码、标签编码、缺失值处理；
+4. 会用 jieba 做中文分词、用 NLTK 做英文分词与词频统计；
+5. 能搭建一个**可复用的特征工程 Pipeline**（`sklearn.pipeline.Pipeline` + `ColumnTransformer`）；
+6. 知道特征工程的常见陷阱（数据泄漏、量纲、类别编码顺序）。
+
+---
+
+## 课件对照
+
+| 天 | 主题 | CYC 课件 | 其他参考 |
+| --- | --- | --- | --- |
+| Day1 | Pandas 数据处理 | 04Pandas.pdf（53 页） | pandas 官方文档 |
+| Day2 | Matplotlib 可视化 | 05Matplotlib.pdf（25 页） | matplotlib 官方文档 |
+| Day3 | 数据预处理全流程 | 07数据预处理.pdf（8 页） | sklearn.preprocessing |
+| Day4 | 文本预处理：jieba 与 NLTK | 06jieba和nltk文本处理.pdf（15 页） | jieba / nltk 文档 |
+| Day5 | 综合实战：特征工程 Pipeline | 导学.pdf + 03Numpy.pdf | sklearn.pipeline |
+
+---
+
+## 时间安排
+
+| 天 | 内容 | 文档 | 代码 | 建议时长 |
+| --- | --- | --- | --- | --- |
+| Day1 | Pandas 数据处理 | [Day1_Pandas数据处理.md](/learn/ml/day-41) | `code/day1_pandas.py` | 3h |
+| Day2 | Matplotlib 可视化 | [Day2_Matplotlib可视化.md](/learn/ml/day-42) | `code/day2_matplotlib.py` | 2.5h |
+| Day3 | 数据预处理全流程 | [Day3_数据预处理全流程.md](/learn/ml/day-43) | `code/day3_preprocessing.py` | 3h |
+| Day4 | 文本预处理 | [Day4_文本预处理.md](/learn/ml/day-44) | `code/day4_text_processing.py` | 2.5h |
+| Day5 | 综合实战：特征工程 | [Day5_特征工程Pipeline.md](/learn/ml/day-45) | `code/day5_feature_pipeline.py` | 3h |
+
+---
+
+## 本周检查清单
+
+- [ ] 我能用一行代码读入 CSV 并查看 `head()` / `info()` / `describe()`
+- [ ] 我能用布尔索引、`loc` / `iloc` 精确取数，并说清两者的区别
+- [ ] 我能用 `groupby` + `agg` 完成"按类别统计多个指标"
+- [ ] 我能处理缺失值：判断缺失比例、选择删除或填充、填充时只用训练集统计量
+- [ ] 我能画出带标题、轴标签、图例、网格的完整图，并解决中文显示问题
+- [ ] 我能说清**标准化**与**归一化**的区别，并知道各自适用场景
+- [ ] 我能解释**为什么独热编码优于标签编码**（对无序类别特征）
+- [ ] 我能用 jieba 分词 + 停用词过滤 + 词频统计做一个简单的文本特征
+- [ ] 我能用 `Pipeline` + `ColumnTransformer` 把预处理与模型串成一条链
+- [ ] 我知道"先划分再拟合预处理器"是避免数据泄漏的铁律
+
+---
+
+## 为什么这一周很关键
+
+```
+真实项目的典型时间分配
+┌──────────────────────────────────────────┐
+│ 数据获取与理解   ████████        20%      │
+│ 数据清洗与预处理 ██████████████  35%      │
+│ 特征工程         ████████        20%      │
+│ 建模与调参       ██████          15%      │
+│ 部署与监控       ████            10%      │
+└──────────────────────────────────────────┘
+```
+
+**模型是最后一步，数据才是主线。** 本课程后面的 PyTorch、CV、LLM 全部依赖本周建立的数据处理能力。
+
+---
+
+**下一篇**：[Day1_Pandas数据处理.md](/learn/ml/day-41)
+

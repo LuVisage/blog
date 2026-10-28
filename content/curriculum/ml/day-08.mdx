@@ -1,0 +1,397 @@
+---
+slug: day-08
+kind: day
+day: 8
+week: 1
+weekTitle: 数学地基与环境
+weekBlurb: 开发环境收尾后补齐线性代数、概率、梯度与信息论——后面所有公式都建立在这上面。
+title: 概率论基础
+lead: '机器学习的本质是"**在不确定性下做推断**"。概率论提供的不只是一堆公式，而是**建模现实世界的思维框架**：数据的生成过程是随机的，模型的参数是未知的，所以一切都是概率分布。'
+sourcePath: Week01_数学地基与环境/Day3_概率论基础.md
+---
+
+> 花书第 3 章 3.1–3.11 节 · 南瓜书附录 B
+
+机器学习的本质是"**在不确定性下做推断**"。概率论提供的不只是一堆公式，而是**建模现实世界的思维框架**：数据的生成过程是随机的，模型的参数是未知的，所以一切都是概率分布。
+
+---
+
+## 今日目标
+
+1. 分清随机变量、概率质量函数（PMF）、概率密度函数（PDF）、累积分布函数（CDF）；
+2. 掌握 6 个核心分布，并说清各自的使用场景；
+3. 熟练计算期望、方差、协方差，掌握期望的线性性质；
+4. 熟练使用条件概率、全概率公式与**贝叶斯公式**；
+5. 掌握**最大似然估计（MLE）**与**最大后验估计（MAP）**，并理解 MAP = MLE + 先验；
+6. 能用伯努利分布推导出逻辑回归的交叉熵损失。
+
+---
+
+## 知识地图
+
+```
+Week01 Day3 概率论
+├─ 常见分布     → Week02 数据建模、Week05 朴素贝叶斯
+├─ 贝叶斯公式   → Week05 贝叶斯决策论、Week10 语言模型
+├─ MLE / MAP    → Week03 逻辑回归、Week08 正则化的贝叶斯解释
+└─ 期望与方差   → Week02 偏差-方差分解
+```
+
+---
+
+## 一、随机变量与三种函数
+
+| 概念 | 记号 | 定义 | 适用 |
+| --- | --- | --- | --- |
+| 概率质量函数 PMF | $P(X=x)$ | 离散取值处的概率，$\sum_x P(x) = 1$ | 离散随机变量 |
+| 概率密度函数 PDF | $p(x)$ | $P(a\le X\le b) = \int_a^b p(x)dx$，注意 $p(x)$ 可 > 1 | 连续随机变量 |
+| 累积分布函数 CDF | $F(x) = P(X \le x)$ | 对 PMF 求和 / 对 PDF 积分 | 通用，单调不减 |
+
+**关键区别**：PMF 给的是**概率**，PDF 给的是**密度**。因此"连续随机变量取某个具体值的概率为 0"，这在推导似然函数时非常重要——似然用的是密度，而不是概率。
+
+---
+
+## 二、核心分布
+
+### 2.1 伯努利分布 Bernoulli
+
+随机变量 $X \in \{0, 1\}$，参数 $\phi \in [0,1]$：
+
+$$P(X=1) = \phi, \qquad P(X=0) = 1-\phi$$
+
+统一写法：
+
+$$P(X=x) = \phi^{x}(1-\phi)^{1-x}$$
+
+$$\mathbb{E}[X] = \phi, \qquad \operatorname{Var}(X) = \phi(1-\phi)$$
+
+> **重要**：这个"把两种情形合并成一个式子"的技巧，是推导**交叉熵损失**的起点。
+
+### 2.2 分类分布（Categorical / 多项分布的单次情形）
+
+$X \in \{1, \dots, k\}$，参数 $\boldsymbol{\theta} = (\theta_1, \dots, \theta_k)$，$\sum_j \theta_j = 1$：
+
+$$P(X = j) = \theta_j = \prod_{i=1}^{k}\theta_i^{\mathbb{1}[x=i]}$$
+
+> 这是 **one-hot 编码 + 多分类交叉熵**的来源。
+
+### 2.3 高斯（正态）分布
+
+一维：
+
+$$p(x) = \frac{1}{\sqrt{2\pi\sigma^2}}\exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)$$
+
+多元（$\boldsymbol{x} \in \mathbb{R}^d$）：
+
+$$\mathcal{N}(\boldsymbol{x}; \boldsymbol{\mu}, \boldsymbol{\Sigma}) = \frac{1}{(2\pi)^{d/2}|\boldsymbol{\Sigma}|^{1/2}} \exp\left(-\frac{1}{2}(\boldsymbol{x}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1}(\boldsymbol{x}-\boldsymbol{\mu})\right)$$
+
+**为什么高斯无处不在**：
+
+1. **中心极限定理**：大量独立同分布随机变量之和趋于高斯；
+2. **最大熵**：给定均值和方差，高斯是熵最大的分布（即假设最少）；
+3. **易处理**：线性变换、边缘化、条件化后仍是高斯（闭包性）。
+
+> **高斯与 MSE 的关系**：假设 $y = \boldsymbol{w}^\top\boldsymbol{x} + \epsilon$，$\epsilon \sim \mathcal{N}(0,\sigma^2)$，则
+> $p(y|\boldsymbol{x}) = \mathcal{N}(y; \boldsymbol{w}^\top\boldsymbol{x}, \sigma^2)$。
+> 对它做 MLE 等价于**最小化均方误差 MSE**。这解释了"为什么回归用 MSE，而不是 MAE"。
+
+### 2.4 指数分布与拉普拉斯分布
+
+$$p_{\text{exp}}(x;\lambda) = \lambda e^{-\lambda x}, \quad x \ge 0$$
+
+$$p_{\text{Laplace}}(x;\mu,b) = \frac{1}{2b}\exp\left(-\frac{|x-\mu|}{b}\right)$$
+
+> **拉普拉斯与 $L_1$ 正则**：假设参数先验是拉普拉斯分布，MAP 估计会导出 $L_1$ 正则（Lasso）；先验是高斯则导出 $L_2$ 正则（Ridge）。
+
+### 2.5 狄利克雷分布
+
+$$\text{Dir}(\boldsymbol{\theta}; \boldsymbol{\alpha}) \propto \prod_{i=1}^{k} \theta_i^{\alpha_i - 1}$$
+
+分类分布的**共轭先验**，常用于主题模型 LDA。
+
+### 分布速查表
+
+| 分布 | 支撑集 | 参数 | 典型场景 |
+| --- | --- | --- | --- |
+| Bernoulli | $\{0,1\}$ | $\phi$ | 二分类标签 |
+| Categorical | $\{1..k\}$ | $\boldsymbol{\theta}$ | 多分类标签 |
+| 二项 | $\{0..n\}$ | $n, \phi$ | n 次抛硬币成功次数 |
+| 高斯 | $\mathbb{R}$ | $\mu, \sigma^2$ | 连续值回归误差 |
+| 指数 | $[0,\infty)$ | $\lambda$ | 事件等待时间 |
+| 拉普拉斯 | $\mathbb{R}$ | $\mu, b$ | 稀疏先验 |
+
+---
+
+## 三、期望、方差、协方差
+
+### 3.1 期望
+
+离散：$\mathbb{E}[X] = \sum_x P(x) \cdot x$；连续：$\mathbb{E}[X] = \int x\, p(x)dx$
+
+**四大性质**：
+
+$$\mathbb{E}[\mathbf{1}] = \mathbb{E}[aX + b] = a\mathbb{E}[X] + b$$
+
+$$\mathbb{E}[X + Y] = \mathbb{E}[X] + \mathbb{E}[Y] \quad \text{（无需独立！）}$$
+
+$$\mathbb{E}[XY] = \mathbb{E}[X]\mathbb{E}[Y] \quad \text{（需要独立）}$$
+
+$$\mathbb{E}[g(X)] = \sum_x g(x)P(x) \quad \text{（无意识统计学家定律）}$$
+
+> 最后一条说明：**求 $\mathbb{E}[g(X)]$ 不需要先求 $g(X)$ 的分布**，这在推导 KL 散度时非常有用。
+
+### 3.2 方差
+
+$$\operatorname{Var}(X) = \mathbb{E}\left[(X - \mathbb{E}[X])^2\right] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2$$
+
+$$\operatorname{Var}(aX + b) = a^2\operatorname{Var}(X)$$
+
+$$\operatorname{Var}(X + Y) = \operatorname{Var}(X) + \operatorname{Var}(Y) + 2\operatorname{Cov}(X,Y)$$
+
+### 3.3 协方差与相关系数
+
+$$\operatorname{Cov}(X,Y) = \mathbb{E}[(X-\mathbb{E}X)(Y - \mathbb{E}Y)] = \mathbb{E}[XY] - \mathbb{E}X\mathbb{E}Y$$
+
+$$\rho_{XY} = \frac{\operatorname{Cov}(X,Y)}{\sqrt{\operatorname{Var}(X)\operatorname{Var}(Y)}} \in [-1, 1]$$
+
+**协方差矩阵**：
+
+$$\boldsymbol{\Sigma} = \mathbb{E}\left[(\boldsymbol{x}-\boldsymbol{\mu})(\boldsymbol{x}-\boldsymbol{\mu})^\top\right]$$
+
+- 对角元是各维方差，非对角元是两两协方差；
+- **对称半正定**（因为 $\boldsymbol{u}^\top\boldsymbol{\Sigma}\boldsymbol{u} = \operatorname{Var}(\boldsymbol{u}^\top\boldsymbol{x}) \ge 0$）；
+- 它是 PCA 的主角。
+
+> **注意**：$\operatorname{Cov}(X,Y)=0$ 只说明**线性不相关**，不代表独立。经典反例：$X\sim U(-1,1)$，$Y = X^2$，则 $\operatorname{Cov}(X,Y)=0$ 但 $Y$ 完全由 $X$ 决定。
+
+---
+
+## 四、条件概率与贝叶斯公式
+
+### 4.1 定义
+
+$$P(A|B) = \frac{P(A \cap B)}{P(B)}, \quad P(B) > 0$$
+
+**链式法则**：
+
+$$P(A, B, C) = P(A)\,P(B|A)\,P(C|A,B)$$
+
+### 4.2 全概率公式
+
+若 $\{B_i\}$ 是样本空间的一个划分：
+
+$$P(A) = \sum_i P(A|B_i)P(B_i)$$
+
+### 4.3 贝叶斯公式
+
+$$P(B|A) = \frac{P(A|B)P(B)}{P(A)} = \frac{P(A|B)P(B)}{\sum_i P(A|B_i)P(B_i)}$$
+
+翻译成机器学习语言：
+
+$$\underbrace{p(\boldsymbol{\theta} \mid \mathcal{D})}_{\text{后验}} = \frac{\underbrace{p(\mathcal{D}\mid \boldsymbol{\theta})}_{\text{似然}} \cdot \underbrace{p(\boldsymbol{\theta})}_{\text{先验}}}{\underbrace{p(\mathcal{D})}_{\text{证据}}}$$
+
+| 术语 | 含义 |
+| --- | --- |
+| 先验 $p(\boldsymbol{\theta})$ | 看数据前对参数的信念 |
+| 似然 $p(\mathcal{D}\mid\boldsymbol{\theta})$ | 该参数下观测到这份数据的可能性 |
+| 后验 $p(\boldsymbol{\theta}\mid\mathcal{D})$ | 看完数据后更新的信念 |
+| 证据 $p(\mathcal{D})$ | 归一化常数，与 $\boldsymbol{\theta}$ 无关 |
+
+### 4.4 独立性
+
+$$X \perp Y \iff P(X, Y) = P(X)P(Y) \iff P(X|Y) = P(X)$$
+
+**条件独立**：$X \perp Y \mid Z \iff P(X,Y|Z) = P(X|Z)P(Y|Z)$
+
+> **朴素贝叶斯的核心假设**就是"给定类别 $y$，各特征条件独立"，于是
+> $P(\boldsymbol{x}|y) = \prod_{j=1}^{n} P(x_j|y)$，把 $n$ 维联合分布拆成 $n$ 个一维分布。
+
+---
+
+## 五、最大似然估计（MLE）
+
+**思想**：参数的"最佳"取值，应该让**观测到的数据出现概率最大**。
+
+给定独立同分布样本 $\mathcal{D} = \{\boldsymbol{x}_1, \dots, \boldsymbol{x}_m\}$：
+
+$$\hat{\boldsymbol{\theta}}_{\text{MLE}} = \arg\max_{\boldsymbol{\theta}} p(\mathcal{D}; \boldsymbol{\theta}) = \arg\max_{\boldsymbol{\theta}} \prod_{i=1}^{m} p(\boldsymbol{x}_i; \boldsymbol{\theta})$$
+
+**关键技巧：取对数**。因为 $\log$ 单调递增，且能把乘积变成求和：
+
+$$\hat{\boldsymbol{\theta}}_{\text{MLE}} = \arg\max_{\boldsymbol{\theta}} \sum_{i=1}^{m} \log p(\boldsymbol{x}_i; \boldsymbol{\theta})$$
+
+数值上也更安全：几十个小于 1 的数相乘会**下溢为 0**，取对数后不会。
+
+### 例：一维高斯分布参数估计
+
+$$\log p(\mathcal{D}) = \sum_{i=1}^m \left[-\frac{1}{2}\log(2\pi\sigma^2) - \frac{(x_i-\mu)^2}{2\sigma^2}\right]$$
+
+对 $\mu$ 求导并令零：
+
+$$\frac{\partial}{\partial\mu} = \sum_{i=1}^m \frac{x_i - \mu}{\sigma^2} = 0 \quad\Rightarrow\quad \hat{\mu}_{\text{MLE}} = \frac{1}{m}\sum_{i=1}^m x_i$$
+
+对 $\sigma^2$ 求导：
+
+$$\Rightarrow\quad \hat{\sigma}^2_{\text{MLE}} = \frac{1}{m}\sum_{i=1}^m (x_i - \hat{\mu})^2$$
+
+> 注意分母是 $m$ 而不是 $m-1$，所以 MLE 的方差估计是**有偏**的（低估）。无偏估计才用 $m-1$ 贝塞尔校正。
+
+### 例：伯努利分布 → 交叉熵损失
+
+设 $\mathcal{D} = \{(x_i, y_i)\}$，$y_i \in \{0,1\}$，模型输出 $\hat{y}_i = \sigma(\boldsymbol{w}^\top\boldsymbol{x}_i)$ 作为 $P(Y=1)$。
+
+似然：
+
+$$L(\boldsymbol{w}) = \prod_{i=1}^m \hat{y}_i^{y_i}(1-\hat{y}_i)^{1-y_i}$$
+
+负对数似然：
+
+$$-\log L = -\sum_{i=1}^m \left[y_i \log \hat{y}_i + (1-y_i)\log(1-\hat{y}_i)\right]$$
+
+**这正是二分类交叉熵损失**。所以：
+
+> **最小化交叉熵损失 ⟺ 最大化似然 ⟺ 最小化负对数似然（NLL）**
+
+同一个东西的三种说法。
+
+---
+
+## 六、最大后验估计（MAP）
+
+MLE 只用数据，MAP 还考虑先验：
+
+$$\hat{\boldsymbol{\theta}}_{\text{MAP}} = \arg\max_{\boldsymbol{\theta}} p(\boldsymbol{\theta}|\mathcal{D}) = \arg\max_{\boldsymbol{\theta}} \left[\log p(\mathcal{D}|\boldsymbol{\theta}) + \log p(\boldsymbol{\theta})\right]$$
+
+$$\underbrace{\hat{\boldsymbol{\theta}}_{\text{MAP}} = \arg\min_{\boldsymbol{\theta}} \Big[-\log p(\mathcal{D}|\boldsymbol{\theta}) - \log p(\boldsymbol{\theta})\Big]}_{\text{损失函数 = 负对数似然 + 负对数先验}}$$
+
+**两条黄金结论**：
+
+| 先验 | 对应正则化 |
+| --- | --- |
+| $\boldsymbol{\theta} \sim \mathcal{N}(0, \tau^2\mathbf{I})$（高斯） | $L_2$ 正则（权重衰减），$\lambda = \dfrac{1}{2\tau^2}$ |
+| $\boldsymbol{\theta} \sim \text{Laplace}(0, b)$（拉普拉斯） | $L_1$ 正则（Lasso） |
+
+推导（高斯先验）：
+
+$$-\log p(\boldsymbol{\theta}) = \frac{1}{2\tau^2}\|\boldsymbol{\theta}\|_2^2 + \text{const}$$
+
+代入即得：
+
+$$\hat{\boldsymbol{\theta}}_{\text{MAP}} = \arg\min_{\boldsymbol{\theta}} \left[\text{NLL}(\boldsymbol{\theta}) + \frac{1}{2\tau^2}\|\boldsymbol{\theta}\|_2^2\right]$$
+
+这就是**权重衰减**。
+
+> **MLE vs MAP 的取舍**：样本少时先验（正则化）能显著防过拟合；样本极大时先验影响被稀释，两者趋于一致。这就是"**数据量大时正则化的作用会变弱**"的数学根源。
+
+---
+
+## 七、代码实践
+
+```python
+import numpy as np
+from scipy import stats          # 可选，未安装可用下面手写版本
+
+rng = np.random.default_rng(42)
+
+# 1. 从分布采样并验证期望/方差
+mu, sigma = 2.0, 3.0
+samples = rng.normal(mu, sigma, size=200_000)
+print(f"理论: E={mu}, Var={sigma**2}")
+print(f"经验: E={samples.mean():.3f}, Var={samples.var():.3f}")
+
+# 2. 协方差矩阵
+X = rng.multivariate_normal([0, 0], [[1.0, 0.8], [0.8, 2.0]], size=100_000)
+print("经验协方差:\n", np.cov(X.T))
+print("理论协方差:\n [[1.  0.8]\n  [0.8 2. ]]")
+
+# 3. 贝叶斯公式：医学检测悖论
+p_disease = 0.001          # 患病率（先验）
+p_pos_given_disease = 0.99 # 灵敏度
+p_pos_given_healthy = 0.05 # 假阳性率
+p_pos = p_pos_given_disease * p_disease + p_pos_given_healthy * (1 - p_disease)
+p_disease_given_pos = p_pos_given_disease * p_disease / p_pos
+print(f"检测阳性者真正患病概率: {p_disease_given_pos:.2%}")   # 约 1.94%
+
+# 4. MLE：手写高斯参数估计
+data = rng.normal(5.0, 2.0, size=1000)
+mu_mle = data.mean()
+sigma2_mle = ((data - mu_mle) ** 2).mean()          # 分母用 m（有偏）
+sigma2_unbiased = data.var(ddof=1)                  # 分母用 m-1
+print(f"MLE 方差={sigma2_mle:.4f}, 无偏方差={sigma2_unbiased:.4f}, 真值=4.0")
+
+# 5. 伯努利 MLE：抛硬币
+flips = rng.binomial(1, 0.7, size=100)
+print(f"硬币正面概率 MLE = {flips.mean():.3f}")      # 就是样本均值
+```
+
+完整版本见 `code/day3_probability.py`。
+
+---
+
+## 八、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 把 PDF 当成概率 | 连续分布的 $p(x)$ 可以 > 1，只有积分才是概率 |
+| 直接乘似然导致下溢 | $m$ 较大时乘积迅速变 0，**必须取对数** |
+| 混淆 MLE 与 MAP | 没加正则 = MLE；加了 $L_2$ = 高斯先验 MAP |
+| 认为协方差为 0 就独立 | 只说明无线性关系 |
+| 方差分母用错 | 只要"估计总体方差"就得用 $m-1$；手写损失时一般用 $m$ 无所谓（差常数因子） |
+| 忘记独立同分布假设 | MLE 连乘的前提是 i.i.d.，时序数据不满足 |
+
+---
+
+## 九、练习题
+
+**基础**
+
+1. 已知某病患病率 1%，检测灵敏度 99%，特异度 95%。某人检测阳性，患病概率是多少？（用贝叶斯公式手算）
+2. 证明 $\operatorname{Var}(X) = \mathbb{E}[X^2] - (\mathbb{E}[X])^2$。
+3. 从 Bernoulli($\phi$) 的 $m$ 个 i.i.d. 样本出发，推导 $\hat{\phi}_{\text{MLE}}$。
+
+**进阶**
+
+4. 写出多元高斯分布对数似然中对均值 $\boldsymbol{\mu}$ 求导的过程，验证 $\hat{\boldsymbol{\mu}} = \frac{1}{m}\sum \boldsymbol{x}_i$。
+5. 推导：若 $\boldsymbol{\theta} \sim \text{Laplace}(0, b)$，MAP 等价于 $L_1$ 正则，并给出 $\lambda$ 与 $b$ 的关系。
+6. 【核心】从 Categorical 分布出发，推导多分类的 softmax 交叉熵损失，并求出它对 logits 的梯度（结果是 $\hat{y} - y$，这是 Week07 反向传播的关键）。
+
+**思考题**
+
+7. 为什么 MLE 在样本量很小时容易过拟合？请结合"数据稀疏导致某些事件概率估计为 0"的例子说明（提示：抛 3 次都是正面，$\hat\phi = 1$，那么"下次反面"的概率估计是多少？这种估计合理吗？拉普拉斯平滑如何解决？）
+
+<details>
+<summary>第 3 题答案</summary>
+
+似然：$L(\phi) = \prod_{i=1}^m \phi^{x_i}(1-\phi)^{1-x_i} = \phi^{k}(1-\phi)^{m-k}$，其中 $k=\sum x_i$。
+
+对数似然：$\ell(\phi) = k\log\phi + (m-k)\log(1-\phi)$。
+
+求导：$\dfrac{d\ell}{d\phi} = \dfrac{k}{\phi} - \dfrac{m-k}{1-\phi} = 0 \Rightarrow k(1-\phi) = (m-k)\phi \Rightarrow \hat\phi = \dfrac{k}{m}$。
+</details>
+
+<details>
+<summary>第 6 题答案要点</summary>
+
+设样本 $i$ 的真实类别为 $c_i$，模型输出 $\hat{\boldsymbol{y}}_i = \text{softmax}(\boldsymbol{z}_i)$。
+
+负对数似然：
+
+$$-\log L = -\sum_{i}\sum_{j} \mathbb{1}[c_i = j]\log \hat y_{ij}$$
+
+对 logit $z_{ik}$ 求偏导，利用 softmax 的 Jacobian $\frac{\partial \hat y_j}{\partial z_k} = \hat y_j(\delta_{jk} - \hat y_k)$，可得
+
+$$\frac{\partial (-\log L)}{\partial z_{ik}} = \hat y_{ik} - \mathbb{1}[c_i = k]$$
+
+即**预测概率减真实 one-hot**，形式极其简洁。这个结果在 Week07 反向传播中会反复出现。
+</details>
+
+---
+
+## 十、一句话总结
+
+**概率论给出了机器学习的"信念更新"框架：先验 + 数据 → 后验。记住两条主线——贝叶斯公式是推理的引擎，最大似然是最优化的目标。**
+
+---
+
+**明日预告**：Day4 进入微积分，重点把**梯度**、**链式法则**、**Jacobian / Hessian** 三个概念讲透，这是 Week07 反向传播的数学前提。
+

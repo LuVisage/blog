@@ -1,0 +1,338 @@
+---
+slug: day-26
+kind: day
+day: 26
+week: 5
+weekTitle: 支持向量机与概率模型
+weekBlurb: 间隔与对偶、核方法，以及贝叶斯分类器的概率视角。
+title: 最大间隔与对偶问题
+lead: 'SVM 的核心思想只有一句话：**在所有能分开两类的超平面中，选"离最近样本最远"的那个。** 但为了求它，我们需要拉格朗日对偶与 KKT 条件。'
+sourcePath: Week05_支持向量机与概率模型/Day1_最大间隔与对偶问题.md
+---
+
+> 西瓜书第 6 章 6.1–6.2 节 · 南瓜书 6.1–6.20
+
+SVM 的核心思想只有一句话：**在所有能分开两类的超平面中，选"离最近样本最远"的那个。** 但为了求它，我们需要拉格朗日对偶与 KKT 条件。
+
+---
+
+## 今日目标
+
+1. 理解"最大间隔"的几何意义与函数间隔、几何间隔的区别；
+2. 推导硬间隔 SVM 的原始问题，并说明为什么可以固定 $\|\boldsymbol{w}\|$；
+3. 用拉格朗日乘子法推导对偶问题；
+4. 写出 KKT 条件，并推出"支持向量"的定义；
+5. 理解为什么 $\boldsymbol{w}$ 只由支持向量决定；
+6. 掌握 SMO 算法的基本思想。
+
+---
+
+## 知识地图
+
+```
+Week05
+├── Day1 最大间隔与对偶问题  ← 你在这里
+├── Day2 核函数与软间隔
+├── Day3 贝叶斯与朴素贝叶斯
+├── Day4 EM 与贝叶斯网络
+└── Day5 实战 SVM
+
+依赖: Week01 Day4（拉格朗日乘子、KKT、凸性）
+Week03 Day1（超平面、投影）
+```
+
+---
+
+## 一、超平面与间隔
+
+### 1.1 超平面
+
+$$\boldsymbol{w}^\top\boldsymbol{x} + b = 0$$
+
+- $\boldsymbol{w}$ 是**法向量**（垂直于超平面）；
+- 点 $\boldsymbol{x}$ 到超平面的**距离**：
+
+$$d = \frac{|\boldsymbol{w}^\top\boldsymbol{x}+b|}{\|\boldsymbol{w}\|}$$
+
+**推导**（补充）：任取超平面上一点 $\boldsymbol{x}_0$，则 $\boldsymbol{x}-\boldsymbol{x}_0$ 在法向的投影长度为
+
+$$\left|\boldsymbol{w}^\top(\boldsymbol{x}-\boldsymbol{x}_0)\right|/\|\boldsymbol{w}\| = |\boldsymbol{w}^\top\boldsymbol{x}+b|/\|\boldsymbol{w}\|$$
+
+### 1.2 两种间隔
+
+| 名称 | 定义 | 是否受尺度影响 |
+| --- | --- | --- |
+| **函数间隔** | $\hat\gamma = y(\boldsymbol{w}^\top\boldsymbol{x}+b)$ | 会随 $\boldsymbol{w}$ 缩放 |
+| **几何间隔** | $\gamma = \frac{y(\boldsymbol{w}^\top\boldsymbol{x}+b)}{\|\boldsymbol{w}\|}$ | 尺度无关 |
+
+**关键**：函数间隔可以任意缩放（把 $\boldsymbol{w},b$ 同乘一个正数，超平面不变但函数间隔变化），所以必须用**几何间隔**。
+
+---
+
+## 二、硬间隔 SVM 的原始问题
+
+### 2.1 目标
+
+**最大化到最近样本的几何间隔**：
+
+$$\max_{\boldsymbol{w},b}\ \min_i\ \frac{y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b)}{\|\boldsymbol{w}\|}$$
+
+### 2.2 归一化技巧
+
+由于函数间隔可任意缩放，我们**约定最近样本的函数间隔为 1**：
+
+$$\min_i\ y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b) = 1$$
+
+于是问题变成：
+
+$$\max_{\boldsymbol{w},b}\ \frac{1}{\|\boldsymbol{w}\|} \quad \text{s.t.}\quad y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b)\ge 1,\ \forall i$$
+
+等价于：
+
+$$\boxed{\ \min_{\boldsymbol{w},b}\ \frac{1}{2}\|\boldsymbol{w}\|^2 \quad \text{s.t.}\quad y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b)\ge1\ }\quad\text{（SVM 原始问题）}$$
+
+**加 $1/2$ 只是为了求导时消掉系数 2，不影响最优解。**
+
+### 2.3 几何图景
+
+```
+        ●   ●
+     ●   ●      支持向量（落在边界上，决定间隔）
+        |← 2/||w|| →|
+    ----+-----------+----   ← 决策超平面 w'x+b=0
+        |           |
+        ○   ○
+     ○      ○
+```
+
+**最大间隔** $= \frac{2}{\|\boldsymbol{w}\|}$。所以**最小化 $\|\boldsymbol{w}\|$ = 最大化间隔**。
+
+---
+
+## 三、对偶问题推导
+
+### 3.1 构造拉格朗日函数
+
+对每个约束引入乘子 $\alpha_i \ge 0$：
+
+$$L(\boldsymbol{w}, b, \boldsymbol{\alpha}) = \frac{1}{2}\|\boldsymbol{w}\|^2 + \sum_{i=1}^{m}\alpha_i\left[1 - y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b)\right]$$
+
+### 3.2 对 $\boldsymbol{w}$ 与 $b$ 求极小
+
+**对 $\boldsymbol{w}$**：
+
+$$\nabla_{\boldsymbol{w}}L = \boldsymbol{w} - \sum_i \alpha_i y_i \boldsymbol{x}_i = \boldsymbol{0} \quad\Rightarrow\quad \boxed{\ \boldsymbol{w} = \sum_{i=1}^{m}\alpha_i y_i\boldsymbol{x}_i\ }$$
+
+**对 $b$**：
+
+$$\frac{\partial L}{\partial b} = -\sum_i \alpha_i y_i = 0 \quad\Rightarrow\quad \boxed{\ \sum_{i=1}^m \alpha_i y_i = 0\ }$$
+
+### 3.3 代回得到对偶问题
+
+把 $\boldsymbol{w} = \sum_i\alpha_iy_i\boldsymbol{x}_i$ 代回 $L$：
+
+$$\begin{aligned} L &= \frac{1}{2}\left(\sum_i\alpha_iy_i\boldsymbol{x}_i\right)^\top\left(\sum_j\alpha_jy_j\boldsymbol{x}_j\right) + \sum_i\alpha_i - \sum_i\alpha_i y_i\boldsymbol{x}_i^\top\sum_j\alpha_jy_j\boldsymbol{x}_j - b\underbrace{\sum_i\alpha_iy_i}_{=0} \\ &= \sum_i\alpha_i - \frac{1}{2}\sum_i\sum_j \alpha_i\alpha_jy_iy_j\,\boldsymbol{x}_i^\top\boldsymbol{x}_j \end{aligned}$$
+
+**对偶问题**：
+
+$$\boxed{\ \max_{\boldsymbol{\alpha}}\ \sum_{i=1}^m\alpha_i - \frac{1}{2}\sum_{i=1}^m\sum_{j=1}^m\alpha_i\alpha_jy_iy_j\boldsymbol{x}_i^\top\boldsymbol{x}_j \quad \text{s.t.}\quad \sum_i\alpha_iy_i=0,\ \alpha_i\ge0\ }$$
+
+### 3.4 对偶问题的三个好处
+
+| 好处 | 说明 |
+| --- | --- |
+| 变量数变为 $m$（样本数） | 与原问题变量数 $n+1$（特征数）无关 |
+| 只出现**内积** $\boldsymbol{x}_i^\top\boldsymbol{x}_j$ | 为**核技巧**打开大门（Day2） |
+| 是凸二次规划 | 有全局最优，可用 SMO 求解 |
+
+**强对偶成立**：原始问题凸 + Slater 条件满足 ⇒ $d^* = p^*$。
+
+---
+
+## 四、KKT 条件与支持向量
+
+### 4.1 KKT 条件
+
+$$\begin{cases}\text{平稳性:} & \boldsymbol{w} = \sum_i\alpha_iy_i\boldsymbol{x}_i,\quad \sum_i\alpha_iy_i = 0\\ \text{原始可行:} & y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b)\ge1\\ \text{对偶可行:} & \alpha_i\ge0\\ \text{互补松弛:} & \alpha_i\left[y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b)-1\right] = 0\end{cases}$$
+
+### 4.2 互补松弛的推论（核心）
+
+$$\alpha_i\left[y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b)-1\right] = 0$$
+
+分析两种情况：
+
+| 情形 | 结论 |
+| --- | --- |
+| $y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b) > 1$（样本在间隔外，已被正确分类） | 必有 $\alpha_i = 0$ |
+| $\alpha_i > 0$ | 必有 $y_i(\boldsymbol{w}^\top\boldsymbol{x}_i+b) = 1$（**落在边界上**）|
+
+**定义支持向量（Support Vector）**：满足 $\alpha_i>0$ 的样本，即落在最大间隔边界上的样本。
+
+$$\boxed{\ \boldsymbol{w} = \sum_{i\in SV}\alpha_iy_i\boldsymbol{x}_i\ }$$
+
+**结论**：**决策超平面只由支持向量决定**，其余样本删掉也不影响模型。这是 SVM 相对其他模型的独特性质。
+
+### 4.3 求 $b$
+
+任取一个支持向量 $\boldsymbol{x}_s$（$\alpha_s > 0$），由 $y_s(\boldsymbol{w}^\top\boldsymbol{x}_s+b)=1$：
+
+$$b = y_s - \boldsymbol{w}^\top\boldsymbol{x}_s$$
+
+实际中为数值稳定，通常对所有支持向量求平均：
+
+$$b = \frac{1}{|SV|}\sum_{s\in SV}\left(y_s - \sum_{i\in SV}\alpha_iy_i\boldsymbol{x}_i^\top\boldsymbol{x}_s\right)$$
+
+### 4.4 决策函数
+
+$$f(\boldsymbol{x}) = \boldsymbol{w}^\top\boldsymbol{x}+b = \sum_{i\in SV}\alpha_iy_i\,\boldsymbol{x}_i^\top\boldsymbol{x} + b$$
+
+**注意**：预测时只需与**支持向量**做内积，不需要遍历全部训练样本。
+
+---
+
+## 五、SMO 算法思想
+
+对偶问题有 $m$ 个变量与一个等式约束，直接求解需要二次规划库。**SMO（Sequential Minimal Optimization）** 的思路：
+
+```
+重复直到收敛:
+    1. 选两个变量 α_i, α_j（启发式：优先选违反 KKT 最严重的）
+    2. 固定其他变量，只对 (α_i, α_j) 求解
+       由于等式约束 Σα_k y_k = 0，
+       α_i y_i + α_j y_j = 常数  ->  问题降为一元二次规划，有【解析解】！
+    3. 更新 α_i, α_j，并裁剪到 [0, C]
+```
+
+**为什么是两个变量**：一个变量受等式约束限制无法单独变动；两个变量才有一维自由度。
+
+**裁剪公式**（软间隔情形）：
+
+$$\alpha_j^{\text{new,clipped}} = \begin{cases}H, & \alpha_j^{\text{new}} > H\\ \alpha_j^{\text{new}}, & L \le \alpha_j^{\text{new}}\le H\\ L, & \alpha_j^{\text{new}} < L\end{cases}$$
+
+其中 $L, H$ 由 $y_i, y_j$ 是否同号决定。
+
+---
+
+## 六、代码实践
+
+```python
+import numpy as np
+from scipy.optimize import minimize
+
+def svm_dual_hard(X, y):
+    """
+    用通用二次规划求解硬间隔 SVM 的对偶问题
+    y 取值为 {-1, +1}
+    """
+    m = len(y)
+    # 核矩阵（线性核）
+    K = X @ X.T
+
+    def neg_dual(alpha):
+        # 目标: max sum(a) - 1/2 a^T (y y^T ⊙ K) a
+        return 0.5 * (alpha * y) @ K @ (alpha * y) - alpha.sum()
+
+    def neg_dual_grad(alpha):
+        return (K @ (alpha * y)) * y - np.ones(m)
+
+    cons = [{"type": "eq",
+             "fun": lambda a: float(a @ y),
+             "jac": lambda a: y.astype(float)}]
+    res = minimize(neg_dual, np.zeros(m), jac=neg_dual_grad,
+                   bounds=[(0, None)] * m, constraints=cons,
+                   method="SLSQP", options={"maxiter": 500, "ftol": 1e-10})
+    alpha = res.x
+    sv = alpha > 1e-6
+    w = ((alpha * y) @ X)                      # w = sum a_i y_i x_i
+    b = np.mean(y[sv] - X[sv] @ w)             # 对所有支持向量取平均
+    return w, b, alpha, sv
+```
+
+完整版本见 `code/day1_svm_margin.py`，包含：
+
+1. 手写硬间隔 SVM（对偶 + QP），与 `sklearn.svm.SVC(kernel='linear')` 对照；
+2. 打印**支持向量的编号与对应 $\alpha_i$**，验证"非支持向量 $\alpha_i=0$"；
+3. 实验：删掉非支持向量后重新训练，验证决策边界完全不变；
+4. 数值验证互补松弛条件 $\alpha_i[y_i f(\boldsymbol{x}_i)-1]=0$；
+5. 计算最大间隔宽度 $2/\|\boldsymbol{w}\|$。
+
+---
+
+## 七、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 混淆函数间隔与几何间隔 | 函数间隔可任意缩放，无意义 |
+| 忘记 $\sum\alpha_iy_i=0$ 这个约束 | 缺少它求出的解错误 |
+| 认为所有样本都是支持向量 | 只有间隔边界上的少数样本 $\alpha_i>0$ |
+| 用原始问题直接解 | 变量数为特征数，高维时不可行；对偶与特征数无关 |
+| 硬间隔用于不可分数据 | 无解，必须用软间隔 |
+| $b$ 只用一个支持向量算 | 数值不稳定，应对所有支持向量取平均 |
+| 忘记 $\alpha_i$ 的上界 $C$ | 软间隔情形下 $\alpha_i\in[0,C]$ |
+
+---
+
+## 八、练习题
+
+**基础**
+
+1. 写出超平面 $\boldsymbol{w}^\top\boldsymbol{x}+b=0$ 到点 $\boldsymbol{x}_0$ 的距离公式。
+2. 说明为什么可以约定"最近样本的函数间隔为 1"。
+3. 写出硬间隔 SVM 的原始问题与对偶问题。
+
+**进阶**
+
+4. 用拉格朗日乘子法完整推导对偶问题。
+5. 由互补松弛条件 $\alpha_i[y_i f(\boldsymbol{x}_i)-1]=0$ 证明：若 $\boldsymbol{x}_i$ 不是支持向量，则 $\alpha_i=0$。
+6. 证明最大间隔的宽度为 $2/\|\boldsymbol{w}\|$。
+7. 对 $\boldsymbol{w} = \sum_i\alpha_iy_i\boldsymbol{x}_i$，证明 $\|\boldsymbol{w}\|^2 = \sum_i\sum_j\alpha_i\alpha_jy_iy_j\boldsymbol{x}_i^\top\boldsymbol{x}_j$。
+
+**思考题**
+
+8. 为什么说"SVM 的决策函数只依赖少数支持向量"是一个重要性质？请举出一个它的实际好处。
+9. 如果数据维度远大于样本数（$n \gg m$），核矩阵 $\mathbf{K}$ 的大小是多少？这时 SVM 与线性回归相比有什么优势？
+10. 为什么对偶问题中只出现内积这一事实如此重要？
+
+<details>
+<summary>第 5 题答案</summary>
+
+互补松弛要求 $\alpha_i[y_if(\boldsymbol{x}_i)-1]=0$，即两者至少一个为 0。
+
+若 $\boldsymbol{x}_i$ 不是支持向量，意味着它**不在间隔边界上**，即 $y_if(\boldsymbol{x}_i) > 1$，因此方括号内 $>0$。
+
+要让乘积为 0，必须 $\alpha_i = 0$。∎
+</details>
+
+<details>
+<summary>第 6 题答案</summary>
+
+对支持向量 $\boldsymbol{x}_s$，有 $y_s(\boldsymbol{w}^\top\boldsymbol{x}_s+b)=1$。
+
+正类支持向量到超平面的距离：$\frac{1}{\|\boldsymbol{w}\|}$；
+负类支持向量到超平面的距离：$\frac{1}{\|\boldsymbol{w}\|}$。
+
+两者分别在超平面两侧 ⇒ 总间隔宽度：
+
+$$\frac{1}{\|\boldsymbol{w}\|} + \frac{1}{\|\boldsymbol{w}\|} = \frac{2}{\|\boldsymbol{w}\|}$$
+</details>
+
+<details>
+<summary>第 10 题答案要点</summary>
+
+因为**核技巧**：只要能用内积 $K(\boldsymbol{x}_i,\boldsymbol{x}_j)$ 表达算法，就可以把内积替换为核函数，等价于在**高维（甚至无穷维）特征空间**中做线性 SVM，而**计算量仍在原始维度**。
+
+$$\phi(\boldsymbol{x}_i)^\top\phi(\boldsymbol{x}_j) = K(\boldsymbol{x}_i,\boldsymbol{x}_j)$$
+
+若没有"只涉及内积"这一性质，就无法做这个替换。
+</details>
+
+---
+
+## 九、一句话总结
+
+**SVM 把"找最好的分类超平面"变成了一个凸二次规划；对偶形式让变量数与特征维度脱钩，并只出现内积——这为核技巧铺平了道路。**
+
+---
+
+**明日预告**：Day2 讲核函数与软间隔。你会看到 $\exp(-\gamma\|\boldsymbol{x}-\boldsymbol{z}\|^2)$ 如何把线性不可分的数据变得线性可分，以及 $C$ 参数如何控制"允许犯多少错"。
+

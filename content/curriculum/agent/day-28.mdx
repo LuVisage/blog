@@ -1,0 +1,217 @@
+---
+slug: day-28
+day: 28
+week: 6
+weekTitle: LangSmith 可观测
+weekBlurb: 全链路追踪、调试与标注、Datasets 离线评估、在线监控告警。
+title: LangSmith 评估 —— Datasets 与 Evaluators
+lead: '建立"评估集（Dataset）"，用 Evaluator 自动打分，实现"改代码 → 一键回归测试"的工程闭环。'
+examples:
+  - examples/day28_evaluation.py
+sourcePath: week-06-langsmith/day-28.md
+---
+
+---
+
+## 28.1 从"人工标注"到"自动评估"
+
+Day 27 你手动给 trace 打 。但工程上要的是**自动化**：
+
+```
+每次改完 Agent → 跑一遍标准问题集 → 自动打分 → 分数降了就报警
+```
+
+LangSmith 的三件套：
+
+| 组件 | 作用 | 类比 |
+|---|---|---|
+| **Dataset** | 标准问题集（输入 + 期望输出） | 试卷 |
+| **Evaluator** | 自动判卷的函数（LLM 评委 / 代码检查） | 判卷老师 |
+| **Experiment** | 一次"跑卷 + 判卷"的完整记录 | 一场考试的成绩单 |
+
+> 和 Day 14 的 RAGAS 是什么关系？**互补**：RAGAS 提供 RAG 专用指标（faithfulness 等），LangSmith 提供评估的**平台**（数据管理、实验记录、分数对比）。生产最佳实践：**用 LangSmith 跑 RAGAS 指标**——评估逻辑用 RAGAS，评估基建用 LangSmith。
+
+## 28.2 第一步：建 Dataset
+
+### 方式 A：UI 创建（直观）
+
+LangSmith → Datasets & Testing → New Dataset → 手动填或 CSV 上传。每条数据是"输入（问题）+ 期望输出（参考答案）"。
+
+### 方式 B：SDK 创建（可编程，今天用这个）
+
+```python
+from langsmith import Client
+
+client = Client()
+dataset = client.create_dataset(
+    dataset_name="天气助手-回归集",
+    description="每次改天气助手前必须跑",
+)
+
+examples = [
+    {"question": "北京天气怎么样？", "answer": "晴天，25度"},
+    {"question": "上海天气怎么样？", "answer": "小雨，22度"},
+    {"question": "广州天气怎么样？", "answer": "该城市暂无数据或服务异常"},
+]
+client.create_examples(
+    inputs=[{"question": e["question"]} for e in examples],
+    outputs=[{"answer": e["answer"]} for e in examples],
+    dataset_id=dataset.id,
+)
+```
+
+**设计评估集的三条铁律**：
+
+1. **覆盖核心场景**：正常请求 + 边界 + 错误路径（如上面的广州）；
+2. **期望输出可判定**：写清楚"什么算对"（评估器要靠它）；
+3. **版本管理**：改评估集要新建 dataset 版本，别覆盖旧的（实验可追溯）。
+
+## 28.3 第二步：写 Evaluator（判卷老师）
+
+Evaluator 就是一个函数：**输入一次执行的 run 和 example，输出分数**。两种类型：
+
+### ① 代码级评估器（快、便宜、确定）
+
+```python
+def correctness_evaluator(run, example) -> dict:
+    """参考答案的关键词是否出现在 Agent 输出里"""
+    expected = example.outputs["answer"]
+    actual = run.outputs["messages"][-1].content if "messages" in run.outputs else run.outputs.get("output", "")
+    # 简化判定：答案包含参考答案里的数字/关键词
+    import re
+    score = 1.0 if expected.split("，")[0][:4] in actual else 0.0
+    return {"key": "correctness", "score": score, "comment": f"期望含'{expected[:20]}'"}
+```
+
+### ② LLM 评委（准、贵、适合开放题）
+
+```python
+def llm_judge(run, example) -> dict:
+    """让 LLM 判断回答是否正确"""
+    prompt = f"参考答案：{example.outputs['answer']}\n实际回答：{run.outputs['output']}\n只回答 yes 或 no：实际回答是否正确？"
+    verdict = model.invoke(prompt).content.lower()
+    return {"key": "llm_correct", "score": 1.0 if "yes" in verdict else 0.0}
+```
+
+> 工程惯例：**能用代码判的不用 LLM**（便宜 100 倍且结果确定）；开放式问题（"回答是否礼貌"）才上 LLM 评委。
+
+## 28.4 第三步：跑评估（Experiment）
+
+```python
+from langsmith import evaluate
+
+results = evaluate(
+    target=my_agent,                 # 被测对象：agent 或函数
+    data="天气助手-回归集",           # 数据集名
+    evaluators=[correctness_evaluator],
+    experiment_prefix="v1.2-改提示词后",
+)
+```
+
+`evaluate` 自动完成：**遍历数据集的每条输入 → 调用 target → 跑 evaluators 打分 → 结果存为一次 Experiment**。UI 里能看到每条得分、平均分、失败明细。
+
+**注意 target 的输入输出约定**：LangSmith 把 example 的 `inputs` 传给 target，把 target 的返回值给 evaluator。Agent 的输入是 `{"messages": [...]}`，所以建数据集时 inputs 要写成这个形状：
+
+```python
+client.create_examples(
+    inputs=[{"messages": [{"role": "user", "content": e["question"]}]} for e in examples],
+    ...
+)
+```
+
+## 28.5 评估闭环（今天要建立的工程习惯）
+
+```
+改代码 → evaluate 回归 → 分数对比 → 升了保留 / 降了排查 → 记录 Experiment
+```
+
+- 每次发布前跑一遍全量评估集；
+- Experiment 前缀带版本号（`v1.3-优化提示词`），历史可对比；
+- 评估集随产品成长：线上用户问的新问题、Day 27 标 的坏 case，**持续加入评估集**——这就是 LLM 应用的"测试驱动开发"。
+
+## 28.6 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-06-langsmith\examples
+python day28_evaluation.py
+```
+
+## 28.7 案例逐行讲解：`day28_evaluation.py`
+
+```python
+"""Day 28 案例：LangSmith 评估 —— 建数据集 → 写评估器 → 跑实验"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langsmith import Client, evaluate
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+@tool
+def get_weather(city: str) -> str:
+    """查询城市天气。当用户询问某地天气时使用。"""
+    return {"北京": "晴 25°C", "上海": "小雨 22°C"}.get(city, f"暂无{city}数据")
+
+agent = create_agent(model=model, tools=[get_weather],
+                     system_prompt="你是天气助手，回答简洁，天气数据用工具查。")
+
+client = Client()
+
+# ── ① 建评估集（幂等：已存在就复用）────────────────
+ds_name = "天气助手-回归集"
+try:
+    dataset = client.create_dataset(dataset_name=ds_name)
+    examples = [
+        ("北京天气怎么样？", "25"),
+        ("上海天气怎么样？", "22"),
+        ("杭州天气怎么样？", "暂无"),
+    ]
+    client.create_examples(
+        inputs=[{"messages": [{"role": "user", "content": q}]} for q, _ in examples],
+        outputs=[{"answer": a} for _, a in examples],
+        dataset_id=dataset.id,
+    )
+    print(f"✅ 已创建数据集：{ds_name}（{len(examples)} 条）")
+except Exception:
+    print(f"数据集 {ds_name} 已存在，复用")
+
+# ── ② 代码级评估器：参考答案关键数字是否出现 ───────
+def correctness_evaluator(run, example) -> dict:
+    expected = example.outputs["answer"]
+    actual = run.outputs.get("messages", [{}])[-1].content if run.outputs.get("messages") else run.outputs.get("output", "")
+    score = 1.0 if expected in actual else 0.0
+    return {"key": "correctness", "score": score,
+            "comment": f"期望含'{expected}'，实际：{actual[:40]}"}
+
+# ── ③ 跑实验 ───────────────────────────────────
+results = evaluate(
+    target=agent,
+    data=ds_name,
+    evaluators=[correctness_evaluator],
+    experiment_prefix="day28-初版",
+)
+print("\n✅ 评估完成！打开 LangSmith → Datasets & Testing → Experiments 查看成绩单")
+```
+
+**要点**：
+
+- **`target=agent`**：直接传 Agent 图——evaluate 会自动按 example 的 inputs 调用它（`{"messages": [...]}` 形状对上了）；
+- **评估器签名**：`(run, example) -> {"key", "score", "comment"}`。`run.outputs` 是 target 的返回值；`example.outputs` 是参考答案；
+- **幂等建集**：重复运行不会重复建集（try/except 兜底）——评估集是**资产**，建一次长期用；
+- 跑完去 UI 看三条数据的得分：杭州那条（期望"暂无"）最容易挂——**这暴露的其实是评估集设计问题还是 Agent 问题？思考一下**（提示：Agent 对"暂无数据"的城市可能编造天气——这正是要测的）。
+
+## 28.8 今日自测
+
+<Quiz items={["给评估集加一条\"广州天气怎么样？\"（工具对广州抛异常），跑评估看分数变化。","写一个 LLM 评委评估器（判断\"回答是否礼貌\"），加入 evaluators 列表。","改 system prompt（加\"不知道就说不知道\"），再跑一次实验，对比两次 Experiment 的分数。","在 UI 里打开两次 Experiment，用 Compare 看差异。","`notes/day28.md`：写下你的评估集设计原则（至少 3 条）。"]} />
+
+## 28.9 常见坑速查
+
+<GotchaTable rows={[{"symptom":"evaluate 报\"dataset not found\"","cause":"数据集名写错/没建","fix":"核对名称；或改用 dataset_id"},{"symptom":"target 输入不匹配","cause":"建集时 inputs 形状与 target 期望不符","fix":"Agent 要 `{\"messages\": [...]}`"},{"symptom":"评估器拿不到输出","cause":"读错了字段","fix":"先打印 run.outputs 看结构"},{"symptom":"分数全 0","cause":"评估器判定逻辑太苛刻","fix":"打印 comment 逐个看"},{"symptom":"实验太多找不到","cause":"没规范命名","fix":"experiment_prefix 带版本和改动说明"}]} />
+
+<DayComplete day={28} recap={"你有了\"回归测试\"。明天最后一块：在线监控——让 LangSmith 在生产环境持续盯着你的 Agent。"} />

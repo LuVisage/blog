@@ -1,0 +1,519 @@
+---
+slug: day-44
+kind: day
+day: 44
+week: 8
+weekTitle: 工具链与数据预处理
+weekBlurb: Pandas / Matplotlib、七种预处理方法、jieba / NLTK 文本处理与特征工程 Pipeline。
+title: 文本预处理：jieba 与 NLTK
+lead: '文本是**非结构化数据**，模型不能直接吃。今天讲清"从一段文字到特征向量"的完整链路——这也是后面文本分类、RAG、LLM 的基础。'
+sourcePath: Week08_工具链与数据预处理/Day4_文本预处理.md
+---
+
+> CYC 工具课件 06jieba和nltk文本处理.pdf（15 页）
+
+文本是**非结构化数据**，模型不能直接吃。今天讲清"从一段文字到特征向量"的完整链路——这也是后面文本分类、RAG、LLM 的基础。
+
+---
+
+## 今日目标
+
+1. 掌握文本预处理的完整流程：清洗 → 分词 → 去停用词 → 向量化；
+2. 会用 **jieba** 做中文分词（三种模式、自定义词典、词性标注）；
+3. 会用 **NLTK** 做英文分词、词干化/词形还原、去停用词；
+4. 掌握词袋模型（BoW）与 TF-IDF 的原理与实现；
+5. 理解 n-gram 的作用与代价；
+6. 主动发现"分词对下游任务的影响"。
+
+---
+
+## 知识地图
+
+```
+Week08
+├── Day1 Pandas ✅
+├── Day2 Matplotlib ✅
+├── Day3 数据预处理 ✅
+├── Day4 文本预处理  ← 你在这里
+└── Day5 特征工程 Pipeline
+
+        ↓ 衔接
+Week14 序列建模（词嵌入 Word2Vec）
+Week16 LLM（Token / 词表）
+```
+
+---
+
+## 一、文本预处理的完整链路
+
+```
+原始文本
+   ↓ 1. 清洗（去 HTML 标签、URL、表情、多余空白）
+   ↓ 2. 分词（中文 jieba / 英文 NLTK）
+   ↓ 3. 标准化（统一大小写、全角转半角、繁简转换）
+   ↓ 4. 去停用词（的、了、is、the…）
+   ↓ 5. 词干化 / 词形还原（running -> run）
+   ↓ 6. 向量化（词袋 / TF-IDF / 词嵌入）
+特征矩阵 (m 个文档 × n 个词)
+```
+
+**关键**：每一步都要**只依赖训练集**（尤其是第 6 步的**词表**）。
+
+---
+
+## 二、中文分词：jieba
+
+### 2.1 为什么中文需要分词
+
+英文天然有空格分隔：
+
+```
+"I love machine learning"  ->  ["I", "love", "machine", "learning"]
+```
+
+中文没有：
+
+```
+"我爱机器学习"  ->  ["我", "爱", "机器", "学习"]  还是  ["我", "爱", "机", "器", "学", "习"]？
+```
+
+**分词错误会直接损失语义**。例如"研究生命的起源"可能被切成"研究/生命/的/起源"（正确）或"研究生/命/的/起源"（错误）。
+
+### 2.2 安装与基础用法
+
+```bash
+pip install jieba
+```
+
+```python
+import jieba
+
+text = "我来到北京清华大学"
+
+# 精确模式（默认，最常用）
+print(list(jieba.cut(text, cut_all=False)))
+# ['我', '来到', '北京', '清华大学']
+
+# 全模式（把所有可能的词都切出来，速度快但有歧义）
+print(list(jieba.cut(text, cut_all=True)))
+# ['我', '来到', '北京', '清华', '清华大学', '华大', '大学']
+
+# 搜索引擎模式（在精确模式基础上对长词再切分）
+print(list(jieba.cut_for_search(text)))
+# ['我', '来到', '北京', '清华', '华大', '大学', '清华大学']
+```
+
+### 2.3 三种模式对比
+
+| 模式 | 方法 | 特点 | 适用 |
+| --- | --- | --- | --- |
+| **精确模式** | `jieba.cut(s)` | 最合理的切分，无冗余 | **最常用**（特征提取、建模） |
+| 全模式 | `jieba.cut(s, cut_all=True)` | 所有可能的词，有冗余 | 召回要求高的场景 |
+| 搜索引擎模式 | `jieba.cut_for_search(s)` | 长词再切，粒度更细 | 搜索引擎索引 |
+
+### 2.4 自定义词典（工程必备）
+
+**问题**：领域专有名词会被切错。
+
+```python
+# 方式一：添加单个词（临时）
+jieba.add_word("深度学习", freq=1000, tag="n")
+jieba.add_word("大语言模型")
+
+# 方式二：加载词典文件（推荐，一行一个词，可选 词频 词性）
+jieba.load_userdict("user_dict.txt")
+# 文件格式：
+# 深度学习 1000 n
+# 大语言模型 500 n
+# 向量数据库 300 n
+
+# 方式三：动态调整词频
+jieba.suggest_freq("中出", True)
+jieba.suggest_freq(("台", "中"), True)    # 让 jieba 把"台中"切开
+```
+
+**判断是否需要加词**：把分词结果与人工标注对比，找出被切碎的高频词。
+
+### 2.5 词性标注与关键词提取
+
+```python
+import jieba.posseg as pseg
+
+words = pseg.cut("我爱北京天安门")
+for w in words:
+    print(w.word, w.flag)        # 我 r / 爱 v / 北京 ns / 天安门 ns
+```
+
+| 常见词性 | 含义 |
+| --- | --- |
+| n | 名词 |
+| v | 动词 |
+| a | 形容词 |
+| d | 副词 |
+| ns | 地名 |
+| nr | 人名 |
+| m | 数词 |
+
+```python
+import jieba.analyse
+
+# TF-IDF 关键词提取
+print(jieba.analyse.extract_tags(text, topK=5, withWeight=True))
+
+# TextRank 关键词提取
+print(jieba.analyse.textrank(text, topK=5, withWeight=True))
+```
+
+> **注意**：`extract_tags` 内部依赖内置的 IDF 语料（通用领域）。在自己的领域里，应该**用自己的语料重新计算 IDF**。
+
+### 2.6 jieba 也支持英文
+
+```python
+print(list(jieba.cut("I love machine learning")))
+# ['I', ' ', 'love', ' ', 'machine', ' ', 'learning']
+```
+
+**但英文更推荐用 NLTK / spaCy**：jieba 不做词干化、不做小写化。
+
+---
+
+## 三、英文处理：NLTK
+
+### 3.1 安装与语料下载
+
+```bash
+pip install nltk
+```
+
+```python
+import nltk
+
+# 首次使用需要下载语料库
+nltk.download("punkt")          # 分词模型
+nltk.download("punkt_tab")
+nltk.download("stopwords")      # 停用词表
+nltk.download("wordnet")        # 词形还原用
+nltk.download("averaged_perceptron_tagger")
+```
+
+**下载慢的解决**：设置代理，或手动下载后放到 `nltk_data` 目录，或改用国内镜像。
+
+### 3.2 分词
+
+```python
+from nltk.tokenize import word_tokenize, sent_tokenize
+
+text = "I love machine learning. It is fun!"
+print(sent_tokenize(text))          # ['I love machine learning.', 'It is fun!']
+print(word_tokenize(text))          # ['I', 'love', 'machine', 'learning', '.', 'It', 'is', 'fun', '!']
+```
+
+**三种分词器的区别**：
+
+| 分词器 | 特点 |
+| --- | --- |
+| `word_tokenize` | 标准分词，标点单独成 token |
+| `TreebankWordTokenizer` | 把 `don't` 切成 `do` + `n't` |
+| `RegexpTokenizer(r"\w+")` | 只保留字母数字，**直接去掉标点**（最省事） |
+
+```python
+from nltk.tokenize import RegexpTokenizer
+tok = RegexpTokenizer(r"\w+")
+print(tok.tokenize("I love ML, it's fun!"))   # ['I', 'love', 'ML', 'it', 's', 'fun']
+```
+
+### 3.3 小写化与去停用词
+
+```python
+from nltk.corpus import stopwords
+
+stop_en = set(stopwords.words("english"))
+tokens = [w.lower() for w in word_tokenize(text) if w.isalpha()]
+tokens = [w for w in tokens if w not in stop_en]
+```
+
+**NLTK 不支持中文停用词**（课件原文：`nltk不能对中文进行分词`），中文停用词需自己维护：
+
+```python
+STOP_CN = set("的 了 是 在 我 有 和 就 不 人 都 一 一个 上 也 很 到 说 要 去 你 会 着 没有 看 好 自己 这".split())
+```
+
+**停用词表的选择**很重要：
+
+- 通用任务：用标准表（约 180 个英文词）；
+- **情感分析**：**不要**去掉 "not" / "but"（它们携带情感反转信息）；
+- **主题分类**：可以去掉更多虚词。
+
+### 3.4 词干化与词形还原
+
+| 方法 | 做法 | 结果 |
+| --- | --- | --- |
+| **词干化（Stemming）** | 粗暴截断后缀 | `studies → studi`（不是真词） |
+| **词形还原（Lemmatization）** | 查词典找原形 | `studies → study`（真词） |
+
+```python
+from nltk.stem import PorterStemmer, WordNetLemmatizer
+
+ps = PorterStemmer()
+print([ps.stem(w) for w in ["running", "studies", "better"]])
+# ['run', 'studi', 'better']
+
+wnl = WordNetLemmatizer()
+print([wnl.lemmatize(w, pos="v") for w in ["running", "studies", "was"]])
+# ['run', 'study', 'be']
+```
+
+**选择建议**：
+
+- 追求速度、不在意可读性 ⇒ 词干化；
+- 需要正确的词、要查词向量 ⇒ **词形还原**（记得传 `pos`，默认是名词，效果会差）。
+
+### 3.5 词频统计
+
+```python
+from nltk.probability import FreqDist
+
+fdist = FreqDist(tokens)
+print(fdist.most_common(10))
+fdist.plot(20)          # 需要 matplotlib
+```
+
+---
+
+## 四、向量化：从词到数字
+
+### 4.1 词袋模型（Bag of Words）
+
+**思想**：**忽略词序，只看每个词出现了几次。**
+
+```
+文档1: "猫 喜欢 鱼"        ->  {猫:1, 喜欢:1, 鱼:1}
+文档2: "猫 喜欢 猫"        ->  {猫:2, 喜欢:1, 鱼:0}
+
+词表: [猫, 喜欢, 鱼]
+向量: 文档1 = [1,1,1]
+      文档2 = [2,1,0]
+```
+
+```python
+from sklearn.feature_extraction.text import CountVectorizer
+
+cv = CountVectorizer(tokenizer=lambda s: jieba.lcut(s), token_pattern=None)
+X = cv.fit_transform(corpus)      # 稀疏矩阵 (m, n_vocab)
+print(cv.get_feature_names_out())
+```
+
+**缺点**：
+
+1. **维度高且稀疏**（词表可达 10 万）；
+2. **丢失词序**（"我打你" 与 "你打我" 向量相同）；
+3. 常见词权重过大。
+
+### 4.2 TF-IDF
+
+**TF（词频）**：
+
+$$\text{tf}(t,d) = \frac{\text{词 }t\text{ 在文档 }d\text{ 中出现次数}}{\text{文档 }d\text{ 的总词数}}$$
+
+**IDF（逆文档频率）**：
+
+$$\text{idf}(t) = \log\frac{1 + N}{1 + \text{df}(t)} + 1$$
+
+（sklearn 的平滑形式，$N$ 为文档总数，$\text{df}(t)$ 为包含 $t$ 的文档数。）
+
+$$\text{tfidf}(t,d) = \text{tf}(t,d)\times\text{idf}(t)$$
+
+**直觉**：
+
+- 一个词在当前文档里出现越多，越重要（TF 大）；
+- 在整个语料里出现越少，越有区分度（IDF 大）；
+- "的"在每篇文档都出现 ⇒ IDF 趋近 1 ⇒ 权重被自动压低。
+
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+tv = TfidfVectorizer(tokenizer=lambda s: jieba.lcut(s),
+                     token_pattern=None,
+                     max_features=5000,        # 只保留最高频的 5000 个词
+                     ngram_range=(1, 2),       # 1-gram + 2-gram
+                     min_df=2, max_df=0.9)     # 忽略太稀有/太常见的词
+X = tv.fit_transform(corpus)
+```
+
+### 4.3 常用参数对照
+
+| 参数 | 作用 | 建议 |
+| --- | --- | --- |
+| `max_features` | 只保留最高频的 N 个词 | 5000 ~ 50000 |
+| `min_df` | 出现在少于 N 篇文档中的词丢弃 | 2（过滤噪声词） |
+| `max_df` | 出现在超过 N 比例文档中的词丢弃 | 0.9（过滤"的"这类） |
+| `ngram_range` | n-gram 范围 | `(1,1)` 快；`(1,2)` 捕捉短语但维度翻倍 |
+| `stop_words` | 停用词表 | 英文可用 `"english"` |
+| `sublinear_tf` | 用 $1+\log(\text{tf})$ 代替 tf | True（抑制高频词） |
+
+### 4.4 n-gram
+
+**为什么需要**：词袋丢失了"否定"信息。
+
+```
+"不好" ->  ["不", "好"]        ->  与 "好" 的向量高度相似 ❌
+"不 好" (2-gram) -> ["不 好"]  ->  与 "好" 完全不同 ✅
+```
+
+**代价**：$n$ 增大时维度爆炸。词表 $V$ 个词，2-gram 最多 $V^2$ 个。
+
+**实践**：`(1,2)` 通常足够；`(1,3)` 只在数据量很大时才考虑。
+
+### 4.5 三种向量化的对比
+
+| 方法 | 维度 | 语义 | 优点 | 缺点 |
+| --- | --- | --- | --- | --- |
+| 词袋（BoW） | 高、稀疏 | 无 | 简单、可解释 | 常见词权重过大 |
+| TF-IDF | 高、稀疏 | 无 | 自动降权常见词 | 仍无词序/语义 |
+| **词嵌入**（Word2Vec/GloVe） | 低、稠密 | **有** | 语义相似 → 向量相近 | 需训练或下载（Week14） |
+| 预训练模型（BERT） | 中、稠密 | **强** | 上下文相关 | 计算贵（Week14） |
+
+---
+
+## 五、代码实践
+
+```python
+import re
+import jieba
+import numpy as np
+
+def clean_text(s: str) -> str:
+    """标准清洗：去 URL、HTML 标签、多余空白"""
+    s = re.sub(r"https?://\S+|www\.\S+", " ", s)
+    s = re.sub(r"<[^>]+>", " ", s)
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
+
+def tokenize_cn(s: str, stopwords: set) -> list:
+    """中文分词 + 去停用词 + 过滤单字"""
+    words = jieba.lcut(clean_text(s))
+    return [w for w in words
+            if len(w) > 1 and w not in stopwords and not w.isdigit()]
+```
+
+完整版本见 `code/day4_text_processing.py`，包含：
+
+1. **jieba 三种模式的对比**（同一句话的切分结果差异）；
+2. **自定义词典实验**：不加词典时"深度学习"被切成"深度/学习"，加了之后正确切分，并观察下游词频统计的变化；
+3. **NLTK 完整流程**：分词 → 小写 → 去停用词 → 词干化 vs 词形还原的对照；
+4. **停用词的影响**：去掉 "not" 后情感倾向的变化（构造 "not good" 的例子）；
+5. **词袋 vs TF-IDF** 在同一份语料上的向量对比与稀疏度统计；
+6. **n-gram 实验**：`(1,1)` vs `(1,2)` 对"不好 / 好"区分度的影响；
+7. **一个完整的文本分类小项目**：用 TF-IDF + 朴素贝叶斯（Week05 Day3）做中文短文本分类，报告准确率与混淆矩阵；
+8. 关键词提取（TF-IDF / TextRank）对比。
+
+> **离线环境提示**：脚本对 `nltk` 与 `jieba` 做了**优雅降级**——未安装时自动用正则分词与内置停用词表，保证脚本始终可运行。
+
+---
+
+## 六、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 用 `jieba.cut` 直接返回字符串 | 它返回**生成器**，需要 `list()` |
+| 领域词被切碎 | 加载自定义词典（工程上必备） |
+| 用 NLTK 处理中文 | NLTK 不支持中文分词，中文用 jieba |
+| 情感分析时去掉 "not" | 否定词是情感的关键，不能进停用词表 |
+| 词形还原不传 `pos` | 默认按名词处理，动词效果差 |
+| 先向量化再划分训练测试 | **词表泄漏**；必须先划分再 `fit` 向量器 |
+| 训练/预测的词表不一致 | 用同一个 `vectorizer` 对象，或保存词表 |
+| 用 `max_features` 后索引对不上 | 训练与推理必须用同一个 `vectorizer` |
+| 中文停用词表直接照搬英文 | 语言不同，必须用中文表 |
+| TF-IDF 未做测试集 `transform` 而重新 `fit` | 数据泄漏 |
+
+---
+
+## 七、练习题
+
+**基础**
+
+1. 说明 jieba 三种分词模式的区别与适用场景。
+2. 写出 TF 与 IDF 的计算公式，并解释"为什么 IDF 能降低常见词权重"。
+3. 用 jieba 分词并统计"我来到北京清华大学"各个词的词频。
+
+**进阶**
+
+4. 给定 3 篇文档，手工计算词表、词袋矩阵与 TF-IDF 矩阵（可用简化公式）。
+5. 说明为什么情感分析不能去掉否定词，并构造一个例子说明后果。
+6. 词干化与词形还原对 "studies" / "running" / "better" 的结果分别是什么？为什么不同？
+7. 设计一个实验，测量"加入自定义词典"对文本分类准确率的影响。
+
+**思考题**
+
+8. 为什么词袋模型会认为"我打你"和"你打我"几乎一样？有哪些方法可以解决？
+9. 在什么场景下，词袋/TF-IDF 反而比 BERT 更好？
+10. 如果训练集有 10 万篇文档、词表 50 万，TF-IDF 矩阵会有多大？为什么必须用稀疏矩阵？
+
+<details>
+<summary>第 6 题答案</summary>
+
+| 词 | 词干化 (Porter) | 词形还原 (WordNet) |
+| --- | --- | --- |
+| studies | studi | study |
+| running | run | run |
+| better | better | good（需 `pos='a'`） |
+
+**为什么不同**：
+
+- **词干化**只是按规则**砍掉/替换后缀**，不查词典，所以可能产生**非词**（`studi`）；
+- **词形还原**会查 WordNet 词典，找到该词的**原形（lemma）**，所以结果一定是真词；但**必须正确指定词性**才能得到 `better → good`。
+
+**实践选择**：需要向量化/语义 ⇒ 词形还原；只要速度、不在意可读性 ⇒ 词干化。
+</details>
+
+<details>
+<summary>第 9 题答案要点</summary>
+
+**场景一：数据量小或标注少**。BERT 微调需要较多标注数据，TF-IDF + 线性模型在小样本上常常更稳。
+
+**场景二：追求低延迟与低成本**。TF-IDF 是稀疏矩阵乘法，微秒级；BERT 需要 GPU 且延迟高几十到几百倍。
+
+**场景三：关键词敏感的任务**。垃圾邮件、敏感词审核等场景，词袋/TF-IDF 的**可解释性**（知道是哪些词触发的）是刚需，BERT 的黑盒难以审计。
+
+**场景四：强基线对比**。任何文本任务都应先跑 TF-IDF + 逻辑回归作为 baseline，它的分数往往"比想象的高很多"。
+
+**实践建议**：**先 TF-IDF 建 baseline，若不够再上预训练模型**——这是文本任务的标准工作流。
+</details>
+
+<details>
+<summary>第 10 题答案要点</summary>
+
+**规模计算**：
+
+$$100000 \times 500000 = 5\times10^{10} = 500 \text{ 亿个元素}$$
+
+若用 `float64` 存储：$5\times10^{10}\times 8\ \text{B} = 400\ \text{GB}$ —— **完全不可行**。
+
+**为什么可以稀疏**：每篇文档通常只包含几百到几千个不同词，即**每行只有约 0.1% 的元素非零**。
+
+**稀疏矩阵（CSR）的存储**：
+
+- `data`：非零值（$10^5 \times 10^3 = 10^8$ 个 float64 = 800 MB，仍然不小但可承受）；
+- `indices`：列索引（int32，400 MB）；
+- `indptr`：行偏移（可忽略）。
+
+**进一步优化**：
+
+- 用 `max_features=50000` 截断词表 ⇒ 维度降 10 倍；
+- 用 `min_df=2` 过滤只出现一次的词（**这一条通常能砍掉 90% 以上的词表**）；
+- 用 `float32` 而非 `float64`；
+- 用 `HashingVectorizer`（无需存词表，固定维度）。
+
+**sklearn 的 `TfidfVectorizer` 默认返回 `scipy.sparse.csr_matrix`**，所有下游模型（线性模型、朴素贝叶斯、SVM）都原生支持稀疏输入。
+</details>
+
+---
+
+## 八、一句话总结
+
+**文本预处理就是"把文字变成能算数的东西"：jieba/NLTK 负责切分与清洗，TF-IDF 负责加权，而所有词表都只能在训练集上构建。**
+
+---
+
+**明日预告**：Day5 收尾本周——用 `Pipeline` + `ColumnTransformer` 把"数值 + 类别 + 文本"混合特征的处理与模型训练串成一条可复用、无泄漏的流水线。
+

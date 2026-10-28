@@ -1,0 +1,61 @@
+---
+slug: glossary
+kind: reference
+day: 92
+week: 0
+weekTitle: 随查
+weekBlurb: 跨课程统一叫法
+title: 术语表 —— 五门课统一叫法
+lead: 五门课共用的一套词汇表：每个术语只在这里给出统一定义与「在哪儿学」，正文首次出现时不再各说各话。
+sourcePath: 手写（跨课程统一术语，不来自单一源文件）
+---
+
+这套教程有五门课、267 个页面，同一个词在不同课里容易长出不同的解释。本页把高频术语钉死成一份定义：**正文里再遇到它们，以这里的口径为准**；每条都标了「在哪学透」。
+
+---
+
+## 一、模型与训练（ml 课）
+
+| 术语 | 统一定义 | 在哪学透 |
+| --- | --- | --- |
+| 梯度下降 | 沿负梯度方向迭代更新参数的通用优化框架；SGD / Momentum / Adam 都是它的变体 | ml Week03 Day2、Week10 Day3 |
+| 过拟合 | 训练误差持续下降而验证误差开始上升的状态；对策统称「正则化」 | ml Week02 Day4、Week10 Day1 |
+| 正则化 | 一切抑制过拟合的手段：L2 权重衰减、Dropout、批归一化、早停、数据增强 | ml Week10 Day1–2 |
+| 反向传播 | 用链式法则沿计算图反序求梯度的算法；"自动求导"是它的工程实现 | ml Week07 Day3、Week09 Day1 |
+| 迁移学习 | 拿预训练模型当起点，在自有数据上微调或只训头部 | ml Week11 Day5、Week15 Day5 |
+| 微调（fine-tune） | 迁移学习的一种：解冻部分/全部预训练权重继续训练。**与 RAG 是两条互补路线，先 RAG 后微调** | ml Week15 Day5、Week16 Day5 |
+
+## 二、LLM 与检索（ml → backend → agent 一条线）
+
+| 术语 | 统一定义 | 在哪学透 |
+| --- | --- | --- |
+| Token（词元） | LLM 把文本切成的最小单位，计费与上下文长度都按它算。**注意与工具链里的 API Token（访问凭证）完全不是一个东西**——devtool 里出现的 Token 全指凭证 | ml Week16 Day5、agent Week1 Day1 |
+| Embedding（嵌入） | 把文本映射成向量的过程与结果，语义相近则向量相近 | agent Week2 Day6 |
+| 向量数据库 | 专为"海量向量近似最近邻检索"设计的存储：Milvus、Chroma 等 | agent Week2 Day7–8 |
+| RAG（检索增强生成） | 回答前先检索相关片段、拼进提示词再生成的架构；治知识截止与幻觉，成本远低于微调 | **统一定义见 agent Week2 Day6**；工程化在 backend Week5 |
+| 重排序（Rerank） | 用交叉编码器对粗检索的候选精排，提升 Top-K 质量 | agent Week3、backend Week5 |
+| RAGAS | RAG 系统的自动评估框架：忠实度、答案相关性、上下文精度/召回 | agent Week3 Day14 |
+| 幻觉 | 模型编造看似合理内容的现象；RAG + 引用来源是主要对策 | ml Week16 Day5、agent Week2 |
+| 上下文窗口 | 模型一次能"看见"的最大 Token 数；RAG 的"只塞相关几段"就是为它让路 | ml Week16 Day5 |
+
+## 三、工程与运维（backend / devtool / agent）
+
+| 术语 | 统一定义 | 在哪学透 |
+| --- | --- | --- |
+| 可观测性三支柱 | 日志（logging）、指标（metrics）、链路追踪（tracing） | backend Week1 Day4、Week2 Day10 |
+| trace_id | 一次请求的唯一标记，贯穿日志与链路追踪，把散落各处的记录串回同一次调用 | backend Week2 Day7 |
+| 结构化日志 | 输出 JSON 而非自由文本的日志，可被机器检索聚合 | backend Week1 Day4 |
+| 多阶段构建 | Dockerfile 里用多个 FROM，把构建依赖留在编译层，只拷贝产物进运行层，镜像小一个量级 | backend Week4、devtool 容器章 |
+| CI/CD | 提交后自动"构建 → 测试 → 发布"的流水线；本站用 GitHub Actions | devtool CI/CD 章、backend Week4 Day5 |
+| 虚拟环境 | Python 的依赖隔离目录（venv / conda / uv 创建）。**全站课程统一用 venv + pip**；uv / poetry 是进阶选项 | devtool 包管理章 |
+| SSE | Server-Sent Events，服务器向浏览器的单向流式推送，LLM"打字机效果"的标准载体 | backend Week2 Day9 |
+
+## 四、本站自己的词
+
+| 术语 | 含义 |
+| --- | --- |
+| Day / 课 | 课程里按天推进的一篇（agent 41 天、ml 85 天、backend 10 天） |
+| 随查 | 不按天排、随时翻的参考页（手册、清单、本页） |
+| 工具箱 | devtool 全部 84 篇：按需查阅的工具手册，只有「新机起步」5 篇建议顺序读 |
+| 实验台 | agent 课里能在浏览器直接跑的交互组件；进度永远只存在你自己的浏览器 |
+| 知识地图 | ml 课每篇开头的 ASCII 树，标着"你在这里" |

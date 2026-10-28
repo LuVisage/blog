@@ -1,0 +1,326 @@
+---
+slug: day-07
+kind: day
+day: 7
+week: 1
+weekTitle: 数学地基与环境
+weekBlurb: 开发环境收尾后补齐线性代数、概率、梯度与信息论——后面所有公式都建立在这上面。
+title: 线性代数
+lead: '线性代数是机器学习的"语言"。矩阵乘法是神经网络的前向传播，特征分解是 PCA 的核心，SVD 是推荐系统与降维的基石。今天我们把它们一次打通。'
+sourcePath: Week01_数学地基与环境/Day2_线性代数.md
+---
+
+> 花书第 2 章 2.1–2.8 节 · 南瓜书附录 A
+
+线性代数是机器学习的"语言"。矩阵乘法是神经网络的前向传播，特征分解是 PCA 的核心，SVD 是推荐系统与降维的基石。今天我们把它们一次打通。
+
+---
+
+## 今日目标
+
+1. 分清标量、向量、矩阵、张量的维度语义，并理解"数据即矩阵"的视角；
+2. 掌握 6 种常用范数，说清 $L_1$ 与 $L_2$ 在正则化中的不同效果；
+3. 熟练矩阵运算：转置、逆、伪逆、迹、行列式；
+4. 理解特征值/特征向量的几何意义，会做特征分解；
+5. 掌握奇异值分解 SVD，并解释它与 PCA、低秩近似的关系；
+6. 会推导最小二乘的正规方程。
+
+---
+
+## 知识地图
+
+```
+Week01
+├── Day1 环境 ✅
+├── Day2 线性代数 ← 你在这里
+│     ├─ 范数           → Week03 L1/L2 正则化、Week05 SVM 最大间隔
+│     ├─ 矩阵乘法       → Week07 前向传播
+│     ├─ 特征分解       → Week06 PCA
+│     └─ SVD            → Week06 降维、推荐系统
+```
+
+---
+
+## 一、基本对象
+
+| 对象 | 记号 | 维度 | ML 中的例子 |
+| --- | --- | --- | --- |
+| 标量 | $x$ | $\mathbb{R}$ | 损失值、学习率 |
+| 向量 | $\boldsymbol{x}$ | $\mathbb{R}^n$ | 一个样本的特征 |
+| 矩阵 | $\mathbf{X}$ | $\mathbb{R}^{m\times n}$ | 整个数据集 |
+| 张量 | $\mathbf{A}$ | $\mathbb{R}^{c\times h\times w}$ | 一张彩色图片、一个卷积核组 |
+
+**"数据即矩阵"的视角**：$\mathbf{X} \in \mathbb{R}^{m \times n}$，第 $i$ 行是第 $i$ 个样本，第 $j$ 列是第 $j$ 个特征的全体取值。
+
+**约定**：本课程向量默认为**列向量**。因此 $m$ 个样本写成行堆叠：
+
+$$\mathbf{X} = \begin{bmatrix} \boldsymbol{x}_1^\top \\ \boldsymbol{x}_2^\top \\ \vdots \\ \boldsymbol{x}_m^\top \end{bmatrix} \in \mathbb{R}^{m\times n}$$
+
+---
+
+## 二、范数（Norm）
+
+范数是"长度"的推广。对向量 $\boldsymbol{x} \in \mathbb{R}^n$：
+
+$$L_p\ \text{范数}：\quad \|\boldsymbol{x}\|_p = \left(\sum_{i=1}^{n} |x_i|^p\right)^{1/p}, \quad p \ge 1$$
+
+### 常用范数
+
+| 名称 | 公式 | 特点与用途 |
+| --- | --- | --- |
+| $L_0$ | $\|\boldsymbol{x}\|_0 = \#\{i : x_i \ne 0\}$ | 非零元素个数，非凸，稀疏性的理论目标 |
+| $L_1$ | $\|\boldsymbol{x}\|_1 = \sum_i \|x_i\|$ | 曼哈顿距离，产生**稀疏解**（Lasso） |
+| $L_2$ | $\|\boldsymbol{x}\|_2 = \sqrt{\sum_i x_i^2}$ | 欧氏距离，**处处可导** |
+| $L_\infty$ | $\|\boldsymbol{x}\|_\infty = \max_i \|x_i\|$ | 最大分量 |
+| Frobenius | $\|\mathbf{A}\|_F = \sqrt{\sum_{ij} a_{ij}^2}$ | 矩阵的"$L_2$" |
+| 核范数 | $\|\mathbf{A}\|_* = \sum_i \sigma_i$ | 奇异值之和，用于低秩约束 |
+
+### 为什么 $L_1$ 稀疏而 $L_2$ 不稀疏
+
+考虑二维情形。约束 $\|\boldsymbol{w}\|_1 \le c$ 的可行域是一个**菱形**，而 $\|\boldsymbol{w}\|_2 \le c$ 是一个**圆**。
+
+损失函数的等高线（例如最小二乘的椭圆）与约束区域首次相切的位置：
+
+- 菱形有**尖角在坐标轴上**，等高线很容易切到尖角处 → 某个分量为 0 → **稀疏**；
+- 圆是**光滑**的，切点通常不在坐标轴上 → 各分量都非零 → **不稀疏**。
+
+这就是 Lasso（$L_1$）能做特征选择、Ridge（$L_2$）不能的根本原因。
+
+> 另一个角度：$L_1$ 在 0 点不可导，梯度下降的次梯度更新会把小权重直接"压"到 0。
+
+### 范数的等价关系
+
+在有限维空间中，所有范数等价（互相可界定）：
+
+$$\|\boldsymbol{x}\|_\infty \le \|\boldsymbol{x}\|_2 \le \sqrt{n}\,\|\boldsymbol{x}\|_\infty$$
+
+$$(1/\sqrt{n})\|\boldsymbol{x}\|_1 \le \|\boldsymbol{x}\|_2 \le \|\boldsymbol{x}\|_1$$
+
+---
+
+## 三、矩阵运算
+
+### 3.1 基本运算
+
+| 运算 | 记号 | 说明 |
+| --- | --- | --- |
+| 转置 | $\mathbf{A}^\top$ | $(a_{ij}) \to (a_{ji})$ |
+| 逆 | $\mathbf{A}^{-1}$ | $\mathbf{A}\mathbf{A}^{-1} = \mathbf{I}$，仅方阵且满秩 |
+| 迹 | $\operatorname{tr}(\mathbf{A})$ | 对角元之和，$= \sum_i \lambda_i$ |
+| 行列式 | $\det(\mathbf{A})$ | $= \prod_i \lambda_i$，非零 ⇔ 可逆 |
+| 秩 | $\operatorname{rank}(\mathbf{A})$ | 线性无关的行/列数 |
+
+### 3.2 关键恒等式
+
+$$(\mathbf{A}\mathbf{B})^\top = \mathbf{B}^\top \mathbf{A}^\top, \qquad (\mathbf{A}\mathbf{B})^{-1} = \mathbf{B}^{-1}\mathbf{A}^{-1}$$
+
+$$\operatorname{tr}(\mathbf{A}\mathbf{B}) = \operatorname{tr}(\mathbf{B}\mathbf{A}), \qquad \operatorname{tr}(\mathbf{A}) = \sum_i \lambda_i$$
+
+$$\nabla_{\mathbf{X}} \operatorname{tr}(\mathbf{A}\mathbf{X}) = \mathbf{A}^\top, \qquad \nabla_{\mathbf{X}} \ln \det(\mathbf{X}) = (\mathbf{X}^{-1})^\top$$
+
+> 注意**反转顺序**：转置和逆都遵守"穿脱鞋法则"（先穿的鞋后脱）。
+
+### 3.3 伪逆（Moore–Penrose）
+
+当 $\mathbf{A}$ 不是方阵或不可逆时，用伪逆：
+
+$$\mathbf{A}^+ = \lim_{\alpha \to 0} (\mathbf{A}^\top\mathbf{A} + \alpha \mathbf{I})^{-1}\mathbf{A}^\top$$
+
+若 $\mathbf{A}$ 列满秩，则 $\mathbf{A}^+ = (\mathbf{A}^\top\mathbf{A})^{-1}\mathbf{A}^\top$。这正是最小二乘解：
+
+$$\hat{\boldsymbol{w}} = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top \boldsymbol{y}$$
+
+---
+
+## 四、线性相关性、张成与秩
+
+- **线性相关**：存在不全为 0 的 $c_i$ 使 $\sum_i c_i \boldsymbol{v}_i = \boldsymbol{0}$；
+- **张成（span）**：一组向量所有线性组合构成的集合；
+- **秩**：矩阵列向量张成空间的维度，也等于线性无关列的最大个数。
+
+**与 ML 的关系**：
+
+- 若特征矩阵 $\mathbf{X}$ 列不满秩（存在**多重共线性**），则 $\mathbf{X}^\top\mathbf{X}$ 不可逆，最小二乘无唯一解 → 需要用**岭回归**加上 $\lambda \mathbf{I}$ 使其可逆；
+- 神经网络的权重矩阵若秩很低，说明存在**冗余通道**，这是模型压缩（低秩分解）的出发点。
+
+---
+
+## 五、特征分解
+
+对方阵 $\mathbf{A} \in \mathbb{R}^{n\times n}$，若存在非零向量 $\boldsymbol{v}$ 与标量 $\lambda$ 使
+
+$$\mathbf{A}\boldsymbol{v} = \lambda \boldsymbol{v}$$
+
+则称 $\lambda$ 为**特征值**，$\boldsymbol{v}$ 为**特征向量**。
+
+### 几何意义
+
+矩阵乘法 $\mathbf{A}\boldsymbol{v}$ 一般会**既改变长度又改变方向**；但对特征向量，$\mathbf{A}$ 只做**拉伸/压缩**，方向不变。拉伸倍数就是 $\lambda$。
+
+### 对角化
+
+若 $\mathbf{A}$ 有 $n$ 个线性无关的特征向量，可写：
+
+$$\mathbf{A} = \mathbf{V}\operatorname{diag}(\boldsymbol{\lambda})\mathbf{V}^{-1}$$
+
+**对称矩阵**（$\mathbf{A} = \mathbf{A}^\top$）更漂亮：特征向量可以取成**标准正交**的，
+
+$$\mathbf{A} = \mathbf{Q}\boldsymbol{\Lambda}\mathbf{Q}^\top, \quad \mathbf{Q}^\top\mathbf{Q} = \mathbf{I}$$
+
+且特征值全为实数。
+
+> **为什么协方差矩阵常常是对称的？** 因为 $\operatorname{Cov}(\mathbf{x})$ 一定对称。这就是 PCA 能用正交特征分解的前提。
+
+### 正定性
+
+- **半正定（PSD）**：$\forall \boldsymbol{x},\ \boldsymbol{x}^\top\mathbf{A}\boldsymbol{x} \ge 0$ ⟺ 所有 $\lambda_i \ge 0$；
+- **正定（PD）**：$\boldsymbol{x}^\top\mathbf{A}\boldsymbol{x} > 0$（$\boldsymbol{x}\ne\boldsymbol{0}$）⟺ 所有 $\lambda_i > 0$。
+
+协方差矩阵永远半正定。损失函数的 Hessian 正定 ⇒ 该点是**局部极小**（Week08 会用到）。
+
+---
+
+## 六、奇异值分解（SVD）
+
+任何矩阵 $\mathbf{A} \in \mathbb{R}^{m\times n}$ 都可分解为：
+
+$$\mathbf{A} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^\top$$
+
+- $\mathbf{U} \in \mathbb{R}^{m\times m}$：正交阵，列是**左奇异向量**；
+- $\boldsymbol{\Sigma} \in \mathbb{R}^{m\times n}$：对角阵，对角元 $\sigma_1 \ge \sigma_2 \ge \dots \ge 0$ 是**奇异值**；
+- $\mathbf{V} \in \mathbb{R}^{n\times n}$：正交阵，列是**右奇异向量**。
+
+**与特征分解的关系**：
+
+$$\mathbf{A}^\top\mathbf{A} = \mathbf{V}\boldsymbol{\Sigma}^2\mathbf{V}^\top, \qquad \mathbf{A}\mathbf{A}^\top = \mathbf{U}\boldsymbol{\Sigma}^2\mathbf{U}^\top$$
+
+即：**$\mathbf{V}$ 是 $\mathbf{A}^\top\mathbf{A}$ 的特征向量，$\mathbf{U}$ 是 $\mathbf{A}\mathbf{A}^\top$ 的特征向量，奇异值是特征值的平方根**。
+
+### 低秩近似（Eckart–Young 定理）
+
+保留前 $k$ 个奇异值：
+
+$$\mathbf{A}_k = \sum_{i=1}^{k} \sigma_i \boldsymbol{u}_i \boldsymbol{v}_i^\top$$
+
+$\mathbf{A}_k$ 是在 Frobenius 范数意义下**最优的秩 $k$ 近似**。
+
+**应用**：图像压缩（存 $k(m+n)$ 个数代替 $mn$）、推荐系统矩阵补全、LSA 主题模型。
+
+### 与 PCA 的关系
+
+PCA 对中心化后的数据 $\tilde{\mathbf{X}}$ 求主成分，两种等价做法：
+
+1. 求协方差矩阵 $\frac{1}{m}\tilde{\mathbf{X}}^\top\tilde{\mathbf{X}}$ 的前 $k$ 大特征向量；
+2. 直接对 $\tilde{\mathbf{X}}$ 做 SVD，取 $\mathbf{V}$ 的前 $k$ 列。
+
+第 2 种**数值更稳定**（不用显式算 $\mathbf{X}^\top\mathbf{X}$，避免条件数平方放大误差），是实践中推荐的做法。
+
+---
+
+## 七、代码实践
+
+```python
+import numpy as np
+
+# 1. 范数
+x = np.array([3.0, -4.0])
+print("L1:", np.linalg.norm(x, 1))        # 7.0
+print("L2:", np.linalg.norm(x, 2))        # 5.0
+print("Linf:", np.linalg.norm(x, np.inf)) # 4.0
+
+# 2. 特征分解（对称矩阵）
+A = np.array([[4., 1.],
+              [1., 3.]])
+vals, vecs = np.linalg.eigh(A)   # eigh 专用于对称阵，结果按升序
+print("特征值:", vals)
+print("特征向量:\n", vecs)
+print("验证 Av = λv:", np.allclose(A @ vecs[:, 0], vals[0] * vecs[:, 0]))
+
+# 3. SVD 与低秩近似
+rng = np.random.default_rng(0)
+M = rng.standard_normal((50, 30))
+U, S, Vt = np.linalg.svd(M, full_matrices=False)
+print("奇异值前 5 个:", S[:5])
+
+k = 5
+M_approx = (U[:, :k] * S[:k]) @ Vt[:k]
+err = np.linalg.norm(M - M_approx, 'fro')
+print(f"秩 {k} 近似的 Frobenius 误差: {err:.3f}")
+print(f"能量占比: {(S[:k]**2).sum() / (S**2).sum():.2%}")
+
+# 4. 最小二乘：正规方程 vs 伪逆
+X = np.column_stack([np.ones(100), rng.standard_normal((100, 2))])  # 带截距
+y = X @ np.array([1.0, 2.0, -3.0]) + 0.1 * rng.standard_normal(100)
+
+w_normal = np.linalg.inv(X.T @ X) @ X.T @ y   # 正规方程
+w_pinv = np.linalg.pinv(X) @ y                # 伪逆
+print("正规方程:", w_normal)
+print("伪逆解  :", w_pinv)
+print("最大差异:", np.abs(w_normal - w_pinv).max())
+```
+
+完整可运行版本见 `code/day2_linalg.py`。
+
+---
+
+## 八、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 用 `eig` 处理对称矩阵 | `np.linalg.eig` 不保证排序且对对称阵会引入复数误差，**对称阵用 `eigh`** |
+| 以为 `A @ B` 和 `A * B` 差不多 | 一个是矩阵乘法，一个是逐元素乘，结果完全不同 |
+| 直接 `inv(X.T @ X)` | 条件数被平方，数值不稳定；**优先用 `np.linalg.solve` 或 `lstsq`** |
+| 忘记中心化就做 PCA | 不中心化相当于把原点也当成一个样本，主成分方向会被均值带偏 |
+| 认为特征值一定为正 | 只有正定矩阵才如此；一般矩阵可能有负特征值甚至复数特征值 |
+
+---
+
+## 九、练习题
+
+**基础**
+
+1. 计算 $\boldsymbol{x} = (1, -2, 2)$ 的 $L_1$、$L_2$、$L_\infty$ 范数。
+2. 求 $\mathbf{A} = \begin{bmatrix} 2 & 1 \\ 1 & 2 \end{bmatrix}$ 的特征值与特征向量（手算 + 代码验证）。
+3. 判断 $\begin{bmatrix} 1 & 2 \\ 2 & 1 \end{bmatrix}$ 是否正定。
+
+**进阶**
+
+4. 证明：对任意矩阵 $\mathbf{A}$，$\mathbf{A}^\top\mathbf{A}$ 是半正定的。
+5. 推导最小二乘的正规方程：对 $L(\boldsymbol{w}) = \|\mathbf{X}\boldsymbol{w} - \boldsymbol{y}\|_2^2$ 求导并令其为零。
+ 提示：先展开成 $\boldsymbol{w}^\top\mathbf{X}^\top\mathbf{X}\boldsymbol{w} - 2\boldsymbol{y}^\top\mathbf{X}\boldsymbol{w} + \boldsymbol{y}^\top\boldsymbol{y}$。
+6. 一张 $512\times512$ 的灰度图，用秩 $k$ 近似压缩后需要存储多少个数值（含 $\mathbf{U},\boldsymbol{\Sigma},\mathbf{V}$）？当 $k$ 取多少时压缩才开始"亏本"？
+
+**思考题**
+
+7. 为什么说"协方差矩阵的特征向量给出了数据方差最大的方向"？请从 $\max_{\|\boldsymbol{u}\|=1} \boldsymbol{u}^\top\boldsymbol{\Sigma}\boldsymbol{u}$ 出发解释，并用拉格朗日乘子法求解。
+
+<details>
+<summary>第 5 题答案</summary>
+
+展开：
+
+$$L(\boldsymbol{w}) = \boldsymbol{w}^\top\mathbf{X}^\top\mathbf{X}\boldsymbol{w} - 2\boldsymbol{y}^\top\mathbf{X}\boldsymbol{w} + \boldsymbol{y}^\top\boldsymbol{y}$$
+
+求梯度（利用 $\nabla_{\boldsymbol{w}}\boldsymbol{w}^\top\mathbf{A}\boldsymbol{w} = (\mathbf{A}+\mathbf{A}^\top)\boldsymbol{w}$，对称时 $=2\mathbf{A}\boldsymbol{w}$）：
+
+$$\nabla_{\boldsymbol{w}} L = 2\mathbf{X}^\top\mathbf{X}\boldsymbol{w} - 2\mathbf{X}^\top\boldsymbol{y} = \boldsymbol{0}$$
+
+$$\Rightarrow \quad \mathbf{X}^\top\mathbf{X}\boldsymbol{w} = \mathbf{X}^\top\boldsymbol{y} \quad\Rightarrow\quad \hat{\boldsymbol{w}} = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\boldsymbol{y}$$
+</details>
+
+<details>
+<summary>第 7 题提示</summary>
+
+构造拉格朗日函数 $\mathcal{L}(\boldsymbol{u}, \lambda) = \boldsymbol{u}^\top\boldsymbol{\Sigma}\boldsymbol{u} - \lambda(\boldsymbol{u}^\top\boldsymbol{u} - 1)$，对 $\boldsymbol{u}$ 求导得 $\boldsymbol{\Sigma}\boldsymbol{u} = \lambda\boldsymbol{u}$。代回目标函数得 $\boldsymbol{u}^\top\boldsymbol{\Sigma}\boldsymbol{u} = \lambda$，所以**方差最大的方向就是最大特征值对应的特征向量**。
+</details>
+
+---
+
+## 十、一句话总结
+
+**矩阵是数据的容器，范数是"大小"的度量，特征分解与 SVD 是"找主方向"的工具——记住这三句话，线性代数在 ML 里的作用就清晰了。**
+
+---
+
+**明日预告**：Day3 讲概率论，重点是**贝叶斯公式**与**最大似然估计**，这两件武器直接决定 Week05 朴素贝叶斯与 Week07 交叉熵损失的理解深度。
+

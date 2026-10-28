@@ -1,0 +1,177 @@
+---
+slug: day-21
+day: 21
+week: 5
+weekTitle: Agent 开发
+weekBlurb: create_agent、Runtime 生命周期、Middleware、长期记忆 Store。
+title: Agent 开发① —— create_agent：LangChain 1.x 的官方 Agent 入口
+lead: '从 Day 5 的"手写 ReAct"跃迁到官方 `create_agent`，理解它与手写循环的对应关系，掌握流式观测 Agent 执行。'
+examples:
+  - examples/day21_create_agent.py
+sourcePath: week-05-agent-dev/day-21.md
+---
+
+---
+
+## 21.1 温故：Day 5 你手写过 Agent
+
+还记得 Day 5 的循环吗？——问模型 → 看有没有 tool_calls → 执行工具 → ToolMessage 回填 → 再问模型。那就是 Agent 的全部本质。但手写版缺很多东西：
+
+- 工具执行报错怎么办？
+- 一次请求 3 个工具，结果顺序乱了怎么办？
+- 想看到它"思考到哪一步了"怎么做？
+- 想限制最多调 10 次工具怎么做？
+
+**`create_agent` 就是官方把这些工程问题全部解决好的成品**。LangChain 1.0 起，它是唯一的官方 Agent 入口（旧教程的 `create_react_agent`、`AgentExecutor` 均已废弃）。
+
+## 21.2 create_agent 全景（签名已在本机实测）
+
+```python
+from langchain.agents import create_agent
+
+agent = create_agent(
+    model=llm,                              # 大脑（唯一必填）
+    tools=[tool1, tool2],                   # 工具清单（函数/工具对象均可）
+    system_prompt="你是...",                # 人设
+    middleware=[...],                       # 中间件（Day 23 主角）
+    checkpointer=...,                       # 记忆（Day 19 学的）
+    store=...,                              # 长期记忆（Day 24 主角）
+)
+result = agent.invoke({"messages": [{"role": "user", "content": "..."}]})
+```
+
+**内部结构**（你在 LangGraph 周已经会画了）：create_agent 自动搭好一张图：
+
+```
+START → model（LLM 思考）→ 有工具调用？→ tools（并行执行）→ 回到 model
+                          └── 无 → END
+```
+
+- `model` 节点：把历史发给 LLM，产出 AIMessage（可能带 tool_calls）；
+- `tools` 节点：执行所有 tool_calls（并行），回填 ToolMessage；
+- 条件边：有 tool_calls 就循环，没有就结束——**就是 Day 5 手写循环的图化**。
+
+## 21.3 与手写循环逐项对照（建立连接，学习才牢）
+
+| 手写版（Day 5） | create_agent | 说明 |
+|---|---|---|
+| `llm_with_tools = model.bind_tools([...])` | `tools=[...]` 参数 | bind_tools 自动完成 |
+| `messages = [HumanMessage(...)]` | `invoke({"messages": [...]})` | 输入格式相同 |
+| 手写 for 循环 | 图的条件边自动循环 | 无需 max_steps（也可用 middleware 限制） |
+| `ToolMessage(tool_call_id=...)` 回填 | tools 节点自动回填 | 不会再填错 id |
+| `if not reply.tool_calls: return` | 图自动路由到 END | 自动判断结束 |
+
+## 21.4 观测 Agent：stream_mode（今天最重要的技能）
+
+`agent.invoke` 只给你最终答案。想看 Agent **每一步在干什么**（调了什么工具、花了多少钱），用流式模式：
+
+```python
+for chunk in agent.stream(
+    {"messages": [{"role": "user", "content": "..."}]},
+    stream_mode="updates",            # ★ 关键参数
+):
+    print(chunk)
+    # {'model': {'messages': [AIMessage(...带tool_calls...)]}}   ← LLM 思考完
+    # {'tools': {'messages': [ToolMessage(...)]}}                 ← 工具执行完
+```
+
+| stream_mode | 吐什么 | 用途 |
+|---|---|---|
+| `"updates"` | 每个节点执行完的**状态更新** | 观测决策过程（今天重点） |
+| `"messages"` | 每条消息（含 token 级） | 打字机效果（第 8 周） |
+| `"values"` | 每步后的完整状态 | 调试状态变化 |
+
+> 在 LangSmith 里（第 6 周）你能看到同样信息的图形化版本；但 `stream_mode="updates"` 是**代码里随时可用的观测手段**，调试 Agent 的第一工具。
+
+## 21.5 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-05-agent-dev\examples
+python day21_create_agent.py
+```
+
+## 21.6 案例逐行讲解：`day21_create_agent.py`
+
+```python
+"""Day 21 案例：create_agent 正式版 —— 多工具 + 流式观测"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+# ── 三个工具：计算器 + 词典 + 天气（假数据）────────────
+@tool
+def calculator(expression: str) -> str:
+    """计算数学表达式。当用户需要算术计算时使用。expression 例如 '3*5+2'。"""
+    try:
+        return str(eval(expression))     # 仅教学用；生产必须用安全的解析器！
+    except Exception:
+        return "表达式无效"
+
+@tool
+def get_weather(city: str) -> str:
+    """查询城市天气。当用户询问某地天气时使用。"""
+    data = {"北京": "晴 25°C", "上海": "小雨 22°C"}
+    return data.get(city, f"暂无{city}数据")
+
+@tool
+def remember(note: str) -> str:
+    """把重要信息记到便签。当用户说'记住...'时使用。"""
+    global NOTES
+    NOTES = NOTES + [note]
+    return f"已记住（共{len(NOTES)}条）"
+
+NOTES = []
+
+agent = create_agent(
+    model=model,
+    tools=[calculator, get_weather, remember],
+    system_prompt="你是中文助理。用户问计算就调 calculator，问天气调 get_weather。",
+)
+
+# ── 场景 1：单工具调用（流式观测全过程）─────────────
+print("══ 场景 1：'北京天气怎么样？' ══")
+for chunk in agent.stream(
+    {"messages": [{"role": "user", "content": "北京天气怎么样？"}]},
+    stream_mode="updates",
+):
+    node = list(chunk.keys())[0]
+    msgs = chunk[node].get("messages", [])
+    for m in msgs:
+        if hasattr(m, "tool_calls") and m.tool_calls:
+            print(f"  🧠 LLM 请求工具：{m.tool_calls[0]['name']}{m.tool_calls[0]['args']}")
+        elif m.type == "tool":
+            print(f"  🔧 工具返回：{m.content}")
+        elif m.type == "ai":
+            print(f"  💬 最终回答：{m.content}")
+
+# ── 场景 2：多步推理（两个工具接力）─────────────────
+print("\n══ 场景 2：'北京气温乘以 2 加 10 是多少？' ══")
+result = agent.invoke(
+    {"messages": [{"role": "user", "content": "北京气温乘以 2 加 10 是多少？"}]}
+)
+print("  回答：", result["messages"][-1].content)
+```
+
+**逐段要点**：
+
+- **`eval` 警告**：教学演示用了 `eval`，生产必须换成安全表达式解析器（如 `asteval`），否则用户能注入代码——这是安全红线；
+- **场景 1 的解析逻辑**：`chunk` 是 `{节点名: 更新}`。`model` 节点的更新里带 tool_calls 说明 LLM 想调工具；`tools` 节点的更新带 ToolMessage；最后一条 AIMessage 是最终回答。**这套解析是"看懂 Agent"的显微镜**；
+- **场景 2 是真正的多步 Agent**：模型先调 `get_weather("北京")` 拿 25，再调 `calculator("25*2+10")` 算 60——两次工具调用接力，中间有完整的一轮"思考→行动→观察→再思考"。这就是 Agent 和普通 LLM 调用的分水岭。
+
+## 21.7 今日自测
+
+<Quiz items={["把场景 2 换成\"上海气温减 5 的平方\"，看它如何组合工具。","给 `remember` 工具加个 `recall`（回忆便签）工具，测试\"记住 → 回忆\"跨轮次是否生效（注意：今天没配 checkpointer，`NOTES` 是全局变量，换 thread 也会串——Day 24 会解决）。","故意让工具抛异常，观察 create_agent 默认怎么处理（对比 Day 5 手写版会直接崩）。","用 `stream_mode=\"values\"` 跑场景 1，对比三种 stream_mode 的输出差异。","`notes/day21.md`：画出 create_agent 内部的图结构，标注 model/tools 两个节点和条件边。"]} />
+
+## 21.8 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`ImportError: create_agent`","cause":"用了老版 langchain","fix":"`pip install -U langchain`（需 1.0+）"},{"symptom":"Agent 不调工具直接答","cause":"工具 docstring 含糊 / 模型弱","fix":"说明书写触发场景；换更强模型"},{"symptom":"多步工具接力不成功（如场景 2）","cause":"本地小模型（7b）多步推理能力弱","fix":"换 DeepSeek/GLM 等云端模型；小模型只适合单步工具"},{"symptom":"`KeyError: 'messages'`","cause":"invoke 输入没带 messages 键","fix":"输入必须 `{\"messages\": [...]}`"},{"symptom":"工具执行报错导致 Agent 崩","cause":"工具函数抛了未处理异常","fix":"工具内 try/except 返回错误文本"},{"symptom":"看不到中间过程","cause":"用了 invoke","fix":"换 `stream(stream_mode=\"updates\")`"}]} />
+
+<DayComplete day={21} recap={"官方 Agent 到手，你能观测它的每一步了。明天深入 Agent Runtime——它的生命周期、内部状态机、以及如何把它嵌入真实服务。"} />

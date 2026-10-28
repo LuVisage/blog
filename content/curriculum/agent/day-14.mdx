@@ -1,0 +1,177 @@
+---
+slug: day-14
+day: 14
+week: 3
+weekTitle: RAG 优化与评估
+weekBlurb: 查询改写、混合检索与重排序、父子文档、RAGAS 指标打分。
+title: 系统评估 —— 用 RAGAS 给 RAG 打分
+lead: '理解"评估"为什么是 RAG 工程的分水岭，掌握 RAGAS 四大指标的含义、数据要求与使用方法，跑出你的第一份系统成绩单。'
+examples:
+  - examples/day14_ragas.py
+sourcePath: week-03-rag-optimization/day-14.md
+---
+
+---
+
+## 14.1 为什么必须评估？（从"感觉"到"数据"）
+
+第 11-13 天你调了很多旋钮：chunk_size、k、MultiQuery、HyDE、混合检索……但**怎么知道调完是变好还是变坏**？凭感觉？今天的"感觉不错"明天换个问题就翻车。
+
+专业做法：**准备一批标准问题，每次改动后跑一遍，用分数说话**。
+
+```
+改参数 → 跑评估集 → 看分数 ↑↓ → 决定保留还是回滚
+```
+
+这就是 RAG 系统的"单元测试"。没有它，你的优化是瞎猫碰死耗子；有了它，优化是爬山（每步都知道海拔）。
+
+## 14.2 RAGAS：RAG 评估的事实标准
+
+**RAGAS**（Retrieval Augmented Generation Assessment）是专门给 RAG 系统打分的开源框架。它不用人工判卷——**用 LLM 当评委**，对每个样本自动评分。今天学最经典的四大指标：
+
+| 指标 | 中文 | 考什么 | 需要的数据 |
+|---|---|---|---|
+| **Faithfulness** | 忠实性 | 答案的每句话，是否都能在检索到的资料里找到依据？（**测幻觉**） | 问题、答案、检索到的上下文 |
+| **Answer Relevancy** | 答案相关性 | 答案是否切题、有没有跑题？ | 问题、答案 |
+| **Context Precision** | 上下文精确率 | 检索到的资料里，**无关的**占多少？（宁缺毋滥） | 问题、检索到的上下文、参考答案 |
+| **Context Recall** | 上下文召回率 | 参考答案所需的信息，检索**找全了**吗？（宁滥毋缺） | 问题、检索到的上下文、参考答案 |
+
+> **两对冤家**：Precision 和 Recall 是跷跷板——k 调大召回高但精确率降；Faithfulness 和 Relevancy 管生成——提示词不好、资料太杂都会扣分。**四个分数一起看，才能定位问题出在检索还是生成**：
+> - 召回低 → 检索漏了（换 embedding/加 MultiQuery/调 k）；
+> - 精确低 → 检索太杂（加过滤/rerank/减 k）；
+> - 忠实低 → 模型在编（强化提示词"资料没有就说不知道"）；
+> - 相关低 → 答案跑题（提示词约束/换模型）。
+
+## 14.3 RAGAS 0.4 的正确打开方式（本教程已实测新 API）
+
+```python
+from ragas import evaluate, EvaluationDataset, SingleTurnSample
+from ragas.metrics.collections import (faithfulness, answer_relevancy,
+                                       context_precision, context_recall)
+from ragas.llms import LangchainLLMWrapper
+from ragas.embeddings import LangchainEmbeddingsWrapper
+
+# ① 把你的 LLM 和 Embedding 包给 RAGAS 当评委
+judge_llm = LangchainLLMWrapper(model)                    # 评委 LLM（可用便宜的模型）
+judge_emb = LangchainEmbeddingsWrapper(embeddings)        # 相关度计算要用 embedding
+
+# ② 构造评估数据集：每个样本一条
+dataset = EvaluationDataset(samples=[
+    SingleTurnSample(
+        user_input="积分怎么兑换饮品？",          # 问题
+        retrieved_contexts=["500 分可兑换任意中杯饮品一杯", "营业时间 8:00-22:00"],  # 检索结果
+        response="500 积分可以兑换中杯饮品。",     # 系统回答
+        reference="500 分兑换中杯饮品。",          # 标准答案（人工写！）
+    ),
+])
+
+# ③ 跑评估（内部会多次调用 LLM，需耐心）
+result = evaluate(dataset, metrics=[faithfulness, answer_relevancy,
+                                    context_precision, context_recall],
+                  llm=judge_llm, embeddings=judge_emb)
+
+# ④ 看成绩单
+print(result.to_pandas())   # 每行一个样本，每列一个指标
+```
+
+> **注意点**：
+> 1. **`reference`（标准答案）必须人工写**——它是"参考答案该覆盖哪些信息"的黄金标准，召回率/精确率全靠它判定。这也是评估成本所在；
+> 2. **评委模型可以与被测模型不同**。生产上常用更便宜的模型当评委（省成本）；
+> 3. 评估本身也调 LLM，**评估 100 条样本 = 数百次 LLM 调用**，设计评估集时先小后大。
+
+## 14.4 指标是怎么算的？（理解原理，分数才可信）
+
+以 **Faithfulness** 为例，RAGAS 的评分流程：
+
+```
+① 从答案中拆出"陈述句"列表
+   答案"500 积分可兑换中杯，而且咖啡很好喝" → 拆成 2 句
+② 逐句问评委 LLM："这句话能从资料里推断出来吗？"
+   句1"500 积分可兑换中杯" → 资料里有 → YES
+   句2"咖啡很好喝" → 资料里没有 → NO
+③ 得分 = YES 句数 / 总句数 = 1/2 = 0.5
+```
+
+一句话：**忠实性 = 答案中"有据可查"的比例**。其他指标类似，都是"LLM 法官 + 规则计分"。
+
+## 14.5 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-03-rag-optimization\examples
+python day14_ragas.py
+```
+
+## 14.6 案例逐行讲解：`day14_ragas.py` —— 好系统 vs 差系统的对照评估
+
+```python
+"""Day 14 案例：RAGAS 评估 —— 同一批问题，测两个版本的 RAG"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from ragas import evaluate, EvaluationDataset, SingleTurnSample
+from ragas.metrics.collections import faithfulness, answer_relevancy, context_precision, context_recall
+from ragas.llms import LangchainLLMWrapper
+from ragas.embeddings import LangchainEmbeddingsWrapper
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+embeddings = OpenAIEmbeddings(model=os.environ["EMBEDDING_MODEL"],
+                              base_url=os.environ["EMBEDDING_BASE_URL"],
+                              api_key=os.environ["EMBEDDING_API_KEY"])
+
+# ── 模拟"坏系统"的检索与回答（故意埋问题）────────────
+# 样本1：检索漏了关键信息（召回低）→ 答案只能瞎编（忠实低）
+# 样本2：检索混入无关文档（精确低）
+# 样本3：检索与回答都很好（对照组）
+dataset = EvaluationDataset(samples=[
+    SingleTurnSample(
+        user_input="积分兑换规则是什么？",
+        retrieved_contexts=["营业时间：工作日 8:00-22:00。"],        # ← 漏了积分文档！
+        response="积分满 1000 分可以兑换大杯饮品。",                 # ← 没依据，幻觉
+        reference="每消费1元积1分，500分兑换中杯，800分兑换大杯。",
+    ),
+    SingleTurnSample(
+        user_input="咖啡豆能退吗？",
+        retrieved_contexts=["退换货：咖啡豆未拆封 7 天内可退换。",
+                            "龙井茶 85 度冲泡口感最佳。"],           # ← 混入无关茶文档
+        response="咖啡豆未拆封 7 天内可以退换。",
+        reference="咖啡豆未拆封 7 天内可退换；饮品不支持退换。",
+    ),
+    SingleTurnSample(
+        user_input="生日有什么优惠？",
+        retrieved_contexts=["生日当月消费可享双倍积分。"],
+        response="生日当月消费可以享受双倍积分。",
+        reference="生日当月消费享双倍积分。",
+    ),
+])
+
+result = evaluate(dataset,
+                  metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
+                  llm=LangchainLLMWrapper(model),
+                  embeddings=LangchainEmbeddingsWrapper(embeddings))
+
+print(result.to_pandas().round(2))
+```
+
+**读成绩单（重点练习）**：
+
+| 样本 | 预期 | 原因 |
+|---|---|---|
+| 样本 1 | faithfulness、context_recall 都很低 | 检索漏了积分文档，答案是编的 |
+| 样本 2 | context_precision 偏低 | 检索混入了茶文档 |
+| 样本 3 | 四项全高 | 完美样本（评估的"体检标准"） |
+
+> **案例的价值不在跑分，在"读分"**：分数差是好事——它告诉你该修哪里。样本 1 的方子是"召回侧优化"（Day 11 的 MultiQuery），样本 2 的方子是"过滤/重排"（Day 12）。
+
+## 14.7 今日自测
+
+<Quiz items={["把样本 1 的 `retrieved_contexts` 补上积分文档，重跑，观察 faithfulness 从谷底回升——体验\"检索好了，生成自然好\"。","给评估集加 2 条你自己的问题（含 reference），跑分。","改一个\"坏答案\"：把样本 2 的 response 改成\"龙井茶很好喝\"（跑题），看 answer_relevancy 变化。","思考：reference 写得太简略（只有一句话）会影响哪些指标？写进 `notes/day14.md`。","计算本次评估的 LLM 调用次数（提示：评估日志里能看到），估算成本。"]} />
+
+## 14.8 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`ImportError: ragas.metrics`","cause":"用了旧版导入路径","fix":"0.4.x 用 `ragas.metrics.collections`"},{"symptom":"评分全 NaN","cause":"数据字段名/格式不对","fix":"用 `SingleTurnSample` 显式构造"},{"symptom":"评估很慢","cause":"每样本多次 LLM 调用","fix":"小样本起步；并行；用便宜评委模型"},{"symptom":"分数波动","cause":"LLM 评委有随机性","fix":"跑 2-3 次取均值；评委 temperature=0"},{"symptom":"reference 写不出来","cause":"不确定\"标准答案\"","fix":"人工审 20 条定标准，再让 LLM 初稿 + 人工改"}]} />
+
+<DayComplete day={14} recap={"你会给 RAG 系统打分了。明天项目日：把评估做成\"自动化实验台\"——一键对比\"改参数前后\"的分数，让优化有据可依。"} />

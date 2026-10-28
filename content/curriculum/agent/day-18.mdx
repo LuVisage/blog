@@ -1,0 +1,163 @@
+---
+slug: day-18
+day: 18
+week: 4
+weekTitle: LangGraph 图编程
+weekBlurb: State / Node / Edge、条件边与循环、人在回路、持久化与子图。
+title: Human-in-the-loop —— 让流程停下来等人
+lead: '掌握 `interrupt()` 中断与断点恢复，做出"关键操作必须人审批"的 Agent 流程。'
+examples:
+  - examples/day18_approval.py
+sourcePath: week-04-langgraph/day-18.md
+---
+
+---
+
+## 18.1 为什么 Agent 需要"等人"？
+
+Agent 能自动发邮件、自动下单、自动删数据——但**自动 ≠ 可靠**。生产系统的铁律：
+
+| 操作 | 为什么必须人审批 |
+|---|---|
+| 群发通知/邮件 | 措辞不当 = 事故 |
+| 退款/支付 | 资金安全 |
+| 删除数据 | 不可逆 |
+| 对外发布内容 | 合规风险 |
+
+所以 Agent 流程需要**Human-in-the-loop（人在回路）**：关键时刻**暂停执行**，把决定权交给人，人批准后**从断点继续**。LangGraph 的原生能力 `interrupt()` 就是干这个的。
+
+## 18.2 interrupt()：节点内的"暂停键"
+
+```python
+from langgraph.types import interrupt
+
+def approve_node(state: State) -> dict:
+    # 执行到这里 → 图暂停，把信息抛给外部
+    decision = interrupt({
+        "message": "是否批准这封邮件？",
+        "draft": state["draft"],
+    })
+    # 外部用 Command(resume=...) 恢复后，decision 就是人给的值
+    return {"decision": decision}
+```
+
+**中断时的行为**：
+
+1. 图执行到 `interrupt()` **立刻冻结**，`invoke` 返回一个特殊结果（包含中断信息）；
+2. 外部程序拿到中断信息，展示给人（前端按钮/邮件/IM）；
+3. 人做出决定后，外部再次调用 `app.invoke(Command(resume="批准"), config=...)`；
+4. **图从 interrupt 那行代码之后继续执行**——`decision` 变量变成人给的值，局部变量、状态全都在（像游戏存档读档）。
+
+## 18.3 恢复的三个前提（缺一不可）
+
+```python
+# ① 图必须配 checkpointer —— 状态存哪、恢复时从哪读
+from langgraph.checkpoint.memory import InMemorySaver
+app = graph.compile(checkpointer=InMemorySaver())
+
+# ② 每次调用都要带 thread_id —— 区分"哪一场对话/哪次任务"
+config = {"configurable": {"thread_id": "会话1"}}
+app.invoke(input, config=config)
+
+# ③ 恢复用 Command(resume=值)
+app.invoke(Command(resume="批准"), config=config)   # thread_id 必须一致！
+```
+
+> **checkpointer 是什么？** 图的"存档器"：每一步执行完，把 State 快照存起来。没它，图一中断状态就丢了，无法恢复。`InMemorySaver` 存内存（学习用）；生产用 `SqliteSaver`/`PostgresSaver`（Day 19 详解）。**thread_id 是存档的钥匙**——不同 thread_id = 完全独立的存档。
+
+## 18.4 完整审批流（今天的核心案例）
+
+```
+START → write(起草邮件) → human_review(interrupt 等人) → finalize(按决定收尾) → END
+                              ▲                          │
+                              └──── Command(resume) ─────┘
+```
+
+关键设计：
+
+- `write`：生成草稿（真实项目接 LLM）；
+- `human_review`：`interrupt()` 把草稿抛给人，返回人的决定；
+- `finalize`：按"批准/驳回"分头收尾（驳回时把意见存进状态，流程可回到 write 重写——练习 4）。
+
+## 18.5 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-04-langgraph\examples
+python day18_approval.py
+```
+
+## 18.6 案例逐行讲解：`day18_approval.py`
+
+```python
+"""Day 18 案例：Human-in-the-loop —— 邮件审批流（纯 Python 可跑）"""
+from typing import TypedDict, Annotated
+from operator import add
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import interrupt, Command
+from langgraph.checkpoint.memory import InMemorySaver
+
+class State(TypedDict):
+    draft: str
+    decision: str
+    log: Annotated[list[str], add]
+
+# ① 起草：真实项目里这里是 LLM 写邮件
+def write(state: State) -> dict:
+    draft = "【草稿】亲爱的用户：您的退款申请已通过，将于 3 个工作日内到账。"
+    return {"draft": draft, "log": ["起草完成"]}
+
+# ② 人工审批：interrupt 暂停，等人给决定
+def human_review(state: State) -> dict:
+    decision = interrupt({
+        "question": "是否批准发送这封退款邮件？",
+        "draft": state["draft"],
+    })
+    return {"decision": decision, "log": [f"人工决定：{decision}"]}
+
+# ③ 收尾：按决定分头行动
+def finalize(state: State) -> dict:
+    if state["decision"] == "approve":
+        return {"log": ["✅ 邮件已发送"]}
+    return {"log": ["❌ 已驳回，邮件未发送"]}
+
+graph = StateGraph(State)
+graph.add_node("write", write)
+graph.add_node("human_review", human_review)
+graph.add_node("finalize", finalize)
+graph.add_edge(START, "write")
+graph.add_edge("write", "human_review")
+graph.add_edge("human_review", "finalize")
+graph.add_edge("finalize", END)
+app = graph.compile(checkpointer=InMemorySaver())   # ★ 恢复的前提 1
+
+config = {"configurable": {"thread_id": "mail-001"}}  # ★ 前提 2
+
+# ── 第一次调用：会停在 interrupt ─────────────────
+print("── 第一次 invoke（预期中断）──")
+result = app.invoke({"draft": "", "decision": "", "log": []}, config=config)
+print("中断时返回：", {k: v for k, v in result.items() if k != "log"})
+# 注意：result 里能看到 __interrupt__ 信息
+
+# 人看了草稿，点了"批准"（真实项目这里是前端按钮/人工输入）
+print("\n── 第二次 invoke（resume='approve'）──")
+result2 = app.invoke(Command(resume="approve"), config=config)  # ★ 前提 3
+print("最终状态：", result2["decision"])
+print("完整日志：", " → ".join(result2["log"]))
+```
+
+**逐段要点**：
+
+- 第一次 `invoke` 返回的 result 里含中断信息（`__interrupt__` 键），**图冻结在 human_review 内部**；
+- 第二次 `invoke(Command(resume="approve"))`：`resume` 的值会成为 `interrupt()` 的返回值 → `decision = "approve"` → 继续走 finalize；
+- **thread_id 两次必须一致**，否则第二次调用是"新开一局"，拿不到存档直接报错；
+- 想象真实场景：两次 invoke 之间隔着几分钟（人看邮件的时间），甚至隔着两台机器（第 8 周会看到：中断信息推给浏览器 → 用户点按钮 → 恢复请求发回服务器）。
+
+## 18.7 今日自测
+
+<Quiz items={["把 resume 值改成 `\"reject\"` 重跑，观察 finalize 走驳回分支。","加一个 `rewrite` 节点：驳回后回到 write 重写（提示：finalize 路由 + 回边），循环直到批准。","中断后故意用**不同的 thread_id** 恢复，读懂那个报错。","在 interrupt 的 payload 里多带字段（草稿全文、风险提示），打印出来看\"人\"拿到的是什么。","`notes/day18.md`：画审批流的时序图，标出\"图冻结点\"和\"人操作点\"。"]} />
+
+## 18.8 常见坑速查
+
+<GotchaTable rows={[{"symptom":"interrupt 后恢复报错","cause":"没配 checkpointer","fix":"compile 时加 `checkpointer=InMemorySaver()`"},{"symptom":"恢复时报\"找不到线程\"","cause":"thread_id 不一致","fix":"两次调用 config 的 thread_id 必须相同"},{"symptom":"resume 的值收不到","cause":"用了 `app.invoke({\"resume\": ...})` 旧写法","fix":"必须 `Command(resume=值)`"},{"symptom":"想\"改主意重来\"","cause":"存档不可逆","fix":"换新 thread_id 重新开始"},{"symptom":"生产环境中断信息丢失","cause":"InMemorySaver 重启即失","fix":"换 SqliteSaver/PostgresSaver（Day 19）"}]} />
+
+<DayComplete day={18} recap={"你的图现在能\"暂停等人\"了——这是 Agent 从玩具走向生产的关键一步。明天学 Checkpointer 持久化与记忆管理：让 Agent 记住历史、断点续跑、甚至\"时间旅行\"。"} />

@@ -1,0 +1,367 @@
+---
+slug: day-15
+kind: day
+day: 15
+week: 2
+weekTitle: 机器学习基础
+weekBlurb: 西瓜书第 1–2 章：机器学习是什么、模型的评估与选择、性能度量。
+title: 实战：从零实现 kNN
+lead: '本周最后一天，我们把 Day1–Day4 的所有概念落到一个真实可跑的算法上。kNN 是**最简单的机器学习算法**，却完美展示了假设空间、归纳偏好、偏差-方差与评估方法。'
+sourcePath: Week02_机器学习基础/Day5_实战kNN.md
+---
+
+> 西瓜书第 1 章 1.4 节（最近邻）、第 8 章 8.1 节 · 结合 Week02 全部内容
+
+本周最后一天，我们把 Day1–Day4 的所有概念落到一个真实可跑的算法上。kNN 是**最简单的机器学习算法**，却完美展示了假设空间、归纳偏好、偏差-方差与评估方法。
+
+---
+
+## 今日目标
+
+1. 理解 kNN 的"懒惰学习（lazy learning）"特性；
+2. 掌握 4 种常用距离度量，并理解特征标准化对距离的影响；
+3. 从零实现 kNN 分类器与回归器（只用 NumPy）；
+4. 用分层 k 折交叉验证选择最优 $k$，并画出偏差-方差曲线；
+5. 用混淆矩阵、$F_1$、AUC 完整评估模型；
+6. 掌握 kNN 的优缺点与工程加速方法（kd-tree / 球树）。
+
+---
+
+## 知识地图
+
+```
+Week02 收尾
+├── Day1 假设空间/归纳偏好 ────────→ kNN 的假设空间：所有可能的"局部标签"
+├── Day2 评估方法 ─────────────────→ 分层 k 折 CV 选 k
+├── Day3 性能度量 ─────────────────→ 混淆矩阵 / F1 / AUC
+├── Day4 偏差-方差 ────────────────→ k 越小方差越大
+└── Day5 实战 kNN ← 你在这里（全部概念的综合演练）
+```
+
+---
+
+## 一、kNN 的基本思想
+
+**核心假设**（归纳偏好）：**相似的样本，标签也相似。**
+
+> "物以类聚，人以群分"——这就是 kNN 的全部哲学。
+
+### 算法流程（分类）
+
+给定测试样本 $\boldsymbol{x}$：
+
+1. 计算 $\boldsymbol{x}$ 与训练集中**每一个**样本的距离；
+2. 找出距离最近的 $k$ 个样本（**近邻**）；
+3. 用这 $k$ 个近邻的标签投票：
+
+$$\hat y = \arg\max_{c} \sum_{i \in N_k(\boldsymbol{x})} \mathbb{1}[y_i = c]$$
+
+### 懒惰学习 vs 急切学习
+
+| 类型 | 代表算法 | 训练阶段 | 预测阶段 |
+| --- | --- | --- | --- |
+| **懒惰学习**（lazy） | kNN | 只存储数据 | 计算量大（要遍历全部训练样本） |
+| **急切学习**（eager） | 线性回归、SVM、神经网络 | 计算量大（训练参数） | 很快（一次前向传播） |
+
+> kNN 是"零训练成本、高预测成本"的典型。这在推荐系统中反而有优势——新增样本不需要重训。
+
+---
+
+## 二、距离度量
+
+kNN 的效果**高度依赖距离度量**。常用几种：
+
+### 2.1 闵可夫斯基距离（Minkowski）
+
+$$d(\boldsymbol{x}, \boldsymbol{z}) = \left(\sum_{j=1}^{n} |x_j - z_j|^p\right)^{1/p}$$
+
+| $p$ | 名称 | 特点 |
+| --- | --- | --- |
+| $p=1$ | 曼哈顿距离 | 对离群特征更鲁棒 |
+| $p=2$ | **欧氏距离** | 最常用 |
+| $p \to \infty$ | 切比雪夫距离 | 取最大分量差 |
+
+### 2.2 余弦距离
+
+$$d_{\cos}(\boldsymbol{x}, \boldsymbol{z}) = 1 - \frac{\boldsymbol{x}^\top\boldsymbol{z}}{\|\boldsymbol{x}\|\|\boldsymbol{z}\|}$$
+
+**特点**：只关心方向，不关心长度。适合**文本、词向量、推荐**等场景。
+
+### 2.3 马氏距离（Mahalanobis）
+
+$$d_M(\boldsymbol{x}, \boldsymbol{z}) = \sqrt{(\boldsymbol{x}-\boldsymbol{z})^\top \boldsymbol{\Sigma}^{-1}(\boldsymbol{x}-\boldsymbol{z})}$$
+
+**特点**：考虑了各维方差与相关性，**自动完成标准化**。$\boldsymbol{\Sigma} = \mathbf{I}$ 时退化为欧氏距离。
+
+### 2.4 标准化至关重要
+
+假设二维特征：`年龄`（范围 0–100）与`身高`（范围 0–2）。用欧氏距离时，"年龄差 1 岁"与"身高差 1 米"被同等看待，但后者在实际意义上大得多——**距离被量纲大的特征主导**。
+
+**解决**：
+
+$$x_j' = \frac{x_j - \mu_j}{\sigma_j} \quad (\text{z-score 标准化})$$
+
+或
+
+$$x_j' = \frac{x_j - \min_j}{\max_j - \min_j} \quad (\text{Min-Max 归一化})$$
+
+> **务必在训练集上计算 $\mu, \sigma$，再应用到测试集**（Week02 Day2 的数据泄漏坑）。
+
+---
+
+## 三、$k$ 的选择与偏差-方差
+
+| $k$ | 偏置 | 方差 | 现象 |
+| --- | --- | --- | --- |
+| $k=1$ | 低 | **极高** | 决策边界锯齿状，对噪声极敏感，训练误差恒为 0 |
+| $k$ 适中 | 中 | 中 | 决策边界平滑，泛化最好 |
+| $k$ 很大 | **高** | 低 | 决策边界过于平滑，趋向"预测多数类" |
+
+**极端情形分析**：
+
+- $k = 1$：预测就是最近那个样本的标签。**训练集上的错误率恒为 0**（因为它自己就是最近的邻居）——这是**最严重的过拟合**；
+- $k = m$（训练样本数）：所有测试点都预测为训练集的**多数类**——这是**最严重的欠拟合**。
+
+**经验选择**：
+
+- $k$ 取奇数（二分类时避免平票）；
+- 从 $\sqrt{m}$ 附近开始搜索；
+- **必须用交叉验证选择**，不能凭经验拍脑袋。
+
+### 距离加权改进
+
+给更近的邻居更大权重：
+
+$$\hat y = \arg\max_c \sum_{i\in N_k(\boldsymbol{x})} w_i\,\mathbb{1}[y_i = c], \qquad w_i = \frac{1}{d(\boldsymbol{x},\boldsymbol{x}_i) + \epsilon}$$
+
+这样可以缓解 $k$ 较大时的"边界模糊"问题。
+
+---
+
+## 四、从零实现
+
+### 4.1 核心：向量化成对距离
+
+**朴素双重循环**：$O(m \cdot n)$ 每次预测，太慢。
+
+**向量化技巧**（用 Week01 Day2 学的范数展开）：
+
+$$\|\boldsymbol{x}-\boldsymbol{z}\|^2 = \|\boldsymbol{x}\|^2 + \|\boldsymbol{z}\|^2 - 2\boldsymbol{x}^\top\boldsymbol{z}$$
+
+对 $\mathbf{X}\in\mathbb{R}^{m\times n}$ 与 $\boldsymbol{q}\in\mathbb{R}^n$：
+
+$$\boldsymbol{d}^2 = \underbrace{\sum_j X_{ij}^2}_{\text{每行平方和}} + \|\boldsymbol{q}\|^2 - 2\,\mathbf{X}\boldsymbol{q}$$
+
+```python
+import numpy as np
+
+class KNNClassifier:
+    def __init__(self, k=3, metric="euclidean", weights="uniform"):
+        self.k = k
+        self.metric = metric
+        self.weights = weights
+
+    def fit(self, X, y):
+        self.X_train = np.asarray(X, dtype=float)
+        self.y_train = np.asarray(y)
+        self.classes_ = np.unique(y)
+        return self
+
+    def _pairwise_dist(self, Q):
+        """Q: (q, n) -> (q, m) 距离矩阵，向量化实现"""
+        q_sq = (Q ** 2).sum(axis=1, keepdims=True)              # (q, 1)
+        x_sq = (self.X_train ** 2).sum(axis=1)                  # (m,)
+        d2 = q_sq + x_sq - 2 * Q @ self.X_train.T               # (q, m)
+        return np.sqrt(np.maximum(d2, 0))                       # 防浮点负数
+
+    def predict_proba(self, Q):
+        Q = np.asarray(Q, dtype=float)
+        D = self._pairwise_dist(Q)                              # (q, m)
+        idx = np.argsort(D, axis=1)[:, :self.k]                 # 前 k 个近邻
+        proba = np.zeros((len(Q), len(self.classes_)))
+        for i in range(len(Q)):
+            labels = self.y_train[idx[i]]
+            if self.weights == "uniform":
+                w = np.ones(self.k)
+            else:                                               # 距离倒数加权
+                w = 1.0 / (D[i, idx[i]] + 1e-12)
+                w = w / w.sum()
+            for c_i, c in enumerate(self.classes_):
+                proba[i, c_i] = w[labels == c].sum()
+        return proba / proba.sum(axis=1, keepdims=True)
+
+    def predict(self, Q):
+        proba = self.predict_proba(Q)
+        return self.classes_[proba.argmax(axis=1)]
+
+    def score(self, Q, y):
+        return (self.predict(Q) == y).mean()
+```
+
+### 4.2 实验流程
+
+```
+1. 生成数据 → 标准化（在训练集上 fit）
+2. 分层 5 折交叉验证，扫描 k ∈ [1, 3, 5, ..., 39]
+3. 记录每折的准确率与 F1，选平均 F1 最高的 k
+4. 用最优 k 在测试集上评估：
+   - 混淆矩阵
+   - 精确率 / 召回率 / F1
+   - AUC（用 predict_proba 的分数）
+5. 画 k-误差曲线（偏差-方差的可视化）
+```
+
+完整实现见 `code/day5_knn.py`，它会：
+
+- **不用 sklearn** 从零实现 kNN 分类器；
+- 用 `sklearn` 仅做**对照验证**（确认手写实现正确）；
+- 打印 $k$ 从 1 到 39 的 CV 准确率曲线，观察 U 形；
+- 输出测试集完整指标报告；
+- 对比 uniform 与 distance 两种权重方案。
+
+---
+
+## 五、kNN 的优缺点
+
+### 优点
+
+| 优点 | 说明 |
+| --- | --- |
+| 概念极简 | 无需训练，无参数假设 |
+| 天然多分类 | 投票即可，不需要 OvO/OvR |
+| 非参数方法 | 决策边界可以任意复杂 |
+| 可解释 | 能给出"凭哪些邻居判断"的证据 |
+| 增量学习 | 新增样本直接加入训练集 |
+
+### 缺点
+
+| 缺点 | 说明 | 改进 |
+| --- | --- | --- |
+| 预测慢 | 要遍历全部训练样本 | kd-tree / 球树 / LSH / ANN |
+| 内存大 | 需存储全部训练集 | 原型选择、剪枝 |
+| 维度灾难 | 高维下"最近邻"不再近 | 降维（Week06 PCA） |
+| 对量纲敏感 | 必须标准化 | 标准化 / 马氏距离 |
+| 类别不平衡 | 多数类会主导投票 | 距离加权 / 加权投票 |
+| 需要确定距离度量 | 度量选择影响巨大 | 度量学习 |
+
+### 维度灾难（Curse of Dimensionality）
+
+在 $n$ 维单位超立方体中均匀分布 $m$ 个点。要覆盖一定比例的数据，需要的邻域边长约为：
+
+$$r \approx \left(\frac{p \cdot m_{\text{needed}}}{m}\right)^{1/n}$$
+
+当 $n$ 增大时，$r \to 1$。**含义**：
+
+> 在高维空间中，"最近的邻居"距离几乎等于"最远的邻居"距离——**"近邻"这个概念失去了意义**。
+
+**数值直觉**：$n=2$ 时，最近邻平均距离与最远邻距离之比约 0.5；$n=100$ 时，这个比值接近 0.99。
+
+**缓解方法**：降维、特征选择、使用度量学习、改用树模型。
+
+---
+
+## 六、工程加速：kd-tree 与球树
+
+### kd-tree
+
+递归地把空间按坐标轴切分成二叉树。查询时剪枝掉不可能包含最近邻的子树。
+
+| 维度 | kd-tree 表现 |
+| --- | --- |
+| $n < 20$ | 显著加速（$O(\log m)$ 平均） |
+| $n > 20$ | 退化为线性扫描（**维度灾难**） |
+
+### 其他方法
+
+| 方法 | 原理 | 适用 |
+| --- | --- | --- |
+| 球树（Ball Tree） | 用超球体划分 | 中维度 |
+| LSH（局部敏感哈希） | 相似向量以高概率落入同一桶 | 高维、近似查询 |
+| HNSW / IVF-PQ | 图索引 / 量化 | 工业级向量检索（Faiss、Milvus） |
+
+> **实际应用**：向量数据库（Faiss、Milvus、pgvector）的核心就是"高维近似最近邻搜索（ANN）"，是 RAG、图像检索的基础设施。
+
+---
+
+## 七、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 忘记标准化 | 量纲大的特征主导距离，模型退化为单特征 kNN |
+| 用全量数据算标准化参数 | 数据泄漏 |
+| 用训练集的准确率评估 kNN | $k=1$ 时训练准确率恒为 100%，毫无意义 |
+| $k$ 取偶数导致平票 | 二分类时取奇数，或定义平票规则 |
+| 高维数据直接用 kNN | 维度灾难，先降维 |
+| 用 `argsort` 全部排序 | 大数据量应用 `argpartition` 只取前 $k$ |
+| 类别不平衡时用均匀投票 | 少数类永远投不过多数类 |
+
+---
+
+## 八、练习题
+
+**基础**
+
+1. 写出 $k=3$ 时 kNN 对一个测试点的完整预测过程。
+2. 解释为什么 $k=1$ 的 kNN 在训练集上的错误率恒为 0。
+3. 计算 $\boldsymbol{x}=(1,2)$ 与 $\boldsymbol{z}=(4,6)$ 的欧氏距离、曼哈顿距离、切比雪夫距离。
+
+**进阶**
+
+4. 推导成对距离的向量化公式：
+   $$\|\boldsymbol{x}_i - \boldsymbol{x}_j\|^2 = \|\boldsymbol{x}_i\|^2 + \|\boldsymbol{x}_j\|^2 - 2\boldsymbol{x}_i^\top\boldsymbol{x}_j$$
+ 并说明为什么不能直接写成 $\|\mathbf{X}\|^2 + \|\mathbf{X}\|^2 - 2\mathbf{X}\mathbf{X}^\top$ 而不加维度处理。
+5. 设二分类数据正负比 1:9，用 $k=10$ 的均匀投票 kNN。若某个测试点的 10 个邻居中有 3 个正例、7 个负例，它会怎么预测？怎样改进？
+6. 实现距离加权投票，并说明它对 $k$ 的敏感度为何低于均匀投票。
+
+**思考题**
+
+7. 为什么说 kNN 是"非参数方法"？它与线性回归的"参数化"在假设空间上有何本质区别？
+8. 在 $n=100$ 维空间中，若数据均匀分布，证明最近邻距离与最远邻距离之比趋于 1。（提示：用 $r \propto m^{-1/n}$）
+9. 为什么随机森林在"高维稀疏表格数据"上通常优于 kNN？请从假设空间与距离度量的角度分析。
+
+<details>
+<summary>第 3 题答案</summary>
+
+$$d_2 = \sqrt{(3)^2+(4)^2} = 5, \quad d_1 = 3+4 = 7, \quad d_\infty = \max(3,4) = 4$$
+</details>
+
+<details>
+<summary>第 5 题提示</summary>
+
+均匀投票 → 负例 7 票 > 正例 3 票 → **预测为负例**。
+
+改进：
+1. 用**距离加权**投票（若正例邻居更近，可能反超）；
+2. 按类别先验加权（正例权重 $\times$ 9）；
+3. 减小 $k$（例如 $k=3$）；
+4. 使用 SMOTE 或类别权重平衡数据。
+</details>
+
+<details>
+<summary>第 8 题提示</summary>
+
+$n$ 维中超球体积 $V \propto r^n$。要包含比例 $p$ 的数据需要 $r \propto p^{1/n}$。
+
+最近邻平均距离 $\propto (1/m)^{1/n}$，最远邻距离 $\propto 1$。
+
+比值 $= m^{-1/n} \to 1$（$n \to \infty$）。**"近邻"与"远邻"无法区分。**
+</details>
+
+---
+
+## 九、Week02 总结
+
+| 天 | 核心收获 |
+| --- | --- |
+| Day1 | 机器学习的 4 要素：数据、假设空间、学习算法、归纳偏好 |
+| Day2 | 训练/验证/测试三分，交叉验证，测试集只用一次 |
+| Day3 | 精确率/召回率/$F_1$/AUC，指标要匹配业务 |
+| Day4 | 泛化误差 = 偏置² + 方差 + 噪声，模型选择就是找平衡 |
+| Day5 | 从零实现 kNN，用 CV 选 $k$，用完整指标评估 |
+
+**你现在具备了评估任何机器学习模型的完整方法论。**
+
+---
+
+**下周预告**：Week03 进入第一个真正的**参数化模型**——线性模型。我们会从最小二乘推到逻辑回归，从闭式解推到梯度下降，并亲手推导每一个梯度公式。
+

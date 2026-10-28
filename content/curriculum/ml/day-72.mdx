@@ -1,0 +1,236 @@
+---
+slug: day-72
+kind: day
+day: 72
+week: 14
+weekTitle: Transformer 与 ViT
+weekBlurb: 自注意力、多头注意力与位置编码，亲手实现 Transformer 并走向 ViT。
+title: 多头注意力与位置编码
+lead: '今日目标：手写多头注意力并说清"为什么要把表示空间切成多份"；掌握正弦位置编码的构造与性质；理解可学习位置编码与 RoPE 的取舍。'
+sourcePath: Week14_Transformer与ViT/Day2_多头注意力与位置编码.md
+---
+
+> 今日目标：手写多头注意力并说清"为什么要把表示空间切成多份"；掌握正弦位置编码的构造与性质；理解可学习位置编码与 RoPE 的取舍。
+> 配套案例：`code/day2_multihead.py`
+
+---
+
+## 2.1 知识地图
+
+```
+Day1  自注意力 + sqrt(d_k) + 置换等变
+        │
+        ▼
+Day2（今天）★ 补齐 Transformer 的两块拼图
+  ├─ 多头注意力：多个子空间并行关注
+  ├─ 位置编码：把顺序信息"注入"模型
+  └─ 三种位置编码方案的对比
+        │
+        ▼
+Day3  Transformer 完整架构
+Day4  从零训练一个 Transformer
+```
+
+---
+
+## 2.2 多头注意力
+
+### 2.2.1 动机
+
+**单头注意力的问题**：一次 softmax 只能表达**一种**关注模式。
+
+但语言里的关系是多种多样的：
+
+- "这个**代词**指的是哪个名词"（指代关系）
+- "这个**动词**的主语是谁"（句法关系）
+- "这个词和前一个词构成固定搭配"（搭配关系）
+
+**一个注意力分布表达不了多种关系。**
+
+**多头的思路**：把 $d_{model}$ 维空间**切成 $h$ 份**，每份独立做一次注意力，各自关注不同类型的关系，最后拼接。
+
+### 2.2.2 公式
+
+$$\text{head}_i = \text{Attention}\left(\mathbf{Q}\mathbf{W}_i^Q,\ \mathbf{K}\mathbf{W}_i^K,\ \mathbf{V}\mathbf{W}_i^V\right)$$
+
+$$\text{MultiHead}(\mathbf{Q},\mathbf{K},\mathbf{V}) = \text{Concat}(\text{head}_1,\dots,\text{head}_h)\mathbf{W}^O$$
+
+**维度设计**（关键）：
+
+$$d_k = d_v = \frac{d_{model}}{h}$$
+
+**为什么这样切**：保证多头的总参数量和计算量与"单头 $d_{model}$"**基本相同**。
+
+| 方案 | 参数量（Q/K/V/O 合计） | 计算量 |
+| --- | --- | --- |
+| 单头，$d_k = d_{model}$ | $4d^2$ | $T^2 d$ |
+| $h$ 头，$d_k = d/h$ | $4d^2$ | $T^2 d$ |
+
+**多头不是"更贵"，而是"同样的预算，更细的划分"。**
+
+### 2.2.3 实现（高效写法）
+
+**朴素实现**：$h$ 次循环。但 GPU 上循环效率低。
+
+**标准实现**：用一次大矩阵乘 + reshape/transpose 完成所有头：
+
+```python
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model=512, num_heads=8):
+        super().__init__()
+        assert d_model % num_heads == 0
+        self.d_model = d_model
+        self.h = num_heads
+        self.d_k = d_model // num_heads
+        self.W_qkv = nn.Linear(d_model, 3 * d_model)      # 一次算完 Q/K/V
+        self.W_o = nn.Linear(d_model, d_model)
+
+    def forward(self, x, mask=None):
+        B, T, _ = x.shape
+        # ① 一次投影出 Q/K/V，形状 (B, T, 3*d_model)
+        qkv = self.W_qkv(x)
+        # ② 切分并重排成 (B, h, T, d_k)
+        q, k, v = qkv.chunk(3, dim=-1)
+        q = q.view(B, T, self.h, self.d_k).transpose(1, 2)
+        k = k.view(B, T, self.h, self.d_k).transpose(1, 2)
+        v = v.view(B, T, self.h, self.d_k).transpose(1, 2)
+        # ③ 每头独立做注意力（一次批量算完）
+        out, attn = scaled_dot_product_attention(q, k, v, mask)
+        # ④ 拼回 (B, T, d_model)
+        out = out.transpose(1, 2).contiguous().view(B, T, self.d_model)
+        return self.W_o(out), attn
+```
+
+**三个工程细节**：
+
+1. **`W_qkv` 用一个大 Linear 而不是三个**：一次矩阵乘比三次快；
+2. **`view(...).transpose(1, 2)`**：把"头"这一维提到 batch 后面，让注意力批量计算；
+3. **`contiguous()` 不能省**：`transpose` 后内存不连续，`view` 会报错（Week09 Day1 的坑）。
+
+### 2.2.4 多头真的学到了不同的东西吗
+
+**实测观察**（在训练好的语言模型上）：不同的头确实呈现不同的模式：
+
+| 头 | 典型行为 |
+| --- | --- |
+| 某些头 | 关注前一个 token（局部语法） |
+| 某些头 | 关注句首（全局信息汇聚） |
+| 某些头 | 关注相同词性的位置 |
+| 某些头 | 关注指代对象 |
+| 部分头 | 注意力近乎均匀（作用不大，可剪枝） |
+
+**这也解释了为什么多头比单头好**：它提供了"多种关系视角的并行通道"。
+
+> **注意**：并非所有头都有用。研究表明可以剪掉 20%~40% 的头而几乎不掉点 —— 这是模型压缩的一个方向。
+
+---
+
+## 2.3 位置编码
+
+### 2.3.1 问题的来源
+
+Day1 已经证明：**自注意力是置换等变的** —— 它完全不知道顺序。
+
+但"我爱你"和"你爱我"显然不同。所以必须**显式地把位置信息注入**。
+
+**最直接的想法**：把位置编码**加到**输入嵌入上。
+
+$$\boldsymbol{z}_i = \boldsymbol{x}_i + \boldsymbol{p}_i$$
+
+**为什么是加法而不是拼接**：加法不增加维度，且让模型可以自由选择"用多少位置信息"（因为后面的线性层可以学会忽略它）。
+
+### 2.3.2 正弦位置编码（原论文）
+
+$$PE_{(pos, 2i)} = \sin\left(\frac{pos}{10000^{2i/d_{model}}}\right)$$
+$$PE_{(pos, 2i+1)} = \cos\left(\frac{pos}{10000^{2i/d_{model}}}\right)$$
+
+**设计巧思**：
+
+| 性质 | 含义 |
+| --- | --- |
+| 每个维度是一个不同频率的正弦波 | 低频维度编码"大尺度位置"，高频维度编码"精细位置" |
+| 波长从 $2\pi$ 到 $10000\cdot2\pi$ 几何级数增长 | 类似二进制编码，覆盖多个尺度 |
+| **相对位置可由线性变换得到** | $PE_{pos+k}$ 可以表示为 $PE_{pos}$ 的线性函数（旋转矩阵） |
+
+**第三条是最重要的**：
+
+$$PE_{pos+k} = \mathbf{M}_k \cdot PE_{pos}$$
+
+对固定偏移 $k$，存在一个**与 $pos$ 无关**的线性变换 $\mathbf{M}_k$。这让模型能方便地学习"相对位置"的概念。
+
+**优点**：
+
+- 无需训练参数；
+- 可以外推到比训练时更长的序列（理论上）。
+
+### 2.3.3 可学习位置编码
+
+$$\boldsymbol{p}_i = \text{Embedding}(i), \quad i\in\{0,\dots,T_{max}-1\}$$
+
+**BETR / GPT 系列用的是这种**。
+
+| | 正弦编码 | 可学习编码 |
+| --- | --- | --- |
+| 参数 | 0 | $T_{max}\times d$ |
+| 外推能力 | 有（理论） | **无**（超出训练长度就没定义） |
+| 灵活性 | 固定 | 可学习 |
+| 实际表现 | 相近 | 相近（在训练长度内） |
+
+> **结论**：在训练长度内两者差异很小。可学习编码更简单，正弦编码在外推上有一点点优势（但实践中外推效果都不好）。
+
+### 2.3.4 RoPE：现代主流
+
+**Rotary Position Embedding**（Su et al., 2021），被 LLaMA、Qwen、GPT-NeoX 等广泛采用。
+
+**核心思想**：不把位置信息加到输入上，而是**在计算注意力时对 Q/K 做旋转**：
+
+$$\tilde{q}_m = \mathbf{R}_m q_m, \qquad \tilde{k}_n = \mathbf{R}_n k_n$$
+
+其中 $\mathbf{R}_m$ 是由位置 $m$ 决定的旋转矩阵。
+
+**为什么这样更好**：
+
+$$\tilde{q}_m^\top\tilde{k}_n = q_m^\top\mathbf{R}_m^\top\mathbf{R}_nk_n = q_m^\top\mathbf{R}_{n-m}k_n$$
+
+**注意力分数只依赖相对位置 $n-m$** —— 这是最自然的相对位置编码方式。
+
+| 优势 | 说明 |
+| --- | --- |
+| 天然相对位置 | 分数只与距离有关 |
+| 外推能力好 | 配合 NTK 插值可扩展到更长上下文 |
+| 不改变模型结构 | 只在注意力里加旋转 |
+| 兼容线性注意力 | 可用于各种变体 |
+
+**这是当前大模型位置编码的事实标准。**
+
+---
+
+## 2.4 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| `view` 报形状错误 | `transpose` 后内存不连续 | 加 `.contiguous()` |
+| `d_model % num_heads != 0` | 维度没整除 | 保证整除，或改 `d_k` |
+| 多头效果不如单头 | 头数太多，每头 $d_k$ 太小 | 常用 $d_k=64$ |
+| 加了位置编码后变差 | 编码尺度与嵌入不匹配 | 检查是否用了合适的缩放 |
+| 外推时性能崩溃 | 可学习编码没见过更长位置 | 用 RoPE 或插值 |
+| 训练和推理的编码不一致 | 忘了在推理时也用位置编码 | 检查前向逻辑 |
+
+---
+
+## 2.5 今日自测
+
+1. 手写多头注意力（用 reshape/transpose 的高效写法），与 `nn.MultiheadAttention` 对比。
+2. 验证"多头的参数量与单头 $d_{model}$ 相同"。
+3. 实现正弦位置编码，画出前 64 个位置、前 32 个维度的热力图。
+4. 验证 $PE_{pos+k} = \mathbf{M}_k PE_{pos}$：给定 $k$，用最小二乘拟合出 $\mathbf{M}_k$，检查残差。
+5. 把位置编码全部设为 0，观察一个序列分类任务的精度下降多少。
+
+---
+
+## 2.6 一句话总结
+
+**多头注意力把表示空间切成 $h$ 份，让模型并行捕捉多种关系，而总成本不变；位置编码则补上了自注意力"天生不知道顺序"这个缺口 —— 从正弦编码到 RoPE，本质都是让模型能可靠地区分"第几个位置"。**
+
+**明日预告**：Day3 把注意力、多头、位置编码、FFN、残差、LayerNorm 组装成完整的 Transformer 编码器，并解释每个组件的必要性。
+

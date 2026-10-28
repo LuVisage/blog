@@ -1,0 +1,175 @@
+﻿
+> blog@0.1.0 prebuild
+> node scripts/generate-rss.mjs && node scripts/generate-sitemap.mjs
+
+Found 6 published posts
+已生成 rss.xml
+已生成 atom.xml
+RSS feeds generated successfully!
+Found 6 published posts for sitemap
+Found 41 lessons for /learn/agent
+Found 16 lessons for /learn/backend
+Found 22 lessons for /learn/csp
+Found 84 lessons for /learn/devtool
+Found 105 lessons for /learn/ml
+已生成 sitemap.xml，共 322 条 URL
+
+> blog@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.20
+   - Environments: .env.production
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 10.0s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/326) ...
+node.exe : Please gsap.registerPlugin(CustomEase)
+At line:1 char:1
++ & "C:\Users\lusha\AppData\Local\Doubao\User Data\sandbox_runtime\base ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Please gsap.registerPlugin(CustomEase):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+LaTeX-incompatible input and strict mode is set to 'warn': Unicode text character "每" used in math mode [unicodeTextInM
+athMode]
+LaTeX-incompatible input and strict mode is set to 'warn': Unicode text character "次" used in math mode [unicodeTextInM
+athMode]
+LaTeX-incompatible input and strict mode is set to 'warn': Unicode text character "查" used in math mode [unicodeTextInM
+athMode]
+LaTeX-incompatible input and strict mode is set to 'warn': Unicode text character "询" used in math mode [unicodeTextInM
+athMode]
+Please gsap.registerPlugin(CustomEase)
+   Generating static pages (81/326) 
+LaTeX-incompatible input and strict mode is set to 'warn': Unicode text character "：" used in math mode [unicodeTextInM
+athMode]
+Please gsap.registerPlugin(CustomEase)
+   Generating static pages (162/326) 
+   Generating static pages (244/326) 
+LaTeX-incompatible input and strict mode is set to 'warn': Unicode text character "红" used in math mode [unicodeTextInM
+athMode]
+LaTeX-incompatible input and strict mode is set to 'warn': Unicode text character "绿" used in math mode [unicodeTextInM
+athMode]
+LaTeX-incompatible input and strict mode is set to 'warn': Unicode text character "蓝" used in math mode [unicodeTextInM
+athMode]
+ ✓ Generating static pages (326/326)
+   Finalizing page optimization ...
+   Collecting build traces ...
+   Exporting (0/2) ...
+ ✓ Exporting (2/2)
+
+Route (app)                                   Size  First Load JS
+┌ ○ /                                      5.39 kB         168 kB
+├ ○ /_not-found                              127 B         103 kB
+├ ○ /about                                 3.17 kB         166 kB
+├ ○ /archive                               2.87 kB         174 kB
+├ ○ /categories                              889 B         164 kB
+├ ● /categories/[category]                   174 B         106 kB
+├   ├ /categories/AI Agent
+├   └ /categories/Blog
+├ ○ /friends                               1.18 kB         164 kB
+├ ○ /learn                                   174 B         106 kB
+├ ○ /learn/agent                           2.63 kB         109 kB
+├ ● /learn/agent/[slug]                      132 B         114 kB
+├   ├ /learn/agent/day-00
+├   ├ /learn/agent/day-01
+├   ├ /learn/agent/day-02
+├   └ [+38 more paths]
+├ ○ /learn/backend                         2.63 kB         109 kB
+├ ● /learn/backend/[slug]                    133 B         114 kB
+├   ├ /learn/backend/day-01
+├   ├ /learn/backend/day-02
+├   ├ /learn/backend/day-03
+├   └ [+13 more paths]
+├ ○ /learn/csp                             2.63 kB         109 kB
+├ ● /learn/csp/[slug]                        132 B         114 kB
+├   ├ /learn/csp/day-01
+├   ├ /learn/csp/day-02
+├   ├ /learn/csp/day-03
+├   └ [+19 more paths]
+├ ○ /learn/devtool                         2.63 kB         109 kB
+├ ● /learn/devtool/[slug]                    132 B         114 kB
+├   ├ /learn/devtool/day-01
+├   ├ /learn/devtool/day-02
+├   ├ /learn/devtool/day-03
+├   └ [+81 more paths]
+├ ○ /learn/ml                              2.63 kB         109 kB
+├ ● /learn/ml/[slug]                         133 B         114 kB
+├   ├ /learn/ml/day-01
+├   ├ /learn/ml/day-02
+├   ├ /learn/ml/day-03
+├   └ [+102 more paths]
+├ ○ /posts                                   889 B         164 kB
+├ ● /posts/[slug]                          8.64 kB         166 kB
+├   ├ /posts/vibe-coding-agent-comparison
+├   ├ /posts/vibe-coding-workflow
+├   ├ /posts/rag-retrieval-optimization
+├   └ [+3 more paths]
+├ ○ /privacy                               1.18 kB         164 kB
+├ ○ /projects                                889 B         164 kB
+├ ○ /search                                4.15 kB         110 kB
+├ ○ /series                                  889 B         164 kB
+├ ● /series/[series]                         174 B         106 kB
+├   ├ /series/Vibe Coding 实战
+├   ├ /series/Agent 学习笔记
+├   └ /series/博客搭建
+├ ○ /tags                                  4.66 kB         120 kB
+├ ● /tags/[tag]                              174 B         106 kB
+├   ├ /tags/LLM
+├   ├ /tags/Vibe Coding
+├   ├ /tags/Agent
+├   └ [+23 more paths]
+└ ○ /terms                                 1.18 kB         164 kB
++ First Load JS shared by all               103 kB
+  ├ chunks/1255-a21a7b14507a45fb.js        46.4 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js    54.2 kB
+  └ other shared chunks (total)            2.18 kB
+
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+
+
+> blog@0.1.0 postbuild
+> pagefind --site out && npm run audit:build
+
+
+Running Pagefind v1.5.2 (Extended)
+Running from: "C:\\Users\\lusha\\Desktop\\blog-main\\blog-main"
+Source:       "out"
+Output:       "out\\pagefind"
+
+[Walking source directory]
+Found 325 files matching **/*.{html}
+
+[Parsing files]
+Found a data-pagefind-body element on the site.
+↳ Ignoring pages without this tag.
+
+[Reading languages]
+Discovered 1 language: zh-cn
+
+[Building search indexes]
+Total: 
+  Indexed 1 language
+  Indexed 308 pages
+  Indexed 19716 words
+  Indexed 0 filters
+  Indexed 0 sorts
+Note: Pagefind doesn't support stemming for the language zh-cn. 
+Search will still work, but will not match across root words.
+Note: Pagefind doesn't support stemming for the language zh-cn. 
+Search will still work, but will not match across root words.
+
+Finished in 1.807 seconds
+
+> blog@0.1.0 audit:build
+> node scripts/audit-build.mjs
+
+.env 卫生：检查了 1 个文件（.env.production）
+秘密扫描：729 个文本产物，0 命中即通过
+外链脚本域名：（无）
+
+审计文件总数：1140
+构建产物审计通过

@@ -1,0 +1,159 @@
+---
+slug: day-32
+day: 32
+week: 7
+weekTitle: MCP 与多智能体
+weekBlurb: MCP 协议与适配器、Supervisor 主管路由、Swarm 交接模式。
+title: MCP 实战 —— 用 langchain-mcp-adapters 连接 MCP Server
+lead: '用 `MultiServerMCPClient` 把昨天的 MCP Server 接进你的 Agent，理解"工具从协议里长出来"。'
+examples:
+  - examples/mcp_math_server.py
+  - examples/day32_mcp_agent.py
+sourcePath: week-07-mcp-multiagent/day-32.md
+---
+
+---
+
+## 32.1 全流程预览
+
+```
+① 启动：MultiServerMCPClient 用 stdio 方式拉起 mcp_math_server.py 子进程
+② 发现：客户端发 tools/list → 服务器回复工具清单（JSON Schema）
+③ 转换：langchain-mcp-adapters 把 JSON Schema 自动转成 LangChain 工具
+④ 使用：create_agent(tools=mcp_tools) —— 和普通 @tool 一模一样！
+```
+
+**注意第③步的魔法**：MCP 工具（JSON Schema）→ LangChain 工具（Pydantic）的转换**全自动**——你昨天学的协议知识和今天用的高级 API 在这里会师。
+
+## 32.2 MultiServerMCPClient：一个客户端连多个服务器
+
+```python
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+# 声明连接：一个名字 + 一个服务器配置（可以同时连 N 个！）
+client = MultiServerMCPClient({
+    "math": {                       # 连接名（工具名前缀）
+        "command": "python",        # stdio 传输：启动子进程的命令
+        "args": ["mcp_math_server.py"],   # 子进程参数（指向你的 server 文件）
+        "transport": "stdio",       # 传输方式
+    },
+    # "github": {                   # 再连一个官方 GitHub Server 也只要几行
+    #     "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"],
+    #     "transport": "stdio", "env": {"GITHUB_TOKEN": "..."},
+    # },
+})
+```
+
+**配置结构拆解**：
+
+| 字段 | 说明 |
+|---|---|
+| `"math"` | 连接名。工具会变成 `math_add`、`math_multiply`（**名字空间隔离**，防多服务器工具重名） |
+| `command` + `args` | stdio 传输 = 启动子进程的命令（任何语言写的 server 都行！） |
+| `env` | 传给子进程的环境变量（API token 等） |
+| `transport` | `stdio` / `sse` / `streamable_http` |
+
+## 32.3 连接的生命周期（0.3.x 新 API，网上老教程已过时）
+
+**重要**：langchain-mcp-adapters 0.1.0 起，`MultiServerMCPClient` **不再支持 `async with`**（老教程写法会报 `NotImplementedError`）。正确写法是 `client.session()` 上下文管理器：
+
+```python
+import asyncio
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.tools import load_mcp_tools
+
+async def main():
+    client = MultiServerMCPClient({...})          # ① 声明连接
+    async with client.session("math") as session: # ② 打开会话（自动启动+清理子进程）
+        tools = await load_mcp_tools(session)     # ③ 协议发现 → 转 LangChain 工具
+        agent = create_agent(model=model, tools=tools)
+        result = await agent.ainvoke({...})       # ④ MCP 工具是异步的，必须 ainvoke！
+    # ⑤ 退出 with 块：session 关闭、子进程回收
+
+asyncio.run(main())
+```
+
+**三个关键点**：
+
+1. **`client.session(server_name)` 是上下文管理器**：进入时拉起 stdio 子进程并握手，退出时自动清理——连接生命周期管理全靠它；
+2. **`load_mcp_tools(session)` 是异步的**（要等服务器响应 `tools/list`）→ `await`；拿到的工具保留**原工具名**（`add`/`multiply`）；
+3. **MCP 工具是纯异步工具，调用 Agent 必须用 `await agent.ainvoke(...)`**——用同步 `invoke` 会报 `StructuredTool does not support sync invocation`（本教程实测）。这是 MCP 接入最大的坑。
+
+> 另一种拿法：`tools = await client.get_tools()`（全部连接的工具，自动带 `math_` 前缀做名字空间隔离）。适合连多个服务器时防重名。
+
+## 32.4 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-07-mcp-multiagent\examples
+python day32_mcp_agent.py
+```
+
+## 32.5 案例逐行讲解：`day32_mcp_agent.py`
+
+```python
+"""Day 32 案例：MCP 实战 —— Agent 通过协议使用外部工具"""
+import asyncio
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.tools import load_mcp_tools
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+async def main():
+    # ① 声明连接（0.3.x API：MultiServerMCPClient 不再支持 async with）
+    client = MultiServerMCPClient({
+        "math": {
+            "command": "python",
+            "args": [str(Path(__file__).parent / "mcp_math_server.py")],
+            "transport": "stdio",
+        },
+    })
+
+    # ② 用 session 上下文管理器管理连接生命周期（自动初始化 + 清理子进程）
+    async with client.session("math") as session:
+        # ③ 协议自动发现工具 → 转成 LangChain 工具
+        tools = await load_mcp_tools(session)
+        print("从 MCP Server 发现的工具：",
+              [(t.name, t.description[:20]) for t in tools])
+
+        # ④ 喂给 Agent——和普通 @tool 毫无区别！
+        agent = create_agent(
+            model=model,
+            tools=tools,
+            system_prompt="你是数学助手，计算一律用工具。",
+        )
+
+        # ⑤ 使用：两步计算（12*34=408，408+56=464）
+        #    注意：MCP 工具是纯异步的，必须用 ainvoke（不能用 invoke）
+        result = await agent.ainvoke(
+            {"messages": [{"role": "user",
+                           "content": "先算 12*34，再把结果加上 56，等于多少？"}]}
+        )
+        print("\nAgent 回答：", result["messages"][-1].content)
+
+asyncio.run(main())
+```
+
+**逐段要点**：
+
+- **① 的 args 用绝对路径**：子进程的工作目录和主脚本可能不同，`Path(__file__).parent` 拼出 server 文件的绝对路径——最常见的坑；
+- **② `client.session("math")`**：进入时拉起 `mcp_math_server.py` 子进程并完成 MCP 握手，退出时自动回收——你会在控制台看到 server 的 INFO 日志（`ListToolsRequest`、`CallToolRequest`），**那就是 Day 31 学的 JSON-RPC 在真实工作**；
+- **④ 的问题需要两步计算**：Agent 会先调 `multiply(12,34)` 得 408，再调 `add(408,56)` 得 464——**工具定义在另一个进程里，但 ReAct 循环（Day 5 手写的那个）照样工作**；
+- **体会"一次封装"**：如果明天 GitHub 官方发布了新版 Server，你只改 ① 的配置项，Agent 代码零改动。
+
+## 32.6 今日自测
+
+<Quiz items={["给 `mcp_math_server.py` 加一个 `divide` 工具，重启案例，看 Agent 自动发现新工具（提示：工具发现是每次连接时动态进行的）。","把 server 换成官方 GitHub Server（`npx -y @modelcontextprotocol/server-github`，需要 GITHUB_TOKEN 环境变量），问 Agent \"我的仓库列表\"。","同时连两个 MCP Server（math + 另一个你自建的），看工具名前缀如何避免冲突。","用 LangSmith 观察这次 MCP Agent 的 trace——工具调用节点显示的是 `math_add` 还是 `add`？","`notes/day32.md`：画出\"Agent → MCP Client → stdio → Server 进程\"的完整调用链，标注 JSON-RPC 发生在哪一段。"]} />
+
+## 32.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"连接超时 / server 起不来","cause":"args 路径错 / 命令错","fix":"用绝对路径；先手动跑 server 文件验证"},{"symptom":"`get_tools` 报错","cause":"忘了 await / 没在 async with 里","fix":"`await client.get_tools()` + `async with`"},{"symptom":"工具名有前缀不认识","cause":"连接名自动加了前缀","fix":"正常现象，记 `math_add` 这种名字"},{"symptom":"子进程没关掉","cause":"没用 async with","fix":"务必用上下文管理器"},{"symptom":"想连远程 Server","cause":"用了 stdio 配置","fix":"换 `transport: \"streamable_http\"` + `url`"}]} />
+
+<DayComplete day={32} recap={"你的 Agent 已经接入 MCP 生态——理论上可以连上全世界任何一个 MCP Server。明天开始 Multi-agent：让多个 Agent 分工协作。"} />

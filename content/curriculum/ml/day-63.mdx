@@ -1,0 +1,261 @@
+---
+slug: day-63
+kind: day
+day: 63
+week: 12
+weekTitle: 现代 CNN 与注意力
+weekBlurb: 1x1 瓶颈、深度可分离卷积、注意力机制与高效网络设计。
+title: 注意力机制（SE 与 CBAM）
+lead: '今日目标：理解"通道注意力"的思想；手写 SE 模块并说清 Squeeze / Excitation / Scale 三步；解释为什么用 sigmoid 而不是 softmax；了解 CBAM 的双重注意力。'
+sourcePath: Week12_现代CNN与注意力/Day3_注意力机制.md
+---
+
+> 今日目标：理解"通道注意力"的思想；手写 SE 模块并说清 Squeeze / Excitation / Scale 三步；解释为什么用 sigmoid 而不是 softmax；了解 CBAM 的双重注意力。
+> 配套案例：`code/day3_se_attention.py`
+
+---
+
+## 3.1 知识地图
+
+```
+Day1  1x1 卷积        ← 通道融合（无差别地融合所有通道）
+Day2  深度可分离卷积   ← 通道独立 + 融合
+        │
+        ▼
+Day3（今天）★ 让网络自己决定"哪些通道更重要"
+  ├─ 注意力机制的通用范式
+  ├─ SE 模块（通道注意力）
+  ├─ sigmoid vs softmax
+  └─ CBAM（通道 + 空间）
+        │
+        ▼
+Week14  Transformer（自注意力：注意力机制的终极形态）
+```
+
+---
+
+## 3.2 从"一视同仁"到"有选择地关注"
+
+标准卷积对**所有通道一视同仁**：不管某个通道承载的是"猫的耳朵"还是"背景噪声"，都平等地参与计算。
+
+但人类视觉不是这样：看一张图时，我们会**自动聚焦关键区域**，忽略无关背景。
+
+**注意力机制就是让网络学会这种"选择性"。**
+
+### 通用范式
+
+几乎所有注意力机制都是这个形式：
+
+$$\text{输出} = \text{权重}\times\text{输入}$$
+
+其中"权重"由输入自身**动态计算**得出（这就是"自"注意力 / self-attention 的含义）。
+
+| 类型 | 权重形状 | 关注什么 | 代表 |
+| --- | --- | --- | --- |
+| **通道注意力** | $(N, C, 1, 1)$ | 哪个通道重要 | **SE-Net** |
+| **空间注意力** | $(N, 1, H, W)$ | 哪个位置重要 | CBAM、空间变换网络 |
+| **混合** | 两者结合 | 通道 + 位置 | CBAM |
+| **自注意力** | $(N, HW, HW)$ | 任意位置之间的关系 | Transformer（Week14） |
+
+---
+
+## 3.3 SE 模块：通道注意力的经典实现
+
+**Squeeze-and-Excitation Networks**（Hu et al., 2017，ILSVRC 2017 冠军）。
+
+### 三步
+
+设输入 $\mathbf{X}\in\mathbb{R}^{N\times C\times H\times W}$：
+
+**① Squeeze（压缩）：把每个通道压成一个数**
+
+$$z_c = \frac{1}{H\times W}\sum_{i=1}^{H}\sum_{j=1}^{W} x_{c,i,j}$$
+
+这就是**全局平均池化**（GAP）。它把 $(N,C,H,W)$ 变成 $(N,C,1,1)$。
+
+**含义**：用一个标量概括"这个通道整体上激活得强不强"。
+
+**② Excitation（激励）：学习通道之间的依赖**
+
+$$\mathbf{s} = \sigma\left(\mathbf{W}_2\,\delta\left(\mathbf{W}_1\,\mathbf{z}\right)\right)$$
+
+其中：
+
+- $\mathbf{W}_1\in\mathbb{R}^{\frac{C}{r}\times C}$：降维（$r=16$ 是压缩比）
+- $\delta$：ReLU
+- $\mathbf{W}_2\in\mathbb{R}^{C\times\frac{C}{r}}$：升维回 $C$
+- $\sigma$：**Sigmoid**
+
+**这是一个瓶颈结构的 MLP**（Day1 学过），作用是建模通道之间的非线性关系。
+
+**③ Scale（重标定）：逐通道相乘**
+
+$$y_c = s_c \cdot x_c$$
+
+**注意是"乘"而不是"加"** —— 这是门控机制的核心：$s_c\approx 0$ 就相当于把这个通道"关掉"。
+
+### 完整实现
+
+```python
+class SEBlock(nn.Module):
+    def __init__(self, channels, reduction=16):
+        super().__init__()
+        mid = max(channels // reduction, 4)     # 防止通道太小时 mid=0
+        self.gap = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channels, mid, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(mid, channels, bias=False),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x):
+        b, c, _, _ = x.shape
+        s = self.fc(self.gap(x).view(b, c))     # (N, C)
+        return x * s.view(b, c, 1, 1)           # 逐通道相乘
+```
+
+**三个工程细节**：
+
+1. `max(channels // reduction, 4)`：通道数很小时（如 8），$8/16=0$ 会导致维度错误；
+2. `bias=False`：接 BN 或后面就是 sigmoid 时，偏置作用不大（可省参数）；
+3. `view(b, c, 1, 1)`：把 $(N,C)$ 变成 $(N,C,1,1)$ 才能广播相乘。
+
+---
+
+## 3.4 关键问题：为什么用 sigmoid 而不是 softmax
+
+**这是一个高频面试题。**
+
+| 维度 | Sigmoid | Softmax |
+| --- | --- | --- |
+| 输出范围 | $(0,1)$ **逐个独立** | $(0,1)$，**总和为 1** |
+| 通道间关系 | **独立**，可以多个都很重要 | **竞争**，此消彼长 |
+| 是否可全开 | **可以**（全部接近 1） | 不可能（必然有大的有小的） |
+| 是否可全关 | 可以（全部接近 0） | 不可能 |
+
+**为什么 SE 用 sigmoid**：
+
+1. **通道之间不是互斥的**。"猫的耳朵"和"猫的胡须"这两个特征可以同时重要，没有理由强制它们竞争；
+2. **需要能"全部保留"**：如果某些输入已经很好，网络应该能学出全 1 的权重（恒等变换）；
+3. **需要能"全部抑制"**：某些层可能整体无用。
+
+**softmax 的适用场景**：**互斥的选择**。比如：
+
+- 多分类的输出层（10 个类只能选 1 个）；
+- 空间注意力中"多个位置竞争同一份权重预算"；
+- **Transformer 的自注意力**（每个位置对其他位置的注意力分配需要归一化）。
+
+> **判断准则**：需要"竞争"用 softmax，需要"独立门控"用 sigmoid。
+
+---
+
+## 3.5 参数量与计算成本
+
+**SE 的参数量**：
+
+$$\text{Params}_{\text{SE}} = \underbrace{C\cdot\frac{C}{r}}_{\mathbf{W}_1} + \underbrace{\frac{C}{r}\cdot C}_{\mathbf{W}_2} = \frac{2C^2}{r}$$
+
+| $C$ | $r$ | 参数量 | 对比：该层卷积的参数量（$k=3$，$C_{in}=C_{out}=C$） | SE 占比 |
+| --- | --- | --- | --- | --- |
+| 64 | 16 | 512 | 36,864 | 1.4% |
+| 256 | 16 | 8,192 | 589,824 | 1.4% |
+| 512 | 16 | 32,768 | 2,359,296 | 1.4% |
+| 1024 | 16 | 131,072 | 9,437,184 | 1.4% |
+
+**永远是卷积层参数的 1.4%** —— 这是 SE 能"免费"提升精度的原因。
+
+**SE 的收益**（原论文在 ImageNet 上的报告）：
+
+| 模型 | 原始 top-5 错误率 | 加 SE 后 | 提升 |
+| --- | --- | --- | --- |
+| ResNet-50 | 7.48% | **6.62%** | -0.86% |
+| ResNet-101 | 6.49% | **6.06%** | -0.43% |
+| MobileNet | 30.6% | 27.4% | -3.2% |
+
+**参数量增加不到 1%，错误率下降近 1 个点** —— 这个性价比让它成为之后几乎所有网络的标配。
+
+---
+
+## 3.6 CBAM：通道 + 空间双重注意力
+
+**CBAM**（Convolutional Block Attention Module, 2018）在 SE 的基础上加了空间维度：
+
+```
+输入
+  │
+  ├─ 通道注意力（类似 SE，但用 max+avg 双路池化）
+  │     └─ 输出 (N, C, 1, 1)
+  ├─ 空间注意力
+  │     ├─ 沿通道维取 max 和 mean -> (N, 2, H, W)
+  │     └─ 7x7 卷积 -> sigmoid -> (N, 1, H, W)
+  └─ 两个注意力【依次】应用
+```
+
+**两个改进**：
+
+1. **通道注意力用双路池化**：同时用 GAP 和 GMP（全局最大池化），两路结果相加后再过 MLP。GMP 能捕捉"最显著的特征"，GAP 捕捉"整体强度"，互补；
+2. **空间注意力**：用 $7\times7$ 卷积在"通道聚合后的图"上学习"哪个位置重要"。
+
+**实测效果**（ImageNet，ResNet-50）：top-1 错误率从 24.56% 降到 **23.14%**。
+
+```python
+class SpatialAttention(nn.Module):
+    def __init__(self, kernel_size=7):
+        super().__init__()
+        self.conv = nn.Conv2d(2, 1, kernel_size, padding=kernel_size // 2, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = x.mean(dim=1, keepdim=True)          # (N,1,H,W)
+        max_out = x.max(dim=1, keepdim=True)[0]        # (N,1,H,W)
+        attn = self.sigmoid(self.conv(torch.cat([avg_out, max_out], dim=1)))
+        return x * attn
+```
+
+**注意**：空间注意力用的是 **sigmoid**（每个位置独立门控），不是 softmax。
+
+---
+
+## 3.7 注意力的代价
+
+| 优点 | 代价 |
+| --- | --- |
+| 参数量极小（1.4%） | 增加少量延迟（GAP + 两次全连接 + 广播乘） |
+| 精度稳定提升 | 在 GPU 上 GAP 是同步操作，会打断流水线 |
+| 可解释（权重可视化） | 在小模型上收益递减 |
+| 即插即用 | 用了 sigmoid 后梯度可能饱和 |
+
+**工程建议**：优先加在**通道数较大的深层**（那里 SE 的参数占比小、收益大）。浅层通道少，加了收益不明显。
+
+---
+
+## 3.8 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 中间维度为 0 | $C/r$ 取整后是 0 | `max(C // r, 4)` |
+| 形状广播失败 | 忘了 `view(N, C, 1, 1)` | 显式 reshape |
+| 加了 SE 后精度反而降 | 加在了浅层 / $r$ 太小 | 只加在深层，$r$ 用 16 |
+| 训练变慢很多 | GAP 打断了 GPU 流水线 | 减少 SE 数量 |
+| 用了 softmax | 误以为要归一化 | 通道门控用 sigmoid |
+| 权重全接近 0 | 学习率太大导致 sigmoid 饱和 | 降低 lr 或加 BN |
+
+---
+
+## 3.9 今日自测
+
+1. 手写 SE 模块并接入一个 ResNet 风格的块，验证参数量只增加约 1.4%。
+2. 把 SE 的 sigmoid 换成 softmax，观察训练结果差异，并解释原因。
+3. 可视化 SE 的通道权重：对 Fashion-MNIST 的不同类别，看哪些通道的权重更高。
+4. 实现 CBAM 的空间注意力部分。
+5. 对比"SE 加在浅层"与"SE 加在深层"的精度差异。
+
+---
+
+## 3.10 一句话总结
+
+**SE 用"全局池化 + 小 MLP + sigmoid 门控"给每个通道算一个权重，用 1.4% 的额外参数换来近 1 个点的精度提升；用 sigmoid 是因为通道之间是"独立门控"而非"互相竞争"，这正是它与 softmax 的本质区别。**
+
+**明日预告**：Day4 讲高效网络设计 —— EfficientNet 如何用"复合缩放"系统地平衡深度、宽度和分辨率。
+

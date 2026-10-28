@@ -1,0 +1,449 @@
+---
+slug: day-03
+kind: day
+day: 3
+week: 1
+weekTitle: Python 工程化
+weekBlurb: 类型注解与数据校验、装饰器、async/await、pytest 与 logging、项目结构与打包——把能跑的脚本变成能维护的工程。
+title: 异步编程（本周最重要的一天）
+lead: '今日目标：说清协程与线程/进程的区别；掌握 `async/await` 的执行模型；用 `asyncio.gather` 写并发代码；理解为什么要用 `Semaphore` 限制并发；掌握超时与取消。'
+sourcePath: Python工程化与后端实战/Week1_Python工程化/Day3_异步编程.md
+---
+
+> 今日目标：说清协程与线程/进程的区别；掌握 `async/await` 的执行模型；用 `asyncio.gather` 写并发代码；理解为什么要用 `Semaphore` 限制并发；掌握超时与取消。
+> 配套案例：`code/day3_async.py`
+
+---
+
+## 3.1 知识地图
+
+```
+Day1  类型注解          ← 让接口明确
+Day2  装饰器            ← 横切关注点
+        │
+        ▼
+Day3（今天）★ 异步编程：本周最重要
+  ├─ 并发 vs 并行
+  ├─ 协程的本质（单线程内的调度）
+  ├─ async/await 执行模型
+  ├─ asyncio.gather 并发
+  ├─ Semaphore 控制并发度
+  ├─ 超时、取消、异常处理
+  └─ 什么时候不该用异步
+        │
+        ▼
+Day4  测试与日志
+Day5  项目结构
+Week2 FastAPI（全程 async）
+```
+
+---
+
+## 3.2 为什么异步对 AI 应用是生死攸关的
+
+**先看一组数字**：
+
+| 操作 | 典型耗时 | 期间 CPU 在做什么 |
+| --- | --- | --- |
+| 一次 LLM API 调用 | **2 ~ 30 秒** | **等待**（网络 + 对方推理） |
+| 一次向量检索 | 5 ~ 100 毫秒 | 等待 |
+| 一次数据库查询 | 1 ~ 50 毫秒 | 等待 |
+| 一次本地计算（矩阵乘） | 视规模 | 计算 |
+
+**关键洞察**：AI 应用 99% 的时间在**等 I/O**，CPU 几乎闲着。
+
+**同步代码的代价**：
+
+```python
+# 用户上传 10 个文档，需要逐个总结
+def summarize_all(docs):
+    results = []
+    for d in docs:
+        results.append(summarize(d))    # 每次阻塞 3 秒
+    return results
+
+# 总耗时 = 10 × 3 = 30 秒
+```
+
+**异步代码**：
+
+```python
+async def summarize_all(docs):
+    return await asyncio.gather(*[summarize_async(d) for d in docs])
+
+# 总耗时 ≈ 3 秒（并发）
+```
+
+> **10 倍差距，只需要把函数改成 `async` 并用 `gather`。**
+>
+> 这不是优化，这是「能不能用」的区别 —— 30 秒的等待在产品上是不可接受的。
+
+**而且**：所有 LLM 框架的接口都是 async：
+
+| 框架 | 异步接口 |
+| --- | --- |
+| OpenAI SDK | `AsyncOpenAI` / `await client.chat.completions.create()` |
+| LangChain | `ainvoke` / `astream` / `abatch` |
+| FastAPI | 原生支持 `async def` 路由 |
+| httpx | `AsyncClient` |
+
+**不会异步，你只能写出最慢的版本。**
+
+---
+
+## 3.3 并发 vs 并行：两个容易混淆的概念
+
+| | 并发（Concurrency） | 并行（Parallelism） |
+| --- | --- | --- |
+| 定义 | **同时处理**多个任务 | **同时执行**多个任务 |
+| 需要多核吗 | 不需要 | 需要 |
+| 比喻 | 一个人同时应付 3 个锅 | 三个人各看一个锅 |
+| Python 实现 | **asyncio** / 线程 | 多进程 |
+
+**关键**：**asyncio 是并发，不是并行。**
+
+```
+asyncio 的执行模型（单线程）:
+    任务A: [开始] ...等网络... [继续] ...等网络... [完成]
+    任务B:     [开始] ...等网络... [继续] ...等网络... [完成]
+    任务C:         [开始] ...等网络... [继续] ... [完成]
+                   ↑
+              事件循环在这三者之间切换
+              （切换点就是 await 的地方）
+```
+
+**CPU 只有一个，但在「等」的时候去干别的。**
+
+**这对 I/O 密集任务完全够用**（因为我们 99% 时间在等 I/O）；
+**对 CPU 密集任务无效**（正在算的时候没法切走）。
+
+---
+
+## 3.4 协程（Coroutine）的本质
+
+**先理解一个容易搞混的点**：调用 `async def` 函数**不会执行它**，只是创建一个协程对象。
+
+```python
+async def hello():
+    print("hello")
+
+coro = hello()          # 什么都不打印！
+print(coro)             # <coroutine object hello at 0x...>
+```
+
+**必须 `await` 或交给事件循环才会执行**：
+
+```python
+await hello()                       # 执行
+asyncio.run(hello())                # 由事件循环执行
+```
+
+**`await` 的三个含义**：
+
+| 含义 | 说明 |
+| --- | --- |
+| **执行** | 把协程推进到下一个 await |
+| **让出控制权** | 在等待时，事件循环可以去跑别的任务 |
+| **恢复** | 结果就绪后，从这里继续 |
+
+**这解释了为什么异步函数必须"一路 async"**：
+
+```python
+async def a():
+    return await b()        # 可以
+
+async def c():
+    result = b()            # 只是创建了协程，没执行！
+    return result           # 返回一个协程对象，不是结果
+```
+
+**如果你在 `async def` 里调用同步的阻塞函数**（如 `time.sleep`、`requests.get`），**整个事件循环会被卡住** —— 所有并发任务都停摆。
+
+```python
+async def bad():
+    time.sleep(5)           # ✗ 阻塞整个事件循环 5 秒！
+    await asyncio.sleep(5)  # ✓ 让出 5 秒
+```
+
+> **这是异步编程最常见、最致命的错误。** 在 FastAPI 里写一个 `time.sleep()` 或者 `requests.get()`，会让整个服务卡住。
+
+---
+
+## 3.5 `async/await` 执行顺序
+
+**看一个能说明一切的例子**：
+
+```python
+async def say(name, delay):
+    print(f"{name} 开始")
+    await asyncio.sleep(delay)
+    print(f"{name} 结束")
+
+async def main():
+    await say("A", 2)
+    await say("B", 1)
+
+asyncio.run(main())
+```
+
+**输出**（串行，共 3 秒）：
+
+```
+A 开始
+A 结束        <- 2 秒后
+B 开始
+B 结束        <- 再 1 秒后
+```
+
+**改成并发**：
+
+```python
+async def main():
+    await asyncio.gather(say("A", 2), say("B", 1))
+```
+
+**输出**（并发，共 2 秒）：
+
+```
+A 开始
+B 开始        <- 几乎同时
+B 结束        <- 1 秒后
+A 结束        <- 2 秒后
+```
+
+**这就是 `gather` 的作用。**
+
+---
+
+## 3.6 并发的三种写法
+
+### 3.6.1 `asyncio.gather`（最常用）
+
+```python
+results = await asyncio.gather(task1(), task2(), task3())
+# 返回 list，顺序与传入顺序一致
+```
+
+**特点**：**全部成功才返回；任何一个抛异常，整个 gather 抛出（第一个异常）**。
+
+**控制异常行为**：
+
+```python
+# return_exceptions=True: 异常作为结果返回，不中断其他任务
+results = await asyncio.gather(a(), b(), c(), return_exceptions=True)
+for r in results:
+    if isinstance(r, Exception):
+        print(f"失败: {r}")
+    else:
+        print(f"成功: {r}")
+```
+
+**这个在 AI 应用里非常实用**：10 个文档总结，有 2 个失败了，不该让整体失败。
+
+### 3.6.2 `asyncio.as_completed`（谁先完成先处理）
+
+```python
+for coro in asyncio.as_completed([a(), b(), c()]):
+    result = await coro            # 按【完成顺序】拿到结果
+    print(result)
+```
+
+**用途**：流式展示、进度条。
+
+### 3.6.3 `asyncio.TaskGroup`（Python 3.11+，推荐）
+
+```python
+async with asyncio.TaskGroup() as tg:
+    t1 = tg.create_task(a())
+    t2 = tg.create_task(b())
+# 退出 context 时自动等待全部完成
+print(t1.result(), t2.result())
+```
+
+**比 gather 好的地方**：
+
+- 异常处理更清晰（用 `except*` 捕获 ExceptionGroup）；
+- 任何一个任务失败时，**其他任务会被自动取消**（避免资源泄漏）。
+
+---
+
+## 3.7 并发度控制：`Semaphore`
+
+**问题**：如果有一万条要处理，`gather` 一万个任务会：
+
+- 打爆对方 API 的速率限制；
+- 耗尽本地内存（每个任务都有开销）。
+
+**解法**：用信号量限制**同时运行**的任务数。
+
+```python
+sem = asyncio.Semaphore(10)     # 最多 10 个同时跑
+
+async def limited(task_id):
+    async with sem:             # 超过 10 个就排队等
+        return await do_work(task_id)
+
+results = await asyncio.gather(*[limited(i) for i in range(1000)])
+```
+
+**这是生产环境的标配**。经验值：
+
+| 场景 | 建议并发度 |
+| --- | --- |
+| OpenAI API（付费层） | 10 ~ 50 |
+| 自家后端 API | 按 QPS 限制 |
+| 数据库查询 | 按连接池大小（通常 5~20） |
+| 网页爬取 | 5 ~ 10（别把人家打挂） |
+
+---
+
+## 3.8 常用并发原语
+
+| 原语 | 作用 | 场景 |
+| --- | --- | --- |
+| `asyncio.Semaphore(n)` | 限制并发数 | 限流 |
+| `asyncio.Lock()` | 互斥访问 | 保护共享状态 |
+| `asyncio.Event()` | 事件通知 | 等待某个条件成立 |
+| `asyncio.Queue()` | 生产者-消费者 | 任务队列 |
+| `asyncio.timeout(s)` | 超时控制 | 防止卡死 |
+| `asyncio.shield()` | 保护任务不被取消 | 确保关键操作完成 |
+
+**超时的两种写法**：
+
+```python
+# 写法 1（Python 3.11+，推荐）
+async with asyncio.timeout(5):
+    result = await slow_call()
+
+# 写法 2（兼容旧版本）
+try:
+    result = await asyncio.wait_for(slow_call(), timeout=5)
+except asyncio.TimeoutError:
+    ...
+```
+
+**为什么要超时**：**没有超时的 `await` 可能永远不返回。** 在服务里这会累积成资源泄漏，最终服务不可用。
+
+> **生产红线：任何外部调用（HTTP / DB / LLM）都必须设超时。**
+
+---
+
+## 3.9 什么时候**不该**用异步
+
+**这是最容易被忽略的一节。**
+
+| 任务类型 | 该用什么 | 为什么 |
+| --- | --- | --- |
+| **I/O 密集**（网络、DB、文件） | **asyncio** | 等待时可以切走 |
+| **CPU 密集**（矩阵计算、图像处理） | **多进程** | asyncio 切不走，会卡住事件循环 |
+| 少量简单任务 | 同步代码 | 异步有开销，不值得 |
+| 依赖的库不支持异步 | 线程池 `run_in_executor` | 兼容方案 |
+
+**CPU 密集任务的正确做法**：
+
+```python
+from concurrent.futures import ProcessPoolExecutor
+
+executor = ProcessPoolExecutor(max_workers=4)
+
+async def heavy_compute(data):
+    loop = asyncio.get_running_loop()
+    # 丢到进程池，不阻塞事件循环
+    return await loop.run_in_executor(executor, cpu_bound_function, data)
+```
+
+**对 AI 应用的具体含义**：
+
+| 操作 | 用什么 |
+| --- | --- |
+| 调 LLM API | **asyncio** |
+| 查向量数据库 | **asyncio**（如果用 HTTP 协议） |
+| 本地跑 embedding 模型（GPU） | 进程池 / 或者专门的推理服务 |
+| 本地跑 embedding（CPU，小模型） | 进程池（会阻塞事件循环） |
+| 图像预处理（OpenCV） | 进程池 |
+
+> **面试常问**：「你的服务里哪些地方用了异步？为什么？」
+>
+> 好答案会说清「哪些是 I/O 密集用 asyncio，哪些是 CPU 密集丢进程池」——**而不是笼统地说"全用异步"**。
+
+---
+
+## 3.10 一个完整的实战模式
+
+**这是 AI 应用里最典型的场景**：批量处理 + 限流 + 超时 + 部分失败容忍 + 重试。
+
+```python
+async def process_batch(items: list[str], concurrency: int = 10):
+    sem = asyncio.Semaphore(concurrency)
+    results, errors = {}, {}
+
+    async def one(idx: int, item: str):
+        async with sem:                              # ① 控制并发
+            try:
+                async with asyncio.timeout(30):      # ② 超时
+                    return idx, await call_llm(item)
+            except asyncio.TimeoutError:
+                errors[idx] = "超时"
+            except Exception as e:
+                errors[idx] = str(e)
+            return idx, None
+
+    tasks = [one(i, x) for i, x in enumerate(items)]
+    for idx, result in await asyncio.gather(*tasks):   # ③ 全部并发
+        if result is not None:
+            results[idx] = result
+
+    return results, errors
+```
+
+**五个要素**：并发控制、超时、异常隔离、结果索引对应、部分失败可继续。
+
+> **这段代码的模式在 Week2（API）和 Week5（RAG）里会反复出现。**
+
+---
+
+## 3.11 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 异步代码一点没变快 | 用了 `await` 但没 `gather`（其实是串行） | 用 `gather` / `TaskGroup` |
+| **整个服务卡住** | 在 async 函数里调了阻塞函数（`time.sleep` / `requests`） | 换 async 版本，或丢进程池 |
+| `coroutine was never awaited` | 创建了协程但没 await | 检查调用链 |
+| `RuntimeError: no running event loop` | 在同步代码里 await | 用 `asyncio.run()` |
+| `gather` 一个失败全失败 | 默认行为 | 用 `return_exceptions=True` |
+| 内存爆了 | 一次创建太多任务 | 用 `Semaphore` 限流 |
+| 任务永远不返回 | 没设超时 | 加 `asyncio.timeout()` |
+| 循环里 `await` 很慢 | 误以为自动并发 | 循环内 await 是串行的 |
+| 信号量没生效 | `Semaphore` 在循环外创建 vs 内 | 确认是在正确的 scope |
+
+**最容易犯的第二个**，再看一遍正确的对照：
+
+```python
+# ✗ 错：阻塞事件循环
+async def fetch(url):
+    return requests.get(url).json()      # requests 是同步库！
+
+# ✓ 对：用 httpx 的异步客户端
+async def fetch(client, url):
+    r = await client.get(url)
+    return r.json()
+```
+
+---
+
+## 3.12 今日自测
+
+1. 写两个协程，一个 sleep 1 秒、一个 sleep 2 秒，分别用串行和 `gather` 执行，对比耗时。
+2. 用 `Semaphore(3)` 限制 10 个任务的并发度，打印每个任务的开始/结束时间，验证同时最多 3 个在跑。
+3. 写一个函数，批量请求 20 个 URL，要求：并发 5、超时 3 秒、允许部分失败。统计成功/失败数。
+4. 演示「在 async 函数里调用 `time.sleep(2)`」会阻塞事件循环，并用 `asyncio.sleep(2)` 修复。
+5. 用进程池处理一个 CPU 密集任务（比如算 100 万次开方），对比直接调用与丢进程池的差异。
+
+---
+
+## 3.13 一句话总结
+
+**asyncio 是单线程内的并发（不是并行）：用 `await` 在等待 I/O 时把控制权交还给事件循环，从而让"等 30 秒"变成"同时等 30 个 30 秒"；但它的前提是绝不能阻塞事件循环 —— 在 async 函数里调用 `time.sleep()` 或同步 HTTP 库会让整个服务卡死，而 CPU 密集任务应该丢进程池。**
+
+**明日预告**：Day4 讲测试与日志 —— 让代码可验证、可观测。
+

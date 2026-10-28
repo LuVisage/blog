@@ -1,0 +1,100 @@
+---
+slug: week-07
+kind: reference
+day: 8
+week: 7
+weekTitle: 神经网络基础
+weekBlurb: 纯 NumPy 手写：感知机、激活函数、反向传播与两层网络的完整训练。
+title: 神经网络基础
+lead: '从这一周开始进入深度学习。**本周的唯一目标：把反向传播彻底搞懂，并亲手写出来。** 后面所有网络（CNN、RNN、Transformer）都只是前向传播的结构不同，反向传播的方法完全一致。'
+sourcePath: Week07_神经网络基础/README.md
+---
+
+> 鱼书《深度学习入门》第 1–5 章 · 花书第 6 章 · 苹果书第 1–3 讲
+
+从这一周开始进入深度学习。**本周的唯一目标：把反向传播彻底搞懂，并亲手写出来。** 后面所有网络（CNN、RNN、Transformer）都只是前向传播的结构不同，反向传播的方法完全一致。
+
+---
+
+## 本周目标
+
+学完本周，你应该能够：
+
+1. 说清"感知机为什么无法解决 XOR"，以及多层网络如何解决；
+2. 掌握 5 种常用激活函数的性质与导数；
+3. 理解输出层设计：回归用恒等、二分类用 sigmoid、多分类用 softmax；
+4. 用**计算图**解释反向传播，并掌握"加法结点传递梯度、乘法结点交换输入"两条规则；
+5. **从零实现**两层全连接网络（含前向、反向、训练、评估），仅用 NumPy；
+6. 掌握训练流程规范：数据划分、标准化、权重初始化、超参搜索；
+7. 会用数值微分验证反向传播的正确性（**梯度检查**）。
+
+---
+
+## 书籍对照
+
+| 天 | 主题 | 鱼书 | 花书 | 苹果书 |
+| --- | --- | --- | --- | --- |
+| Day1 | 从感知机到神经网络 | 第 1–3 章 | 6.1 | 第 1 讲 |
+| Day2 | 激活函数与输出层 | 第 3 章 | 6.3 | 第 2–3 讲 |
+| Day3 | 数值微分与反向传播 | 第 4–5 章 | 6.5 | 第 4 讲 |
+| Day4 | 从零手写两层网络 | 第 4 章 | — | — |
+| Day5 | 训练流程与超参数 | 第 4、6 章 | 7.1–7.8 | 第 5 讲 |
+
+> **鱼书第 4 章是全书的精华**：所有代码都可以只用 NumPy 跑通，不需要任何框架。建议一行一行手敲。
+
+---
+
+## 时间安排
+
+| 天 | 内容 | 文档 | 代码 | 建议时长 |
+| --- | --- | --- | --- | --- |
+| Day1 | 从感知机到神经网络 | [Day1_从感知机到神经网络.md](/learn/ml/day-36) | `code/day1_perceptron.py` | 2.5h |
+| Day2 | 激活函数与输出层设计 | [Day2_激活函数与输出层.md](/learn/ml/day-37) | `code/day2_activations.py` | 2.5h |
+| Day3 | 数值微分与反向传播 | [Day3_数值微分与反向传播.md](/learn/ml/day-38) | `code/day3_backprop.py` | 3.5h |
+| Day4 | 从零手写两层网络 | [Day4_从零实现两层网络.md](/learn/ml/day-39) | `code/day4_two_layer_net.py` | 3.5h |
+| Day5 | 训练流程与超参数 | [Day5_训练流程与超参数.md](/learn/ml/day-40) | `code/day5_training_workflow.py` | 2.5h |
+
+---
+
+## 本周检查清单
+
+- [ ] 我能证明单层感知机无法实现 XOR
+- [ ] 我能写出 ReLU / sigmoid / tanh / softmax 的表达式与导数
+- [ ] 我知道 sigmoid 的**梯度消失**问题，以及 ReLU 为什么能缓解
+- [ ] 我能画出 $z=wx+b$ 的计算图并写出反向传播
+- [ ] 我能解释"加法结点将梯度原样传给两个输入"
+- [ ] 我能解释"乘法结点将梯度乘以'交换后的输入'"
+- [ ] 我能从零实现两层网络并用梯度检查验证
+- [ ] 我知道 MNIST 上两层网络能达到约 97–98% 的测试精度
+- [ ] 我能用梯度检查发现反向传播中的符号错误与形状错误
+
+---
+
+## 本课程的统一记号
+
+从本周开始，符号统一为：
+
+| 记号 | 含义 |
+| --- | --- |
+| $\boldsymbol{x}$ | 输入向量（一个样本） |
+| $\mathbf{X}$ | 一批输入（batch） |
+| $\boldsymbol{z}^{(l)}$ | 第 $l$ 层的**加权和**（pre-activation） |
+| $\boldsymbol{a}^{(l)}$ | 第 $l$ 层的**激活输出**（post-activation） |
+| $\mathbf{W}^{(l)}, \boldsymbol{b}^{(l)}$ | 第 $l$ 层权重与偏置 |
+| $\boldsymbol{\delta}^{(l)}$ | 第 $l$ 层的**误差项** $\frac{\partial L}{\partial \boldsymbol{z}^{(l)}}$ |
+| $L$ | 损失（标量） |
+
+**前向**：
+
+$$\boldsymbol{z}^{(l)} = \mathbf{W}^{(l)}\boldsymbol{a}^{(l-1)} + \boldsymbol{b}^{(l)}, \qquad \boldsymbol{a}^{(l)} = \sigma(\boldsymbol{z}^{(l)})$$
+
+**反向**（核心公式，Day3/Day4 会详细推导）：
+
+$$\boldsymbol{\delta}^{(l)} = \left(\mathbf{W}^{(l+1)\top}\boldsymbol{\delta}^{(l+1)}\right)\odot \sigma'(\boldsymbol{z}^{(l)})$$
+
+$$\frac{\partial L}{\partial \mathbf{W}^{(l)}} = \boldsymbol{\delta}^{(l)}\boldsymbol{a}^{(l-1)\top}, \qquad \frac{\partial L}{\partial \boldsymbol{b}^{(l)}} = \boldsymbol{\delta}^{(l)}$$
+
+---
+
+**下一篇**：[Day1_从感知机到神经网络.md](/learn/ml/day-36)
+

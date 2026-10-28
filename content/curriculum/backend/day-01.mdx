@@ -1,0 +1,407 @@
+---
+slug: day-01
+kind: day
+day: 1
+week: 1
+weekTitle: Python 工程化
+weekBlurb: 类型注解与数据校验、装饰器、async/await、pytest 与 logging、项目结构与打包——把能跑的脚本变成能维护的工程。
+title: 类型注解与数据校验
+lead: 今日目标：掌握 Python 类型注解的完整用法；用 Pydantic 做数据校验；理解「注解在运行时并不存在」这一关键事实；用 mypy 做静态检查。
+sourcePath: Python工程化与后端实战/Week1_Python工程化/Day1_类型注解与数据校验.md
+---
+
+> 今日目标：掌握 Python 类型注解的完整用法；用 Pydantic 做数据校验；理解「注解在运行时并不存在」这一关键事实；用 mypy 做静态检查。
+> 配套案例：`code/day1_typing.py`
+
+---
+
+## 1.1 知识地图
+
+```
+本周路线
+Day1（今天）★ 类型与校验  ← 让「数据的形状」明确下来
+  ├─ 类型注解语法
+  ├─ typing 常用类型
+  ├─ Pydantic 数据校验
+  ├─ mypy 静态检查
+  └─ 与 FastAPI / Agent 的关系
+        │
+        ▼
+Day2  装饰器与高阶函数
+Day3  异步编程（重点）
+Day4  测试与日志
+Day5  项目结构与打包
+```
+
+---
+
+## 1.2 最关键的认知：注解在运行时不存在
+
+**这是初学类型注解最大的误区。**
+
+```python
+def add(a: int, b: int) -> int:
+    return a + b
+
+print(add("hello", "world"))    # 输出 "helloworld"
+```
+
+**没有报错。** Python 的类型注解**不会在运行时强制检查**。
+
+**为什么**：Python 是动态类型语言。注解只是**给工具看的元数据**，存在 `__annotations__` 里：
+
+```python
+print(add.__annotations__)      # {'a': <class 'int'>, 'b': <class 'int'>, 'return': <class 'int'>}
+```
+
+**那么注解有什么用**：
+
+| 用途 | 说明 |
+| --- | --- |
+| **IDE 提示与补全** | 输入 `.` 时能列出属性（体验提升巨大） |
+| **静态检查** | mypy / pyright 能在运行前发现类型错误 |
+| **自文档** | 读代码的人一眼知道参数是什么 |
+| **框架依赖** | FastAPI / Pydantic **在运行时读取注解**做校验与文档生成 |
+
+> **特别注意最后一条**：FastAPI 之所以能从类型注解自动生成 API 文档和校验逻辑，就是因为它**读取了 `__annotations__`**。
+>
+> 所以在 FastAPI 里，类型注解**不再是可选的文档，而是功能的一部分**。
+
+---
+
+## 1.3 基础语法速查
+
+```python
+# 基本类型
+name: str = "alice"
+count: int = 42
+ratio: float = 0.5
+flag: bool = True
+
+# 容器类型（Python 3.9+ 可以直接用小写）
+names: list[str] = ["a", "b"]
+scores: dict[str, float] = {"math": 90.5}
+point: tuple[int, int] = (3, 4)
+ids: set[int] = {1, 2, 3}
+
+# 可空（两者完全等价，推荐后者）
+from typing import Optional
+x: Optional[str] = None
+y: str | None = None              # ← Python 3.10+，更简洁
+
+# 联合类型
+value: int | str = 42
+value = "hello"                   # 合法
+
+# 任意类型（尽量避免）
+from typing import Any
+data: Any = whatever
+
+# 字面量（限定取值）
+from typing import Literal
+role: Literal["admin", "user", "guest"] = "user"
+# role = "superuser"              # mypy 会报错
+```
+
+### 函数注解
+
+```python
+def greet(name: str, times: int = 1, *, upper: bool = False) -> str:
+    msg = f"hello {name}"
+    if upper:
+        msg = msg.upper()
+    return msg * times
+
+# 异步函数
+async def fetch(url: str) -> dict[str, Any]:
+    ...
+
+# 可变参数
+def total(*nums: int, **options: str) -> int:
+    return sum(nums)
+
+# 复杂签名
+from collections.abc import Callable, Iterable
+
+def apply_all(
+    func: Callable[[int], int],
+    values: Iterable[int],
+) -> list[int]:
+    return [func(v) for v in values]
+```
+
+### 三个容易踩的坑
+
+**坑 1：可变默认参数**
+
+```python
+# 错误 —— 默认值在函数定义时只创建一次，会被所有调用共享
+def add_item(item: str, items: list[str] = []) -> list[str]:
+    items.append(item)
+    return items
+
+print(add_item("a"))   # ['a']
+print(add_item("b"))   # ['a', 'b']  ← 不是预期的 ['b']！
+
+# 正确 —— 用 None 作为哨兵值
+def add_item(item: str, items: list[str] | None = None) -> list[str]:
+    if items is None:
+        items = []
+    items.append(item)
+    return items
+```
+
+> **这个坑与类型注解无关，但它是 Python 最经典的陷阱之一**，几乎每个面试都会问。
+
+**坑 2：`Any` 会传播**
+
+```python
+def get_data() -> Any:
+    ...
+
+x = get_data()
+x.whatever.deeply.nested    # mypy 不报错 —— Any 关闭了所有检查
+```
+
+一旦类型是 `Any`，**后面所有基于它的检查都失效**。所以 `Any` 要尽量只出现在「与外部库边界」的地方。
+
+**坑 3：别名 vs 类型**
+
+```python
+UserId = int          # 这只是别名，mypy 里 int 和 UserId 等价
+```
+
+需要真正的新类型，用 `NewType`：
+
+```python
+from typing import NewType
+UserId = NewType("UserId", int)
+OrderId = NewType("OrderId", int)
+
+def get_user(uid: UserId) -> None: ...
+
+get_user(OrderId(1))   # mypy 报错 —— 类型不匹配
+```
+
+---
+
+## 1.4 Pydantic：运行时的数据校验
+
+**类型注解不会在运行时检查，但 Pydantic 会。**
+
+**Pydantic 的做法**：读取类上定义的注解，在实例化时**强制校验并转换**。
+
+```python
+from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
+
+class UserCreate(BaseModel):
+    """创建用户的请求模型"""
+
+    username: str = Field(min_length=3, max_length=32)
+    email: str
+    age: int = Field(ge=0, le=150)
+    role: Literal["admin", "user"] = "user"
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("username")
+    @classmethod
+    def username_alphanumeric(cls, v: str) -> str:
+        if not v.replace("_", "").isalnum():
+            raise ValueError("用户名只能包含字母、数字和下划线")
+        return v.lower()
+
+# 正常解析
+u = UserCreate(username="Alice_01", email="a@b.com", age=25)
+print(u)
+# username='alice_01' email='a@b.com' age=25 role='user' tags=[]
+
+# 校验失败 —— 抛出详细错误
+try:
+    UserCreate(username="ab", email="x", age=999)
+except ValidationError as e:
+    print(e)
+```
+
+**输出**：
+
+```
+2 validation errors for UserCreate
+username
+  String should have at least 3 characters [type=string_too_short, ...]
+age
+  Input should be less than or equal to 150 [type=less_than_equal, ...]
+```
+
+### Pydantic 的三个核心能力
+
+| 能力 | 说明 |
+| --- | --- |
+| **类型强制转换** | `"25"` 会变成 `25`（但 `"abc"` 会报错） |
+| **自动生成 JSON Schema** | 这就是 FastAPI 自动文档的来源 |
+| **嵌套校验** | 模型里嵌套模型会递归校验 |
+
+```python
+class Address(BaseModel):
+    city: str
+    zipcode: str = Field(pattern=r"^\d{6}$")
+
+class User(BaseModel):
+    name: str
+    addresses: list[Address] = []       # 嵌套也会校验
+
+u = User(name="bob", addresses=[{"city": "北京", "zipcode": "100000"}])
+print(u.addresses[0].city)              # 北京
+
+# 自动生成的 JSON Schema（FastAPI 的文档就靠它）
+import json
+print(json.dumps(User.model_json_schema(), indent=2, ensure_ascii=False)[:300])
+```
+
+### 为什么 Pydantic 对 AI 应用特别重要
+
+**LLM 的输出是「自然语言」，不是结构化数据。**
+
+```python
+# LLM 返回的文本
+raw = '{"name": "张三", "age": "三十岁", "city": null}'
+```
+
+**用 Pydantic 做「最后的防线」**：
+
+```python
+class Person(BaseModel):
+    name: str
+    age: int
+    city: str = "未知"
+
+try:
+    p = Person.model_validate_json(raw)
+except ValidationError as e:
+    # 校验失败 -> 重试 or 重新提示 LLM
+    ...
+```
+
+**这就是「结构化输出」（Structured Output）的实现基础** —— OpenAI 的 function calling、LangChain 的 `with_structured_output`，底层都是 Pydantic。
+
+---
+
+## 1.5 mypy：静态检查
+
+**在运行前发现问题。**
+
+```bash
+pip install mypy
+mypy day1_typing.py
+```
+
+**它会发现**：
+
+```python
+def add(a: int, b: int) -> int:
+    return a + b
+
+add("x", "y")
+# error: Argument 1 to "add" has incompatible type "str"; expected "int"
+```
+
+**推荐配置**（`pyproject.toml`）：
+
+```toml
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true        # 要求所有函数都有注解
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+```
+
+**实用建议**：
+
+| 场景 | 建议 |
+| --- | --- |
+| 新项目 | 一开始就开 `disallow_untyped_defs` |
+| 老项目迁移 | 先只检查新文件，逐步扩大范围 |
+| 遇到第三方库没类型 | 装 `types-xxx` 或用 `# type: ignore` |
+| CI 集成 | `mypy` 失败就阻断合并 |
+
+> **不要追求 100% 通过**。第三方库类型标注不全时，`# type: ignore` 是合理的。
+> **关键是有类型检查这道防线，而不是追求完美的类型。**
+
+---
+
+## 1.6 一个完整的例子：Agent 的工具定义
+
+**把今天的知识用在一个真实场景上** —— 定义一个 Agent 可调用的工具。
+
+```python
+class SearchTool(BaseModel):
+    """搜索工具的参数"""
+
+    query: str = Field(description="搜索关键词", min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20, description="返回结果数量")
+    lang: Literal["zh", "en"] = Field(default="zh", description="语言")
+
+class ToolCall(BaseModel):
+    """Agent 的一次工具调用"""
+
+    tool_name: str
+    arguments: dict[str, Any]
+    reason: str | None = Field(default=None, description="调用理由（用于可解释性）")
+```
+
+**为什么这样写**：
+
+1. `Field(description=...)` 里的描述**会直接进入 LLM 的提示词**（OpenAI 的 function calling 就是这么做的）；
+2. `ge=1, le=20` 限制范围，防止 LLM 传一个 `top_k=1000000` 过来；
+3. 类型注解让调用方（前端 / 其他服务）知道该传什么。
+
+**这就是 Pydantic 在 Agent 开发里的核心用途**：**它是 LLM 的「自然语言输出」与程序的「结构化输入」之间的翻译层与安全阀。**
+
+---
+
+## 1.7 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 运行时没报类型错 | Python 不强制检查注解 | 用 mypy 静态检查；用 Pydantic 运行时校验 |
+| 默认参数被多次调用共享 | 可变默认参数 | 用 `None` 做哨兵值 |
+| `Any` 之后类型检查失效 | Any 会传播 | 只在边界用 Any，尽快转成具体类型 |
+| Pydantic 校验太严把合法数据拒了 | 默认是严格模式 | 用 `model_config = ConfigDict(coerce_numbers_to_str=True)` 等 |
+| `from __future__ import annotations` 后 Pydantic 报错 | 字符串化的注解 | Pydantic v2 支持，但自定义类型要注意 |
+| mypy 报第三方库没类型 | 缺少 type stubs | `pip install types-requests` 等，或 `ignore_missing_imports` |
+| 循环导入 | 两个模块互相 import 类型 | 用 `TYPE_CHECKING` 块 |
+
+**关于最后一个**：
+
+```python
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mymodule import OtherClass   # 只在类型检查时导入，运行时不会执行
+
+def process(x: "OtherClass") -> None:   # 用字符串前向引用
+    ...
+```
+
+---
+
+## 1.8 今日自测
+
+1. 写一个函数，参数是一个 `list[dict[str, int]]`，返回 `dict[str, int]`（对相同 key 求和）。用 mypy 验证。
+2. 定义 Pydantic 模型 `Article`，包含标题（3~100 字）、正文（>0 字）、标签（最多 5 个）、发布时间（默认当前时间）。给标题加一个「不能全为空格」的自定义校验。
+3. 演示可变默认参数的坑，并给出正确写法。
+4. 用 `NewType` 定义 `UserId` 和 `OrderId`，写一个函数只接受 `UserId`，验证 mypy 会拒绝 `OrderId`。
+5. 为一个「查询天气」的工具写 Pydantic 参数模型，字段描述要能让 LLM 理解。
+
+---
+
+## 1.9 一句话总结
+
+**类型注解在运行时不存在，它的价值在于 IDE 提示、mypy 静态检查和框架消费；而 Pydantic 通过读取注解实现了运行时校验 —— 它既是 API 的输入校验层，也是 LLM 自然语言输出与程序结构化输入之间的翻译层和安全阀。**
+
+**明日预告**：Day2 讲装饰器 —— 用它在不修改函数代码的前提下，给函数加上重试、计时、缓存、日志等能力。这是「横切关注点」的标准解法。
+

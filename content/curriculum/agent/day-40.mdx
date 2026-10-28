@@ -1,0 +1,122 @@
+---
+slug: day-40
+day: 40
+week: 8
+weekTitle: Chat UI 与毕业项目
+weekBlurb: Agent Chat UI、服务化与部署，综合毕业项目从零到上线。
+title: 毕业项目③ —— 前端接入、部署上线与毕业总结
+lead: '把 Day 39 的后端接上前端，部署到"别人能访问"的状态，完成毕业验收，规划下一步学习路线。'
+sourcePath: week-08-chatui-capstone/day-40.md
+---
+
+> 恭喜——这是教程最后一天。今天之后，你是一名真正的 AI Agent 工程师。
+
+---
+
+## 40.1 前端接入（30 分钟）
+
+Day 39 的 Agent 已服务化，接上 Day 36-37 的前端：
+
+```powershell
+# 终端 1：启动后端（LangGraph Server）
+cd D:\study\AI\agent\agent-tutorial\week-08-chatui-capstone\examples
+D:\study\AI\agent\.venv-tutorial\Scripts\langgraph.exe dev --port 2024 --config capstone.json
+
+# 终端 2：启动前端（Day 36 生成的项目）
+cd D:\study\AI\agent\agent-tutorial\week-08-chatui-capstone\agent-chat-ui
+npm run dev
+```
+
+配置前端指向 `http://localhost:2024`，助手 id 用 `stardust_customer_service`。浏览器里完成全流程测试：
+
+| 测试 | 预期 |
+|---|---|
+| 问"积分怎么兑换？" | 流式回答 + 来源注明 + **工具调用卡片显示 search_knowledge_base** |
+| 问订单 | check_order 卡片出现 |
+| 说"记住我喜欢…"，新会话再问 | 跨会话记忆生效 |
+| 问股票代码 | 诚实拒绝 |
+| 打开 3 个会话 | 互不串扰 |
+
+## 40.2 部署上线：三种选择
+
+### 方案 A：本地 Docker（免费，今天就能做）
+
+```powershell
+# 构建镜像（内含你的 Agent + LangGraph Server + 依赖）
+cd D:\study\AI\agent\agent-tutorial\week-08-chatui-capstone\examples
+D:\study\AI\agent\.venv-tutorial\Scripts\langgraph.exe build -t stardust-agent
+
+# 在 WSL 里运行（复用你的 Docker）
+wsl
+docker run -p 2024:2024 stardust-agent
+```
+
+局域网内其他人访问 `http://你的IP:2024` 即可使用 API（前端另部署或本地跑）。
+
+### 方案 B：LangGraph Platform 云托管（推荐正式部署）
+
+`langgraph deploy` 一键部署到 LangChain 官方云：托管 Server + 持久化 + LangSmith 集成 + 一键分享 URL。**毕业项目的正式归宿**。
+
+### 方案 C：自建（进阶挑战）
+
+FastAPI + 自己的 checkpointer（Postgres）+ Nginx + 云服务器。全套自主可控，适合深入学习部署。
+
+> 部署前必做清单：① checkpointer 换 Sqlite/Postgres（记忆持久化）；② `.env` 密钥用服务器环境变量而非文件；③ LangSmith tracing 打开；④ 评估集跑通（Day 39 的 baseline）。
+
+## 40.3 毕业验收清单（全部打勾才算毕业）
+
+- [ ] 知识库问答：准确 + 有引用 + 不幻觉
+- [ ] 工具调用：订单/天气等按需触发
+- [ ] 双轨记忆：会话内追问 + 跨会话偏好
+- [ ] 诚实边界：不知道就说不
+- [ ] 前端界面：流式 + 工具可视化 + 多会话
+- [ ] LangSmith：trace 可查 + 评估集有 baseline 分数
+- [ ] 部署：别人能通过 URL 访问
+- [ ] `notes/` 有 40 天的踩坑笔记
+
+## 40.4 你的下一步：进阶路线图
+
+```
+毕业项目 v1（今天）
+ │
+ ├─ 检索升级：混合检索（Day 12）+ 重排序 → 评估分数 +10%
+ ├─ 多智能体：客服 Swarm 分岗（Day 34）→ 复杂场景
+ ├─ MCP 生态：接 GitHub/数据库/浏览器 MCP Server（Day 32）
+ ├─ 生产加固：Postgres 记忆、限流、鉴权、容器编排
+ ├─ 成本优化：缓存、摘要中间件、模型分级（简单问题用小模型）
+ └─ 前沿方向：
+      · LangGraph Platform 生产实践
+      · 多模态 Agent（图片/语音）
+      · Agent 安全（提示注入防护、沙箱执行）
+      · 评估体系深挖（LLM-as-judge、人工评估工作流）
+```
+
+## 40.5 毕业总结：回头看这 40 天
+
+```
+Day 0-5    LangChain 组件：模型、提示词、结构化输出、管道、工具
+Day 6-10   RAG 与 Milvus：向量检索、知识库、端到端问答机器人
+Day 11-15  优化与评估：查询优化、混合检索、重排、RAGAS
+Day 16-20  LangGraph：图编程、流程控制、人在回路、记忆、子图
+Day 21-25  Agent 开发：create_agent、Runtime、Middleware、长期记忆
+Day 26-30  LangSmith：追踪、调试、评估、监控
+Day 31-35  MCP 与 Multi-agent：协议接入、Supervisor、Swarm
+Day 36-40  产品化：Chat UI、服务化、部署、毕业项目
+```
+
+**你从"会调 API"走到了"能交付产品"**：一个带知识库、工具、记忆、监控、界面的生产级 Agent。
+
+## 40.6 给毕业生的三句话
+
+1. **模型在变，工程不变**。LangChain 的 API 会升级（本教程已用 1.x 最新版），但 ReAct 循环、图编程、检索-生成、评估闭环这些**心智模型十年内不会过时**。
+2. **评估集是你最贵的资产**。代码可以重写，评估集记录着"什么叫好"——从第一天就开始攒。
+3. **去写一个真正有人用的 Agent**。教程教你造轮子，用户教你造好车。把你工作/生活里的真实痛点做成 Agent，是比任何教程都快的学习。
+
+---
+
+## 毕业快乐！
+
+教程到此结束。回看 `notes/` 目录——40 天的笔记，就是你最好的毕业证书。
+
+**保持好奇，继续造。**
+

@@ -1,0 +1,1529 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   灰阶系统语言（第 5 轮 · UI 换血）
+   主方向：are.na「八级灰阶 + 字重分层 + mono 大写胶囊 + 深蓝页脚」编辑感
+   （档案 confidence=HIGH，style spec 见 ui-concepts/借鉴方案V2 §8.2；
+    组件融合层见 §8.4：Uiverse 素色控件 + React Bits 轻量滚动）。
+   身份：白画布 + 八级灰阶令牌 + indigo 单强调色 + 3px 圆角 + 发丝线。
+   已废弃：第 4 轮 ciechanow 技术论文感（冷白 #f8f8f8 / 科技蓝 / 直角）——见 §10。
+   规格台账：SPEC_LEDGER.md ｜ 审计报告：AUDIT.md
+   ============================================ */
+
+/* ── Music player gutter ──────────────────────────────────────
+   At xl+ the rail docks beside the text column, so the column has to
+   make room for it. Below xl the panel is an overlay with its own
+   backdrop and must not reflow anything. The amount is derived from
+   the real column width here — never copied into a second place. */
+:root {
+  --music-panel-w: 220px;
+  --music-panel-edge: 24px;
+  --music-panel-gap: 6px;
+  --music-rail: calc(var(--music-panel-w) + var(--music-panel-edge) + var(--music-panel-gap));
+  --music-scrollbar: 15px;
+}
+
+@media (min-width: 1280px) {
+  /* Declared apart from the :has() rule so it still exists when the panel
+     unmounts — otherwise the gutter snaps back instead of easing closed. */
+  #main-content {
+    transition: padding-right 300ms ease-out;
+  }
+
+  /* min(100vw, column) gives the free margin on each side; the rail only
+     needs what's left after that. 100vw counts the scrollbar, fixed
+     positioning does not, so it is added back as headroom. */
+  body:has([data-music-panel]) #main-content {
+    padding-right: calc(
+      max(
+        2rem,
+        var(--music-rail) + var(--music-scrollbar)
+          - (100vw - min(100vw, 72rem)) / 2
+      )
+    );
+  }
+}
+
+/* ==============================================
+   1. Tokens
+   第一块是第 4 轮换血后的现行值（ciechanow 方向，数值自设计并登记）；
+   第二块是兼容别名层 —— 既有组件、Pagefind 覆写与课程块读的都是这些
+   语义名，指向 token 后换肤不需要逐个改写组件。
+   ============================================== */
+:root {
+  color-scheme: light;
+
+  /* ── 色彩（亮色 · 白画布 + 八级灰阶令牌，方向参考 are.na 官方令牌
+     gray0 #ffffff → gray7 #000000；indigo 强调，深蓝页脚对撞） ── */
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-text-primary: #000000;
+  /* 正文用灰六档近黑，不纯黑（方向参考 are.na 正文黑 + 灰度分层）。 */
+  --color-text-prose: #1a1a1a;
+  --color-text-secondary: #333333;
+  --color-text-muted: #696969;
+  --color-text-faint: #999999;
+  --color-text-inverse: #ffffff;
+  --color-border-subtle: #ededed;
+  --color-border-default: #dedede;
+  --color-border-strong: #999999;
+  /* 唯一强调色：indigo（are.na 品牌档 #3d46c2，HIGH 置信度；hover 加深），
+     用于 ::selection、链接与高权重动作。 */
+  --color-primary: #3d46c2;
+  --color-primary-hover: #2f34a0;
+  --color-primary-subtle: rgba(61, 70, 194, 0.08);
+  --color-success: #238020;
+  --color-warning: #e15100;
+  --color-danger: #b93d3d;
+  --color-focus-ring: rgba(61, 70, 194, 0.45);
+  /* 灰阶两档浅底，用作面层的次级/三级表面（gray1/gray2）。 */
+  --color-surface-2: #f7f7f7;
+  --color-surface-3: #ededed;
+
+  /* ── 浮层与遮罩：白身透明变体，不模糊、不提饱和 ── */
+  --color-overlay: rgba(255, 255, 255, 0.92);
+  --color-scrim: rgba(0, 0, 0, 0.18);
+
+  /* ── 兼容别名层 ── */
+  --canvas: var(--color-canvas);
+  --surface: var(--color-surface);
+  --surface-2: var(--color-surface-2);
+  --surface-3: var(--color-surface-3);
+  --overlay: var(--color-overlay);
+  --scrim: var(--color-scrim);
+  --ink: var(--color-text-primary);
+  --body: var(--color-text-prose);
+  --muted: var(--color-text-secondary);
+  --faint: var(--color-text-muted);
+  --subtle: var(--color-text-faint);
+  --line: var(--color-border-subtle);
+  --line-strong: var(--color-border-default);
+  --line-faint: rgba(0, 0, 0, 0.08);
+  --accent: var(--color-primary);
+  --accent-text: var(--color-primary);
+  --accent-dim: var(--color-primary-subtle);
+  --accent-soft: var(--color-primary-subtle);
+  --accent-line: rgba(61, 70, 194, 0.35);
+  --accent-glow: var(--color-primary-subtle);
+  /* 旧「金色高光」角色随换血废除并并入主强调色（SPEC_LEDGER §10）。 */
+  --gold: var(--color-primary);
+  --on-accent: #ffffff;
+  --success: var(--color-success);
+  --danger: var(--color-danger);
+
+  /* 层级由发丝线与留白表达，卡片 0 阴影；唯一阴影 0 0 20px 用于浮层
+     （are.na 档案唯一阴影，命令面板/浮层用）。 */
+  --shadow-card: none;
+  --shadow-pop: 0 0 20px 0 rgba(0, 0, 0, 0.08);
+
+  /* ── 写作热力图：indigo 三档不透明度（换 indigo） ── */
+  --heat-0: rgba(61, 70, 194, 0.09);
+  --heat-1: rgba(61, 70, 194, 0.34);
+  --heat-2: rgba(61, 70, 194, 0.68);
+
+  /* ── 排版（第 5 轮换血：字重分层——展示/标题走 Space Grotesk 700 × 无衬线正文；
+     方向参考 are.na 的「h2 与正文同字号、靠字重分层」） ── */
+  --font-serif: 'Space Grotesk', 'Noto Sans SC', -apple-system, system-ui, sans-serif;
+  --font-sans: 'Inter', 'Noto Sans SC', -apple-system, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* 字号阶梯：are.na h1 3rem；项目取 64px 档（登记 SPEC_LEDGER §1.3）。 */
+  --text-display: 64px;
+  --text-h1: 40px;
+  --text-h2: 28px;
+  --text-h3: 20px;
+  --text-h4: 17px;
+  --text-lg: 18px;
+  --text-body: 16px;
+  --text-sm: 14px;
+  --text-reading-sm: 15px;
+  --text-caption: 12px;
+  --text-eyebrow: 11px;
+  --text-code: 13px;
+
+  --leading-tight: 1.08;
+  --leading-snug: 1.2;
+  --leading-body: 1.6;
+  --leading-read: 1.8;
+  --tracking-heading: -0.02em;
+  --tracking-eyebrow: 0.16em;
+
+  /* ── 间距（沿用现有 4px 基数；are.na 档案为 5px 基数，比例节奏照搬，
+     基数差异登记 SPEC_LEDGER §11） ── */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --space-96: 96px;
+  --space-128: 128px;
+  --space-160: 160px;
+
+  /* ── 形状（第 5 轮换血：3px 微圆角档，方向参考 are.na radius-sm 3px；
+     胶囊 9999px 保留给按钮与控件） ── */
+  --radius-xs: 3px;
+  --radius-pill: 9999px;
+  --radius-full: 50%;
+  /* 旧名保留为别名，统一指向唯一微圆角档，存量组件不必逐个改写。 */
+  --radius-sm: var(--radius-xs);
+  --radius-md: var(--radius-xs);
+  --radius-lg: var(--radius-xs);
+  --radius-xl: var(--radius-xs);
+  --radius-2xl: var(--radius-xs);
+  --radius-3xl: var(--radius-xs);
+
+  /* ── 动效（沿用 200 / 300 / 400ms，登记 SPEC_LEDGER §1.8） ── */
+  --ease: ease;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 200ms;
+  --duration-base: 300ms;
+  --duration-slow: 400ms;
+  --marquee-duration: 40s;
+
+  /* ── 布局（容器沿用现有 1200px；are.na 档案 container 1310px 未采纳，
+     理由：博客以正文阅读为主，登记 SPEC_LEDGER §11） ── */
+  --container-max: 1200px;
+  /* 中文行长 [推断·换血]：are.na read-width 647.5px ≈ 40.5em。 */
+  --measure: 40.5em;
+  --bp-md: 896px;
+
+  /* ── 代码块面层（第 5 轮换血：近黑演示屏 → 灰阶面层。
+     亮色：gray1 #f7f7f7 面 + 灰发丝线 + 近黑字；暗色见 .dark。） ── */
+  --demo-bg: #f7f7f7;
+  --demo-ink: #1a1a1a;
+  --demo-muted: #696969;
+  --demo-line: rgba(0, 0, 0, 0.12);
+  --demo-chip: rgba(0, 0, 0, 0.05);
+  --demo-chip-hover: rgba(0, 0, 0, 0.1);
+
+  /* ── 页脚深蓝（are.na 档案 brand-dark #00075f，对撞白身的签名元素） ── */
+  --footer-bg: #00075f;
+  --footer-ink: #ffffff;
+  --footer-muted: rgba(255, 255, 255, 0.72);
+  --footer-line: rgba(255, 255, 255, 0.18);
+  --footer-chip-line: rgba(255, 255, 255, 0.3);
+
+  /* ── 数据图表四色（沿用既有自设计四色，仅核验与灰阶并置对比度，
+     登记 SPEC_LEDGER §1.9；不参与 UI 强调色）。 ── */
+  --chart-yellow: #d9a514;
+  --chart-teal: #0f9d8f;
+  --chart-orange: #e5762e;
+  --chart-blue: #1f6feb;
+
+  /* 元数据字距：jhey.dev 0.06em 大写元数据，中文语境取 0.05em（沿用）。 */
+  --tracking-meta: 0.05em;
+}
+
+/* 暗色下代码块面层再压深一档：亮色灰面 #f7f7f7 → 暗色深面 #1a1a1f 制造「下沉」深度。 */
+.dark {
+  --demo-bg: #1a1a1f;
+  --demo-ink: #e6e6ea;
+  --demo-muted: #9999a2;
+  --demo-line: rgba(255, 255, 255, 0.14);
+  --demo-chip: rgba(255, 255, 255, 0.06);
+  --demo-chip-hover: rgba(255, 255, 255, 0.12);
+}
+
+/* 暗色 = [推断·第 5 轮换血]。are.na 档案未采集暗色主题（本轮仅亮色），
+   整块按「灰阶反转 + indigo 提亮」自设计：画布 #0f0f13、面层 #17171b 起。
+   逐条登记见 SPEC_LEDGER §11。 */
+.dark {
+  color-scheme: dark;
+
+  --color-canvas: #0f0f13;
+  --color-surface: #17171b;
+  --color-surface-raised: #17171b;
+  --color-surface-2: #1e1e23;
+  --color-surface-3: #27272d;
+  --color-text-primary: #f4f4f6;
+  --color-text-prose: #dedee2;
+  --color-text-secondary: #b3b3b9;
+  --color-text-muted: #8f8f97;
+  --color-text-faint: #67676f;
+  --color-text-inverse: #0f0f13;
+  --color-border-subtle: #2a2a30;
+  --color-border-default: #3a3a42;
+  --color-border-strong: #56565e;
+  --color-primary: #5b64e0;
+  --color-primary-hover: #7b82ea;
+  --color-primary-subtle: rgba(91, 100, 224, 0.16);
+  --color-success: #3fae6e;
+  --color-warning: #e88a4d;
+  --color-danger: #f0604d;
+  --color-focus-ring: rgba(91, 100, 224, 0.5);
+  --color-overlay: rgba(15, 15, 19, 0.92);
+  --color-scrim: rgba(0, 0, 0, 0.4);
+  --line-faint: rgba(244, 244, 246, 0.08);
+  --accent-line: rgba(91, 100, 224, 0.4);
+  --heat-0: rgba(91, 100, 224, 0.1);
+  --heat-1: rgba(91, 100, 224, 0.35);
+  --heat-2: rgba(91, 100, 224, 0.65);
+  --footer-line: rgba(255, 255, 255, 0.2);
+  --footer-muted: rgba(255, 255, 255, 0.75);
+}
+
+/* ==============================================
+   2. Base
+   §7：层级由 1px 边框与留白表达 —— 单层画布，无背景装饰。
+   ============================================== */
+@layer base {
+  html {
+    background: var(--canvas);
+    scroll-behavior: smooth;
+    scroll-padding-top: var(--space-96);
+  }
+
+  body {
+    @apply antialiased;
+    color: var(--body);
+    background: transparent;
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  .bg-body { position: relative; }
+
+  /* 第 4 轮换血：科技蓝用于 ::selection。 */
+  ::selection {
+    background: var(--color-primary);
+    color: var(--on-accent);
+  }
+
+  .skip-to-content {
+    position: absolute;
+    top: -100%;
+    left: var(--space-16);
+    z-index: 9999;
+    padding: var(--space-12) var(--space-20);
+    background: var(--color-primary);
+    color: var(--on-accent);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    border-radius: var(--radius-xs);
+    text-decoration: none;
+    transition: top var(--duration-fast) var(--ease);
+  }
+  .skip-to-content:focus { top: var(--space-12); }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+  :focus:not(:focus-visible) { outline: none; }
+
+  a { color: inherit; text-decoration: none; }
+
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: var(--radius-xs);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+}
+
+/* ==============================================
+   3. Materials — three tiers, hairline only
+   surface  → content cards (solid, hairline)
+   panel    → transparent grouping, rule-separated
+   overlay  → floating layers only (header, palette)
+   chip     → small controls and labels
+   §7：不用阴影与毛玻璃，层级只由 1px 边框与留白表达。
+   ============================================== */
+@layer components {
+  .surface {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xs);
+  }
+  .surface-hover {
+    transition: border-color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+  }
+  .surface-hover:hover {
+    background: var(--surface-2);
+    border-color: var(--line-strong);
+  }
+
+  .overlay {
+    background: var(--overlay);
+    border: 1px solid var(--line);
+  }
+
+  /* ── chip（第 5 轮换血）：pill → are.na 3px 发丝线小片。
+     全站 26 处存量（learn 模拟器、标签筛选、页脚图标等）随 base 一起落新语汇。 */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-xs);
+    background: transparent;
+    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+  }
+  .chip:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+  /* 按下反馈：只动 transform（§12.4 白名单），200ms 落在 §11.1 实测档。 */
+  .chip:active { transform: scale(0.98); }
+
+  /* ── 编号（第 5 轮换血）：pudding.cool 胶囊 → are.na 灰阶数字。
+     文章索引行与项目清单行的序号：mono 11px 灰四档数字，无边框无胶囊，
+     hover 随行转 indigo。 ── */
+  .issue-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    font-family: var(--font-mono);
+    font-size: var(--text-eyebrow);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--subtle);
+    font-variant-numeric: tabular-nums;
+    transition: color var(--duration-fast) var(--ease);
+  }
+  .group:hover .issue-badge,
+  .issue-badge:hover {
+    color: var(--color-primary);
+  }
+
+  /* ── mono 大写胶囊（第 5 轮新增）：are.na 元信息语汇。
+     mono 10px uppercase，gray1 底 + 3px 圆角，hover 提 indigo 底字。
+     用于标签、元信息与主题胶囊。 ── */
+  .capsule {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: 2px 7px;
+    background: var(--color-surface-2);
+    border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--faint);
+    transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+  }
+  .capsule:hover {
+    background: var(--color-primary-subtle);
+    color: var(--color-primary);
+  }
+}
+
+/* ==============================================
+   4. Typography
+   §12.1：衬线展示标题 + 无衬线正文的分工。
+   ============================================== */
+@layer components {
+  /* Masthead scale */
+  .display {
+    font-family: var(--font-serif);
+    font-size: clamp(var(--text-h1), 7vw, var(--text-display));
+    font-weight: 700;
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-heading);
+    color: var(--ink);
+    text-wrap: balance;
+  }
+
+  .heading-1 {
+    font-family: var(--font-serif);
+    font-size: clamp(var(--text-h2), 5vw, var(--text-h1));
+    font-weight: 700;
+    line-height: var(--leading-snug);
+    letter-spacing: var(--tracking-heading);
+    color: var(--ink);
+    text-wrap: balance;
+  }
+
+  .heading-2 {
+    font-family: var(--font-serif);
+    font-size: var(--text-h2);
+    font-weight: 700;
+    line-height: var(--leading-snug);
+    letter-spacing: var(--tracking-heading);
+    color: var(--ink);
+  }
+
+  .heading-3 {
+    font-family: var(--font-serif);
+    font-size: var(--text-h3);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink);
+  }
+
+  /* Small caps label used above/beside section heads */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--text-eyebrow);
+    font-weight: 500;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--subtle);
+  }
+  .eyebrow-accent { color: var(--accent-text); }
+
+  .body-lg { font-size: var(--text-lg); line-height: 1.7; color: var(--body); }
+  .body-md { font-size: var(--text-body); line-height: var(--leading-body); color: var(--body); }
+  .body-sm { font-size: var(--text-sm); line-height: var(--leading-body); color: var(--muted); }
+  .caption { font-size: var(--text-caption); line-height: 1.5; color: var(--subtle); }
+
+  .meta {
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    letter-spacing: var(--tracking-meta);
+    color: var(--subtle);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Section head: eyebrow + serif title, rule underneath */
+.section-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-h3);
+  font-weight: 700;
+  letter-spacing: var(--tracking-heading);
+  line-height: 1.3;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+}
+.section-title::before {
+  content: '';
+  width: var(--space-24);
+  height: 1px;
+  background: var(--color-primary);
+  flex-shrink: 0;
+  transform: translateY(-4px);
+}
+
+/* Full-bleed hairline */
+.rule { border-top: 1px solid var(--line); }
+
+/* ==============================================
+   5. Buttons
+   §8.1 + theme.css .btn：控件高 40px、圆角走第 4 轮的 0px 直角档、
+   阴影纪律为 0（theme.css 里的 0 1px 2px 属生成器默认值，按 §7 丢弃）。
+   ============================================== */
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+    height: 40px;
+    padding: 0 var(--space-20);
+    background: var(--color-primary);
+    color: var(--on-accent);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    line-height: 1;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+  }
+  .btn-primary:hover { background: var(--color-primary-hover); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary[disabled], .btn-primary[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+    height: 40px;
+    padding: 0 var(--space-20);
+    background: transparent;
+    color: var(--ink);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+  }
+  .btn-secondary:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--color-primary-subtle);
+  }
+  .btn-secondary:active { transform: scale(0.98); }
+  .btn-secondary[disabled], .btn-secondary[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+    height: 40px;
+    padding: 0 var(--space-12);
+    background: transparent;
+    color: var(--muted);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+  }
+  .btn-ghost:hover { color: var(--ink); background: var(--surface-2); }
+  .btn-ghost:active { transform: scale(0.98); }
+  .btn-ghost[disabled], .btn-ghost[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+/* ==============================================
+   6. Prose — the reading surface
+   行长按 §12.1 折算为中文 34–40 全角（[推断]，见 SPEC_LEDGER §1.3）。
+   ============================================== */
+.prose {
+  max-width: var(--measure);
+  font-size: var(--text-body);
+  line-height: var(--leading-read);
+  color: var(--body);
+}
+
+/* 阅读字号偏好。tailwind typography 的 prose-sm/base/lg 生成在 @layer 里，
+   永远输给上面这条无层的 .prose，所以这里自带三个类，选择器多一级即可压住。
+   三档对齐 SPEC_LEDGER §1.3 的声明阶梯。 */
+.prose.is-sm { font-size: var(--text-reading-sm); }
+.prose.is-md { font-size: var(--text-body); }
+.prose.is-lg { font-size: var(--text-lg); }
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-weight: 700;
+  letter-spacing: var(--tracking-heading);
+  scroll-margin-top: var(--space-96);
+}
+
+.prose h1 {
+  font-size: var(--text-h1);
+  line-height: 1.12;
+  margin-top: 0;
+  margin-bottom: var(--space-20);
+}
+
+.prose h4 {
+  font-size: var(--text-h4);
+  font-weight: 600;
+  line-height: 1.5;
+  margin-top: var(--space-32);
+  margin-bottom: var(--space-8);
+}
+
+.prose h2 {
+  font-size: var(--text-h2);
+  line-height: var(--leading-snug);
+  margin-top: var(--space-64);
+  margin-bottom: var(--space-16);
+  padding-bottom: var(--space-12);
+  border-bottom: 1px solid var(--line);
+}
+
+.prose h3 {
+  font-size: var(--text-h3);
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: var(--space-40);
+  margin-bottom: var(--space-12);
+}
+
+.prose p { margin: var(--space-16) 0; }
+
+.prose small { font-size: var(--text-sm); line-height: var(--leading-body); color: var(--muted); }
+
+.prose a {
+  color: var(--accent-text);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  /* 第 3 轮：下划线从 1px 提到 2px（方向参考 jhey.dev 的 2px 下划线语汇，
+     颜色仍用自家强调色而非其品牌红）[单通道采集·配色替换]。 */
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--duration-fast) var(--ease);
+}
+/* 正文链接：下划线与字色一起过渡（只动 color 与 text-decoration-color，不触发布局） */
+.prose a:hover {
+  text-decoration-color: var(--color-primary);
+  text-underline-offset: 4px;
+}
+
+.prose strong { font-weight: 650; color: var(--ink); }
+
+.prose blockquote {
+  border-left: 2px solid var(--color-primary);
+  padding: var(--space-4) 0 var(--space-4) var(--space-24);
+  margin: var(--space-32) 0;
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: 1.7;
+  font-style: normal;
+}
+.prose blockquote p { margin: var(--space-8) 0; }
+
+.prose ul, .prose ol { padding-left: var(--space-24); margin: var(--space-16) 0; }
+/* preflight 把 marker 清成了 none，这里补回来，mdx-components 就不必再挂 list-disc。 */
+.prose ul { list-style: disc; }
+.prose ol { list-style: decimal; }
+.prose li { margin: var(--space-8) 0; line-height: 1.8; }
+.prose ul > li::marker { color: var(--accent-text); }
+.prose ol > li::marker { color: var(--accent-text); }
+
+.prose img {
+  border-radius: var(--radius-xs);
+  margin: var(--space-32) 0;
+  border: 1px solid var(--line);
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: var(--space-48) 0;
+}
+
+/* ── Code blocks：第 5 轮换血起代码块是「灰阶面层」 ──
+   亮色文章壳内嵌 gray1 面层块（方向参考 are.na 的浅灰面层，
+   数值取自家 --demo-* 令牌并登记 SPEC_LEDGER §11）。 */
+.prose figure[data-rehype-pretty-code-figure] {
+  @apply relative overflow-hidden;
+  margin: var(--space-32) 0;
+  border: 1px solid var(--demo-line);
+  border-radius: var(--radius-xs);
+  background: var(--demo-bg);
+}
+
+.prose figure[data-rehype-pretty-code-figure] pre {
+  margin: 0;
+  padding: var(--space-16) var(--space-20);
+  overflow-x: auto;
+  background: transparent !important;
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: 1.7;
+}
+
+.prose figure[data-rehype-pretty-code-figure] pre code {
+  display: grid;
+  min-width: 100%;
+  background: transparent !important;
+}
+
+/* Language / filename chip sits in the top gutter — 灰阶面层内用半透明灰胶囊 */
+.prose figure[data-rehype-pretty-code-figure] [data-rehype-pretty-code-title] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-8) var(--space-16);
+  background: var(--demo-chip);
+  border-bottom: 1px solid var(--demo-line);
+  color: var(--demo-muted);
+  font-size: var(--text-eyebrow);
+  font-weight: 500;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.prose figure[data-rehype-pretty-code-figure]:has([data-rehype-pretty-code-title]) pre {
+  padding-top: var(--space-40);
+}
+
+.prose code:not(pre code) {
+  padding: 2px var(--space-8);
+  border-radius: var(--radius-xs);
+  background: var(--surface-3);
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  font-weight: 500;
+  border: 1px solid var(--line);
+}
+
+/* ── GFM tables ── */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin: var(--space-32) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  display: block;
+  overflow-x: auto;
+}
+.prose thead { background: var(--surface-2); }
+.prose thead th {
+  padding: var(--space-12) var(--space-16);
+  text-align: left;
+  font-weight: 650;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid var(--line);
+}
+.prose tbody td {
+  padding: var(--space-12) var(--space-16);
+  border-bottom: 1px solid var(--line-faint);
+  color: var(--body);
+}
+.prose tbody tr:last-child td { border-bottom: none; }
+.prose tbody tr { transition: background var(--duration-fast) var(--ease); }
+.prose tbody tr:hover { background: var(--surface-2); }
+
+/* ── Shiki 双主题 → 随模式着色（灰阶面层）──
+   第 5 轮换血：代码块由「双模式都近黑」改为「亮色灰面深字 / 暗色深面浅字」。
+   rehype-pretty-code 的 css-variables 模式不给 span 类名，而是内联
+   --shiki-light/--shiki-dark 变量；下面两条规则让每个 token 按当前模式
+   解析自己的变量（亮→github-light 令牌色、暗→github-dark-dimmed），
+   无变量段落回退 --demo-ink（灰面单色）。 */
+code[data-theme*=' '],
+code[data-theme*=' '] span { color: var(--shiki-light, var(--demo-ink)); }
+
+.dark code[data-theme*=' '],
+.dark code[data-theme*=' '] span { color: var(--shiki-dark, var(--demo-ink)); }
+
+pre[data-rehype-pretty-code-figure],
+figure[data-rehype-pretty-code-figure] pre { background: transparent !important; }
+
+/* ==============================================
+   7. Theme transition (circular reveal)
+   §11.1：入场类动效落在 400 / 500ms 档，这里取 slow 档。
+   ============================================== */
+.theme-transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  left: var(--toggle-x, 50%);
+  top: var(--toggle-y, 50%);
+  width: 300vmax;
+  height: 300vmax;
+  margin-left: -150vmax;
+  margin-top: -150vmax;
+  background: var(--canvas);
+  animation: themeOverlayIn var(--duration-slow) var(--ease) forwards;
+}
+.theme-transition-overlay[data-theme='light'] { background: var(--canvas); }
+.theme-transition-overlay.reverse { animation: themeOverlayOut var(--duration-slow) var(--ease) forwards; }
+
+@keyframes themeOverlayIn {
+  from { transform: translate(-50%, -50%) scale(0); }
+  to { transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes themeOverlayOut {
+  from { transform: translate(-50%, -50%) scale(1); }
+  to { transform: translate(-50%, -50%) scale(0); }
+}
+
+/* ==============================================
+   8. Keyframes
+   §12.4：只动 transform / opacity / color，时长落在 200/300/400/500ms。
+   ============================================== */
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.98) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-scale-in { animation: scaleIn var(--duration-base) var(--ease-out) both; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fadeUp var(--duration-slow) var(--ease-out) both; }
+
+/* 抽屉/下拉：300ms 档（浮层进入，见 SPEC_LEDGER §1.8.2） */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down { animation: slideDown var(--duration-base) var(--ease-out) both; }
+
+/* 提示条退场：200ms 档（SPEC_LEDGER §1.8.2 的 fast 档） */
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(6px); }
+}
+.animate-fade-out { animation: fadeOut var(--duration-fast) var(--ease) both; }
+
+/* Blinking terminal caret */
+@keyframes caret {
+  0%, 45% { opacity: 1; }
+  50%, 95% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.animate-caret { animation: caret 1200ms steps(1) infinite; }
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Spectrum bars for the music player */
+@keyframes spectrum-0 { 0%,100%{height:9px} 30%{height:24px} 60%{height:6px} }
+@keyframes spectrum-1 { 0%,100%{height:18px} 25%{height:6px} 55%{height:30px} 85%{height:12px} }
+@keyframes spectrum-2 { 0%,100%{height:12px} 40%{height:28px} 70%{height:8px} }
+@keyframes spectrum-3 { 0%,100%{height:24px} 20%{height:8px} 50%{height:32px} 75%{height:10px} }
+@keyframes spectrum-4 { 0%,100%{height:15px} 35%{height:28px} 65%{height:6px} }
+@keyframes spectrum-5 { 0%,100%{height:21px} 30%{height:6px} 60%{height:26px} 90%{height:10px} }
+@keyframes spectrum-6 { 0%,100%{height:9px} 45%{height:22px} 75%{height:6px} }
+@keyframes spectrum-7 { 0%,100%{height:18px} 25%{height:30px} 55%{height:10px} 80%{height:24px} }
+@keyframes spectrum-8 { 0%,100%{height:15px} 20%{height:6px} 50%{height:26px} }
+@keyframes spectrum-9 { 0%,100%{height:27px} 35%{height:8px} 65%{height:20px} }
+@keyframes spectrum-10 { 0%,100%{height:12px} 30%{height:24px} 60%{height:6px} }
+@keyframes spectrum-11 { 0%,100%{height:21px} 40%{height:8px} 70%{height:28px} }
+@keyframes spectrum-12 { 0%,100%{height:15px} 25%{height:26px} 55%{height:6px} 85%{height:20px} }
+@keyframes spectrum-13 { 0%,100%{height:24px} 20%{height:8px} 50%{height:30px} }
+@keyframes spectrum-14 { 0%,100%{height:18px} 35%{height:6px} 65%{height:26px} }
+@keyframes spectrum-15 { 0%,100%{height:12px} 45%{height:22px} 75%{height:8px} }
+@keyframes spectrum-16 { 0%,100%{height:21px} 30%{height:8px} 60%{height:28px} }
+@keyframes spectrum-17 { 0%,100%{height:15px} 25%{height:26px} 55%{height:6px} }
+@keyframes spectrum-18 { 0%,100%{height:24px} 40%{height:8px} 70%{height:20px} }
+@keyframes spectrum-19 { 0%,100%{height:18px} 20%{height:6px} 50%{height:28px} 80%{height:12px} }
+
+/* ==============================================
+   9. Utilities
+   §8.3：卡片 hover 用 scale(1.05) + 200ms ease，而不是位移或投影。
+   ============================================== */
+/* 卡片悬停（§11.5 交互增强）：1px 弱 scale 升级为 4px 上浮 + 唯一阴影浮现 + indigo 发丝线。
+   封面缩放仍由 .media-zoom 独立承担，文字不参与缩放。 */
+.hover-zoom {
+  transition: transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
+}
+.hover-zoom:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-pop);
+  border-color: var(--accent-line);
+}
+
+.accent-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ==============================================
+   9b. Row tick + row hover bg
+   台账行的 hover 反馈（§11.5 三联动）：
+   ① 左侧 2px 强调色指示线（原有）；② 整行灰阶面淡入（::before，负 z-index
+   落在画布之上、内容之下，inset 外扩 12px 不破布局）；③ 标题位移 + 箭头滑入
+   由组件层实现（post-card / ledger-row）。
+   ============================================== */
+[data-spotlight='row'],
+.row-tick { position: relative; }
+
+[data-spotlight='row']::before {
+  content: '';
+  position: absolute;
+  inset: 3px -12px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  opacity: 0;
+  transform: scale(0.99);
+  transition: opacity var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+  pointer-events: none;
+  z-index: -1;
+}
+[data-spotlight='row']:hover::before,
+[data-spotlight='row']:focus-visible::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+[data-spotlight='row']::after,
+.row-tick::after {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  width: 2px;
+  height: 55%;
+  border-radius: var(--radius-xs);
+  background: var(--color-primary);
+  transform: translateY(-50%) scaleY(0);
+  transition: transform var(--duration-fast) var(--ease);
+  pointer-events: none;
+}
+[data-spotlight='row']:hover::after,
+.row-tick:hover::after { transform: translateY(-50%) scaleY(1); }
+
+/* ==============================================
+   9c. Page transition
+   components/page-transition.tsx runs the animation
+   with the Web Animations API, so no keyframes here.
+   渐变改为纯强调色 1px 实线（§7 否定性规律：不用渐变）。
+   ============================================== */
+.page-sweep {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  z-index: 60;
+  pointer-events: none;
+  transform-origin: left center;
+  background: var(--color-primary);
+}
+
+/* ==============================================
+   9d. Loading skeleton
+   Ruled placeholder bars for app/loading.tsx.
+   ============================================== */
+.skeleton-line {
+  display: block;
+  border-radius: var(--radius-xs);
+  background:
+    linear-gradient(90deg, transparent, var(--surface-3), transparent) 0 0 / 45% 100% no-repeat,
+    var(--surface-2);
+  animation: skeleton-sweep 1200ms var(--ease) infinite;
+}
+
+@keyframes skeleton-sweep {
+  0% { background-position: -55% 0, 0 0; }
+  100% { background-position: 155% 0, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line { animation: none; }
+}
+
+/* ==============================================
+   9e. Interaction primitives — 全站交互语汇
+   契约见 SPEC_LEDGER §1.8：时长只用 --duration-fast/base/slow（200/300/400ms），
+   缓动只用 --ease / --ease-out，属性只动 transform / opacity / color。
+   ============================================== */
+
+/* 按下反馈：按钮、标签、台账行、面板行共用。 */
+.pressable {
+  transition: transform var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease);
+}
+.pressable:active { transform: scale(0.98); }
+
+/* 下划线自左向右展开（单行链接：页脚、刊头、导航项）。
+   用 scaleX 而不是 width，避免触发布局。 */
+.link-underline { position: relative; }
+.link-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 1px;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--duration-fast) var(--ease);
+}
+.link-underline:hover::after,
+.link-underline:focus-visible::after { transform: scaleX(1); }
+
+/* 深蓝页脚上下文：下划线生长改白色（indigo 在 #00075f 上对比不足），
+   悬停/聚焦整链转白。 */
+.footer-links .link-underline::after { background: var(--footer-ink); }
+.footer-links .link-underline:hover,
+.footer-links .link-underline:focus-visible { color: var(--footer-ink); }
+.footer-links .chip:hover {
+  border-color: var(--footer-ink);
+  color: var(--footer-ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 指示条：导航激活项、目录激活项、命令面板选中行共用一条滑动语汇。
+   默认收起（scaleY 0），父级命中 hover 或标记为当前项时展开。 */
+.indicator-bar {
+  background: var(--color-primary);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform var(--duration-base) var(--ease);
+}
+.is-active > .indicator-bar,
+[aria-current='page'] > .indicator-bar,
+.pressable:hover > .indicator-bar,
+/* 键盘用户与鼠标用户看到同一套定位语汇 */
+.pressable:focus-visible > .indicator-bar { transform: scaleY(1); }
+
+/* 行首短标：目录激活项与命令面板选中行共用（2px 强调色，竖向居中不靠 translate，
+   避免与 transform 上的 scaleY 争抢同一属性）。 */
+.indicator-bar--lead {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 2px;
+  height: 16px;
+}
+
+/* 下划线式输入（搜索页的「一条线」输入行）：聚焦时线色转强调色，光标同色。
+   只动 color / border-color，200ms（SPEC_LEDGER §1.8.2）。 */
+.field-rule {
+  border-bottom: 2px solid var(--ink);
+  transition: border-color var(--duration-fast) var(--ease);
+}
+.field-rule:focus-within { border-bottom-color: var(--color-primary); }
+.field-rule input { caret-color: var(--color-primary); }
+
+/* 聚焦线（轻量版）：自绘控件（命令面板输入行等）把焦点态画在自己的发丝线上，
+   因为输入框自身的 outline 被清掉了，键盘用户需要别的位置提示。 */
+.focus-line { transition: border-color var(--duration-fast) var(--ease); }
+.focus-line:focus-within { border-color: var(--color-primary); }
+
+/* 封面容器：加载前先铺一层平静的浅底（不用渐变与阴影），图片加载完自然覆盖。
+   img 用 object-fit 撑满，悬停缩放由 .media-zoom 负责。 */
+.media-frame {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.media-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ==============================================
+   9f. Marquee — 单行内容带
+   DESIGN_DNA §11.3 的关键帧清单里有 `marquee`，§11.2 也实测到
+   `.logo_marquee:hover { animation-play-state: paused }`，
+   所以这条语汇是文档内的：只动 transform，悬停与键盘聚焦时暂停。
+   边缘用 mask 做淡出（功能性的遮罩，不是装饰性渐变）。
+   ============================================== */
+.marquee {
+  overflow: hidden;
+  padding-block: var(--space-16);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent);
+}
+.marquee__track {
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  width: max-content;
+  animation: marquee var(--marquee-duration) linear infinite;
+}
+.marquee__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  flex-shrink: 0;
+}
+.marquee:hover .marquee__track,
+.marquee:focus-within .marquee__track { animation-play-state: paused; }
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* 减少动态效果：静止、去掉遮罩、允许换行阅读全量内容 */
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    -webkit-mask-image: none;
+    mask-image: none;
+    overflow: visible;
+  }
+  .marquee__track { animation: none; }
+  .marquee__track,
+  .marquee__group { flex-wrap: wrap; width: auto; }
+  .marquee__group[aria-hidden='true'] { display: none; }
+}
+
+/* 分级入场：索引台账、归档条目、卡片网格。
+   单条 400ms、步进 40ms、最多 12 项（总窗口 440ms，落在 §11.1 的 500ms 档内），只播一次。
+   fill-mode 用 backwards（而不是 both）：只固定起始态，结束后把 transform 交还给
+   元素自身，否则会盖住兄弟规则里的悬停缩放。 */
+.stagger > * { animation: fadeUp var(--duration-slow) var(--ease-out) backwards; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; }
+.stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 200ms; }
+.stagger > *:nth-child(7) { animation-delay: 240ms; }
+.stagger > *:nth-child(8) { animation-delay: 280ms; }
+.stagger > *:nth-child(9) { animation-delay: 320ms; }
+.stagger > *:nth-child(10) { animation-delay: 360ms; }
+.stagger > *:nth-child(11) { animation-delay: 400ms; }
+.stagger > *:nth-child(12) { animation-delay: 440ms; }
+
+/* 封面图与头像：进场淡入 + 悬停缩放。
+   scale(1.05) 是 §8.3 的实测配方（作用在图片上）；淡入属 [文档外] 签名动效，
+   依据见 SPEC_LEDGER §1.8.4（只动 opacity，不触发布局）。 */
+.media-zoom {
+  animation: mediaFade var(--duration-slow) var(--ease-out) both;
+  transition: transform var(--duration-fast) var(--ease);
+}
+a:hover > .media-zoom,
+.group:hover .media-zoom { transform: scale(1.05); }
+
+@keyframes mediaFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 真实 <img> 的加载渐显（头像这类能拿到 load 事件的图）：由 .is-loaded 触发。
+   属 [文档外] 签名动效，依据见 SPEC_LEDGER §1.8.4。 */
+.media-fade {
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+.media-fade.is-loaded { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger > * { animation: none; }
+  .media-zoom { animation: none; }
+}
+
+/* ==============================================
+   10. Pagefind tokens
+   ============================================== */
+:root {
+  --pagefind-ui-primary: var(--accent-text);
+  --pagefind-ui-text: var(--ink);
+  --pagefind-ui-background: var(--surface);
+  --pagefind-ui-border: var(--line);
+  --pagefind-ui-border-width: 1px;
+  --pagefind-ui-border-radius: 0px;
+  --pagefind-ui-font: inherit;
+}
+
+/* ==============================================
+   11. Lesson blocks — /learn/agent
+   Quiz and GotchaTable opt out of the typography
+   plugin, so they carry their own code treatment.
+   ============================================== */
+.learn-block {
+  margin: var(--space-20) 0 var(--space-48);
+}
+.learn-block code {
+  padding: 2px var(--space-8);
+  border-radius: var(--radius-xs);
+  background: var(--surface-3);
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  font-weight: 500;
+  border: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+/* ==============================================
+   11b. Range control — shared slider primitive
+   The native range input ignores the editorial palette
+   entirely, so every slider on the site goes through this.
+   ============================================== */
+/* 3px of invisible padding lifts the pointer target from the 18px groove to
+   WCAG 2.5.8's 24px floor. Content-box keeps the verified track/thumb layout
+   inside the same 18px box — only the hit area grows. */
+.range-control {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: content-box;
+  height: 18px;
+  padding-block: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.range-control::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: var(--radius-xs);
+  background: linear-gradient(
+    to right,
+    var(--color-primary) 0%,
+    var(--color-primary) var(--range-fill, 0%),
+    var(--surface-3) var(--range-fill, 0%),
+    var(--surface-3) 100%
+  );
+}
+
+.range-control::-moz-range-track {
+  height: 3px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-3);
+}
+
+.range-control::-moz-range-progress {
+  height: 3px;
+  border-radius: var(--radius-xs);
+  background: var(--color-primary);
+}
+
+.range-control::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -5px;
+  border-radius: var(--radius-xs);
+  background: var(--ink);
+  border: 1px solid var(--canvas);
+  transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease);
+}
+
+.range-control::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: var(--radius-xs);
+  background: var(--ink);
+  border: 1px solid var(--canvas);
+}
+
+.range-control:hover::-webkit-slider-thumb,
+.range-control:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+  background: var(--color-primary);
+}
+
+.range-control:hover::-moz-range-thumb,
+.range-control:active::-moz-range-thumb {
+  background: var(--color-primary);
+}
+
+.range-control:focus-visible {
+  outline: none;
+}
+
+.range-control:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.range-control:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .range-control::-webkit-slider-thumb { transition: none; }
+}
+
+/* ==============================================
+   11.5 交互增强（第 5 轮追加 · 组件融合自设计，登记 SPEC_LEDGER §11.5）
+   ============================================== */
+
+/* ── 标题逐字符入场（SplitReveal）：字符上移 + 淡入，交错步进。
+    纯 CSS animation，SSR 安全；全局 reduced-motion 守卫自动关闭。 ── */
+.split-reveal { display: inline-flex; flex-wrap: wrap; }
+.sr-char {
+  display: inline-block;
+  animation: charUp var(--duration-slow) var(--ease-out) backwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes charUp {
+  from { opacity: 0; transform: translateY(0.95em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 全局光标光晕（AuraCursor）：极淡 indigo 径向渐变，transform-only。
+    组件侧已按 pointer:fine + reduced-motion 控制启用。 ── */
+.aura-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 520px;
+  height: 520px;
+  border-radius: var(--radius-full);
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 68%);
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease);
+  will-change: transform;
+}
+.aura-cursor.is-on { opacity: 1; }
+
+/* ── 代码块 hover 反馈：灰面边框 → indigo 发丝线；
+    复制成功时 1s 边框闪烁（code-flash 由 code-block-enhancer 触发）。 ── */
+figure[data-rehype-pretty-code-figure] {
+  transition: border-color var(--duration-fast) var(--ease);
+}
+figure[data-rehype-pretty-code-figure]:hover {
+  border-color: var(--accent-line);
+}
+.code-flash { animation: codeFlash 0.8s var(--ease); }
+@keyframes codeFlash {
+  0%, 100% { border-color: var(--demo-line); }
+  30% { border-color: var(--color-primary); }
+}
+
+/* ── 索引行标题微位移（配合 ::before 背景，三联动第三动） ── */
+.row-shift {
+  transition: transform var(--duration-fast) var(--ease);
+}
+.group:hover .row-shift,
+.group:focus-visible .row-shift { transform: translateX(2px); }
+
+/* ==============================================
+   11.6 组件融合交互（第 5 轮追加 · React Bits / Aceternity 形态，自设计登记 §11.6）
+   ============================================== */
+
+/* ── Lenis 平滑滚动基础样式（lenis 官方建议子集） ── */
+html.lenis,
+html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+/* ── 自定义光标（CustomCursor）：indigo 小点 + 缓动圆环，悬停可交互元素时环放大 ── */
+.custom-cursor-dot,
+.custom-cursor-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 120;
+  will-change: transform;
+}
+.custom-cursor-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+.custom-cursor-ring {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-primary);
+  opacity: 0.5;
+  transition: width var(--duration-fast) var(--ease), height var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease);
+}
+.custom-cursor-ring.is-hover {
+  width: 36px;
+  height: 36px;
+  border-color: var(--accent-line);
+  opacity: 0.85;
+}
+
+/* ── 聚光卡片（SpotlightCard）：光标处 indigo 极淡光斑（--mx/--my 驱动） ── */
+.spotlight-card { position: relative; }
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), var(--accent-glow), transparent 72%);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease);
+  pointer-events: none;
+  z-index: 0;
+}
+.spotlight-card:hover::before { opacity: 1; }
+
+/* ── 索引行封面跟手预览（row-cover）：hover 时封面小图沿光标滑出（--mx 驱动） ── */
+.row-cover {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 138px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-pop);
+  opacity: 0;
+  transform: translate(calc(var(--mx, 0px) + 16px), -50%) scale(0.96) rotate(-1.5deg);
+  transition: opacity var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease-out);
+  pointer-events: none;
+  z-index: 2;
+}
+.group:hover .row-cover,
+.group:focus-visible .row-cover {
+  opacity: 1;
+  transform: translate(calc(var(--mx, 0px) + 16px), -50%) scale(1) rotate(-1.5deg);
+}
+
+/* ==============================================
+   11.7 组件融合交互 · 第 3 批（§11.7 自设计登记）
+   ============================================== */
+
+/* ── 统计翻板数字（FlipDigits）：每位从 0 沿数字列滚到目标位（easeOutExpo 1.15s） ── */
+.flip-digits { display: inline-flex; align-items: baseline; }
+.flip-digit {
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.flip-reel {
+  display: block;
+  line-height: 1em;
+  transform: translateY(calc(var(--digit, 0) * -1em));
+  transition: transform 1.15s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+/* ── 封面鼠标视差（media-parallax）：封面随卡片内光标位置微移（--dx/--dy，
+    与聚光 --mx/--my 同源计算；reduced-motion 全局守卫自动停过渡） ── */
+.media-parallax {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0);
+  transition: transform var(--duration-fast) var(--ease-out);
+  will-change: transform;
+}
+
+/* ==============================================
+   12. Reduced motion
+   §11.4 文档未观察到，站点既有全局守卫（跨站加分项）保留。
+   ============================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+}

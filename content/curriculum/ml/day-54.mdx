@@ -1,0 +1,298 @@
+---
+slug: day-54
+kind: day
+day: 54
+week: 10
+weekTitle: 深度学习进阶
+weekBlurb: 过拟合与正则化、批归一化、优化算法与训练曲线诊断。
+title: 梯度问题与训练诊断
+lead: '今日目标：从数学上分析梯度消失与爆炸的成因；掌握梯度裁剪、残差连接两种对策；建立一套"看到 loss 曲线就能定位问题"的诊断流程。'
+sourcePath: Week10_深度学习进阶/Day4_梯度问题与训练诊断.md
+---
+
+> 今日目标：从数学上分析梯度消失与爆炸的成因；掌握梯度裁剪、残差连接两种对策；建立一套"看到 loss 曲线就能定位问题"的诊断流程。
+> 配套案例：`code/day4_diagnostics.py`
+
+---
+
+## 4.1 知识地图
+
+```
+Week07 Day3  反向传播的链式法则     ← 公式来源
+Week10 Day1  正则化                 ← 影响梯度的一种手段
+Week10 Day2  BatchNorm              ← 让梯度尺度稳定
+Week10 Day3  优化器                 ← 决定如何用梯度
+        │
+        ▼
+Week10 Day4（今天）★ 梯度本身出了问题怎么办
+  ├─ 梯度消失 / 爆炸的数学分析
+  ├─ 对策一：更好的激活函数与初始化
+  ├─ 对策二：梯度裁剪
+  ├─ 对策三：残差连接
+  └─ 训练诊断流程（本周的落脚点）
+        │
+        ▼
+Week11 ResNet（残差连接的实战）
+Week13 RNN（梯度裁剪的主战场）
+```
+
+---
+
+## 4.2 梯度消失与爆炸：数学分析
+
+### 4.2.1 从反向传播公式出发
+
+Week07 Day3 你推导过：
+
+$$\boldsymbol{\delta}^{(l)} = \left(\mathbf{W}^{(l+1)\top}\boldsymbol{\delta}^{(l+1)}\right)\odot \sigma'(\boldsymbol{z}^{(l)})$$
+
+展开到第 1 层：
+
+$$\frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(1)}} = \boldsymbol{\delta}^{(L)}\prod_{l=2}^{L}\left(\mathbf{W}^{(l)\top}\text{diag}\left(\sigma'(\mathbf{z}^{(l)})\right)\right)$$
+
+**关键就是这个连乘**。设每个因子的"尺度"约为 $s$，则经过 $L$ 层后梯度尺度约为 $s^L$：
+
+| $s$ 的取值 | $L=10$ 时 | $L=50$ 时 | 现象 |
+| --- | --- | --- | --- |
+| $s = 0.5$ | $10^{-3}$ | $10^{-15}$ | **梯度消失** |
+| $s = 1.0$ | $1$ | $1$ | 正常 |
+| $s = 1.5$ | $58$ | $6\times10^{8}$ | **梯度爆炸** |
+
+### 4.2.2 为什么 Sigmoid 特别容易消失
+
+$$\sigma'(z) = \sigma(z)(1-\sigma(z)) \le 0.25$$
+
+**最大值只有 0.25**！也就是说每个 Sigmoid 层都至少把梯度乘上 0.25：
+
+- 10 层：$0.25^{10} \approx 10^{-6}$
+- 20 层：$0.25^{20} \approx 10^{-12}$（在 float32 里已经是 0）
+
+**这就是为什么深网络不能用 Sigmoid。** ReLU 的导数在正半轴恒为 1，避免了这个问题（代价是负半轴恒为 0，带来"死神经元"）。
+
+### 4.2.3 三者叠加
+
+实际训练中，梯度尺度由三个因素共同决定：
+
+$$\text{梯度尺度} \approx \underbrace{\lVert\mathbf{W}\rVert^L}_{\text{权重尺度}}\cdot\underbrace{\prod\sigma'}_{\text{激活导数}}\cdot\underbrace{\text{数据尺度}}_{\text{输入/输出层}}$$
+
+**任何一环出问题都会导致梯度病态**。
+
+---
+
+## 4.3 对策一：激活函数与初始化
+
+### 4.3.1 激活函数的选择
+
+| 激活 | 导数最大值 | 深网络表现 | 备注 |
+| --- | --- | --- | --- |
+| Sigmoid | 0.25 | **差** | 只有输出层二分类用 |
+| Tanh | 1.0 | 一般 | 零中心，优于 Sigmoid |
+| **ReLU** | **1.0（正半轴）** | **好** | 默认选择 |
+| LeakyReLU | 1.0 / 0.01 | 好 | 缓解死神经元 |
+| GELU / SiLU | ≈1.1 | 好 | Transformer 常用 |
+
+### 4.3.2 初始化的配套
+
+Week07 Day5 与 Week09 Day2 讲过：
+
+| 初始化 | 方差 | 搭配激活 |
+| --- | --- | --- |
+| Xavier | $\frac{2}{n_{in}+n_{out}}$ | Tanh / Sigmoid |
+| **He** | $\frac{2}{n_{in}}$ | **ReLU 系** |
+
+**核心思想**：让每一层的输出方差 ≈ 输入方差（前向），同时让每层的梯度方差 ≈ 上层梯度方差（反向）。He 初始化的 $\sqrt{2}$ 因子正是补偿 ReLU 把一半输入置零造成的方差减半。
+
+### 4.3.3 那 BN 呢
+
+BN 相当于**在每一层动态地做初始化**：不管上一层的输出尺度是什么，都被标准化到均值 0、方差 1。这是它比"静态初始化"更强的地方（Day2 已讲）。
+
+---
+
+## 4.4 对策二：梯度裁剪
+
+**专门对付梯度爆炸**，写法极其简单：
+
+```python
+loss.backward()
+torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)   # 按范数裁剪
+optimizer.step()
+```
+
+两种裁剪方式：
+
+| 方式 | 做法 | 特点 |
+| --- | --- | --- |
+| **按范数裁剪** | 若总范数 > `max_norm`，按比例缩小所有梯度 | **保持梯度方向不变**，推荐 |
+| 按值裁剪 | 逐元素限制到 $[-c, c]$ | 会改变方向，少用 |
+
+**按范数裁剪的实现**：
+
+$$g \leftarrow g \cdot \min\left(1, \frac{\text{max\_norm}}{\lVert g\rVert + \epsilon}\right)$$
+
+**关键性质**：只等比缩放，不改变方向。所以当梯度正常时（范数小于阈值），裁剪完全不生效 —— 它只在异常步起作用。
+
+**什么时候必须用**：
+
+- **RNN / LSTM**：长序列连乘最容易爆炸（Week13 会用到）
+- **Transformer 训练初期**：warmup 前梯度很大
+- **强化学习**：奖励尺度不稳
+- **混合精度训练**：fp16 的上限只有 65504，不裁剪极易溢出
+
+**`max_norm` 怎么选**：常用 1.0、5.0。建议先打印未裁剪时的梯度范数分布，取其 95 分位数略大的值。
+
+```python
+total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=float("inf"))
+print(f"未裁剪的梯度范数 = {total_norm:.4f}")
+```
+
+**注意 `clip_grad_norm_` 的返回值**：它返回**裁剪前**的总范数，可以用它来监控。
+
+---
+
+## 4.5 对策三：残差连接
+
+### 4.5.1 结构
+
+$$\boldsymbol{y} = \mathcal{F}(\boldsymbol{x}) + \boldsymbol{x}$$
+
+反向传播时：
+
+$$\frac{\partial \boldsymbol{y}}{\partial \boldsymbol{x}} = \frac{\partial \mathcal{F}}{\partial \boldsymbol{x}} + \mathbf{I}$$
+
+**那个 $+\mathbf{I}$ 就是关键**。即使 $\frac{\partial \mathcal{F}}{\partial \boldsymbol{x}}$ 趋近于 0，梯度仍然能通过恒等路径原样传回去 —— 梯度不会消失。
+
+### 4.5.2 为什么它能训练 1000 层
+
+从第 1 层到第 $L$ 层的梯度路径数是**指数级**的（每一步都可以选择走"恒等捷径"还是走"变换路径"），而其中至少有**一条纯恒等的路径**梯度为 1。这保证了梯度总能传递到浅层。
+
+### 4.5.3 实践要点
+
+```python
+class ResidualBlock(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.fc1 = nn.Linear(dim, dim)
+        self.bn1 = nn.BatchNorm1d(dim)
+        self.fc2 = nn.Linear(dim, dim)
+        self.bn2 = nn.BatchNorm1d(dim)
+
+    def forward(self, x):
+        h = torch.relu(self.bn1(self.fc1(x)))
+        h = self.bn2(self.fc2(h))
+        return torch.relu(x + h)          # ★ 相加后再激活
+```
+
+**三个细节**：
+
+1. BatchNorm 放在**相加之前**（否则会破坏恒等路径）；
+2. 激活放在**相加之后**；
+3. `x` 与 `h` 的形状必须一致（不一致时用 $1\times1$ 卷积或线性层投影）。
+
+Week11 的 ResNet 就是把这个思想用到极致。
+
+---
+
+## 4.6 训练诊断流程
+
+**这是本周的落脚点**：把前面所有知识变成一套可执行的排查流程。
+
+### 4.6.1 第一步：看 loss 曲线的形状
+
+| 形状 | 诊断 | 处方 |
+| --- | --- | --- |
+| loss 几乎不下降，且很高 | 欠拟合 / 学习率过小 / 数据有问题 | 加大模型、提高 lr、检查数据 |
+| loss 下降后变成平的 | 学习率过大或过小 | 打印 lr，看调度器 |
+| loss 剧烈震荡 | 学习率过大 / batch 太小 | 降 lr、加 momentum、加大 batch |
+| loss 突然变成 nan | 梯度爆炸 / lr 过大 | 降 lr、加梯度裁剪、检查除零 |
+| train 降 val 升 | 过拟合 | 加正则 / 加数据（Day1） |
+| train 和 val 都降但都很慢 | 优化不足 | 换 AdamW、加 BN、检查初始化 |
+
+### 4.6.2 第二步：检查梯度
+
+```python
+def check_gradients(model):
+    stats = []
+    for name, p in model.named_parameters():
+        if p.grad is not None:
+            stats.append((name, p.grad.norm().item(), p.grad.abs().max().item()))
+    for name, norm, mx in stats:
+        flag = ""
+        if norm < 1e-6:
+            flag = "  <- 可能梯度消失"
+        elif norm > 1e3:
+            flag = "  <- 可能梯度爆炸"
+        print(f"{name:<28} norm={norm:.3e}  max={mx:.3e}{flag}")
+```
+
+**判读标准**：
+
+| 现象 | 含义 |
+| --- | --- |
+| 前几层 grad norm 远小于后几层（差 2 个数量级以上） | 梯度消失 |
+| 任意层 grad norm > 100 | 梯度爆炸风险 |
+| 某层 grad 恒为 0 | 死神经元（ReLU）或参数未参与计算 |
+| 所有层 grad norm 完全一致 | 不太可能，可能算错了 |
+
+### 4.6.3 第三步：过拟合单个 batch
+
+**万能的第一步调试手段**：
+
+```python
+# 取一个 batch，训练 100 步，看能否把 loss 降到接近 0
+xb, yb = next(iter(train_loader))
+for i in range(100):
+    optimizer.zero_grad()
+    loss = criterion(model(xb), yb)
+    loss.backward()
+    optimizer.step()
+    if i % 20 == 0:
+        print(f"step {i}: loss = {loss.item():.6f}")
+```
+
+**如果连一个 batch 都过拟合不了，说明是模型或代码有 bug**，不是超参数问题。这是一个极强的分诊手段。
+
+### 4.6.4 第四步：检查数据
+
+```python
+# 1. 标签是否对得上？抽几张图人眼看
+# 2. 数据范围是否合理？
+print(X.min(), X.max(), X.mean(), X.std())
+# 3. 类别分布是否均衡？
+print(torch.bincount(y))
+# 4. 预处理是否用了正确的统计量？
+# 5. 训练集与验证集是否泄漏？
+```
+
+---
+
+## 4.7 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| loss 一直是 nan | lr 过大 / 除零 / log(0) | 降 lr、加 eps、用 log_softmax |
+| 前几层梯度为 0 | Sigmoid 堆叠 / 初始化过小 | 换 ReLU + He / 加 BN |
+| RNN 训练爆炸 | 长序列连乘 | `clip_grad_norm_(max_norm=1.0)` |
+| 加了裁剪后收敛变慢 | max_norm 设得太小，正常梯度也被裁 | 打印范数分布再定阈值 |
+| 残差块训练效果反而差 | BN 放在了相加之后 | BN 放在相加前 |
+| 混合精度下 loss=inf | fp16 上限 65504 | 加梯度裁剪 + loss scaling |
+| 换 GPU 后结果差异大 | 非确定性算子 | 固定种子 + cudnn.deterministic |
+| 单个 batch 都过拟合不了 | 代码 bug（形状、损失、标签） | 用 4.6.3 分诊 |
+
+---
+
+## 4.8 今日自测
+
+1. 计算 Sigmoid 堆叠 10 层后梯度的理论衰减倍数。
+2. 构造一个 10 层 Sigmoid 网络和一个 10 层 ReLU 网络，打印各层梯度范数，对比差异。
+3. 人为把 lr 调到 100，观察梯度范数与 loss 的变化，然后加梯度裁剪看能否挽救。
+4. 实现一个 `check_gradients()` 并接入 Day5 的训练流程。
+5. 用一个 20 层的网络做"过拟合单个 batch"测试，验证它能否把 loss 降到 1e-4 以下。
+
+---
+
+## 4.9 一句话总结
+
+**梯度问题的根源是连乘：因子小于 1 就消失、大于 1 就爆炸。对策分别对应三个位置 —— 换激活/初始化（控制因子）、梯度裁剪（事后补救）、残差连接（提供一条梯度为 1 的捷径）。**
+
+**明日预告**：Day5 综合实战 —— 把 Day1–Day4 的所有手段做成一个可复现的消融实验，量化每个组件的贡献。
+

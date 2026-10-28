@@ -1,0 +1,185 @@
+---
+slug: day-35
+day: 35
+week: 7
+weekTitle: MCP 与多智能体
+weekBlurb: MCP 协议与适配器、Supervisor 主管路由、Swarm 交接模式。
+title: 项目日 —— 多智能体研究助理（MCP + Multi-agent 组合，第 7 周毕业作品）
+lead: '**从空白文件开始**，把 Day 32 的 MCP 和 Day 33 的 Supervisor 组合起来：研究员 Agent 通过 MCP 协议用外部工具，主管调度"研究→写作"流水线。'
+sourcePath: week-07-mcp-multiagent/day-35.md
+---
+
+> 参考实现：`examples/day35_research_team.py` + `examples/mcp_math_server.py`（复用）
+
+---
+
+## 35.1 项目需求
+
+做一个**研究助理团队**：
+
+```
+任务："写一篇关于杭州的小短文，文中要有 123×45 的计算结果"
+
+Supervisor（主管）
+   ├─▶ Researcher（研究员）：web_search 查资料 + 【MCP 协议】调 math server 算数
+   └─▶ Writer（写手）：整合事实成文
+```
+
+**验收标准**：
+
+1. 研究员通过 **MCP 协议**（不是直接 @tool）调用计算工具，算出 123×45=5535；
+2. 研究员通过本地工具查资料；
+3. 主管调度 researcher → writer，写手产出含计算结果的文章；
+4. 全程流程清晰可观测（打印每个节点的动作）。
+
+## 35.2 设计要点（动手前必读）
+
+### ① MCP 接入复用 Day 32 的模式
+
+```python
+client = MultiServerMCPClient({"math": {...stdio 配置...}})
+async with client.session("math") as session:
+    mcp_tools = await load_mcp_tools(session)
+```
+
+MCP 工具是异步的 → 整个团队要用 `ainvoke`，主管/研究员/写手全部异步化。
+
+### ② 混合工具清单：研究员 = 本地工具 + MCP 工具
+
+```python
+researcher = create_agent(
+    model=model,
+    tools=[web_search] + mcp_tools,     # ★ 本地 @tool 和 MCP 工具无缝混用！
+    system_prompt="你是研究员。查资料用 web_search，算术必须用 multiply/add 工具。",
+)
+```
+
+**这是 MCP 的杀手锏场景**：你的团队代码不用改，新增能力 = 新增一个 MCP Server 配置。
+
+### ③ Supervisor 复用 Day 33 的双规则兜底
+
+第一轮强制 researcher；writer 已产出就 FINISH。弱模型下这是收敛的保证。
+
+## 35.3 动手：项目验收流程
+
+1. **先自己写**（60~90 分钟），复用 Day 32 的 MCP 连接代码 + Day 33 的 Supervisor 结构；
+2. **测试**：
+   - 任务输入后，观察：主管 → researcher（查资料 + MCP 算数）→ writer（成文）→ FINISH；
+   - 验证文中出现 5535（MCP 计算的结果）；
+3. **加分**：给 writer 也配一个 MCP 工具（如字数统计 server）；
+4. **自查**：MCP 连接正常（server 日志出现 CallToolRequest）；异步调用无遗漏。
+
+## 35.4 参考实现骨架：`day35_research_team.py`
+
+```python
+"""Day 35 项目：多智能体研究助理 —— Supervisor + MCP（第 7 周毕业作品）"""
+import asyncio
+import os
+from pathlib import Path
+from typing import Annotated, Literal, TypedDict
+from operator import add
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from pydantic import BaseModel, Field
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import Command
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.tools import load_mcp_tools
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+# ── ① 本地工具：查资料 ──────────────────────────
+@tool
+def web_search(query: str) -> str:
+    """搜索互联网资料。研究事实性问题时使用。"""
+    data = {"杭州": "杭州是浙江省会，数字经济发达，有阿里巴巴等企业，西湖闻名天下。"}
+    return data.get(query, f"关于'{query}'：经济活跃、文化深厚。")
+
+# ── ② 主管决策结构 ─────────────────────────────
+class Decision(BaseModel):
+    next: Literal["researcher", "writer", "FINISH"]
+
+def supervisor(state) -> Command:
+    if state.get("next", "") == "" and not any(getattr(m, "type", "") == "tool" for m in state["messages"]):
+        return Command(goto="researcher", update={"next": "researcher"})
+    if state.get("next", "") == "writer":
+        return Command(goto=END, update={"next": "FINISH"})
+    decision = model.with_structured_output(Decision).invoke(
+        state["messages"] + [{"role": "system", "content": "资料不足→researcher；可以写作→writer；完成→FINISH。"}])
+    goto = END if decision.next == "FINISH" else decision.next
+    return Command(goto=goto, update={"next": decision.next})
+
+class State(TypedDict):
+    messages: Annotated[list, add]
+    next: str
+
+async def main():
+    # ── ③ 连接 MCP Server（数学工具走协议）───────
+    client = MultiServerMCPClient({
+        "math": {"command": "python",
+                 "args": [str(Path(__file__).parent / "mcp_math_server.py")],
+                 "transport": "stdio"},
+    })
+    async with client.session("math") as session:
+        mcp_tools = await load_mcp_tools(session)
+        print("MCP 工具就绪：", [t.name for t in mcp_tools])
+
+        # ── ④ 研究员（本地工具 + MCP 工具混合）───
+        researcher = create_agent(
+            model=model, tools=[web_search] + mcp_tools,
+            system_prompt="你是研究员。查资料用 web_search；算术必须用 multiply/add 工具，不要心算。")
+        writer = create_agent(
+            model=model, tools=[],
+            system_prompt="你是写手。根据资料写一篇短文，保留其中的数据。")
+
+        # ── ⑤ 组装 Supervisor 图（同 Day 33）────
+        graph = StateGraph(State)
+        graph.add_node("supervisor", supervisor)
+        graph.add_node("researcher", researcher)
+        graph.add_node("writer", writer)
+        graph.add_edge(START, "supervisor")
+        graph.add_edge("researcher", "supervisor")
+        graph.add_edge("writer", "supervisor")
+        app = graph.compile()
+
+        # ── ⑥ 运行（注意 MCP 工具是异步的 → ainvoke）──
+        result = await app.ainvoke(
+            {"messages": [{"role": "user", "content":
+                "写一篇关于杭州的短文，文中要包含 123 乘以 45 的结果。"}], "next": ""})
+        print("\n📄 最终文章：\n", result["messages"][-1].content)
+
+asyncio.run(main())
+```
+
+**骨架要点**：
+
+- **① vs ③ 的对比是本项目精髓**：`web_search` 是本地 `@tool`，`multiply/add` 是 MCP 协议工具——在 `tools=[web_search] + mcp_tools` 里**无缝混用**，Agent 感知不到区别；
+- **⑥ 必须 `ainvoke`**：MCP 工具异步（Day 32 的坑）；
+- 主管逻辑照搬 Day 33（含两条规则兜底）。
+
+## 35.5 加餐挑战
+
+1. 给团队加第三个专家 `fact_checker`（事实核查员），主管 Decision 枚举加一项。
+2. 把 MCP math server 换成官方 GitHub Server，让研究员能查开源项目资料。
+3. 在 LangSmith 里观察：MCP 工具调用在 trace 里如何呈现。
+4. 给团队接 SummarizationMiddleware（Day 23），防止长任务上下文爆炸。
+
+## 35.6 今日自测
+
+<Quiz items={["最终文章里出现了 5535 吗？（MCP 计算结果进入成文，说明全链路贯通）","控制台里看到 MCP server 的 CallToolRequest 日志了吗？（协议真实工作）","主管的调度序列是 researcher → writer → FINISH 吗？","`notes/day35.md`：本周复盘——MCP 和 Multi-agent 各自解决了什么？组合后 1+1>2 在哪？"]} />
+
+## 第 7 周完成！复盘
+
+```
+Day 31-32：MCP —— Agent 接入世界的标准接口（USB-C）
+Day 33-34：Multi-agent —— Supervisor 集中调度 + Swarm 自主转接
+Day 35：组合拳 —— MCP 工具 + 多智能体团队
+```
+
+**你已经站在 Agent 工程的最前沿。** 最后一周：给 Agent 装上前端界面（Agent Chat UI），完成毕业项目，走向生产。
+

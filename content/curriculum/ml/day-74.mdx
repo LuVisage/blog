@@ -1,0 +1,177 @@
+---
+slug: day-74
+kind: day
+day: 74
+week: 14
+weekTitle: Transformer 与 ViT
+weekBlurb: 自注意力、多头注意力与位置编码，亲手实现 Transformer 并走向 ViT。
+title: 从零训练一个 Transformer
+lead: 今日目标：把 Day1–Day3 的组件组装成可训练的模型，在 MNIST 上跑通；与 Week11 的 CNN、Week13 的 RNN 做横向对比；观察 Transformer 在小数据上的表现特点。
+sourcePath: Week14_Transformer与ViT/Day4_实战实现Transformer.md
+---
+
+> 今日目标：把 Day1–Day3 的组件组装成可训练的模型，在 MNIST 上跑通；与 Week11 的 CNN、Week13 的 RNN 做横向对比；观察 Transformer 在小数据上的表现特点。
+> 配套案例：`code/day4_train_transformer.py`
+
+---
+
+## 4.1 知识地图
+
+```
+Day1-3  自注意力 / 多头 / 位置编码 / 完整架构
+        │
+        ▼
+Day4（今天）★ 第一次完整训练
+  ├─ 把图像变成 token 序列
+  ├─ 组装可训练的 Transformer
+  ├─ 与 CNN / RNN 的横向对比
+  └─ 观察小数据上的表现
+        │
+        ▼
+Day5  ViT：把这个思路用到真正的图像任务
+```
+
+---
+
+## 4.2 任务设计：图像 → token 序列
+
+**Transformer 需要 token 序列**，所以要把 $28\times28$ 的 MNIST 图像转成序列。
+
+**方案：把每一行当作一个 token。**
+
+```
+28x28 图像
+┌──────────┐
+│ 行 0     │  ->  token 0: 28 维向量
+│ 行 1     │  ->  token 1
+│  ...     │
+│ 行 27    │  ->  token 27
+└──────────┘
+序列长度 T = 28，每个 token 的维度 d = 28
+```
+
+**这与 Day5 的 ViT 思路不同**（ViT 用 patch），但更容易实现，也便于与 Week13 的 RNN 结果直接对比（**同样的输入形式**）。
+
+**关键**：因为自注意力是置换等变的（Day1），所以**必须加位置编码** —— 这里用可学习的位置嵌入。
+
+---
+
+## 4.3 模型结构
+
+```python
+class TransformerClassifier(nn.Module):
+    def __init__(self, d_model=64, num_heads=4, num_layers=2,
+                 d_ff=256, max_len=28, num_classes=10):
+        super().__init__()
+        self.token_proj = nn.Linear(28, d_model)        # 28维行向量 -> d_model
+        self.pos_emb = nn.Parameter(torch.zeros(max_len, d_model))
+        self.blocks = nn.ModuleList([
+            EncoderBlock(d_model, num_heads, d_ff) for _ in range(num_layers)])
+        self.ln_f = nn.LayerNorm(d_model)
+        self.head = nn.Linear(d_model, num_classes)
+
+    def forward(self, x):                     # x: (B, 28, 28)
+        x = self.token_proj(x)                # (B, 28, d_model)
+        x = x + self.pos_emb.unsqueeze(0)     # 加位置编码
+        for blk in self.blocks:
+            x = blk(x)
+        x = self.ln_f(x)
+        return self.head(x.mean(dim=1))       # 平均池化 -> 分类
+```
+
+**三个设计选择**：
+
+| 选择 | 理由 |
+| --- | --- |
+| **平均池化**取序列特征 | 分类任务，不需要保留序列结构；比取最后位置更稳定 |
+| **可学习位置编码** | 序列长度固定（28），简单有效 |
+| **2 层、d_model=64** | 小数据，避免过拟合 |
+
+---
+
+## 4.4 与前两周的对比框架
+
+| 模型 | 输入形式 | 参数量 | 测试精度（Week11/13 实测） |
+| --- | --- | --- | --- |
+| MLP（Week09） | 展平 784 维 | 235K | 97.65% |
+| CNN（Week11） | (1,28,28) 二维 | 66K | **99.17%** |
+| RNN/LSTM（Week13） | (28, 28) 序列 | 25K | 87.20% |
+| **Transformer（今天）** | (28, 28) 序列 | ? | ? |
+
+**预期结果**：
+
+Transformer 应该**优于 RNN**（因为没有长程依赖问题），但**可能不如 CNN**（因为：
+1. 数据量小（Transformer 需要更多数据，Day5 会详述）；
+2. 缺少卷积的局部性先验；
+3. 用"行"作为 token 丢失了行内的局部结构）。
+
+> **这个对比最重要的一点是**：**同一份数据，不同结构先验的适配程度决定了上限**。这是贯穿 Week11–14 的主线。
+
+---
+
+## 4.5 训练配置
+
+```python
+CONFIG = {
+    "d_model": 64, "num_heads": 4, "num_layers": 2, "d_ff": 256,
+    "n_train": 10000, "epochs": 6, "batch": 128,
+    "lr": 3e-3, "weight_decay": 1e-4,
+}
+optimizer = torch.optim.AdamW(model.parameters(), lr=3e-3, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+```
+
+**为什么用 AdamW + 余弦调度**：Week10 Day3 讲过，这是 Transformer 的标准配置。
+
+**是否需要 warmup**：Pre-LN 结构下通常不需要；但如果用 Post-LN 就必须加。
+
+---
+
+## 4.6 一个关键观察：注意力学到了什么
+
+训练后，可以可视化第一层注意力的模式：
+
+| 可能的模式 | 含义 |
+| --- | --- |
+| 关注**相邻行** | 学到"局部笔画连续性" |
+| 关注**特定行范围** | 学到"数字的关键部位"（如 8 的中间） |
+| 关注**相同位置的所有行** | 学到"垂直方向的信息" |
+| 近乎均匀 | 这一层没学到东西 |
+
+**对比 CNN 的第一层卷积核**（Week11 Day4 可看出边缘检测器）：
+
+- **CNN 的先验是"局部"** → 第一层学边缘；
+- **Transformer 没有空间先验** → 第一层学到的模式更加"全局、多样、难解释"。
+
+**这正是 ViT 需要大规模预训练的原因**（Day5 详述）：**没有先验，就得靠数据补。**
+
+---
+
+## 4.7 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 精度很低（接近随机） | 忘加位置编码 | 加上位置嵌入 |
+| 训练极慢 | Transformer 在小序列上不划算 | 用更大的 batch |
+| 过拟合严重 | 参数量相对数据过多 | 加 dropout / 减层数 |
+| loss 震荡 | 学习率太大 | 降 lr 或加 warmup |
+| 结果比 RNN 差 | 数据量不足（缺先验） | 这本身是可报告的结论 |
+
+---
+
+## 4.8 今日自测
+
+1. 去掉位置编码，观察精度掉多少，解释原因。
+2. 把位置编码从"可学习"换成"正弦编码"，比较差异。
+3. 把序列从"按行"改成"按列"，看精度是否变化。
+4. 可视化第一层的注意力矩阵，尝试解释它学到了什么。
+5. 把层数从 2 增加到 6，观察精度与训练时间的变化。
+
+---
+
+## 4.9 一句话总结
+
+**Transformer 在同样的序列输入上能超过 RNN，但仍可能不如 CNN —— 因为"没有先验"意味着它需要更多数据来自己学出先验，这正是 ViT 必须大规模预训练的根本原因。**
+
+**明日预告**：Day5 讲 ViT —— 把图像切成 patch 当 token，用纯 Transformer 做视觉，以及它为什么必须靠大规模预训练。
+

@@ -1,0 +1,359 @@
+---
+slug: day-42
+kind: day
+day: 42
+week: 8
+weekTitle: 工具链与数据预处理
+weekBlurb: Pandas / Matplotlib、七种预处理方法、jieba / NLTK 文本处理与特征工程 Pipeline。
+title: Matplotlib 可视化
+lead: '"画图"不是装饰，而是**调试工具**：损失曲线告诉你模型有没有训好，散点图告诉你数据能不能被分开，直方图告诉你分布是否偏斜。今天把 Matplotlib 的结构与常用图型一次讲清。'
+sourcePath: Week08_工具链与数据预处理/Day2_Matplotlib可视化.md
+---
+
+> CYC 工具课件 05Matplotlib.pdf（25 页）
+
+"画图"不是装饰，而是**调试工具**：损失曲线告诉你模型有没有训好，散点图告诉你数据能不能被分开，直方图告诉你分布是否偏斜。今天把 Matplotlib 的结构与常用图型一次讲清。
+
+---
+
+## 今日目标
+
+1. 掌握 Matplotlib 的**四层结构**：Canvas / Figure / Axes / Artist；
+2. 掌握两种画图范式：`pyplot` 快速画法 与 **面向对象（OO）** 画法；
+3. 会画 6 种常用图：折线、散点、柱状、直方、箱线、热力图；
+4. 掌握标题、轴标签、图例、网格、坐标轴范围、注释；
+5. 解决中文字体显示问题；
+6. 会用 `subplots` 做多子图布局，并保存成图片。
+
+---
+
+## 知识地图
+
+```
+Week08
+├── Day1 Pandas ✅
+├── Day2 Matplotlib 可视化  ← 你在这里
+├── Day3 数据预处理
+├── Day4 文本预处理
+└── Day5 特征工程 Pipeline
+```
+
+---
+
+## 一、四层结构（最重要的概念）
+
+```
+┌─────────────────────────────────────┐
+│  Figure（画布）                      │  ← 整个图像，可含多个 Axes
+│  ┌───────────────┐ ┌─────────────┐  │
+│  │ Axes（坐标系） │ │ Axes        │  │  ← 真正画图的地方
+│  │  ┌─────────┐  │ │             │  │
+│  │  │ Artist  │  │ │             │  │  ← 线、点、文字、网格…
+│  │  └─────────┘  │ │             │  │
+│  └───────────────┘ └─────────────┘  │
+└─────────────────────────────────────┘
+```
+
+| 层 | 中文名 | 说明 |
+| --- | --- | --- |
+| Canvas | 画板 | 底层渲染对象，用户一般不接触 |
+| **Figure** | 画布 | 整张图（可以理解成"一张纸"） |
+| **Axes** | 坐标系 / 绘图区 | 真正画线的地方（一张纸可以贴多个） |
+| Artist | 图像层 | 具体的线、点、文字、图例等 |
+
+**关键结论**：
+
+- `plt.plot()` 其实是在"**当前 Axes**"上画；
+- **`Axes` 才是绘图区**，`Axis` 是"坐标轴"（x 轴 / y 轴），两个名字很容易混。
+
+---
+
+## 二、两种画图范式
+
+### 2.1 pyplot 快速画法（脚本、探索时用）
+
+```python
+import matplotlib.pyplot as plt
+
+x = [1, 2, 3]
+y = [4, 5, 6]
+
+plt.figure(figsize=(6, 4))
+plt.plot(x, y, marker="o", label="曲线 A")
+plt.title("示例")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
+```
+
+### 2.2 面向对象（OO）画法（**生产环境推荐**）
+
+```python
+fig, ax = plt.subplots(figsize=(6, 4), dpi=120)
+ax.plot(x, y, marker="o", label="曲线 A")
+ax.set_title("示例")
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.legend()
+ax.grid(True, alpha=0.3)
+fig.tight_layout()
+fig.savefig("fig.png")           # 保存
+```
+
+**为什么推荐 OO 画法**：
+
+| 维度 | pyplot | OO |
+| --- | --- | --- |
+| 多子图 | 需要 `plt.subplot` 切来切去 | 直接用 `axs[i]` |
+| 可读性 | 状态式，易混乱 | 明确指定对象 |
+| 复用 | 难封装成函数 | 容易传 `ax` 参数 |
+| 保存 | 容易漏掉 | `fig.savefig` |
+
+---
+
+## 三、常用图型
+
+| 图型 | API | 用途 |
+| --- | --- | --- |
+| 折线图 | `ax.plot(x, y)` | 趋势（损失曲线、时间序列） |
+| 散点图 | `ax.scatter(x, y, c=, s=)` | 两个变量的关系、聚类可视化 |
+| 柱状图 | `ax.bar(x, h)` / `ax.barh` | 类别对比 |
+| 直方图 | `ax.hist(data, bins=30)` | 单变量分布 |
+| 箱线图 | `ax.boxplot(data)` | 分布 + 离群点 |
+| 热力图 | `ax.imshow(M)` | 相关性矩阵、混淆矩阵、图像 |
+| 饼图 | `ax.pie(x)` | 占比（谨慎使用） |
+
+### 3.1 折线图：损失曲线
+
+```python
+fig, ax = plt.subplots()
+ax.plot(train_loss, label="train")
+ax.plot(val_loss, label="val")
+ax.set_xlabel("epoch"); ax.set_ylabel("loss")
+ax.set_yscale("log")             # 损失跨数量级时用对数轴
+ax.legend()
+```
+
+**判断标准**：两条线都降且靠得近 = 好；train 降 val 升 = 过拟合；两条都高 = 欠拟合。
+
+### 3.2 散点图：数据可分性
+
+```python
+for label, color in [(0, "tab:blue"), (1, "tab:red")]:
+    m = (y == label)
+    ax.scatter(X[m, 0], X[m, 1], s=12, alpha=0.7, c=color, label=f"class {label}")
+ax.legend()
+```
+
+**经验**：`alpha=0.5~0.7` + `s=10~20`，点重叠时才能看出密度。
+
+### 3.3 直方图：分布与偏斜
+
+```python
+ax.hist(df["age"].dropna(), bins=30, edgecolor="white")
+ax.axvline(df["age"].mean(), color="r", ls="--", label="mean")
+ax.axvline(df["age"].median(), color="g", ls="--", label="median")
+```
+
+**用途**：均值与中位数差很远 ⇒ 分布偏斜 ⇒ 该用中位数填充缺失。
+
+### 3.4 箱线图：一眼看出离群点
+
+```python
+ax.boxplot([group0, group1], labels=["A", "B"])
+```
+
+**读法**：箱子是 IQR（25%~75% 分位），中位数在箱内，须是 1.5 倍 IQR 内最远点，之外是离群点。
+
+### 3.5 热力图：相关性矩阵
+
+```python
+corr = df.corr(numeric_only=True)
+im = ax.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+fig.colorbar(im, ax=ax)
+ax.set_xticks(range(len(corr))); ax.set_xticklabels(corr.columns, rotation=90)
+ax.set_yticks(range(len(corr))); ax.set_yticklabels(corr.columns)
+```
+
+---
+
+## 四、多子图布局
+
+```python
+fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+axs[0, 0].plot(...);  axs[0, 0].set_title("折线")
+axs[0, 1].scatter(...); axs[0, 1].set_title("散点")
+axs[1, 0].hist(...);  axs[1, 0].set_title("直方")
+axs[1, 1].bar(...);   axs[1, 1].set_title("柱状")
+fig.suptitle("四联图")
+fig.tight_layout()
+```
+
+**不规则布局**：`GridSpec` 或 `subplot_mosaic`。
+
+```python
+fig, axd = plt.subplot_mosaic([["big", "right"], ["big", "right2"]])
+axd["big"].plot(...)
+```
+
+---
+
+## 五、中文字体问题
+
+**现象**：中文显示成方框 `□□□`，或提示 `Glyph xxx missing from font`。
+
+**解决**（三选一）：
+
+```python
+# 方案一：全局设置（推荐，Windows 下有 SimHei）
+import matplotlib
+matplotlib.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "DejaVu Sans"]
+matplotlib.rcParams["axes.unicode_minus"] = False   # 负号正常显示
+
+# 方案二：局部指定
+ax.set_title("损失曲线", fontproperties="SimHei")
+
+# 方案三：干脆用英文（最省事，也是论文的常见做法）
+ax.set_title("Training Loss")
+```
+
+> `axes.unicode_minus = False` 是与中文字体搭配的**必备一行**，否则负号会变成方块。
+
+**查看可用字体**：
+
+```python
+from matplotlib.font_manager import FontManager
+print([f.name for f in FontManager().ttflist][:20])
+```
+
+---
+
+## 六、保存图片
+
+```python
+fig.savefig("fig.png", dpi=150, bbox_inches="tight")
+fig.savefig("fig.pdf")            # 论文投稿常用矢量格式
+```
+
+| 参数 | 说明 |
+| --- | --- |
+| `dpi` | 150 屏幕 / 300 打印 / 600 印刷 |
+| `bbox_inches="tight"` | 裁掉多余白边（否则标签常被切） |
+| 格式 | `.png` 位图；`.pdf` / `.svg` 矢量（缩放不失真） |
+
+> **顺序**：先 `savefig` 再 `show`。某些后端 `show` 之后 figure 会被清空。
+
+---
+
+## 七、代码实践
+
+```python
+import matplotlib
+matplotlib.use("Agg")                  # 无界面环境（服务器/CI）必须设置
+import matplotlib.pyplot as plt
+
+matplotlib.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]
+matplotlib.rcParams["axes.unicode_minus"] = False
+
+def plot_training_curve(train, val, ax=None, title="训练曲线"):
+    """可复用的小函数：接收 ax，方便嵌入子图"""
+    if ax is None:
+        _, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(train, label="train")
+    ax.plot(val, label="val")
+    ax.set_xlabel("epoch"); ax.set_ylabel("loss")
+    ax.set_title(title); ax.legend(); ax.grid(alpha=0.3)
+    return ax
+```
+
+完整版本见 `code/day2_matplotlib.py`，包含：
+
+1. 两种画图范式的对照（pyplot vs OO）；
+2. 六种图型的完整示例（含标题、图例、网格、注释）；
+3. **多子图布局**与 `subplot_mosaic`；
+4. 中文字体设置与"负号方块"的修复验证；
+5. **训练曲线诊断模板**：三种典型故障（欠拟合 / 过拟合 / 发散）的曲线长什么样；
+6. 相关性热力图与混淆矩阵热力图；
+7. 图片保存（PNG / PDF / SVG）与 `dpi` 对比；
+8. 全部图保存到 `code/figures/` 目录（无界面环境下也能跑）。
+
+---
+
+## 八、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 中文显示成方块 | 设置 `font.sans-serif` + `axes.unicode_minus=False` |
+| `plt.show()` 之后图片变空白 | 先 `savefig` 再 `show` |
+| 保存的图标签被切掉 | 用 `bbox_inches="tight"` |
+| 在服务器上跑报 `no display` | 设 `matplotlib.use("Agg")` |
+| 混淆 `Axes` 与 `Axis` | `Axes` 是绘图区，`Axis` 是坐标轴 |
+| 忘了 `plt.close()` 导致内存泄漏 | 批量画图时循环里要 `plt.close(fig)` |
+| 用饼图表示过多类别 | 超过 5 类难以比较，改用条形图 |
+| y 轴从非 0 开始画柱状图 | 夸大差异，柱状图应从 0 起 |
+| 损失跨数量级却用线性轴 | 用 `set_yscale("log")` |
+
+---
+
+## 九、练习题
+
+**基础**
+
+1. 说出四层结构的名称与作用。
+2. 画出 $y=x^2$ 在 $[-3,3]$ 上的曲线，带标题、轴标签、网格。
+3. 用一句话说明折线图和散点图各自的适用场景。
+
+**进阶**
+
+4. 用 `subplots` 画一个 2×2 的四联图（折线/散点/直方/箱线），并保存为 PNG。
+5. 给定训练集与验证集的 loss 列表，画出曲线并判断是否过拟合。
+6. 用 `imshow` 画一个 $5\times5$ 的相关系数矩阵热力图，并加上 colorbar。
+
+**思考题**
+
+7. 为什么柱状图的纵轴必须从 0 开始，而折线图不必？
+8. 训练损失曲线出现"先降后突然变成 NaN"，从图上你能得到哪些信息？下一步该怎么排查？
+9. 在论文里，为什么推荐保存为 PDF/SVG 而不是 PNG？
+
+<details>
+<summary>第 3 题答案</summary>
+
+- **折线图**：适合表示**有序变量**（时间、epoch、序号）上的**趋势**，例如损失随训练轮次的下降。
+- **散点图**：适合表示**两个连续变量之间的关系**（相关性、可分性、聚类结构），不强调顺序。
+
+**判断口诀**：横轴是"顺序"就用折线，横轴是"取值"就用散点。
+</details>
+
+<details>
+<summary>第 7 题答案要点</summary>
+
+**柱状图的面积编码数值**。读者会下意识地比较"柱子的高度/面积"。如果纵轴不从 0 开始，那么高度 10 与高度 11 的两根柱子可能看起来差 5 倍——**视觉比例与数值比例脱钩，形成误导**。
+
+**折线图的斜率编码变化率**，我们用来看"趋势方向"而非"绝对倍数"，所以截断纵轴通常可以接受（但仍需在图上明确标注轴的范围）。
+
+**延伸**：这就是"图表诚实性"的基本要求——**任何让读者高估差异的视觉设计都应避免**。
+</details>
+
+<details>
+<summary>第 9 题答案要点</summary>
+
+1. **矢量不失真**：PNG 是位图，放大或高 dpi 打印时会出现锯齿；PDF/SVG 是矢量，任意缩放下边缘都锐利。
+2. **可编辑**：投稿后排版时，编辑可以在 Illustrator / Inkscape 里直接修改文字与颜色。
+3. **文字可搜索**：矢量图里的文字是文本对象，可被复制与检索。
+4. **体积小**：线图用矢量格式通常比高 dpi 位图小很多。
+
+**实践建议**：探索阶段用 PNG（快），最终出版/报告用 PDF 或 SVG。
+</details>
+
+---
+
+## 十、一句话总结
+
+**Matplotlib 的核心只有一句话：一切都在 `Axes` 上画。掌握 OO 画法 + 四层结构，你就能像搭积木一样组合出任何图。**
+
+---
+
+**明日预告**：Day3 讲数据预处理。你会看到"标准化、归一化、独热编码、标签编码"这些术语到底在做什么，以及为什么做错顺序会造成数据泄漏。
+

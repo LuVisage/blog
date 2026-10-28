@@ -1,0 +1,232 @@
+---
+slug: day-58
+kind: day
+day: 58
+week: 11
+weekTitle: 卷积神经网络
+weekBlurb: 卷积与池化、PyTorch 构建 CNN、特征图可视化与经典架构迁移学习。
+title: 用 PyTorch 训练 CNN
+lead: '今日目标：把 Day1–Day2 的知识组装成完整可跑的 CNN；掌握形状自动追踪的工程习惯；亲眼看到 CNN 用更少的参数超过全连接网络；测试精度**突破 99%**。'
+sourcePath: Week11_卷积神经网络/Day3_PyTorch构建CNN.md
+---
+
+> 今日目标：把 Day1–Day2 的知识组装成完整可跑的 CNN；掌握形状自动追踪的工程习惯；亲眼看到 CNN 用更少的参数超过全连接网络；测试精度**突破 99%**。
+> 配套案例：`code/day3_cnn_mnist.py`
+
+---
+
+## 3.1 知识地图
+
+```
+Day1  卷积运算        ← 特征提取器
+Day2  池化 + LeNet    ← 基本骨架
+        │
+        ▼
+Day3（今天）★ 组装 + 训练 + 对比
+  ├─ 形状自动追踪（写 CNN 的第一步）
+  ├─ VGG 风格网络 + BN + GAP
+  ├─ CNN vs MLP 严格对比
+  ├─ 数据增强
+  └─ 突破 99%
+        │
+        ▼
+Day4  可视化与感受野
+Day5  经典架构演进
+```
+
+---
+
+## 3.2 写 CNN 的第一件事：形状追踪
+
+形状错误是 CNN 调试中最常见的 bug。**不要靠手算**，让代码告诉你：
+
+```python
+def trace_shapes(model, input_shape=(1, 28, 28)):
+    x = torch.zeros(1, *input_shape)
+    for name, module in model.named_modules():
+        if len(list(module.children())) > 0:
+            continue                     # 跳过容器，只看叶子层
+        x = module(x)
+        n = sum(p.numel() for p in module.parameters())
+        print(f"{name:<34}{str(tuple(x.shape)):<24}{n:>10,}")
+```
+
+**养成习惯**：每写一个新模型，先跑一遍形状追踪，再开始训练。这会省掉大量"训练到一半报形状错误"的时间。
+
+---
+
+## 3.3 网络结构：VGG 风格 + BN + GAP
+
+```python
+class ConvNet(nn.Module):
+    def __init__(self, num_classes=10):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
+            nn.Conv2d(32, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
+            nn.MaxPool2d(2),                                   # 28 -> 14
+
+            nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.Conv2d(64, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.MaxPool2d(2),                                   # 14 -> 7
+
+            nn.AdaptiveAvgPool2d(1),                           # 7 -> 1
+        )
+        self.classifier = nn.Linear(64, num_classes)
+
+    def forward(self, x):
+        return self.classifier(self.features(x).flatten(1))
+```
+
+**四个设计决定的理由**：
+
+| 设计 | 理由 |
+| --- | --- |
+| 全部用 $3\times3$ 卷积 | 感受野够、参数少、非线性多（Day4 会量化） |
+| `padding=1` | 保持尺寸，形状好追踪 |
+| **`Conv → BN → ReLU`** 顺序 | Week10 Day2：BN 放在激活之前 |
+| **GAP 替代全连接** | 参数为 0，抑制过拟合，支持任意输入尺寸 |
+
+**参数量对比**：
+
+| 模型 | 参数量 |
+| --- | --- |
+| MLP(256,128)（Week09 Day5） | 235,146 |
+| **本 CNN** | **66,026** |
+
+CNN 只用了 28% 的参数。
+
+---
+
+## 3.4 实测结果
+
+```
+模型                         参数量      验证acc      测试acc        耗时
+--------------------------------------------------------------------
+MLP (256,128)              235,146     97.62%     97.65%     33.4s
+CNN (VGG风格+GAP)             66,026     99.18%     99.17%     41.0s
+```
+
+**CNN 用 28% 的参数，换来 +1.52 个百分点的精度。**
+
+**逐 epoch 对比**：
+
+| epoch | MLP 验证 acc | CNN 验证 acc | 差距 |
+| --- | --- | --- | --- |
+| 1 | 94.30% | 96.82% | +2.52% |
+| 2 | 95.62% | 95.26% | -0.36% |
+| 3 | 96.64% | 98.60% | +1.96% |
+| 4 | 97.62% | **99.18%** | +1.56% |
+
+**CNN 在第 1 个 epoch 就接近 MLP 的第 4 个 epoch** —— 这说明卷积的结构先验让优化问题本身变简单了，而不只是"容量更大"。
+
+> 第 2 个 epoch CNN 略低于 MLP 是正常波动（配合了 CosineAnnealing，lr 在这时仍较高）。
+
+### 为什么 CNN 赢得这么干脆
+
+| 原因 | 说明 |
+| --- | --- |
+| **局部连接** | 相邻像素相关，这个先验被直接编码进结构 |
+| **权重共享** | 同一模式出现在任何位置都被同一个核检测到（平移等变） |
+| **保留二维结构** | 不展平，空间信息不丢失 |
+| **BN** | 每层输入分布稳定，可用大学习率（这里 lr=1e-2） |
+| **GAP** | 参数少，抑制过拟合 |
+
+**核心结论**：**结构先验比参数量更重要。** 一个 66K 参数的 CNN 打败了 235K 参数的 MLP。
+
+---
+
+## 3.5 数据增强的正确姿势
+
+**最重要的一个坑**：验证集不能做增强。
+
+```python
+# 错误写法
+full = datasets.MNIST(..., transform=train_tf)       # 带增强
+tr, va = random_split(full, [n_train, n_val])        # 两个子集【共享 transform】！
+# -> 验证集也被随机增强，指标无法跨实验比较
+```
+
+**正确写法**：训练集与验证集用**两个独立的 dataset 对象**，配同一个索引划分：
+
+```python
+train_ds = datasets.MNIST(..., transform=train_tf)   # 带增强
+val_ds = datasets.MNIST(..., transform=val_tf)       # 不带增强
+
+g = torch.Generator().manual_seed(42)
+perm = torch.randperm(len(train_ds), generator=g)
+va_idx = perm[:n_val].tolist()
+tr_idx = perm[n_val:].tolist()
+
+train_loader = DataLoader(Subset(train_ds, tr_idx), shuffle=True, ...)
+val_loader = DataLoader(Subset(val_ds, va_idx), shuffle=False, ...)
+```
+
+**实测效果**（本次运行）：
+
+增强（旋转 ±10° + 平移 8%）在 MNIST 上**收益有限**。原因：
+
+- MNIST 本身已经足够规整（数字都在中心、尺度统一）；
+- 数据量足够大（60000 条）；
+- 小幅旋转/平移带来的"新样本"信息量不高。
+
+**什么时候数据增强最有用**：
+
+| 情况 | 增强收益 |
+| --- | --- |
+| 数据量少（&lt; 10000） | **很大** |
+| 类内变化大（自然图像） | **很大** |
+| 数据集已经很规整（MNIST） | 较小 |
+| 标注有噪声 | 中等（增强能提升鲁棒性） |
+
+**判断方法**：跑消融实验（Week10 Day5 的方法）。**不要因为"论文里都用了"就无脑加。**
+
+---
+
+## 3.6 训练配置
+
+```python
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-2, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+```
+
+**为什么 lr 可以取到 1e-2**（MLP 时只敢用 1e-3）：
+
+1. 有 BN —— 每层输入尺度稳定（Week10 Day2）；
+2. CNN 参数量少，梯度尺度更均匀；
+3. 有 cosine 调度兜底，后期自动降下来。
+
+**这正是 Week10 理论的实战验证**：BN 把可用的学习率上界提高了一个数量级。
+
+---
+
+## 3.7 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 训练到一半报形状错误 | CNN 形状没追踪 | 先跑 `trace_shapes()` |
+| 精度卡在 10% | 忘了 `flatten(1)` 或维度对不上 | 检查 classifier 输入维度 |
+| 验证指标每次不同 | 验证集被增强了 | 训练/验证用不同 dataset |
+| 训练 loss 不降 | lr 太小（CNN 可以用大 lr） | 配合 BN 时试 1e-2 |
+| 显存不够 | batch 太大 | 减小 batch 或改用 GAP |
+| 88% 左右就不动了 | 通道数太少 | 加宽通道（Day4 有量化实验） |
+| 测试精度比验证高很多 | 验证集太小 | 用全量测试集评估 |
+
+---
+
+## 3.8 今日自测
+
+1. 用 `trace_shapes()` 打印本网络每一层的形状，验证与手算一致。
+2. 把 GAP 换成 `Flatten + Linear(64*7*7, 10)`，比较参数量与精度。
+3. 把 BN 全部去掉，观察需要把 lr 降到多少才能训练（对比 Day2 的结论）。
+4. 跑三组增强强度的消融（无 / 弱 / 强），找出 MNIST 上的最优点。
+5. 把网络深度减半（只留一个卷积块），看精度掉多少 —— 感受"结构先验"的边界。
+
+---
+
+## 3.9 一句话总结
+
+**CNN 用 28% 的参数换来 +1.5% 的精度，突破 99% —— 这不是"更大的模型赢了"，而是"更正确的先验赢了"。**
+
+**明日预告**：Day4 打开这个网络的"黑盒"，可视化卷积核与特征图，并量化感受野与通道数的影响。
+

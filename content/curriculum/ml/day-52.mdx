@@ -1,0 +1,301 @@
+---
+slug: day-52
+kind: day
+day: 52
+week: 10
+weekTitle: 深度学习进阶
+weekBlurb: 过拟合与正则化、批归一化、优化算法与训练曲线诊断。
+title: 批归一化与归一化技术
+lead: 今日目标：完整推导 BatchNorm 的前向与反向；说清训练/推理时两套统计量的差异；理解 $\gamma$、$\beta$、$\epsilon$ 各自的作用；掌握 BN / LN / IN / GN 的适用场景。
+sourcePath: Week10_深度学习进阶/Day2_批归一化.md
+---
+
+> 今日目标：完整推导 BatchNorm 的前向与反向；说清训练/推理时两套统计量的差异；理解 $\gamma$、$\beta$、$\epsilon$ 各自的作用；掌握 BN / LN / IN / GN 的适用场景。
+> 配套案例：`code/day2_batchnorm.py`
+
+---
+
+## 2.1 知识地图
+
+```
+Week08 Day3  数据预处理中的标准化   ← "把输入标准化"
+Week09 Day4  Dropout / 训练循环     ← 第一个影响 train/eval 的层
+        │
+        ▼
+Week10 Day2（今天）★ 把标准化搬进网络内部
+  ├─ 为什么深层网络需要它
+  ├─ 两套统计量：batch 统计 vs running 统计
+  ├─ γ/β 的可学习性：为什么不能只是"标准化"
+  ├─ 归一化家族：BN / LN / IN / GN
+  └─ 手写 BN 并与官方实现逐位对比
+        │
+        ▼
+Week11 CNN（BN 在卷积上的用法）
+Week14 Transformer（用的是 LayerNorm）
+```
+
+**这是面试出现频率最高的深度学习知识点。** 因为它同时牵扯：训练/推理差异、统计量估计、梯度流动、超参数敏感性。
+
+---
+
+## 2.2 问题的起点：为什么深层网络难训练
+
+### 2.2.1 一个直觉
+
+考虑一个 10 层网络。第 5 层的输入是第 4 层的输出。当第 4 层的参数更新后，第 5 层面对的**输入分布就变了**。第 5 层不得不不断适应"移动的目标"。
+
+BN 原论文（Ioffe & Szegedy, 2015）把这个现象称为 **Internal Covariate Shift（内部协变量偏移，ICS）**。
+
+### 2.2.2 一个更准确的解释
+
+2018 年的研究（Santurkar et al., *How Does Batch Normalization Help Optimization?*）做了实验：**故意在 BN 后注入偏移，使 ICS 重新出现，但 BN 仍然有效。** 结论是 ICS 并不是 BN 起作用的真正原因。
+
+真正的机制是：**BN 让损失曲面变得更平滑**（梯度更 Lipschitz 连续、预测更稳定），因此：
+
+- 可以采用更大的学习率而不会震荡；
+- 梯度下降的方向更"直"，收敛更快；
+- 对参数初始化不那么敏感。
+
+> **教学要点**：考试/面试答"ICS"是标准答案，但知道"平滑损失曲面"这个更准确的解释，能体现出你在读原始文献而不是背结论。
+
+---
+
+## 2.3 BatchNorm 的完整机制
+
+### 2.3.1 前向公式
+
+对一个批量 $\mathcal{B} = \{x_1, \dots, x_m\}$（$m$ 是 batch size）：
+
+$$\mu_{\mathcal{B}} = \frac{1}{m}\sum_{i=1}^{m} x_i, \qquad \sigma^2_{\mathcal{B}} = \frac{1}{m}\sum_{i=1}^{m}(x_i - \mu_{\mathcal{B}})^2$$
+
+$$\hat{x}_i = \frac{x_i - \mu_{\mathcal{B}}}{\sqrt{\sigma^2_{\mathcal{B}} + \epsilon}}, \qquad y_i = \gamma \hat{x}_i + \beta$$
+
+**四个要素，每一个都不能少**：
+
+| 要素 | 作用 | 去掉会怎样 |
+| --- | --- | --- |
+| $\mu_{\mathcal{B}}, \sigma^2_{\mathcal{B}}$ | 把激活拉到零均值、单位方差 | 回到原始问题 |
+| $\epsilon$ | 防止除以 0，并保证数值稳定 | 方差为 0 时爆炸 |
+| $\gamma$（缩放） | **可学习**，允许恢复表达力 | 见 2.3.3 |
+| $\beta$（平移） | **可学习**，允许恢复偏移 | 见 2.3.3 |
+
+**注意方差是"有偏"的**：除以 $m$ 而不是 $m-1$。这一点很关键，因为要跟 `running_var` 的更新保持一致。
+
+### 2.3.2 训练 vs 推理：两套统计量
+
+这是 BN 最容易被忽略、也最容易出 bug 的地方。
+
+| 阶段 | 用哪套统计量 | 是否更新 running |
+| --- | --- | --- |
+| `model.train()` | **当前 batch** 的 $\mu_{\mathcal{B}}, \sigma^2_{\mathcal{B}}$ | 是 |
+| `model.eval()` | **running** 的 `running_mean`, `running_var` | 否 |
+
+**为什么推理时不能用 batch 统计量？**
+
+1. **单样本推理时 batch size = 1**，方差恒为 0，BN 完全失效；
+2. **推理结果必须确定**：如果每次依赖当前 batch，同一张图在不同 batch 里会得到不同输出；
+3. 训练时的 batch 统计量本身是"带噪估计"，用全局统计更稳定。
+
+**running 统计量怎么更新**（指数滑动平均，EMA）：
+
+$$\texttt{running\_mean} \leftarrow (1-\alpha)\cdot\texttt{running\_mean} + \alpha\cdot\mu_{\mathcal{B}}$$
+
+其中 $\alpha$ 是 `momentum`，PyTorch 默认 `0.1`。
+
+ **PyTorch 的 momentum 与直觉相反**：它表示"**新值占的比例**"，不是"保留旧值的比例"。`momentum=0.1` 意味着新 batch 只贡献 10%。
+
+ **`running_var` 用的是有偏方差**，与训练时的 $\sigma^2_{\mathcal{B}}$ 一致。
+
+### 2.3.3 γ 和 β 为什么是必需的
+
+一个常见的疑问："既然要标准化，为什么又让它变回原样？"
+
+**因为单纯的标准化会破坏网络的表达能力。**
+
+举例：假设某一层后面接的是 Sigmoid。如果把输入强行标准化到均值 0、方差 1，那么大部分值会落在 $[-1, 1]$，恰好是 Sigmoid 的**近似线性区**（梯度最大但非线性最弱）。这反而削弱了网络的非线性能力。
+
+$\gamma$ 和 $\beta$ 让网络**自己决定**每一层需要什么样的分布：
+
+- 若 $\gamma = \sigma_{\mathcal{B}}, \beta = \mu_{\mathcal{B}}$，则 $y_i = x_i$（完全恢复原状）；
+- 若 $\gamma = 1, \beta = 0$，则是纯标准化。
+
+**关键是这个"恢复原状"的能力是可学习的**，网络会在"稳定训练"与"保持表达力"之间找到平衡。
+
+> **记忆点**：BN 不是"强行标准化"，而是"**提供一个标准化后的起点，让网络自己决定要不要偏离**"。
+
+### 2.3.4 ε 的由来
+
+$$\hat{x} = \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}}$$
+
+$\epsilon$ 默认 `1e-5`，有三个作用：
+
+1. **防除零**：当某个特征的方差为 0（例如该特征在所有样本上取值相同）时，$\sigma^2 = 0$ 会导致除零；
+2. **控制数值条件数**：即使方差很小但非零，$\sqrt{\sigma^2}$ 也可能很小，放大会放大浮点误差；
+3. **提供"退化为恒等映射"的可能性**：当方差远小于 $\epsilon$ 时，$\hat{x} \approx (x-\mu)/\sqrt{\epsilon}$，梯度仍然有限。
+
+**什么时候要调它**：
+
+- 混合精度训练（fp16）时，建议调大到 `1e-3`，避免下溢；
+- 特征本身量纲很小（如已经归一化过的嵌入向量）时，默认值可能偏小。
+
+### 2.3.5 手写实现
+
+```python
+class ManualBatchNorm1d(nn.Module):
+    def __init__(self, num_features, eps=1e-5, momentum=0.1):
+        super().__init__()
+        self.eps, self.momentum = eps, momentum
+        self.gamma = nn.Parameter(torch.ones(num_features))
+        self.beta = nn.Parameter(torch.zeros(num_features))
+        # 不是参数，但要跟着一起保存和搬设备 -> 用 register_buffer
+        self.register_buffer("running_mean", torch.zeros(num_features))
+        self.register_buffer("running_var", torch.ones(num_features))
+
+    def forward(self, x):                    # x: (N, C)
+        if self.training:
+            mean = x.mean(dim=0)
+            var = x.var(dim=0, unbiased=False)      # 有偏方差
+            with torch.no_grad():                   # 更新统计量不参与求导
+                self.running_mean.mul_(1 - self.momentum).add_(mean * self.momentum)
+                self.running_var.mul_(1 - self.momentum).add_(var * self.momentum)
+        else:
+            mean, var = self.running_mean, self.running_var
+
+        x_hat = (x - mean) / torch.sqrt(var + self.eps)
+        return self.gamma * x_hat + self.beta
+```
+
+**`register_buffer` 是关键**：
+
+| | `nn.Parameter` | `register_buffer` |
+| --- | --- | --- |
+| 出现在 `parameters()` | 是 | 否 |
+| 被 optimizer 更新 | 是 | 否 |
+| 被 `state_dict()` 保存 | 是 | **是** |
+| 被 `.to(device)` 移动 | 是 | **是** |
+
+用普通属性存 `running_mean` 会丢失在 `state_dict` 里 —— 加载模型后推理结果全错，这是非常隐蔽的 bug。
+
+---
+
+## 2.4 放在哪里：位置之争
+
+**传统做法**（原论文）：
+
+```
+Linear/Conv  →  BatchNorm  →  ReLU
+```
+
+**另一种做法**（"BN 之后"派）：
+
+```
+Linear/Conv  →  ReLU  →  BatchNorm
+```
+
+**实践建议**：
+
+- 卷积网络里，`Conv → BN → ReLU` 是绝对主流（ResNet、VGG 都用这个）；
+- 全连接网络里，两种都有人用，差异不大；
+- **不要放在输出层之后**（会破坏 logits 的分布，让 softmax 失去意义）。
+
+**为什么放在激活之前**：ReLU 会把负值全部置零，如果先 ReLU 再 BN，负半轴的信息已经被丢弃，BN 只能对 $[0, \infty)$ 的部分做标准化，效果打折。
+
+---
+
+## 2.5 BN 带来的三个好处
+
+| 好处 | 机制 | 实测表现 |
+| --- | --- | --- |
+| **允许更大学习率** | 损失曲面更平滑，梯度更稳定 | 无 BN 时 lr=1.0 直接发散，有 BN 时可用 |
+| **降低对初始化的敏感** | 每层输出被重新标准化 | 不用精心设计初始化也能训 |
+| **轻微正则效果** | 每个 batch 的统计量有噪声 | 可适当减少 Dropout |
+
+**第三条要注意**：BN 的正则效果来自"batch 统计量的随机性"。所以：
+
+- batch size 越大，噪声越小，正则效果越弱；
+- 不能用它替代真正的正则化（数据量小时仍需 Dropout / weight_decay）。
+
+---
+
+## 2.6 BN 的局限
+
+| 局限 | 原因 | 替代方案 |
+| --- | --- | --- |
+| **小 batch 时效果差** | 统计量估计不准（$m$ 太小） | LayerNorm / GroupNorm |
+| **不适用于 RNN** | 序列长度不定、时间步统计不一致 | LayerNorm |
+| **train/eval 不一致** | 两套统计量 | 谨慎使用；推理前务必 `eval()` |
+| **分布式训练需同步** | 每个 GPU 只看自己的 batch | SyncBN |
+| **对 batch 组成敏感** | 同 batch 内样本互相影响 | 一般不作为问题 |
+
+**小 batch 的临界点**：经验上 batch size &lt; 16 时 BN 就开始明显退化，&lt; 8 时基本不可用。
+
+---
+
+## 2.7 归一化家族
+
+**核心区别：在哪些维度上计算均值和方差。**
+
+以图像特征图 `(N, C, H, W)` 为例：
+
+| 名称 | 统计维度 | 结果形状 | 适用 |
+| --- | --- | --- | --- |
+| **BatchNorm** | `(N, H, W)` | `(C,)` | CNN（batch 足够大） |
+| **LayerNorm** | `(C, H, W)` | `(N,)` | **Transformer / RNN** |
+| **InstanceNorm** | `(H, W)` | `(N, C)` | 风格迁移 |
+| **GroupNorm** | `(C/G, H, W)` | `(N, G)` | 检测/分割（小 batch） |
+
+```
+BatchNorm   在 N 维度上统计         ← 依赖其他样本
+LayerNorm   在 C,H,W 上统计         ← 每个样本独立
+InstanceNorm 在 H,W 上统计           ← 每个样本每个通道独立
+GroupNorm   把 C 分组后在组内统计    ← 折中方案
+```
+
+**LayerNorm 为什么是 Transformer 的标配**：
+
+1. 不依赖 batch，batch size = 1 也能工作；
+2. 序列长度可变，LN 对每个位置独立处理，天然适配；
+3. 训练/推理行为完全一致，**没有 `running` 统计量的坑**。
+
+```python
+# Transformer 中的典型用法（Pre-LN 结构）
+x = x + attn(ln1(x))         # 注意力前归一化
+x = x + ffn(ln2(x))
+```
+
+> **Pre-LN vs Post-LN**：原版 Transformer 用 Post-LN（`x = ln(x + attn(x))`），训练不稳定需要 warmup。现代实现普遍改用 **Pre-LN**，可以直接训练。这是 Week14 的内容。
+
+---
+
+## 2.8 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| 推理结果每次不同 | 忘了 `model.eval()` | 评估/推理前调用 |
+| 推理精度极差 | `running_mean/var` 没保存（用了普通属性） | 用 `register_buffer` |
+| 单样本推理结果错乱 | batch size = 1 时用了训练模式 | 确保 `eval()` |
+| BN 层加载后统计量为初始值 | 训练时没跑够 batch（EMA 还没收敛） | 至少要跑几百个 batch |
+| 小 batch 训练不收敛 | BN 统计量噪声过大 | 换 GroupNorm / LayerNorm |
+| 加了 BN 后过拟合 | 正则效果被高估 | 保留 dropout / weight_decay |
+| 分布式训练精度差 | 各卡独立统计 | 用 `SyncBatchNorm` |
+| `momentum` 调反了 | PyTorch 的 momentum 是新值权重 | 想"更新更慢"就**减小** momentum |
+| 迁移学习时 BN 统计量不匹配 | 源域与目标域分布不同 | 冻结 BN（`bn.eval()` + `requires_grad=False`） |
+
+---
+
+## 2.9 今日自测
+
+1. 写出 BN 的前向公式，解释 $\gamma$、$\beta$、$\epsilon$ 各自的作用。
+2. 手写 `ManualBatchNorm1d`，与 `nn.BatchNorm1d` 在 train 与 eval 两种模式下逐位对比。
+3. 验证 `running_mean` 的 EMA 更新：用固定输入跑 100 个 batch，观察它如何逼近真实均值。
+4. 搭一个 5 层网络，分别在 lr=0.1 与 lr=1.0 下训练"有 BN"与"无 BN"两个版本，比较收敛情况。
+5. 打印各层梯度范数，对比有/无 BN 时第一层与最后一层的梯度大小差异。
+
+---
+
+## 2.10 一句话总结
+
+**BatchNorm 用"当前 batch 的统计量"训练、用"滑动平均的统计量"推理，$\gamma/\beta$ 保留了表达力，$\epsilon$ 保证数值稳定 —— 它让损失曲面更平滑，从而允许更大学习率、更少初始化焦虑。**
+
+**明日预告**：Day3 深入优化算法 —— 从 SGD 到 Adam 的完整演化链条，以及为什么 Transformer 必须用 AdamW。
+

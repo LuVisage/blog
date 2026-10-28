@@ -1,0 +1,196 @@
+---
+slug: day-24
+day: 24
+week: 5
+weekTitle: Agent 开发
+weekBlurb: create_agent、Runtime 生命周期、Middleware、长期记忆 Store。
+title: 记忆管理进阶 —— 长期记忆 Store（跨会话的记忆）
+lead: '区分"短期记忆"与"长期记忆"，用 Store 让 Agent 跨会话、跨线程记住用户——真正的"老熟人"级 Agent。'
+examples:
+  - examples/day24_longterm_memory.py
+sourcePath: week-05-agent-dev/day-24.md
+---
+
+---
+
+## 24.1 两种记忆，先分清
+
+你的 Agent 需要两种完全不同的"记性"：
+
+| | 短期记忆 | 长期记忆 |
+|---|---|---|
+| **本质** | 当前对话的上下文 | 跨对话的事实与偏好 |
+| **载体** | Checkpointer（Day 19） | **Store（今天）** |
+| **生命周期** | 一个 thread（会话）内 | 跨 thread、跨天、跨用户 |
+| **例子** | "我刚才问你什么来着？" | "你上周说过你喜欢美式咖啡" |
+| **类比** | 人的工作记忆 | 人的笔记本 |
+
+Day 19 的 checkpointer 是"会话内"记忆：换个 thread_id 就失忆。真实产品（客服、私人助理）必须记住"这位用户是谁、之前聊过什么、有什么偏好"——**Store 就是干这个的**。
+
+## 24.2 Store 三要素：namespace / key / value
+
+```python
+from langgraph.store.memory import InMemoryStore
+
+store = InMemoryStore()
+
+# 存：namespace（分类）+ key（唯一名）+ value（内容字典）
+store.put(("memories", "user-1"), "coffee_pref", {"content": "喜欢美式咖啡", "topic": "饮食偏好"})
+store.put(("memories", "user-1"), "birthday", {"content": "生日是 5 月 20 日", "topic": "个人信息"})
+
+# 取：按 namespace + key 精确读
+item = store.get(("memories", "user-1"), "coffee_pref")
+print(item.value)   # {'content': '喜欢美式咖啡', 'topic': '饮食偏好'}
+
+# 搜：按 namespace 前缀列出 / 过滤
+results = store.search(("memories", "user-1"))          # 该用户的全部记忆
+results = store.search(("memories",), filter={"topic": "饮食偏好"})   # 按字段过滤
+```
+
+| 概念 | 说明 | 实战用法 |
+|---|---|---|
+| **namespace**（元组） | 记忆的分类路径 | `("memories", user_id)`——按用户隔离 |
+| **key** | 命名空间内唯一标识 | 记忆名（"coffee_pref"） |
+| **value**（字典） | 记忆内容 + 可过滤字段 | `content` 存文本，`topic` 等用于 filter |
+
+> **namespace 设计是长期记忆的第一课**：`("memories", user_id)` 保证"用户 A 的记忆不会串到用户 B"——和 thread_id 一样，是数据隔离的钥匙。
+
+## 24.3 让工具读写 Store：InjectedStore
+
+Agent 的记忆能力要变成**工具**（模型才能主动调用）。工具怎么拿到 store？在参数里声明 `InjectedStore`——LangChain 会自动注入：
+
+```python
+@tool
+def save_memory(content: str, topic: str, store: Annotated[Any, InjectedStore()]) -> str:
+    """把用户的重要信息记入长期记忆。当用户说'记住...'时使用。
+
+    Args:
+        content: 要记住的内容
+        topic: 内容分类（如'饮食偏好'、'个人信息'）
+    """
+    store.put(("memories", "user-1"), f"mem_{len(store.search(('memories', 'user-1'))) + 1}",
+              {"content": content, "topic": topic})
+    return "已记住"
+
+@tool
+def recall_memories(store: Annotated[Any, InjectedStore()]) -> str:
+    """回忆关于用户的所有长期记忆。当用户问'你记得我...'时使用。"""
+    items = store.search(("memories", "user-1"))
+    if not items:
+        return "（暂无关于你的长期记忆）"
+    return "\n".join(f"- {i.value['content']}" for i in items)
+```
+
+**两个关键点**：
+
+1. `store: Annotated[Any, InjectedStore()]` 参数**不用模型填**——LangChain 自动注入当前 Agent 的 store（模型看到的工具参数只有 content/topic）。正确写法是 `Annotated[Any, InjectedStore()]`（带括号实例化），直接写 `store: InjectedStore` 会报 JSON schema 错误；
+2. 工具调用时 `create_agent(store=store)` 传入的 store 就是工具拿到的那个——**存储与 Agent 解耦**，换 Redis/Postgres 实现不影响业务代码（生产有 `RedisStore`、`PostgresStore`）。
+
+> 上面 namespace 里的 `"user-1"` 是写死的。真实系统应从 `config` 动态取当前用户：工具再加一个 `InjectedState` 参数或从 runtime 取 config——今天的练习 4 会做这个升级。
+
+## 24.4 动手：跑今天的案例（见证"新会话仍记得你"）
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-05-agent-dev\examples
+python day24_longterm_memory.py
+```
+
+## 24.5 案例逐行讲解：`day24_longterm_memory.py`
+
+```python
+"""Day 24 案例：长期记忆 —— 会话 1 记住偏好，会话 2 依然记得"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langgraph.store.memory import InMemoryStore
+from typing import Any, Annotated
+from langgraph.prebuilt import InjectedStore
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+store = InMemoryStore()                    # 长期记忆库（生产可换 Redis/Postgres）
+
+@tool
+def save_memory(content: str, topic: str, store: InjectedStore) -> str:
+    """把用户的重要信息记入长期记忆。当用户说'记住...'时使用。
+
+    Args:
+        content: 要记住的内容
+        topic: 内容分类（如'饮食偏好'、'个人信息'）
+    """
+    existing = store.search(("memories", "user-1"))
+    key = f"mem_{len(existing) + 1}"
+    store.put(("memories", "user-1"), key, {"content": content, "topic": topic})
+    return f"已记住：{content}"
+
+@tool
+def recall_memories(store: InjectedStore) -> str:
+    """回忆关于用户的所有长期记忆。当用户问'你记得我...'时使用。"""
+    items = store.search(("memories", "user-1"))
+    if not items:
+        return "（暂无关于你的长期记忆）"
+    return "\n".join(f"- {i.value['content']}" for i in items)
+
+agent = create_agent(
+    model=model,
+    tools=[save_memory, recall_memories],
+    system_prompt=(
+        "你是私人助理。用户让你记住的事必须调 save_memory 保存；"
+        "用户询问'你记得/回忆'等关于他们信息的问题时，必须先调 recall_memories 工具，"
+        "只能根据工具返回的内容回答，不要凭空猜测。"
+    ),
+    store=store,                           # ★ 长期记忆接入 Agent
+)
+
+# ── 会话 1（thread-1）：用户留下两条记忆 ──────────
+print("══ 会话 1：thread-1 ══")
+r = agent.invoke(
+    {"messages": [{"role": "user", "content": "记住：我喜欢美式咖啡，生日是5月20日。"}]},
+    config={"configurable": {"thread_id": "thread-1"}},
+)
+print("回答：", r["messages"][-1].content)
+
+# ── 会话 2（thread-2）：全新线程，看它是否还记得 ──
+print("\n══ 会话 2：thread-2（全新会话）══")
+# 先打印 store 里的"真相"，便于和模型回答对比
+print("  [store 实际内容]：",
+      [i.value["content"] for i in store.search(("memories", "user-1"))])
+
+# 用流式观测：看模型是否真的调用了 recall_memories 工具
+for chunk in agent.stream(
+    {"messages": [{"role": "user", "content": "你记得我喜欢什么咖啡吗？"}]},
+    config={"configurable": {"thread_id": "thread-2"}},
+    stream_mode="updates",
+):
+    node = list(chunk.keys())[0]
+    for m in chunk[node].get("messages", []):
+        if hasattr(m, "tool_calls") and m.tool_calls:
+            print(f"  🧠 调用工具：{m.tool_calls[0]['name']}")
+        elif m.type == "tool":
+            print(f"  🔧 工具返回：{m.content[:60]}")
+        elif m.type == "ai" and m.content:
+            print(f"  💬 最终回答：{m.content}")
+```
+
+**逐段要点**：
+
+- **会话 2 用的是全新 thread_id**——checkpointer 意义上的"失忆"，但 Agent 通过 `recall_memories` 工具从 Store 找回了记忆。**短期失忆、长期不忘**，这就是两种记忆的分工；
+- **模型自主决策**：会话 1 里模型自己决定"用户让我记住 → 调 save_memory"（把一句话拆成两条记忆分开存）；会话 2 里自己决定"用户问记得什么 → 调 recall_memories"。记忆的存与取都由 Agent 按需触发；
+- **工具调用的引导**：system_prompt 里明确写了"必须调 recall_memories、只能根据工具返回回答"——弱模型（本地 7b）不这样写会直接凭直觉编造（本教程实测：会编出'卡布奇诺'）。**强提示词 + 强模型是工具调用可靠性的双保险**；
+- **`InjectedStore` 让工具无痕拿到 store**：模型的工具清单里看不到 store 参数，只有框架注入。
+
+## 24.6 今日自测
+
+<Quiz items={["跑第三段：thread-3 问\"我的生日是什么时候？\"，验证两条记忆都在。","给 `save_memory` 加\"覆盖\"逻辑：同 topic 的记忆再次保存时替换旧条目（提示：search + filter）。","加一个 `forget_memory` 工具：按 topic 删除记忆（提示：`store.delete(namespace, key)`）。","进阶：把写死的 \"user-1\" 换成从 config 读取（提示：工具加 `config: RunnableConfig` 参数，取 `config[\"configurable\"][\"user_id\"]`），实现**多用户记忆隔离**。","`notes/day24.md`：对比表格——checkpointer 和 store 各解决什么问题、什么时候用哪个。"]} />
+
+## 24.7 常见坑速查
+
+<GotchaTable rows={[{"symptom":"工具报\"缺 store 参数\"","cause":"没声明注入注解或没给 agent 传 store","fix":"`Annotated[Any, InjectedStore()]` + `create_agent(store=...)`"},{"symptom":"报 JSON schema 错误","cause":"写成 `store: InjectedStore`（当类型用）","fix":"必须 `Annotated[Any, InjectedStore()]`（实例化注解）"},{"symptom":"新会话失忆","cause":"只用了 checkpointer，没配 Store","fix":"长期记忆必须走 Store + 工具"},{"symptom":"模型不调记忆工具瞎编","cause":"弱模型 + 提示词没强制","fix":"system_prompt 明确\"必须先调工具、只按工具结果回答\""},{"symptom":"用户间记忆串了","cause":"namespace 写死同一个","fix":"namespace 带 user_id 维度"},{"symptom":"`search` 返回空","cause":"namespace 前缀不对","fix":"`search((\"memories\",))` 与 put 的 namespace 对齐"},{"symptom":"重启后记忆丢失","cause":"用了 InMemoryStore","fix":"生产换 RedisStore/PostgresStore"}]} />
+
+<DayComplete day={24} recap={"你的 Agent 现在有\"笔记本\"了。明天项目日：综合运用第 5 周全部武器（工具 + Runtime + Middleware + 记忆）做一个真正的 WorkFlow Agent。"} />

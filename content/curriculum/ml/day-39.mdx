@@ -1,0 +1,368 @@
+---
+slug: day-39
+kind: day
+day: 39
+week: 7
+weekTitle: 神经网络基础
+weekBlurb: 纯 NumPy 手写：感知机、激活函数、反向传播与两层网络的完整训练。
+title: 从零手写两层全连接网络
+lead: '今天把 Day1–Day3 的所有零件组装起来：**用纯 NumPy** 实现一个能在 MNIST 上达到 97% 以上精度的两层网络。**不要用任何框架**——框架会用，但原理必须自己写过一遍。'
+sourcePath: Week07_神经网络基础/Day4_从零实现两层网络.md
+---
+
+> 鱼书第 4 章 · 用时最长、收获最大的一天
+
+今天把 Day1–Day3 的所有零件组装起来：**用纯 NumPy** 实现一个能在 MNIST 上达到 97% 以上精度的两层网络。**不要用任何框架**——框架会用，但原理必须自己写过一遍。
+
+---
+
+## 今日目标
+
+1. 实现 6 个"层"：`Affine`、`ReLU`、`Sigmoid`、`SoftmaxWithLoss`、`Dropout`、`BatchNorm`（简化版）；
+2. 组装成 `TwoLayerNet`，实现 `predict` / `loss` / `accuracy` / `numerical_gradient` / `gradient`；
+3. 在 MNIST 上完成训练、评估、超参数搜索；
+4. 用梯度检查验证反向传播的正确性；
+5. 观察权重初始化对训练的影响（这是"能不能训起来"的关键）。
+
+---
+
+## 知识地图
+
+```
+Week07
+├── Day1 感知机 ✅
+├── Day2 激活函数 ✅
+├── Day3 反向传播 ✅
+├── Day4 从零实现两层网络  ← 你在这里（综合实践）
+└── Day5 训练流程与超参数
+```
+
+---
+
+## 一、网络结构
+
+$$\boldsymbol{x} \xrightarrow{\mathbf{W}_1,\boldsymbol{b}_1} \boldsymbol{z}_1 \xrightarrow{\text{ReLU}} \boldsymbol{a}_1 \xrightarrow{\mathbf{W}_2,\boldsymbol{b}_2} \boldsymbol{z}_2 \xrightarrow{\text{softmax}} \boldsymbol{y}$$
+
+**维度设计**（以 MNIST 为例）：
+
+| 符号 | 含义 | 维度 |
+| --- | --- | --- |
+| $\boldsymbol{x}$ | 输入（$28\times28$ 拉平） | 784 |
+| $\mathbf{W}_1$ | 第 1 层权重 | $784\times H$（$H$ 为隐层宽度，如 50 或 100） |
+| $\mathbf{W}_2$ | 第 2 层权重 | $H\times 10$ |
+| $\boldsymbol{y}$ | 输出概率 | 10 |
+
+**参数量**：$784H + H + 10H + 10$。当 $H=100$ 时约 **79,510** 个参数。
+
+---
+
+## 二、逐层实现
+
+### 2.1 Affine 层（仿射变换）
+
+$$ \mathbf{Y} = \mathbf{X}\mathbf{W} + \boldsymbol{b}$$
+
+**反向**：
+
+$$\frac{\partial L}{\partial \mathbf{W}} = \mathbf{X}^\top\frac{\partial L}{\partial\mathbf{Y}}, \qquad \frac{\partial L}{\partial \boldsymbol{b}} = \sum_{i}\frac{\partial L}{\partial\mathbf{Y}_{i,:}}, \qquad \frac{\partial L}{\partial \mathbf{X}} = \frac{\partial L}{\partial\mathbf{Y}}\mathbf{W}^\top$$
+
+```python
+class Affine:
+    def __init__(self, W, b):
+        self.W, self.b = W, b
+        self.x = None
+        self.dW = self.db = None
+
+    def forward(self, x):
+        self.x = x
+        return x @ self.W + self.b
+
+    def backward(self, dout):
+        self.dW = self.x.T @ dout
+        self.db = dout.sum(axis=0)          # 沿 batch 维求和！
+        return dout @ self.W.T
+```
+
+**注意**：`db` 必须对 batch 求和，这是最常见的错误之一。
+
+### 2.2 ReLU 层
+
+$$y = \max(0, x), \qquad \frac{\partial L}{\partial x} = \frac{\partial L}{\partial y}\odot\mathbb{1}[x>0]$$
+
+```python
+class ReLU:
+    def __init__(self):
+        self.mask = None
+
+    def forward(self, x):
+        self.mask = (x > 0)
+        return x * self.mask
+
+    def backward(self, dout):
+        return dout * self.mask
+```
+
+**要点**：前向时**保存 mask**，反向时复用（比重新比较更快）。
+
+### 2.3 SoftmaxWithLoss
+
+把 softmax 与交叉熵**合并**成一层（数值稳定且梯度简洁）：
+
+```python
+class SoftmaxWithLoss:
+    def forward(self, z, t):
+        self.t = t
+        # log_softmax: 数值稳定
+        z_shift = z - z.max(axis=1, keepdims=True)
+        log_sum_exp = np.log(np.exp(z_shift).sum(axis=1, keepdims=True))
+        self.y = np.exp(z_shift - log_sum_exp)          # softmax 输出
+        self.loss = -np.mean(np.sum(t * (z_shift - log_sum_exp), axis=1))
+        return self.loss
+
+    def backward(self):
+        batch = self.t.shape[0]
+        return (self.y - self.t) / batch                # 极其简洁
+```
+
+**关键**：反向只需 `(y - t) / batch`。那个 `/ batch` 对应损失里的 `mean`。
+
+### 2.4 Dropout（训练时随机失活）
+
+```python
+class Dropout:
+    def __init__(self, p=0.5):
+        self.p = p
+        self.mask = None
+
+    def forward(self, x, train=True):
+        if not train:
+            return x
+        self.mask = (np.random.rand(*x.shape) > self.p) / (1.0 - self.p)
+        return x * self.mask          # inverted dropout: 训练时缩放
+
+    def backward(self, dout):
+        return dout * self.mask
+```
+
+**Inverted Dropout 的意义**：训练时就把输出除以 $(1-p)$，使期望不变 ⇒ **预测时无需做任何缩放**。
+
+---
+
+## 三、两层网络类
+
+```python
+class TwoLayerNet:
+    def __init__(self, input_size, hidden_size, output_size, weight_init_std=0.01):
+        self.params = {
+            "W1": weight_init_std * np.random.randn(input_size, hidden_size),
+            "b1": np.zeros(hidden_size),
+            "W2": weight_init_std * np.random.randn(hidden_size, output_size),
+            "b2": np.zeros(output_size),
+        }
+        self.layers = ["Affine1", "ReLU1", "Affine2"]
+        self.lastLayer = "SoftmaxWithLoss"
+
+    def predict(self, x):
+        ...
+
+    def loss(self, x, t):
+        ...
+
+    def accuracy(self, x, t):
+        ...
+
+    def gradient(self, x, t):
+        # 1) 前向
+        self.loss(x, t)
+        # 2) 反向
+        dout = 1
+        dout = self.lastLayer.backward()
+        ...
+```
+
+**训练循环**：
+
+```python
+for it in range(iters_num):
+    batch = np.random.choice(train_size, batch_size)
+    grad = net.gradient(X_train[batch], y_train[batch])
+    for key in ("W1", "b1", "W2", "b2"):
+        net.params[key] -= lr * grad[key]
+```
+
+---
+
+## 四、权重初始化：能不能训起来的关键
+
+### 4.1 全零初始化
+
+**不行**。所有权重为 0 ⇒ 所有神经元输出相同 ⇒ 梯度相同 ⇒ **永远保持对称**，等价于只有一个神经元。
+
+**这就是"对称性破缺"问题。**
+
+### 4.2 小随机数（如 `0.01 * randn`）
+
+**可以训，但有隐患**：若 std 太小，各层激活值趋近 0，反向梯度也趋近 0（尤其对 sigmoid/tanh）。
+
+**鱼书实验结论**：对 5 层 sigmoid 网络，`0.01` 的初始化会导致**中间层激活值集中在 0 附近**，梯度在浅层非常小。
+
+### 4.3 Xavier 初始化（适用于 sigmoid / tanh）
+
+$$W \sim \mathcal{N}\left(0,\ \frac{1}{n_{\text{in}}}\right) \quad\text{或}\quad \mathcal{N}\left(0,\ \frac{2}{n_{\text{in}}+n_{\text{out}}}\right)$$
+
+**推导思路**：让每一层输出的方差与前一层输入方差相同（避免信号被放大或衰减）。
+
+**假设**：$z = \sum_{i=1}^{n_{\text{in}}}w_ix_i$，$x_i$ 独立同分布、均值为 0、方差为 $\sigma_x^2$，$w_i$ 独立、均值为 0、方差为 $\sigma_w^2$：
+
+$$\operatorname{Var}(z) = n_{\text{in}}\sigma_w^2\sigma_x^2$$
+
+要让 $\operatorname{Var}(z) = \sigma_x^2$ ⇒ $\sigma_w^2 = \frac{1}{n_{\text{in}}}$。
+
+（若同时考虑反向传播的方差，得 $\sigma_w^2 = \frac{2}{n_{\text{in}}+n_{\text{out}}}$。）
+
+### 4.4 He 初始化（适用于 ReLU）
+
+ReLU 会把负半轴"砍掉"，因此方差减半，需要补偿：
+
+$$W \sim \mathcal{N}\left(0,\ \frac{2}{n_{\text{in}}}\right)$$
+
+**这是 ReLU 网络的默认选择。**
+
+### 4.5 对照速查
+
+| 激活函数 | 推荐初始化 | 标准差 |
+| --- | --- | --- |
+| Sigmoid / Tanh | Xavier / Glorot | $\sqrt{1/n_{\text{in}}}$ 或 $\sqrt{2/(n_{\text{in}}+n_{\text{out}})}$ |
+| **ReLU / Leaky ReLU** | **He / Kaiming** | $\sqrt{2/n_{\text{in}}}$ |
+| SELU | LeCun | $\sqrt{1/n_{\text{in}}}$ |
+
+**实践**：PyTorch 的 `nn.Linear` 默认用 $\sqrt{1/n_{\text{in}}}$（近似 Xavier），对 ReLU 网络需手动改成 He。
+
+---
+
+## 五、MNIST 训练的预期结果
+
+| 配置 | 测试精度 |
+| --- | --- |
+| 两层（$H=50$），无 Dropout | ~97.0% |
+| 两层（$H=50$）+ Dropout | ~98.0% |
+| 两层（$H=100$）+ Dropout | ~98.2% |
+
+**超参数建议**：
+
+| 参数 | 值 |
+| --- | --- |
+| 隐藏层大小 | 50 或 100 |
+| 学习率 | 0.1（配合 SGD） |
+| batch size | 100 |
+| 迭代次数 | 10000 次（≈ 16 个 epoch） |
+| 权重初始化 | He（因为用 ReLU）|
+
+---
+
+## 六、代码实践
+
+完整版本见 `code/day4_two_layer_net.py`，包含：
+
+1. **完整的两层网络实现**（Affine / ReLU / SoftmaxWithLoss / Dropout）；
+2. **MNIST 加载**（用 sklearn 的 `fetch_openml` 或本地生成数据，避免网络依赖）；
+3. **梯度检查**：解析梯度 vs 数值梯度的相对误差；
+4. **权重初始化对比**：`0.01*randn` / Xavier / He 三者的激活值分布与训练曲线；
+5. **训练与评估**，打印每一轮 epoch 的 loss 与 train/test accuracy；
+6. **超参数搜索**：学习率、隐藏层大小、Dropout 的网格实验；
+7. **与 PyTorch 对照**：用同样的结构跑一遍，验证精度接近。
+
+---
+
+## 七、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| `db` 忘记对 batch 求和 | 形状对但数值错；梯度检查能发现 |
+| SoftmaxWithLoss 反向忘记 `/batch` | 学习率要相应调整，否则训练不稳 |
+| 权重全零初始化 | 对称性不破缺，无法学习 |
+| 用 ReLU 却用 Xavier 初始化 | 训练慢；应用 He |
+| Dropout 在预测时也开启 | 结果随机且变差；用 `train=False` |
+| 忘记打乱训练数据 | 系统性偏差 |
+| 用测试集调超参 | 数据泄漏 |
+| 学习率过大 | loss 变 nan（交叉熵 + softmax 爆炸） |
+| ReLU 后接 softmax 但 logits 太大 | 虽然 softmax 内部减了最大值，但要注意输入尺度 |
+
+---
+
+## 八、练习题
+
+**基础**
+
+1. 写出 Affine 层的前向与反向公式。
+2. 解释 ReLU 层为什么要保存 mask。
+3. 写出 SoftmaxWithLoss 的反向结果。
+
+**进阶**
+
+4. 推导 $\frac{\partial L}{\partial \boldsymbol{b}} = \sum_i \frac{\partial L}{\partial \mathbf{Y}_{i,:}}$ 的来源。
+5. 推导 Xavier 初始化中 $\sigma_w^2 = 1/n_{\text{in}}$ 的结论。
+6. 推导 He 初始化中 $\sigma_w^2 = 2/n_{\text{in}}$（提示：ReLU 让方差减半）。
+7. 用梯度检查验证你的 Affine 层实现（写出伪代码）。
+
+**思考题**
+
+8. 为什么"全零初始化"不行，但"偏置初始化为零"可以？
+9. 如果训练时 loss 一直不下降（保持在 $\ln 10 \approx 2.30$），可能是什么原因？
+10. Dropout 为什么能防止过拟合？请从"集成多个子网络"的角度解释。
+
+<details>
+<summary>第 6 题答案</summary>
+
+设 $z = \sum_i w_ix_i$，$x_i$ 方差为 $\sigma_x^2$，$w_i$ 方差为 $\sigma_w^2$。
+
+ReLU 后：$a = \max(0, z)$。若 $z$ 关于 0 对称，则
+
+$$\mathbb{E}[a^2] = \int_0^\infty \frac{z^2}{\sqrt{2\pi}\sigma_z}e^{-z^2/2\sigma_z^2}dz = \frac{1}{2}\sigma_z^2$$
+
+即 ReLU 让**方差减半**：$\operatorname{Var}(a) = \frac{1}{2}\operatorname{Var}(z)$。
+
+为了保持方差不变（$\operatorname{Var}(z) = \operatorname{Var}(a)$）：
+
+$$n_{\text{in}}\sigma_w^2\sigma_x^2 = \frac{1}{2}n_{\text{in}}\sigma_w^2\sigma_x^2 \cdot 2 \quad\Rightarrow\quad \sigma_w^2 = \frac{2}{n_{\text{in}}}$$
+
+∎
+</details>
+
+<details>
+<summary>第 8 题答案</summary>
+
+**权重必须随机初始化**：因为每个神经元的输出是 $\sigma(\boldsymbol{w}^\top\boldsymbol{x})$。若所有权重相同，则所有神经元的**输出完全相同**，进而它们的梯度也完全相同，更新后仍然相同。这就是"对称性"从未被打破，多层网络退化为单神经元。
+
+**偏置可以初始化为零**：因为权重已经是随机的，即使所有 $b_j = 0$，各神经元的 $\boldsymbol{w}_j^\top\boldsymbol{x}$ 也不同 ⇒ 输出不同 ⇒ 对称性已被打破。偏置零初始化不会导致退化。
+
+**补充**：实践中偏置通常初始化为 0 或一个小的正常数（防止 ReLU 死亡）。
+</details>
+
+<details>
+<summary>第 9 题答案要点</summary>
+
+$\ln 10 \approx 2.303$ 是 10 分类问题在**完全随机猜测**时的交叉熵（$-\ln(1/10)$）。loss 不下降说明模型没有学到任何东西。可能原因：
+
+1. **权重初始化太差**（全零、或 std 太小导致梯度消失）；
+2. **学习率太小**；
+3. **学习率太大**导致震荡/NaN（此时 loss 会先升后 NaN，而不是稳定在 2.3）；
+4. **ReLU 全部死亡**（检查激活值为 0 的比例）；
+5. **数据标签没对齐**（例如 one-hot 编码错了、标签与特征错位）；
+6. **梯度计算有 bug**（漏乘、转置错）—— 用梯度检查排查；
+7. **输入未标准化**（值域过大导致 logits 爆炸）；
+8. **标签被错误地 shuffle 了**（特征与标签不匹配）。
+
+**排查顺序**：先做梯度检查 → 再检查激活值分布 → 再检查数据是否正确 → 最后调学习率。
+</details>
+
+---
+
+## 九、一句话总结
+
+**手写一遍两层网络，你就彻底理解了"深度学习框架到底在替你做什么"。** 从今天起，任何新网络在你眼里都只是"前向结构不同 + 反向按同样规则推导"。
+
+---
+
+**明日预告**：Day5 讲工程细节——数据怎么划分、批怎么选、学习率怎么调、怎么判断模型好坏。
+

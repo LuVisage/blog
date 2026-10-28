@@ -1,0 +1,187 @@
+---
+slug: week-1-plan
+kind: reference
+day: 1
+week: 1
+weekTitle: Python 工程化
+weekBlurb: 类型注解与数据校验、装饰器、async/await、pytest 与 logging、项目结构与打包——把能跑的脚本变成能维护的工程。
+title: Python 工程化
+lead: '**本周目标**：把「能跑的脚本」变成「别人敢维护的代码」。'
+sourcePath: Python工程化与后端实战/Week1_Python工程化/README.md
+---
+
+> **本周目标**：把「能跑的脚本」变成「别人敢维护的代码」。
+
+---
+
+## 为什么第一周讲这个
+
+**先看两段代码**：
+
+```python
+# 脚本思维
+def get_user(id):
+    conn = pymysql.connect(host="localhost", user="root", password="123456", db="test")
+    cur = conn.cursor()
+    r = cur.execute(f"SELECT * FROM users WHERE id = {id}")
+    return cur.fetchone()
+```
+
+```python
+# 工程思维
+async def get_user(user_id: int, db: AsyncSession) -> User | None:
+    """按 ID 查询用户。
+
+    Args:
+        user_id: 用户 ID，必须为正整数。
+        db: 数据库会话（由依赖注入提供）。
+
+    Returns:
+        找到则返回 User，不存在返回 None。
+    """
+    logger.info("query_user", extra={"user_id": user_id})
+    result = await db.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
+```
+
+**差别不是「好不好看」，而是**：
+
+| 脚本 | 工程 |
+| --- | --- |
+| `id` 是整数还是字符串？不知道 | 类型明确，IDE 能提示 |
+| 密码硬编码，泄漏风险 | 配置外置，密钥管理 |
+| **SQL 注入漏洞**（f-string 拼接） | 参数化查询 |
+| 连不上数据库就崩 | 有错误处理与重试 |
+| 同步阻塞，一次只能服务一个 | 异步并发 |
+| 出问题只能 print | 结构化日志可检索 |
+
+**面试官看你的代码，30 秒就能判断你是「写过脚本」还是「做过项目」。**
+
+---
+
+## 五天安排
+
+| 天 | 主题 | 文档 | 代码 | 时长 |
+| --- | --- | --- | --- | --- |
+| Day1 | 类型注解与数据校验 | [Day1](/learn/backend/day-01) | `code/day1_typing.py` | 3h |
+| Day2 | 装饰器与高阶函数 | [Day2](/learn/backend/day-02) | `code/day2_decorators.py` | 3h |
+| Day3 | **异步编程**（重点） | [Day3](/learn/backend/day-03) | `code/day3_async.py` | 4h |
+| Day4 | 测试与日志 | [Day4](/learn/backend/day-04) | `code/day4_testing.py` | 3h |
+| Day5 | 项目结构与打包 | [Day5](/learn/backend/day-05) | `code/day5_project/` | 3h |
+
+---
+
+## 学习目标（可检验）
+
+学完本周，你应该能：
+
+- [ ] 给一个函数写出完整的类型注解，并用 `mypy` 通过检查
+- [ ] 用 Pydantic 定义一个数据模型，能自动校验并给出友好错误
+- [ ] 手写一个装饰器（带参数、能保留原函数签名）
+- [ ] 说清 `async/await` 的执行顺序，并写出 `asyncio.gather` 的并发代码
+- [ ] 用 pytest 给一个函数写测试，用 fixture 复用准备代码
+- [ ] 输出结构化日志（JSON 格式），能按字段检索
+- [ ] 把散落的脚本组织成一个可安装的 Python 包（带 `pyproject.toml`）
+
+---
+
+## 关键认知：为什么 Day3 最重要
+
+**LLM 应用的本质是「等 I/O」**：
+
+```
+一次 LLM 调用耗时: 2 ~ 30 秒（几乎全是等网络）
+一次数据库查询:    1 ~ 50 毫秒
+一次向量检索:      5 ~ 100 毫秒
+```
+
+**同步代码的问题**：
+
+```python
+# 同步：处理 10 个用户请求，每个请求调一次 LLM（每次 3 秒）
+for user in users:              # 串行
+    result = llm.chat(...)      # 阻塞 3 秒
+# 总耗时 = 10 × 3 = 30 秒
+```
+
+```python
+# 异步：同时发出
+results = await asyncio.gather(*[llm.chat_async(u) for u in users])
+# 总耗时 ≈ 3 秒（并发）
+```
+
+**10 倍差距，只需要把函数改成 `async`。**
+
+**现实**：
+
+- OpenAI SDK 的 `AsyncOpenAI`
+- LangChain 的 `ainvoke` / `astream`
+- 你的 agent 教程里第 8 周的流式输出
+
+**全部是 async 接口。** 不会异步，你只能写出最慢的版本。
+
+---
+
+## 本周产出的成果
+
+到 Day5 结束，你会有一个完整的包：
+
+```
+user_service/
+├── pyproject.toml
+├── README.md
+├── src/
+│   └── user_service/
+│       ├── __init__.py
+│       ├── config.py          # Day4: 配置管理
+│       ├── models.py          # Day1: Pydantic 模型
+│       ├── decorators.py      # Day2: 重试/计时装饰器
+│       ├── client.py          # Day3: 异步客户端
+│       └── cli.py             # Day5: 命令行入口
+└── tests/
+    ├── conftest.py            # Day4: fixture
+    └── test_client.py         # Day4: 测试
+```
+
+**这个包在 Week2 会直接变成 FastAPI 服务的业务层。**
+
+---
+
+## 环境准备
+
+```bash
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+
+pip install pydantic pydantic-settings mypy pytest pytest-asyncio httpx
+```
+
+**检查**：
+
+```bash
+python -c "import pydantic; print(pydantic.VERSION)"
+mypy --version
+pytest --version
+```
+
+---
+
+## 本周检查清单
+
+- [ ] 我能说清「类型注解在运行时是否存在」以及它的真正用途
+- [ ] 我知道 `Optional[X]` 和 `X | None` 的关系，以及为什么不要滥用
+- [ ] 我能用 Pydantic 做数据校验，并自定义校验规则
+- [ ] 我能手写带参数的装饰器，并解释 `functools.wraps` 的作用
+- [ ] 我能说清协程（coroutine）与线程、进程的区别
+- [ ] 我能写出正确的并发代码，并知道什么时候**不该**并发
+- [ ] 我能用 pytest 写测试，用 fixture 复用准备逻辑
+- [ ] 我知道结构化日志与普通 print 的区别
+- [ ] 我能把代码组织成包，用 `pyproject.toml` 管理依赖
+
+---
+
+**开始**：[Day1_类型注解与数据校验.md](/learn/backend/day-01)
+

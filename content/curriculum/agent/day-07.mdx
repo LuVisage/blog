@@ -1,0 +1,185 @@
+---
+slug: day-07
+day: 7
+week: 2
+weekTitle: RAG 与 Milvus
+weekBlurb: Embedding 与向量检索、文本切分、Milvus 部署、端到端 RAG 管线。
+title: Milvus 入门 —— 向量数据库的基本功（Milvus Lite 零依赖版）
+lead: 在本地跑起 Milvus Lite，亲手完成 Collection（建表）、Insert（写入）、Search（检索）、Query（过滤）、Delete 全流程。
+examples:
+  - examples/day07_milvus_lite.py
+sourcePath: week-02-rag-milvus/day-07.md
+---
+
+---
+
+## 7.1 为什么要专门的"向量数据库"？
+
+Day 6 你会手写余弦相似度了。那把向量存哪儿？
+
+- 存 list？1000 条向量挨个算一遍也许行；1 亿条呢？一次检索要算 1 亿次点积。
+- 存 PostgreSQL？传统数据库为"精确匹配"（`WHERE name = '张三'`）设计，对"找最相似的 5 个向量"这种**近似匹配**无能为力。
+
+**向量数据库**就是为"高维向量 + 近似最近邻（ANN，Approximate Nearest Neighbor）"专门设计的引擎：通过特殊索引（HNSW、IVF 等），把"必须精确比对每一行"变成"快速定位最可能相似的区域"，**亿级向量毫秒级出结果**，召回率仍高达 95%+。
+
+**Milvus** 是全球最流行的开源向量数据库（Linux 基金会毕业项目），本教程选它的理由：
+
+1. 开源免费、社区活跃、中文文档全；
+2. 三种形态覆盖开发到生产：Lite（嵌入式，今天）→ Standalone（Docker 单机，明天）→ Cluster（K8s 分布式，了解即可）；
+3. 2.6 版本还内置**全文检索（BM25）**，能做混合检索（Day 12）——这对中文 RAG 至关重要。
+
+## 7.2 三种部署形态怎么选
+
+| 形态 | 运行方式 | 适用场景 | 本教程 |
+|---|---|---|---|
+| **Milvus Lite** | 一个 Python 包，数据存本地文件 `xxx.db` | 学习、原型、小项目（百万级向量） | Day 7 |
+| **Milvus Standalone** | Docker Compose 起 3 个容器 | 生产单机、团队共用 | Day 8 |
+| **Milvus Cluster** | Kubernetes 分布式集群 | 超大规模、高可用 | 了解即可 |
+
+> 今天用 Lite 学**概念和 API**，明天用 Standalone 学**部署和运维**。两者 API 完全一样，代码零改动切换（只换一行连接地址）。
+
+## 7.3 Milvus 核心概念（对照 MySQL 学）
+
+| Milvus 概念 | MySQL 类比 | 说明 |
+|---|---|---|
+| **Collection** | 表（Table） | 一类数据的集合，定义好字段结构（Schema） |
+| **Schema** | 建表语句 | 声明字段：名字、类型、是否是主键、维度 |
+| **Entity** | 行（Row） | 一条数据（向量 + 元数据） |
+| **Vector Field** | 特殊列 | 存高维向量，需声明维度（dim），如 768 |
+| **Index** | 索引 | 加速向量检索的结构（HNSW/IVF/FLAT） |
+| **Search** | `ORDER BY 相似度 LIMIT k` | 按向量相似度返回 Top-k |
+| **Query** | `WHERE` 过滤 | 按标量字段精确过滤（如 `category == "技术"`） |
+| **Partition** | 分区表 | 按类目物理隔离数据，加速过滤 |
+
+## 7.4 MilvusClient：pymilvus 的高层 API
+
+pymilvus 有两套 API：低层 `Collection` 类（精细控制）和高层 `MilvusClient`（开箱即用）。**本教程统一用 `MilvusClient`**——它是官方推荐的新手入口，也覆盖了 95% 的业务需求。
+
+### 第一步：连接（Lite 模式就是"打开一个本地文件"）
+
+```python
+from pymilvus import MilvusClient
+
+client = MilvusClient("milvus_demo.db")    # 本地文件，自动创建，零配置！
+```
+
+就这么简单。**Lite 模式下没有服务器**——Milvus 引擎直接跑在你的 Python 进程里，数据落在这个 `.db` 文件。
+
+> 对比明天的 Standalone：`MilvusClient(uri="http://localhost:19530")`——其余代码一模一样。**这就是今天学 Lite 的意义：API 无痛迁移。**
+
+### 第二步：建 Collection（快速建表）
+
+```python
+client.create_collection(
+    collection_name="demo_articles",
+    dimension=8,          # 向量维度（演示用 8 维；真实 embedding 是 768/1024 维）
+    metric_type="COSINE", # 相似度算法：COSINE 余弦 / IP 内积 / L2 欧氏距离
+)
+```
+
+### 第三步：插入数据
+
+```python
+data = [
+    {"id": 1, "vector": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8], "title": "向量数据库入门", "category": "技术"},
+    {"id": 2, "vector": [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2], "title": "今晚吃什么", "category": "生活"},
+]
+client.insert("demo_articles", data)
+```
+
+- 每行是一个 dict：`id` 是主键（必须且唯一），`vector` 是向量字段，其余是你自定义的**标量字段**（标题、类目等，检索到之后要展示给用户/喂给模型的）。
+- `vector` 字段名是 pymilvus 的**默认向量字段名**（可自定义，本教程用默认）。
+
+### 第四步：向量检索（Search）
+
+```python
+results = client.search(
+    collection_name="demo_articles",
+    data=[[0.12, 0.18, 0.29, 0.41, 0.52, 0.61, 0.72, 0.79]],   # 查询向量（注意双层列表：可一次搜多个）
+    limit=2,                                                    # 返回最相似的 2 条
+    output_fields=["title", "category"],                        # 返回哪些标量字段
+)
+for hit in results[0]:
+    print(hit["distance"], hit["entity"]["title"])   # distance=相似度分数，entity=该行数据
+```
+
+### 第五步：标量过滤（Query）+ 删除
+
+```python
+rows = client.query("demo_articles", filter='category == "技术"', output_fields=["title"])
+client.delete("demo_articles", ids=[2])
+```
+
+## 7.5 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-02-rag-milvus\examples
+python day07_milvus_lite.py
+```
+
+## 7.6 案例逐行讲解：`day07_milvus_lite.py` —— 一个"文章推荐系统"的数据库层
+
+```python
+"""Day 7 案例：Milvus Lite 全流程 —— Collection/Insert/Search/Query/Delete"""
+from pymilvus import MilvusClient
+
+DB_FILE = "milvus_demo.db"          # 本地数据库文件（跑完可删）
+
+# 1. 连接：Lite 模式打开本地文件
+client = MilvusClient(DB_FILE)
+
+# 2. 建 Collection：8 维向量 + 余弦相似度
+if client.has_collection("articles"):
+    client.drop_collection("articles")           # 重复运行先清掉旧表（幂等）
+client.create_collection("articles", dimension=8, metric_type="COSINE")
+
+# 3. 插入 6 篇"文章"（向量是手造的演示数据，注意 1、2 号方向相近=内容相似）
+articles = [
+    {"id": 1, "vector": [0.8, 0.1, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0], "title": "向量数据库入门", "category": "技术"},
+    {"id": 2, "vector": [0.7, 0.2, 0.2, 0.1, 0.0, 0.0, 0.0, 0.0], "title": "Milvus 基础教程", "category": "技术"},
+    {"id": 3, "vector": [0.1, 0.9, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0], "title": "红烧肉的做法", "category": "美食"},
+    {"id": 4, "vector": [0.1, 0.1, 0.9, 0.1, 0.0, 0.0, 0.0, 0.0], "title": "周末去哪里爬山", "category": "生活"},
+    {"id": 5, "vector": [0.1, 0.1, 0.1, 0.9, 0.0, 0.0, 0.0, 0.0], "title": "Python 教程推荐", "category": "技术"},
+    {"id": 6, "vector": [0.1, 0.1, 0.1, 0.1, 0.9, 0.0, 0.0, 0.0], "title": "健身计划分享", "category": "生活"},
+]
+client.insert("articles", articles)
+print(f"✅ 插入 {len(articles)} 条数据")
+
+# 4. 向量检索：查询向量接近"技术类"方向（与 1、2、5 相近）
+query_vec = [[0.75, 0.15, 0.1, 0.1, 0.05, 0.0, 0.0, 0.0]]
+print("\n🔍 语义检索：最相似的 3 篇")
+results = client.search("articles", data=query_vec, limit=3, output_fields=["title", "category"])
+for i, hit in enumerate(results[0], 1):
+    print(f"  {i}. {hit['entity']['title']}（相似度 {hit['distance']:.3f}）")
+
+# 5. 标量过滤：只看"生活"类
+print("\n📂 标量过滤：category == '生活'")
+rows = client.query("articles", filter='category == "生活"', output_fields=["title"])
+for r in rows:
+    print(f"  - {r['title']}")
+
+# 6. 删除 + 收尾
+client.delete("articles", ids=[6])
+print("\n🗑️  删除 id=6 后剩余条数：", client.query("articles", output_fields=["count(*)"])[0]["count(*)"])
+
+client.drop_collection("articles")
+client.close()
+print("✅ 练习完成（已清理）")
+```
+
+**逐段要点**：
+
+- **`if has_collection` 再建**：脚本要能反复运行（幂等），这是写演示/测试代码的好习惯；
+- **手造向量的用意**：每个向量在某一位上"突出"（0.8/0.9），代表不同主题方向。查询向量第一位 0.75 → 和第 1、2 号（第一位 0.8/0.7）最像。**你不需要看懂向量内容，只需要理解"方向接近=相似"**；
+- **`search` vs `query`**：search 是"找相似"（有 distance 分数），query 是"精确过滤"（没有分数，返回所有匹配行）。生产环境常**先 query 过滤再 search**（Day 13 学）；
+- **`output_fields=["count(*)"]`**：Milvus 支持聚合表达式，`count(*)` 返回行数。
+
+## 7.7 今日自测
+
+<Quiz items={["给 articles 加 3 条新数据，把查询向量换成\"美食方向\"，验证检索结果跟着变。","把 `metric_type` 改成 `L2` 再跑，观察 distance 数值变化——思考：L2 是\"距离\"（越小越像），COSINE 是\"相似度\"（越大越像），**两种分数方向相反**，这是新手常踩的坑。","`client.query` 时用 `filter='id in [1, 3, 5]'`，体验条件语法。","删除整个 `.db` 文件再运行脚本，确认一切从头再来。","`notes/day07.md`：画出 Collection（表）→ Entity（行）→ Field（列）的对应图，标出哪个字段是\"向量\"。"]} />
+
+## 7.8 常见坑速查
+
+<GotchaTable rows={[{"symptom":"重复运行报 \"collection already exists\"","cause":"没做 has_collection 判断","fix":"见案例第 2 步的幂等写法"},{"symptom":"`search` 报维度不匹配","cause":"查询向量维度和建表 dimension 不一致","fix":"检查 `len(vec) == dimension`"},{"symptom":"`distance` 越小排越前","cause":"用了 L2/IP 度量（分数是距离/内积）","fix":"COSINE 越大越像；L2 越小越像"},{"symptom":"过滤语法报错","cause":"字符串值要双引号，字段值区分大小写","fix":"`'category == \"技术\"'` 注意引号"},{"symptom":"`.db` 文件特别大","cause":"删数据不释放磁盘（Lite 特性）","fix":"演示完 drop_collection 或直接删文件"}]} />
+
+<DayComplete day={7} recap={"你已经能操作向量数据库了：建表、写入、相似检索、过滤、删除。明天把 Milvus 部署成真正的服务器（Docker Standalone），迎接\"生产级\"。"} />

@@ -1,0 +1,46 @@
+# build output
+.next/
+out/
+
+# dependencies
+node_modules/
+
+# misc
+.DS_Store
+*.pem
+
+# env
+.env
+.env*.local
+proxy/.dev.vars
+.wrangler/
+
+# IDE
+.vscode/
+.idea/
+
+# debug
+npm-debug.log*
+
+# turbo
+.turbo/
+
+# vercel
+.vercel/
+tsconfig.tsbuildinfo
+
+# playwright MCP temp
+.playwright-mcp/
+
+# agent screenshot scratch
+.qoder-shots/
+
+# agent scratch: kept-aside files, local probes, junctions into out/
+.qoder-scratch/
+
+# CodeBuddy 工作区数据
+.codebuddy/
+
+# 构建缓存改名让位的备份（构建时环境批量删除保护所致）
+.next.bak.*/
+out.bak.*/

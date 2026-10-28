@@ -1,0 +1,263 @@
+---
+slug: day-11
+day: 11
+week: 3
+weekTitle: RAG 优化与评估
+weekBlurb: 查询改写、混合检索与重排序、父子文档、RAGAS 指标打分。
+title: '查询优化 —— 让"问法刁钻"的用户也能检索到'
+lead: '诊断"检索不到"的三大病因，学会 MultiQuery（多查询）、HyDE（假设文档）、查询重写、相关性过滤四招。'
+examples:
+  - examples/day11_multiquery.py
+  - examples/day11_hyde_filter.py
+sourcePath: week-03-rag-optimization/day-11.md
+---
+
+---
+
+## 11.1 先诊断：为什么你的 RAG 有时候"答非所问"
+
+第 2 周的机器人对标准问题答得很好，但真实用户会这样问：
+
+| 用户问法 | 知识库原文 | 问题 |
+|---|---|---|
+| "你们家**买一送一**吗？" | "500 分可兑换任意中杯饮品一杯" | 用词不同 → 向量不近 |
+| "**加班到晚上还能喝到吗**？" | "营业时间：工作日 8:00-22:00" | 问法隐晦 → 语义绕 |
+| "积分**咋整**？生日有**优惠**吗？" | 两个不同文档块 | 口语 + 多问题混杂 |
+
+向量检索靠"字面/语义相近"，用户的口语和文档的书面语之间有一道**鸿沟**。今天学四招填平它。**核心思想只有一句话：检索前，先把用户的问题"加工"得更容易命中。**
+
+## 11.2 第一招：MultiQueryRetriever（多查询检索）
+
+**原理**：让 LLM 把用户的 1 个问题**改写成 N 个不同角度的变体**，每个变体各检索一次，结果取并集去重。比如"买一送一吗"会被改写成：
+
+```
+1. 咖啡店有没有买一送一的优惠活动？
+2. 饮品促销活动有哪些？
+3. 会员有什么饮品折扣？
+```
+
+第 1 个变体仍然可能miss，但第 2、3 个大概率命中"积分兑换"文档。**用数量换召回**。
+
+```python
+from langchain_classic.retrievers import MultiQueryRetriever
+
+multi_retriever = MultiQueryRetriever.from_llm(
+    retriever=retriever,              # 底层还是你的 Milvus 检索器
+    llm=model,                        # 用哪个模型改写问题
+)
+
+docs = multi_retriever.invoke("你们家买一送一吗？")
+# 内部过程：LLM 生成 3 个变体 → 3 次检索 → 合并去重 → 返回
+```
+
+> 代价：**多花 3 倍检索 + 1 次 LLM 调用**。所以只在"基础版检索效果差"时启用，或对低置信度查询启用（Day 12 会讲置信度判断）。
+
+## 11.3 第二招：查询分解（复杂问题拆子问题）
+
+"积分怎么用？生日有优惠吗？营业到几点？"——一句话问了三件事。整体 embedding 出来是个"四不像"，拆成三个子问题分别检索，各中靶心：
+
+```python
+from langchain_core.prompts import ChatPromptTemplate
+
+decompose_prompt = ChatPromptTemplate.from_messages([
+    ("system", "把用户的问题拆解成多个独立的子问题，每行一个，最多 3 个。若问题简单则原样输出。"),
+    ("human", "{question}"),
+])
+
+def decompose_and_retrieve(question: str) -> list:
+    sub_qs = (decompose_prompt | model).invoke({"question": question}).content.strip().split("\n")
+    print("子问题：", sub_qs)
+    all_docs = []
+    for q in sub_qs:
+        all_docs.extend(retriever.invoke(q))
+    # 去重（按 page_content 去重）
+    seen, unique = set(), []
+    for d in all_docs:
+        if d.page_content not in seen:
+            seen.add(d.page_content); unique.append(d)
+    return unique
+```
+
+## 11.4 第三招：HyDE（假设性文档嵌入）
+
+**原理**（2022 年论文，至今是经典）：用户问题和知识库文档是两种"文体"，直接比不如间接比。**先让 LLM 根据问题写一篇"假设的答案文档"，再用这篇假设文档去检索**——假设文档和真实文档都是"陈述文体"，向量空间里更接近：
+
+```
+用户问："积分咋整？"
+   ↓ LLM 生成假设答案
+"会员积分可以通过消费累积，达到一定分数后可兑换饮品，生日当月可能有额外优惠……"
+   ↓ 拿这段去 embedding 检索
+真实文档"每消费1元积1分，500分可兑换……" → 高相似命中！
+```
+
+```python
+hyde_prompt = ChatPromptTemplate.from_messages([
+    ("system", "写一段 50 字左右的假设性回答，内容要像知识库文档的口吻。"),
+    ("human", "{question}"),
+])
+
+def hyde_retrieve(question: str) -> list:
+    fake_answer = (hyde_prompt | model | StrOutputParser()).invoke({"question": question})
+    print("假设文档：", fake_answer[:60], "...")
+    return retriever.invoke(fake_answer)     # 用假设答案而不是原问题检索！
+```
+
+> **适合场景**：口语化、隐晦、短问题（"咋整""有没有优惠"）。**不适合**：专有名词精确查询（"星尘咖啡的股票代码"——假设文档会引入无关词）。
+
+## 11.5 第四招：检索后的"安检"——相关性过滤
+
+前三招都在检索**前**加工。这招在检索**后**把关：用 LLM 判断"这篇文档和问题真的相关吗"，把滥竽充数的挡在生成环节之外（**省 token、防幻觉**）：
+
+```python
+from langchain_classic.retrievers import ContextualCompressionRetriever
+from langchain_classic.retrievers.document_compressors import LLMChainFilter
+
+_filter = LLMChainFilter.from_llm(
+    llm=model,
+    prompt=ChatPromptTemplate.from_messages([
+        ("system", "判断下面的资料能否用于回答用户问题。能就回答 YES，不能回答 NO。"),
+        ("human", "用户问题：{question}\n\n资料：{context}"),
+    ]),
+)
+
+compressed_retriever = ContextualCompressionRetriever(
+    base_compressor=_filter,
+    base_retriever=retriever,
+)
+docs = compressed_retriever.invoke("积分怎么算")   # 不相关的已被过滤
+```
+
+`ContextualCompressionRetriever` 是个通用包装器：先 `base_retriever` 检索，再 `base_compressor` 压缩/过滤，最后输出。LLMChainFilter 是其中一种压缩器（YES/NO 过滤），Day 12 还会见到另一种（重排序）。
+
+## 11.6 动手：跑今天的 2 个案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-03-rag-optimization\examples
+python day11_multiquery.py
+python day11_hyde_filter.py
+```
+
+## 11.7 案例逐行讲解
+
+### `day11_multiquery.py` —— 刁钻问法命中实验
+
+```python
+"""Day 11 案例 1：MultiQuery 多查询 —— 普通检索 vs 多查询对比"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_core.documents import Document
+from langchain_milvus import Milvus
+from langchain_classic.retrievers import MultiQueryRetriever
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+embeddings = OpenAIEmbeddings(model=os.environ["EMBEDDING_MODEL"],
+                              base_url=os.environ["EMBEDDING_BASE_URL"],
+                              api_key=os.environ["EMBEDDING_API_KEY"])
+
+# 知识库：咖啡店文档（复用第 2 周的星尘咖啡）
+docs = [
+    Document(page_content="会员积分规则：每消费 1 元积 1 分，500 分可兑换任意中杯饮品一杯。生日当月双倍积分。",
+             metadata={"source": "会员手册"}),
+    Document(page_content="营业时间：工作日 8:00-22:00，周末 9:00-23:00。", metadata={"source": "门店信息"}),
+    Document(page_content="退换货：咖啡豆未拆封 7 天内可退换；饮品制作完成后不支持退换。", metadata={"source": "售后政策"}),
+]
+vs = Milvus(embedding_function=embeddings, connection_args={"uri": "./milvus_mq.db"},
+            collection_name="mq_docs", auto_id=True)
+if vs.col:
+    vs.drop_collection()
+    vs = Milvus(embedding_function=embeddings, connection_args={"uri": "./milvus_mq.db"},
+                collection_name="mq_docs", auto_id=True)
+vs.add_documents(docs)
+
+plain = vs.as_retriever(search_kwargs={"k": 3})
+multi = MultiQueryRetriever.from_llm(retriever=plain, llm=model)
+
+# 刁钻问题："买一送一"在文档里并不存在，但积分兑换相当于优惠
+question = "你们家有没有买一送一的活动？"
+print(f"问题：{question}\n")
+
+print("── 普通检索命中 ──")
+for d in plain.invoke(question):
+    print(f"  · {d.page_content[:30]}...")
+
+print("\n── MultiQuery 检索命中 ──")
+for d in multi.invoke(question):
+    print(f"  · {d.page_content[:30]}...")
+```
+
+**要点**：
+
+- 观察普通检索可能命中"退换货"（语义有点沾边但不是答案），MultiQuery 通过变体"会员有什么饮品优惠"命中积分文档；
+- 每次运行 LLM 生成的变体都不同（即便 temperature=0 也可能略有差异），**结果不完全确定是 LLM 应用的常态**，评估时要注意（Day 14）。
+
+### `day11_hyde_filter.py` —— HyDE + 相关性过滤组合拳
+
+```python
+"""Day 11 案例 2：HyDE 假设文档 + 相关性过滤"""
+# ...（前 20 行与案例 1 相同：模型、embeddings、知识库、retriever）...
+
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_classic.retrievers import ContextualCompressionRetriever
+from langchain_classic.retrievers.document_compressors import LLMChainFilter
+
+# ── HyDE：生成假设答案再检索 ────────────────────
+hyde_prompt = ChatPromptTemplate.from_messages([
+    ("system", "写一段 50 字左右的假设性回答，用知识库文档的书面口吻。"),
+    ("human", "{question}"),
+])
+
+def hyde_retrieve(question: str):
+    fake = (hyde_prompt | model | StrOutputParser()).invoke({"question": question})
+    print(f"假设文档：{fake.strip()[:50]}...")
+    return plain.invoke(fake)
+
+print("\n── HyDE 检索（问题：'生日那天买咖啡划算不'）──")
+for d in hyde_retrieve("生日那天买咖啡划算不"):
+    print(f"  · {d.page_content[:30]}...")
+
+# ── 相关性过滤：检索后再安检 ────────────────────
+_filter = LLMChainFilter.from_llm(
+    llm=model,
+    prompt=ChatPromptTemplate.from_messages([
+        ("system", "判断资料能否用于回答用户问题，能回答 YES，否则 NO。"),
+        ("human", "用户问题：{question}\n\n资料：{context}"),
+    ]),
+)
+compressed = ContextualCompressionRetriever(base_compressor=_filter, base_retriever=plain)
+
+print("\n── 相关性过滤（问题：'积分怎么算'，k 放宽到 3 让无关文档混进来）──")
+for d in compressed.invoke("积分怎么算"):
+    print(f"  ✓ 保留：{d.page_content[:30]}...")
+```
+
+**要点**：
+
+- HyDE 对口语短问题效果显著，但注意它引入了"编造词"风险——所以往往和过滤配合使用；
+- 过滤把 k 放大的代价收回来：先多召回（k=3~5）再精筛，比直接小 k 更稳。**"宽进严出"是 RAG 工程的经验法则。**
+
+## 11.8 四招对比速查（选型参考）
+
+| 招数 | 解决什么 | 代价 | 何时用 |
+|---|---|---|---|
+| MultiQuery | 用词不一致 | N 倍检索 + 1 次 LLM | 通用提升召回，默认推荐 |
+| 查询分解 | 多问题混杂 | 1 次 LLM + N 倍检索 | 长句、复合问题 |
+| HyDE | 口语/隐晦短问 | 1 次 LLM | 客服场景口语问题 |
+| 相关性过滤 | 检索噪声 | 每文档 1 次 LLM | 防幻觉、省 token，配合宽召回 |
+
+> **组合拳**：MultiQuery 扩召回 + LLMChainFilter 收噪声 = 稳定召回。**别一次全上**——每招都有 LLM 成本和延迟，第 15 天用评估数据说话。
+
+## 11.9 今日自测
+
+<Quiz items={["造 5 个\"刁钻问题\"（口语、换词、隐晦），对比普通检索和 MultiQuery 的命中差异，写进 `notes/day11.md`。","把 HyDE 的假设文档打印完整，分析\"哪句话帮它命中了正确答案\"。","试试查询分解：输入\"你们营业到几点？生日有什么优惠？\"看子问题拆分效果。","组合拳实验：MultiQuery + LLMChainFilter 串起来（提示：filter 包在 multi 外面还是里面？想想数据流）。","思考题：如果用户问\"推荐一款豆子\"，检索该用哪招？为什么？"]} />
+
+## 11.10 常见坑速查
+
+<GotchaTable rows={[{"symptom":"`ModuleNotFoundError: langchain.retrievers`","cause":"旧教程的导入路径","fix":"LangChain 1.x 用 `langchain_classic.retrievers`"},{"symptom":"MultiQuery 变体千篇一律","cause":"模型偷懒","fix":"提示词要求\"从不同角度、不同措辞\""},{"symptom":"HyDE 检索结果更差","cause":"问题含专有名词","fix":"专有名词查询禁用 HyDE"},{"symptom":"过滤把正确文档也滤掉了","cause":"判断提示词太苛刻","fix":"让 LLM 解释理由再决定，或只滤明显无关"},{"symptom":"查询分解出 10 个子问题","cause":"没限制数量","fix":"提示词写\"最多 3 个\""}]} />
+
+<DayComplete day={11} recap={"你已经会\"加工问题\"了。明天攻检索端：混合检索（向量 + BM25 关键词）与重排序——让**精确词**和**语义**两条腿走路。"} />

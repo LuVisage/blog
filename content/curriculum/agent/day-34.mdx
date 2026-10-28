@@ -1,0 +1,189 @@
+---
+slug: day-34
+day: 34
+week: 7
+weekTitle: MCP 与多智能体
+weekBlurb: MCP 协议与适配器、Supervisor 主管路由、Swarm 交接模式。
+title: Multi-agent 模式二 —— Swarm 交接（Agent 之间直接转接）
+lead: '实现第二种多智能体架构：Swarm（蜂群）——没有主管，Agent 之间用 handoff 工具直接"打电话"转接。学完对比两种模式的选型。'
+examples:
+  - examples/day34_swarm.py
+sourcePath: week-07-mcp-multiagent/day-34.md
+---
+
+---
+
+## 34.1 Supervisor vs Swarm：两种协作哲学
+
+| | Supervisor（Day 33） | Swarm（今天） |
+|---|---|---|
+| 决策者 | 中央主管 Agent | **每个 Agent 自己** |
+| 转接方式 | 主管路由 | Agent 调 `transfer_to_xxx` 工具**直接交接** |
+| 类比 | 公司（CEO 派活） | 电话客服（"我帮你转技术部"） |
+| 优点 | 控制集中、易审计 | 灵活、低延迟、Agent 知道"该转给谁" |
+| 缺点 | 主管是单点瓶颈、每步都回主管 | 可能无限转接、难审计 |
+
+**Swarm 的核心机制**：每个 Agent 有一个"转接工具"——当它判断"这活该别人干"，就调用转接工具，**图直接跳到目标 Agent**，不用经过任何人。
+
+## 34.2 关键技术：转接工具 + 包装节点路由
+
+Day 17 你学过 `Command(goto=...)` 在**节点**里路由。Swarm 的实现思路：
+
+1. 每个 Agent 配一个**转接工具**（如 `transfer_to_tech`）——Agent 判断"这活该别人干"时调用它；
+2. 父图用**包装节点**包住 Agent：运行 Agent 后，检查它本次新增的消息里是否执行了转接工具；
+3. 有转接 → `Command(goto=目标Agent)` 直接跳转——**没有主管，Agent 自己决定去向**。
+
+```python
+@tool
+def transfer_to_tech() -> str:
+    """当用户问题涉及技术故障、App 报错、账号异常时，调用此工具转接技术专家。"""
+    return "转接请求已受理"          # 标记字符串，包装节点据此识别
+
+def make_agent_node(agent):
+    """包装节点：运行 Agent，检测转接意图，Command 路由"""
+    def node(state):
+        result = agent.invoke({"messages": state["messages"]})
+        new_msgs = result["messages"][len(state["messages"]):]   # 只看本次新增
+        transfer_to = None
+        for m in new_msgs:
+            if isinstance(m, ToolMessage) and getattr(m, "name", "") == "transfer_to_tech":
+                transfer_to = "tech_agent"
+        if transfer_to:
+            return Command(goto=transfer_to, update=result)   # ★ 直接跳转
+        return result
+    return node
+```
+
+**流程**：客服 Agent 判断"这是技术问题" → 调用 `transfer_to_tech` 工具 → 包装节点看到转接标记 → **图立刻跳到 tech_agent 节点** → 技术 Agent 接着服务用户。**没有中间商赚差价**。
+
+> 注意两个工程细节：① **只检查"本次新增消息"**——如果扫全量历史，一次转接后会反复触发（无限转接）；② 转接工具返回标记字符串 + 包装节点识别，比"工具直接返回 Command"更稳（LangChain 1.3.x 中子图工具返回的 Command 冒泡存在兼容问题，本教程实测）。
+
+## 34.3 案例场景：电商客服双 Agent
+
+```
+用户："我的订单怎么一直没发货？"      （物流问题 → 售前客服）
+用户："App 登录一直报错 500"          （技术问题 → 售前转接技术专家）
+
+sales_agent（售前客服）  ──transfer_to_tech──▶  tech_agent（技术专家）
+```
+
+- **sales_agent**：处理订单、物流、退换货；有 `transfer_to_tech` 转接工具；
+- **tech_agent**：处理故障、报错、账号异常；
+- 两个 Agent 平级，无主管。图从 START 进 sales（默认入口），售前判断是技术问题就转接，技术专家接着回答。
+
+> 本案例演示**单向转接**（售前→技术）。双向转接（技术也能转回售前）是今天的自测练习——注意本地小模型（7b）做双向转接容易"来回踢皮球"，需要限制转接次数（提示词 + 计数），云端强模型（DeepSeek/GLM）更稳。
+
+## 34.4 动手：跑今天的案例
+
+```powershell
+cd D:\study\AI\agent\agent-tutorial\week-07-mcp-multiagent\examples
+python day34_swarm.py
+```
+
+## 34.5 案例逐行讲解：`day34_swarm.py`
+
+```python
+"""Day 34 案例：Swarm 交接 —— 客服双 Agent 直接转接（无主管）"""
+import os
+from pathlib import Path
+from typing import Annotated, TypedDict
+from operator import add
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langchain_core.messages import ToolMessage
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import Command
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+
+# ── ① 转接工具：返回特殊标记，由父图包装节点识别并路由 ──
+@tool
+def transfer_to_tech() -> str:
+    """当用户问题涉及技术故障、App 报错、账号异常时，调用此工具转接技术专家。"""
+    return "转接请求已受理"
+
+# ── ② 两个平级 Agent（本案例单向转接：售前 → 技术）──
+sales_agent = create_agent(
+    model=model,
+    tools=[transfer_to_tech],
+    system_prompt=("你是电商售前客服。负责订单查询、物流、退换货。"
+                   "遇到技术故障/报错/账号异常，必须调 transfer_to_tech 转接，不要自己硬答。"),
+)
+
+tech_agent = create_agent(
+    model=model,
+    tools=[],
+    system_prompt="你是技术专家。负责 App 故障、报错、账号异常排查。直接给出排查建议。",
+)
+
+# ── ③ 包装节点：检查 Agent 本次新增消息里有没有"转接请求" ──
+def make_agent_node(agent):
+    def node(state: State) -> Command | dict:
+        result = agent.invoke({"messages": state["messages"]})
+        # 只看本次运行新增的消息，找转接工具的 ToolMessage
+        new_msgs = result["messages"][len(state["messages"]):]
+        transfer_to = None
+        for m in new_msgs:
+            if isinstance(m, ToolMessage) and getattr(m, "name", "") == "transfer_to_tech":
+                transfer_to = "tech_agent"
+        if transfer_to:
+            # ★ Swarm 的核心：Agent 自主决定转接 → Command 直接跳到目标
+            return Command(goto=transfer_to, update=result)
+        return result
+    return node
+
+# ── ④ 组装：无主管，平级互转 ────────────────────
+class State(TypedDict):
+    messages: Annotated[list, add]
+
+graph = StateGraph(State)
+graph.add_node("sales_agent", make_agent_node(sales_agent))
+graph.add_node("tech_agent", make_agent_node(tech_agent))
+graph.add_edge(START, "sales_agent")        # 默认入口：先由售前接待
+graph.add_edge("sales_agent", END)
+graph.add_edge("tech_agent", END)
+app = graph.compile()
+
+# ── ⑤ 两个场景 ────────────────────────────────
+for question in [
+    "我的订单 3 天没发货了，怎么回事？",        # 售前自己解决
+    "App 一直提示错误码 500，登录不上",          # 售前 → 转接技术
+]:
+    print(f"\n🙋 用户：{question}")
+    result = app.invoke({"messages": [{"role": "user", "content": question}]})
+    print(f"🤖 最后回答：{result['messages'][-1].content}")
+```
+
+**逐段要点**：
+
+- **① 转接工具**：返回标记字符串（不是 Command）——转接的识别与路由交给包装节点（更稳，见 34.2 的说明）；
+- **② system_prompt 里的转接纪律**："必须转接，不要自己硬答"——Agent 间的边界靠提示词维护（弱模型可能需要多强调）；
+- **③ 包装节点三件事**：运行 Agent → 只看**本次新增消息**找转接标记（防无限转接）→ `Command(goto=...)` 直接跳到目标 Agent。**这就是 Swarm 的全部秘密**；
+- **④ 无主管图**：只有两个平级节点 + START 入口。转接路径不在静态边里，而是运行时由 Agent 自主触发——**图的静态结构极简，动态行为丰富**；
+- **⑤ 场景 2 的流程**：sales_agent 判断是技术问题 → 调 transfer_to_tech → 包装节点识别 → 跳到 tech_agent → 技术专家接手回答 → END。
+
+## 34.6 两种模式选型（面试考点）
+
+| 判断维度 | 选 Supervisor | 选 Swarm |
+|---|---|---|
+| 流程是否固定 | 固定多步（研究→写→审） | 动态转接（客服场景） |
+| 是否需要审计 | 强（每步决策可见） | 一般 |
+| Agent 数量 | 少（3-5） | 可多（转接网） |
+| 谁懂"该找谁" | 主管必须懂全局 | 每个 Agent 懂自己的转接对象 |
+
+> 现实世界还有 **Hierarchical（层级）** 模式（Supervisor 套 Swarm）——第 8 周毕业项目可以挑战。LangGraph 官方文档和模板仓库（langchain-ai/langgraph 的 examples）有完整版可供进阶。
+
+## 34.7 今日自测
+
+<Quiz items={["加第三个 Agent `refund_agent`（退款专员），给三个 Agent 配好转接工具，模拟\"退款问题\"的多跳转接。","在 LangSmith 里看场景 2 的 trace：找到转接发生的节点边界。","故意问一个两边都判断不清的模糊问题（\"我的订单 App 上显示 500 错误\"），观察转接行为——思考如何防\"无限转接\"（提示：限制转接次数）。","把 Day 33 和 Day 34 的案例各画一张架构图，写进 `notes/day34.md`，标注决策权的归属。","思考：你的毕业项目（第 8 周）该用哪种模式？为什么？"]} />
+
+## 34.8 常见坑速查
+
+<GotchaTable rows={[{"symptom":"转接不生效","cause":"工具忘了返回 Command / 没写 goto","fix":"工具 return Command(goto=\"目标节点名\")"},{"symptom":"无限转接","cause":"两个 Agent 互相踢皮球","fix":"限制转接次数 / 提示词加\"最多转接一次\""},{"symptom":"转接后上下文丢失","cause":"没在 update 里带消息","fix":"Command 的 update 附带转接提示消息"},{"symptom":"Agent 不转接硬答","cause":"提示词纪律没强调","fix":"写\"必须转接，禁止自行回答\""},{"symptom":"目标节点名写错","cause":"goto 的节点名与 add_node 不一致","fix":"严格核对节点名"}]} />
+
+<DayComplete day={34} recap={"两种多智能体模式都到手了。明天项目日：把 MCP + Multi-agent 组合起来——多智能体研究助理，每个 Agent 都有 MCP 工具。"} />

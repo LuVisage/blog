@@ -1,0 +1,385 @@
+---
+slug: day-34
+kind: day
+day: 34
+week: 6
+weekTitle: 无监督学习
+weekBlurb: K-Means、层次聚类、GMM 与降维，从无标注数据里找结构。
+title: 主成分分析（PCA）
+lead: 'PCA 是最经典的降维方法，也是最容易被误用的方法。今天我们把它从"最大方差"和"最小重构误差"两个角度推导一遍，并讲清所有工程细节。'
+sourcePath: Week06_无监督学习/Day4_主成分分析.md
+---
+
+> 西瓜书第 10 章 10.1–10.3 节 · 南瓜书 10.1–10.25
+
+PCA 是最经典的降维方法，也是最容易被误用的方法。今天我们把它从"最大方差"和"最小重构误差"两个角度推导一遍，并讲清所有工程细节。
+
+---
+
+## 今日目标
+
+1. 从**最大方差**角度推导 PCA；
+2. 从**最小重构误差**角度推导 PCA，并证明两者等价；
+3. 掌握"协方差特征分解"与"SVD"两种实现，说清后者更优的原因；
+4. 掌握白化（whitening）与核 PCA；
+5. 说清 PCA 的四个常见误用；
+6. 从零实现 PCA（含精确的 $k$ 选择方法）。
+
+---
+
+## 知识地图
+
+```
+Week06
+├── Day1 K-Means ✅
+├── Day2 层次/密度聚类 ✅
+├── Day3 GMM ✅
+├── Day4 主成分分析 PCA  ← 你在这里
+└── Day5 流形学习与自编码器
+
+依赖: Week01 Day2（特征分解、SVD）
+Week03 Day4（LDA，有监督降维的对照）
+```
+
+---
+
+## 一、视角一：最大方差
+
+### 1.1 目标
+
+把数据投影到低维空间后，希望**保留尽可能多的信息**。信息用什么度量？——**方差**。
+
+**直觉**：如果投影后所有点都挤在一起（方差小），就丢失了区分性；方差越大，样本越分散，保留的信息越多。
+
+### 1.2 一维情形推导
+
+设数据已中心化（$\frac{1}{m}\sum_i\boldsymbol{x}_i = \boldsymbol{0}$），投影方向为单位向量 $\boldsymbol{w}$（$\|\boldsymbol{w}\|=1$）。
+
+投影后的坐标：$z_i = \boldsymbol{w}^\top\boldsymbol{x}_i$。
+
+投影后的方差：
+
+$$\frac{1}{m}\sum_{i=1}^{m}z_i^2 = \frac{1}{m}\sum_i \boldsymbol{w}^\top\boldsymbol{x}_i\boldsymbol{x}_i^\top\boldsymbol{w} = \boldsymbol{w}^\top\left(\frac{1}{m}\sum_i\boldsymbol{x}_i\boldsymbol{x}_i^\top\right)\boldsymbol{w} = \boldsymbol{w}^\top\boldsymbol{\Sigma}\boldsymbol{w}$$
+
+其中 $\boldsymbol{\Sigma}$ 是样本协方差矩阵。
+
+**优化问题**：
+
+$$\max_{\boldsymbol{w}}\ \boldsymbol{w}^\top\boldsymbol{\Sigma}\boldsymbol{w} \quad\text{s.t.}\quad \boldsymbol{w}^\top\boldsymbol{w} = 1$$
+
+**拉格朗日**：
+
+$$\mathcal{L} = \boldsymbol{w}^\top\boldsymbol{\Sigma}\boldsymbol{w} - \lambda(\boldsymbol{w}^\top\boldsymbol{w} - 1)$$
+
+$$\frac{\partial \mathcal{L}}{\partial\boldsymbol{w}} = 2\boldsymbol{\Sigma}\boldsymbol{w} - 2\lambda\boldsymbol{w} = 0 \quad\Rightarrow\quad \boxed{\ \boldsymbol{\Sigma}\boldsymbol{w} = \lambda\boldsymbol{w}\ }$$
+
+**结论**：
+
+- 最优方向 $\boldsymbol{w}^*$ 是协方差矩阵的**特征向量**；
+- 最优值 $\boldsymbol{w}^{*\top}\boldsymbol{\Sigma}\boldsymbol{w}^* = \lambda^*$ 是**特征值**；
+- 要最大化方差 ⇒ 取**最大特征值对应的特征向量**。
+
+### 1.3 降维到 $k$ 维
+
+取前 $k$ 大特征值对应的特征向量组成投影矩阵：
+
+$$\mathbf{W} = [\boldsymbol{w}_1, \boldsymbol{w}_2, \dots, \boldsymbol{w}_k] \in \mathbb{R}^{d\times k}$$
+
+$$\mathbf{Z} = \mathbf{X}\mathbf{W} \in \mathbb{R}^{m\times k}$$
+
+**注意**：因为 $\boldsymbol{\Sigma}$ 对称，特征向量可正交 ⇒ $\mathbf{W}^\top\mathbf{W} = \mathbf{I}$（**投影是正交投影**）。
+
+**解释方差比例**：
+
+$$\text{explained variance ratio}_j = \frac{\lambda_j}{\sum_{l=1}^{d}\lambda_l}$$
+
+---
+
+## 二、视角二：最小重构误差（等价性证明）
+
+考虑用低维表示 $\boldsymbol{z}_i\in\mathbb{R}^k$ 重构 $\boldsymbol{x}_i$：$\hat{\boldsymbol{x}}_i = \mathbf{W}\boldsymbol{z}_i$。
+
+**重构误差**：
+
+$$\min_{\mathbf{W}, \{\boldsymbol{z}_i\}}\ \sum_{i=1}^{m}\left\|\boldsymbol{x}_i - \mathbf{W}\boldsymbol{z}_i\right\|^2 \quad\text{s.t.}\quad \mathbf{W}^\top\mathbf{W} = \mathbf{I}$$
+
+### 2.1 先对 $\boldsymbol{z}_i$ 优化
+
+固定 $\mathbf{W}$，最小化 $\|\boldsymbol{x}_i - \mathbf{W}\boldsymbol{z}_i\|^2$。由正交投影性质：
+
+$$\boldsymbol{z}_i^* = \mathbf{W}^\top\boldsymbol{x}_i$$
+
+### 2.2 代回
+
+$$\begin{aligned}
+\sum_i\|\boldsymbol{x}_i - \mathbf{W}\mathbf{W}^\top\boldsymbol{x}_i\|^2
+&= \sum_i\left(\|\boldsymbol{x}_i\|^2 - \|\mathbf{W}^\top\boldsymbol{x}_i\|^2\right)\\
+&= \text{const} - \sum_i \boldsymbol{x}_i^\top\mathbf{W}\mathbf{W}^\top\boldsymbol{x}_i\\
+&= \text{const} - m\sum_{j=1}^{k}\boldsymbol{w}_j^\top\boldsymbol{\Sigma}\boldsymbol{w}_j
+\end{aligned}$$
+
+**最小化重构误差 ⟺ 最大化 $\sum_{j=1}^k \boldsymbol{w}_j^\top\boldsymbol{\Sigma}\boldsymbol{w}_j$** —— 正是"前 $k$ 个方向方差之和最大"。
+
+**结论**：**最大方差视角与最小重构误差视角给出完全相同的解。** ∎
+
+> 理解两个视角的等价性很重要：前者解释"为什么 PCA 能保留信息"，后者解释"为什么 PCA 能做去噪与压缩"。
+
+---
+
+## 三、两种实现方式
+
+### 3.1 方法 A：协方差特征分解
+
+```python
+Xc = X - X.mean(axis=0)                  # 中心化！
+cov = Xc.T @ Xc / (m - 1)
+vals, vecs = np.linalg.eigh(cov)         # 对称阵用 eigh
+order = np.argsort(vals)[::-1]
+W = vecs[:, order[:k]]
+```
+
+**复杂度**：$O(md^2)$ 算协方差 + $O(d^3)$ 做特征分解。
+
+### 3.2 方法 B：SVD
+
+```python
+Xc = X - X.mean(axis=0)
+U, S, Vt = np.linalg.svd(Xc, full_matrices=False)
+W = Vt[:k].T                              # 主成分方向
+Z = U[:, :k] * S[:k]                      # 投影后的坐标
+```
+
+### 3.3 为什么推荐 SVD
+
+| 维度 | 特征分解 | SVD |
+| --- | --- | --- |
+| 数值稳定性 | $\mathbf{X}^\top\mathbf{X}$ 使**条件数平方** | SVD 数值上更稳定 |
+| 小奇异值 | 精度损失大 | 相对准确 |
+| 计算 | 需先算 $d\times d$ 协方差（$d$ 大时内存大） | 可直接作用于 $m\times d$ 矩阵 |
+| 等价性 | $\mathbf{V}$ 的列就是主成分方向，$\sigma_j^2/(m-1) = \lambda_j$ | 同 |
+
+**结论**：**优先用 SVD**（sklearn 的 PCA 默认就是 SVD）。
+
+### 3.4 复杂度与大规模数据
+
+| 方法 | 复杂度 | 适用 |
+| --- | --- | --- |
+| 精确 SVD | $O(md\min(m,d))$ | 中小规模 |
+| 随机化 SVD | $O(mdk)$ | $k \ll d$，最常用 |
+| Incremental PCA | 分块处理 | 数据太大放不进内存 |
+
+**sklearn 的 `PCA(svd_solver='randomized')`** 使用随机化 SVD。
+
+---
+
+## 四、重要细节
+
+### 4.1 中心化是必须的
+
+**不中心化会怎样**：相当于把原点也当作一个"样本"，主成分会被均值方向"污染"。
+
+**极端例子**：所有样本都在 $\boldsymbol{x} = (100, 100)$ 附近，那么"原点指向数据云"的方向（即均值方向）方差最大，PCA 会把主成分给这个毫无意义的方向。
+
+**所以：`X - X.mean(axis=0)` 是 PCA 的第一步。**
+
+### 4.2 是否要标准化
+
+| 情形 | 是否标准化 |
+| --- | --- |
+| 各特征量纲相同（如同一张图像的像素） | 可不标准化 |
+| 量纲不同（如身高 cm vs 体重 kg） | **必须标准化** |
+| 希望保留原始尺度的重要性差异 | 不标准化 |
+
+**注意**：标准化后做 PCA 等价于对**相关系数矩阵**做特征分解（而非协方差矩阵）。
+
+### 4.3 白化（Whitening）
+
+**定义**：让投影后的数据各维**方差为 1 且互不相关**。
+
+$$\mathbf{Z}_{\text{white}} = \mathbf{Z}\boldsymbol{\Lambda}^{-1/2}$$
+
+即 $\mathbf{Z}_{\text{white}} = \mathbf{X}_c\mathbf{W}\boldsymbol{\Lambda}^{-1/2}$，其中 $\boldsymbol{\Lambda}=\text{diag}(\lambda_1,\dots,\lambda_k)$。
+
+**用途**：
+
+- 作为下游算法的预处理（如 K-Means、SVM）；
+- 独立成分分析（ICA）的前置步骤。
+
+**风险**：白化会**放大噪声方向**（除以很小的 $\sqrt{\lambda}$），所以只应保留较大的 $k$ 个成分。
+
+### 4.4 核 PCA
+
+**问题**：PCA 只能提取**线性**结构。对同心圆等数据无效。
+
+**核 PCA 的做法**：
+
+1. 用核函数 $K(\boldsymbol{x}_i,\boldsymbol{x}_j)$ 构造核矩阵；
+2. **在特征空间中中心化**核矩阵：
+
+$$\mathbf{K}' = \mathbf{K} - \mathbf{1}_m\mathbf{K}/m - \mathbf{K}\mathbf{1}_m/m + \mathbf{1}_m\mathbf{K}\mathbf{1}_m/m^2$$
+
+其中 $\mathbf{1}_m$ 是全 1 矩阵。
+
+3. 对 $\mathbf{K}'$ 做特征分解，$\mathbf{K}' = \sum_j \lambda_j \boldsymbol{\alpha}_j\boldsymbol{\alpha}_j^\top$；
+4. 投影：$z_j(\boldsymbol{x}) = \sum_i \alpha_{ji}K(\boldsymbol{x}_i,\boldsymbol{x})$。
+
+**注意**：核 PCA **无法得到显式的映射方向**（因为映射到无穷维），只能得到投影坐标。
+
+---
+
+## 五、PCA 的四个常见误用
+
+### 误用 1：用 PCA 做特征选择
+
+PCA 得到的是**原始特征的线性组合**，每个主成分都包含所有特征的贡献。若业务需要"具体的物理特征"，PCA 不合适。
+
+**替代**：Lasso（$L_1$ 稀疏选择）、基于树的重要性、互信息。
+
+### 误用 2：认为主成分一定"有意义"
+
+主成分是**数学上的最大方差方向**，不一定有业务含义。强行解释"第一主成分代表购买力"往往是过度解读。
+
+### 误用 3：无脑用 PCA 提特征再上模型
+
+PCA **是无监督的**，它保留的是"X 的方差"而不是"X 与 y 的关系"。
+
+**反例**：若某个方差很小的方向恰好完全决定了标签，PCA 会把它丢掉。
+
+**有监督场景优先考虑 LDA / 有监督降维**（Week03 Day4）。
+
+### 误用 4：忘记标准化 / 中心化
+
+见 4.1 与 4.2。
+
+### 补充：PCA 与 SVD 在推荐系统中的应用
+
+对用户-物品评分矩阵做 SVD（或截断 SVD），保留前 $k$ 个奇异值：
+
+$$\mathbf{R} \approx \mathbf{U}_k\boldsymbol{\Sigma}_k\mathbf{V}_k^\top$$
+
+用 $\mathbf{U}_k\boldsymbol{\Sigma}_k$ 表示用户向量，$\mathbf{V}_k$ 表示物品向量，内积即为预测评分。
+
+**这就是协同过滤的矩阵分解基础**（Week12 之外的内容）。
+
+---
+
+## 六、代码实践
+
+```python
+import numpy as np
+
+def pca_fit(X, k, whiten=False, use_svd=True):
+    """返回投影矩阵 W、(可选)均值, 以及解释方差比"""
+    mu = X.mean(axis=0)
+    Xc = X - mu
+
+    if use_svd:
+        U, S, Vt = np.linalg.svd(Xc, full_matrices=False)
+        W = Vt[:k].T
+        explained = (S[:k] ** 2) / (S ** 2).sum()
+        Z = U[:, :k] * S[:k]
+    else:
+        cov = Xc.T @ Xc / (len(Xc) - 1)
+        vals, vecs = np.linalg.eigh(cov)
+        order = np.argsort(vals)[::-1][:k]
+        W = vecs[:, order]
+        explained = vals[order] / vals.sum()
+        Z = Xc @ W
+
+    if whiten:
+        Z = Z / Z.std(axis=0)
+    return W, mu, explained, Z
+```
+
+完整版本见 `code/day4_pca.py`，包含：
+
+1. 从零实现 PCA（SVD 与特征分解两种），验证两者等价；
+2. **不中心化的反例**（数据云远离原点）；
+3. **标准化 vs 不标准化** 对主成分方向的影响；
+4. 在真实数据（digits）上用**累计解释方差**选 $k$；
+5. **PCA 用于压缩**：不同 $k$ 的重构误差与压缩率；
+6. **PCA 作为有监督学习预处理反而变差**的反例；
+7. **核 PCA** 在同心圆上的效果（对比线性 PCA）。
+
+---
+
+## 七、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 不做中心化 | 主成分被均值方向主导 |
+| 量纲不同却不标准化 | 大量纲特征主导 |
+| 用 `eig` 处理对称协方差矩阵 | 用 `eigh`，结果有序且更稳定 |
+| 用 `inv` 或显式算协方差求大矩阵的 PCA | 用 SVD 更快更稳 |
+| 只看主成分方向不看解释方差比 | 可能只是改了个特征组合名 |
+| 在有监督任务上盲目 PCA | 可能丢掉判别信息 |
+| 核 PCA 期望得到显式映射 | 无穷维无法显式表示 |
+| 白化时保留了很小的成分 | 放大了噪声 |
+
+---
+
+## 八、练习题
+
+**基础**
+
+1. 写出 PCA 的优化问题（最大方差视角）。
+2. 说明为什么 PCA 需要先中心化。
+3. 解释方差比的计算公式。
+
+**进阶**
+
+4. 用拉格朗日乘子法推导 $\boldsymbol{\Sigma}\boldsymbol{w} = \lambda\boldsymbol{w}$。
+5. 证明最小重构误差视角与最大方差视角等价。
+6. 证明 SVD 中的 $\mathbf{V}$ 的列是协方差矩阵的特征向量，且 $\lambda_j = \sigma_j^2/(m-1)$。
+7. 证明白化后数据的协方差矩阵是单位阵。
+
+**思考题**
+
+8. 若数据的最大方差方向恰好与标签无关，PCA 会带来什么后果？
+9. 为什么核 PCA 无法得到显式的投影方向？如果我们只关心投影坐标，够用吗？
+10. 对一张 $1000\times1000$ 的图像做 PCA，协方差矩阵有多大？如果只有 100 张图像，应该用哪种分解方式更高效？
+
+<details>
+<summary>第 6 题答案</summary>
+
+SVD：$\mathbf{X}_c = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^\top$。
+
+协方差矩阵：
+
+$$\mathbf{C} = \frac{1}{m-1}\mathbf{X}_c^\top\mathbf{X}_c = \frac{1}{m-1}\mathbf{V}\boldsymbol{\Sigma}^\top\mathbf{U}^\top\mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^\top = \frac{1}{m-1}\mathbf{V}\boldsymbol{\Sigma}^2\mathbf{V}^\top$$
+
+（用到 $\mathbf{U}^\top\mathbf{U}=\mathbf{I}$。）
+
+这正是 $\mathbf{C}$ 的特征分解（因为 $\mathbf{V}$ 正交），所以：
+
+$$\mathbf{C}\boldsymbol{v}_j = \frac{\sigma_j^2}{m-1}\boldsymbol{v}_j \quad\Rightarrow\quad \lambda_j = \frac{\sigma_j^2}{m-1}$$
+
+∎
+</details>
+
+<details>
+<summary>第 10 题答案</summary>
+
+**协方差矩阵大小**：$1000\times1000$（因为特征维度 $d = 10^6$... 注意这里 $d$ 应该是 $10^6$ 如果每个像素是特征）。
+
+修正理解：图像 $1000\times1000$ 有 $10^6$ 个像素（特征），协方差矩阵是 $10^6 \times 10^6$，**内存上完全不可行**（约 8 TB）。
+
+**但它只有 100 个样本**，所以 $\mathbf{X}_c$ 是 $100\times10^6$，秩最多 99。
+
+**正确做法**：对 $\mathbf{X}_c\mathbf{X}_c^\top$（$100\times100$，很小）做特征分解，得到前 99 个非零方向（"对偶 PCA"）。
+
+$$\mathbf{X}_c\mathbf{X}_c^\top = \mathbf{U}\boldsymbol{\Sigma}^2\mathbf{U}^\top \Rightarrow \mathbf{V} = \mathbf{X}_c^\top\mathbf{U}\boldsymbol{\Sigma}^{-1}$$
+
+**总结**：当 $m \ll d$ 时，**用 $m\times m$ 的格拉姆矩阵**做分解，复杂度从 $O(d^3)$ 降到 $O(m^3)$。
+</details>
+
+---
+
+## 九、一句话总结
+
+**PCA = 找协方差矩阵特征值最大的方向做正交投影；两种视角（最大方差 / 最小重构误差）给出同一答案；工程上必须中心化、优先用 SVD、有监督时慎用。**
+
+---
+
+**明日预告**：Day5 讲流形学习——当数据躺在一张"弯曲的曲面"上时，PCA 的线性假设就失效了。
+

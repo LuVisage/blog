@@ -1,0 +1,223 @@
+---
+slug: day-25
+day: 25
+week: 5
+weekTitle: Agent 开发
+weekBlurb: create_agent、Runtime 生命周期、Middleware、长期记忆 Store。
+title: 项目日 —— WorkFlow Agent：旅行规划助理（第 5 周毕业作品）
+lead: '**从空白文件开始**，综合第 5 周全部技能（工具、Runtime、Middleware、记忆），做一个能完成"多步工作流"的旅行规划 Agent。'
+sourcePath: week-05-agent-dev/day-25.md
+---
+
+> 参考实现：`examples/day25_travel_agent.py`（写完再对照）
+
+---
+
+## 25.1 什么是 WorkFlow（工作流）？
+
+本周你学了单次任务（问天气）。但真实需求是**多步任务链**：
+
+> "帮我规划下个月去北京的旅行，预算 5000，顺便记住我喜欢靠窗的座位。"
+
+这个需求背后是一串**工作流**：
+
+```
+查北京天气（决定带什么衣服）
+→ 查杭州-北京航班（交通）
+→ 查酒店（住宿）
+→ 计算总花费（预算核对）
+→ 记住用户偏好（长期记忆）
+→ 汇总成旅行方案（交付）
+```
+
+**WorkFlow 的两种实现哲学**（今天要想清楚的问题）：
+
+| 方式 | 谁决定步骤 | 工具 |
+|---|---|---|
+| **固定流程**（第 4 周 LangGraph 图） | 你（开发者）画好图，一步不差 | StateGraph |
+| **自主规划**（今天的 create_agent） | 模型根据任务自己决定调什么、调几次 | create_agent |
+
+生产实践：**关键路径用固定流程（可预期、可审计），灵活部分交给 Agent 自主**。今天的项目属于后者——让 Agent 当"项目经理"自主规划执行。
+
+## 25.2 项目需求
+
+**旅行规划 Agent**，具备：
+
+1. 四个业务工具：查天气、查航班、查酒店、算账；
+2. 一个记忆工具：记住用户偏好（Store 长期记忆，跨会话）；
+3. Middleware：工具重试（生产必备）；
+4. 短期记忆：checkpointer（同一会话多轮追问）；
+5. 能处理多步任务："规划杭州→北京 3 日游"一口气完成查询→计算→汇总。
+
+**验收标准**：
+
+- 输入完整旅行需求，Agent **自主**调用 ≥3 个不同工具并给出结构化方案；
+- 追问"总预算超了吗？"时能结合上文回答（短期记忆）；
+- 说"记住我喜欢靠窗"后，新会话问"我喜欢什么座位？"能答出（长期记忆）。
+
+## 25.3 设计要点（动手前必读）
+
+### ① 工具的假数据要"足够真实"
+
+```python
+FLIGHTS = [
+    {"no": "CA1701", "from": "杭州", "to": "北京", "price": 850, "departure": "08:30"},
+    {"no": "MU5131", "from": "杭州", "to": "北京", "price": 620, "departure": "14:15"},
+    {"no": "HU7177", "from": "杭州", "to": "北京", "price": 780, "departure": "19:40"},
+]
+HOTELS = [
+    {"name": "如家快捷（王府井）", "price": 320},
+    {"name": "亚朵酒店（国贸）", "price": 560},
+    {"name": "北京饭店", "price": 1200},
+]
+```
+
+假数据要有**可比较性**（不同价格/时间），模型才能做"推荐最便宜/最合适"的决策。
+
+### ② docstring 决定成败
+
+每个工具的 docstring 写清"**何时用 + 参数含义 + 返回什么**"。这是 Agent 自主规划的地基。
+
+### ③ 记忆工具复用 Day 24 的模式
+
+`Annotated[Any, InjectedStore()]` + `create_agent(store=store)`。
+
+## 25.4 动手：项目验收流程
+
+1. **先自己写**（60~90 分钟），可复用 Day 21-24 案例代码；
+2. **测试用例**：
+   - "帮我规划下个月 15 号从杭州去北京玩 3 天，预算 5000" → 观察工具调用链（≥3 个工具）；
+   - "酒店有更便宜的吗？" → 短期记忆追问；
+   - "记住：我喜欢靠窗的座位" → 新会话验证长期记忆；
+3. **加分**：加 `interrupt_before=["tools"]` 让用户审批每次工具调用（结合 Day 22）；
+4. **自查**：工具 docstring 完整；middleware 生效；记忆跨会话可用。
+
+## 25.5 参考实现骨架：`day25_travel_agent.py`
+
+```python
+"""Day 25 项目：旅行规划 WorkFlow Agent（第 5 周毕业作品）"""
+import os
+from pathlib import Path
+from typing import Any, Annotated
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langchain.agents.middleware import ToolRetryMiddleware
+from langchain_core.tools import tool
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.store.memory import InMemoryStore
+from langgraph.prebuilt import InjectedStore
+
+model = ChatOpenAI(model=os.environ["LLM_MODEL"], api_key=os.environ["LLM_API_KEY"],
+                   base_url=os.environ["LLM_BASE_URL"], temperature=0)
+store = InMemoryStore()
+
+# ── 业务工具（假数据）────────────────────────────
+FLIGHTS = [
+    {"no": "CA1701", "from": "杭州", "to": "北京", "price": 850, "time": "08:30"},
+    {"no": "MU5131", "from": "杭州", "to": "北京", "price": 620, "time": "14:15"},
+    {"no": "HU7177", "from": "杭州", "to": "北京", "price": 780, "time": "19:40"},
+]
+HOTELS = [
+    {"name": "如家快捷（王府井）", "price": 320, "rating": 4.2},
+    {"name": "亚朵酒店（国贸）", "price": 560, "rating": 4.6},
+    {"name": "北京饭店", "price": 1200, "rating": 4.9},
+]
+
+@tool
+def get_weather(city: str) -> str:
+    """查询城市未来天气。规划旅行（决定带什么衣服）时使用。"""
+    return {"北京": "晴，8~18°C，早晚温差大", "杭州": "多云，15~22°C"}.get(city, f"暂无{city}数据")
+
+@tool
+def search_flights(departure_city: str, arrival_city: str) -> str:
+    """查询两地之间的航班列表（含价格和时间）。规划交通时使用。"""
+    matches = [f for f in FLIGHTS if f["from"] == departure_city and f["to"] == arrival_city]
+    if not matches:
+        return f"暂无 {departure_city}→{arrival_city} 的航班"
+    return "\n".join(f"{f['no']}：{f['time']} 起飞，¥{f['price']}" for f in matches)
+
+@tool
+def search_hotels(city: str, max_price: int) -> str:
+    """查询城市酒店列表，只返回价格不超过 max_price 的。规划住宿时使用。"""
+    matches = [h for h in HOTELS if h["price"] <= max_price]
+    return "\n".join(f"{h['name']}：¥{h['price']}/晚，评分{h['rating']}" for h in matches)
+
+@tool
+def remember_preference(content: str, store: Annotated[Any, InjectedStore()]) -> str:
+    """记住用户的旅行偏好（如座位喜好、饮食禁忌）。当用户说'记住/我喜欢...'时使用。"""
+    store.put(("prefs", "user-1"), "travel_pref", {"content": content})
+    return f"已记住偏好：{content}"
+
+@tool
+def recall_preferences(store: Annotated[Any, InjectedStore()]) -> str:
+    """回忆用户的旅行偏好。规划旅行前应该先调用它。"""
+    items = store.search(("prefs", "user-1"))
+    return "；".join(i.value["content"] for i in items) if items else "（无记录的偏好）"
+
+agent = create_agent(
+    model=model,
+    tools=[get_weather, search_flights, search_hotels, remember_preference, recall_preferences],
+    system_prompt=(
+        "你是旅行规划师。接到旅行需求后：先查天气、再查航班和酒店、计算总花费、"
+        "最后输出完整方案（含费用明细）。用户说'记住'时调 remember_preference，"
+        "规划前先调 recall_preferences 看用户偏好。"
+    ),
+    middleware=[ToolRetryMiddleware(max_retries=2)],
+    checkpointer=InMemorySaver(),     # 短期记忆：同会话追问
+    store=store,                      # 长期记忆：跨会话偏好
+)
+
+# ── 场景 1：多步工作流 ───────────────────────────
+print("══ 场景 1：完整旅行规划 ══")
+cfg = {"configurable": {"thread_id": "trip-1"}}
+for chunk in agent.stream(
+    {"messages": [{"role": "user", "content":
+                   "规划 12 月 15 日从杭州去北京玩 3 天，酒店每晚不超 600 元。"}]},
+    config=cfg, stream_mode="updates",
+):
+    node = list(chunk.keys())[0]
+    for m in chunk[node].get("messages", []):
+        if hasattr(m, "tool_calls") and m.tool_calls:
+            for tc in m.tool_calls:
+                print(f"  🧠 调用 {tc['name']}{tc['args']}")
+        elif m.type == "ai" and m.content:
+            print(f"\n💬 {m.content}\n")
+
+# ── 场景 2：短期记忆追问 ─────────────────────────
+print("══ 场景 2：追问（同一会话）══")
+r2 = agent.invoke({"messages": [{"role": "user", "content": "航班选最便宜的那班。"}]}, config=cfg)
+print("回答：", r2["messages"][-1].content)
+```
+
+**骨架要点**：
+
+- **system_prompt 里的工作流指引**："先查天气、再查航班酒店、计算花费、输出方案"——对弱模型这是必要的流程提示；强模型（DeepSeek/GLM）自己也能规划，但写了更稳；
+- **场景 1 的流式观测**：你会在输出里看到完整的工具调用链（天气 → 航班 → 酒店 → ……），这就是 WorkFlow 的"执行日志"；
+- **场景 2 复用同一个 thread_id**：追问"选最便宜的"时，Agent 能从上文知道"航班"指杭州→北京——短期记忆（checkpointer）在工作。
+
+## 25.6 加餐挑战
+
+1. 加 `interrupt_before=["tools"]`：每次工具调用前人工审批（旅游决策适合人工把关）。
+2. 把假数据换成真实 API（如高德天气、12306/携程接口），体验"工具接真实世界"。
+3. 用第 4 周的 LangGraph 重写一个"固定流程版"（图：天气→航班→酒店→预算→输出），对比两种 WorkFlow 哲学的差异。
+4. 给 Agent 加一个"行程表"工具：把最终方案写入本地 Markdown 文件。
+
+## 25.7 今日自测
+
+<Quiz items={["三个验收场景是否全部通过？（多工具链 / 追问 / 跨会话记忆）","场景 1 中 Agent 调用了几个工具？顺序合理吗？如果没调 recall_preferences，想想为什么。","把预算改成 1000（酒店每晚不超 300），观察方案如何自动调整。","`notes/day25.md`：本周复盘——写出你在\"固定流程图\"和\"Agent 自主规划\"之间的选型思考。"]} />
+
+## 第 5 周完成！复盘
+
+五周前你只会调 LLM，现在你能构建**生产级 Agent**：
+
+```
+create_agent（统一入口）→ Runtime（多会话/审批/观测）
+→ Middleware（重试/限制/摘要）→ 记忆体系（短期 Checkpointer + 长期 Store）
+→ WorkFlow（多步自主任务）
+```
+
+**下周预告**：LangSmith——把这些 Agent 的每一步放到显微镜下：全链路追踪、成本分析、线上评估。**"能跑"和"跑得好、可控、可优化"的分水岭，就在下周。**
+

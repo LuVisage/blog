@@ -1,0 +1,405 @@
+---
+slug: day-29
+kind: day
+day: 29
+week: 5
+weekTitle: 支持向量机与概率模型
+weekBlurb: 间隔与对偶、核方法，以及贝叶斯分类器的概率视角。
+title: 贝叶斯网络与 EM 算法
+lead: '当数据里有"看不见的变量"时，最大似然估计就没法直接用了。**EM 算法**是解决这类问题的通用武器，也是 Week12 变分推断的前身。'
+sourcePath: Week05_支持向量机与概率模型/Day4_EM算法与贝叶斯网络.md
+---
+
+> 西瓜书第 7 章 7.4–7.6 节 · 南瓜书 7.21–7.40
+
+当数据里有"看不见的变量"时，最大似然估计就没法直接用了。**EM 算法**是解决这类问题的通用武器，也是 Week12 变分推断的前身。
+
+---
+
+## 今日目标
+
+1. 掌握贝叶斯网络的定义与条件独立性判定（D-分离思想）；
+2. 理解"隐变量"如何让最大似然变得难解；
+3. 推导 EM 算法的下界（ELBO），说明它为什么单调不降；
+4. 独立推导高斯混合模型（GMM）的 EM 更新公式；
+5. 从零实现 GMM 的 EM，并观察收敛过程；
+6. 了解 EM 的局限（局部最优、鞍点）。
+
+---
+
+## 知识地图
+
+```
+Week05
+├── Day1 最大间隔 ✅
+├── Day2 核与软间隔 ✅
+├── Day3 贝叶斯与朴素贝叶斯 ✅
+├── Day4 贝叶斯网络与 EM 算法  ← 你在这里
+└── Day5 实战 SVM
+
+        ↓ 后续衔接
+Week06 Day3（GMM 聚类，直接用今天的算法）
+Week12（VAE 与变分推断）
+```
+
+---
+
+## 一、贝叶斯网络
+
+### 1.1 定义
+
+**贝叶斯网络 = 有向无环图（DAG）+ 条件概率表（CPT）**
+
+- **结点**：随机变量；
+- **有向边**：直接依赖关系（$A\to B$ 表示 $A$ 影响 $B$）；
+- **联合分布分解**：
+
+$$\boxed{\ P(x_1,\dots,x_n) = \prod_{i=1}^{n}P\left(x_i \mid \text{Parents}(x_i)\right)\ }$$
+
+**这个分解是贝叶斯网络的全部威力所在**：把一个高维联合分布拆成若干个低维条件分布的乘积。
+
+### 1.2 经典例子：朴素贝叶斯就是最简单的贝叶斯网络
+
+```
+        y (类别)
+      / | | \
+    x1 x2 x3 x4
+```
+
+由上图：$P(\boldsymbol{x},y) = P(y)\prod_j P(x_j|y)$ —— **正是朴素贝叶斯**。
+
+**再看一个稍复杂的例子（学生模型）**：
+
+```
+   难度(D)      智商(I)
+      \         /
+       \       /
+        成绩(G)
+       /      \
+    推荐信(L)   面试(S)
+```
+
+$$P(D,I,G,L,S) = P(D)P(I)P(G|D,I)P(L|G)P(S|G)$$
+
+### 1.3 三种依赖结构
+
+| 结构 | 图形 | 独立性 |
+| --- | --- | --- |
+| **顺连** | $A\to B\to C$ | 给定 $B$，$A \perp C$ |
+| **分连** | $A\leftarrow B\to C$ | 给定 $B$，$A \perp C$ |
+| **汇连** | $A\to B\leftarrow C$ | **$B$ 未知时 $A\perp C$；给定 $B$ 后反而相关** |
+
+**汇连结构（V-结构）最反直觉**：
+
+- 未知 $B$ 时，$A$ 与 $C$ 独立；
+- **一旦知道 $B$，$A$ 与 $C$ 就不独立了**。
+
+**例子**：晴天（$A$）和加班（$C$）都可能导致"累"（$B$）。在不知道是否累时，两者无关；但**一旦知道你累了**，如果你没加班，那大概率是因为晴天出去玩累了——两者产生了关联。这称为**解释消除（explaining away）**。
+
+**D-分离**：判定两个结点在给定观测集下是否条件独立的一般方法（需要跟踪所有路径是否被"阻断"）。此处不展开，记住三种基本结构即可。
+
+### 1.4 推断问题
+
+| 任务 | 问题 |
+| --- | --- |
+| 后验推断 | 求 $P(\boldsymbol{q} \mid \boldsymbol{e})$（查询变量给定证据） |
+| 最大后验 | 求 $\arg\max_{\boldsymbol{q}} P(\boldsymbol{q}\mid\boldsymbol{e})$ |
+| 边缘化 | 求 $P(\boldsymbol{q})$ |
+
+**精确推断**：变量消元法、联结树算法（复杂度随树宽指数增长）。
+**近似推断**：MCMC（Gibbs 采样）、变分推断（Week12）。
+
+---
+
+## 二、隐变量与 EM 算法
+
+### 2.1 问题：隐变量让对数似然无法分解
+
+设有观测数据 $\mathbf{X} = \{\boldsymbol{x}_i\}$，隐变量 $\mathbf{Z} = \{\boldsymbol{z}_i\}$，我们要最大化**边缘对数似然**：
+
+$$\ell(\boldsymbol{\theta}) = \sum_{i=1}^m \log P(\boldsymbol{x}_i;\boldsymbol{\theta}) = \sum_{i=1}^m \log \sum_{\boldsymbol{z}_i}P(\boldsymbol{x}_i,\boldsymbol{z}_i;\boldsymbol{\theta})$$
+
+**困难**：对数里面有一个**求和**——$\log\sum$ 无法拆开，导致参数间耦合，没有闭式解。
+
+### 2.2 EM 的核心思想
+
+**策略**：既然无法直接优化，就"**先猜隐变量，再优化参数，反复迭代**"。
+
+```
+E 步 (Expectation): 用当前参数 θ_t 计算隐变量的后验分布
+                    Q_i(z) = P(z | x_i; θ_t)
+                    —— 即"在当前参数下，隐变量最可能是什么"
+
+M 步 (Maximization): 用 Q 计算【期望完全数据对数似然】，
+                     并最大化它来更新参数
+                     θ_{t+1} = argmax_θ Σ_i E_{Q_i}[log P(x_i, z; θ)]
+
+重复直到收敛
+```
+
+### 2.3 ELBO 推导（关键）
+
+对任意分布 $Q(\boldsymbol{z})$，有恒等式：
+
+$$\log P(\boldsymbol{x};\boldsymbol{\theta}) = \underbrace{\sum_{\boldsymbol{z}}Q(\boldsymbol{z})\log\frac{P(\boldsymbol{x},\boldsymbol{z};\boldsymbol{\theta})}{Q(\boldsymbol{z})}}_{\text{ELBO}\ \mathcal{L}(Q,\boldsymbol{\theta})} + \underbrace{D_{KL}\left(Q(\boldsymbol{z})\middle\|P(\boldsymbol{z}|\boldsymbol{x};\boldsymbol{\theta})\right)}_{\ge 0}$$
+
+**推导**：
+
+$$\begin{aligned}
+\mathcal{L}(Q,\boldsymbol{\theta})
+&= \sum_{\boldsymbol{z}}Q(\boldsymbol{z})\log\frac{P(\boldsymbol{x},\boldsymbol{z})}{Q(\boldsymbol{z})}\\
+&= \sum_{\boldsymbol{z}}Q(\boldsymbol{z})\log\frac{P(\boldsymbol{z}|\boldsymbol{x})P(\boldsymbol{x})}{Q(\boldsymbol{z})}\\
+&= \sum_{\boldsymbol{z}}Q(\boldsymbol{z})\log P(\boldsymbol{x}) + \sum_{\boldsymbol{z}}Q(\boldsymbol{z})\log\frac{P(\boldsymbol{z}|\boldsymbol{x})}{Q(\boldsymbol{z})}\\
+&= \log P(\boldsymbol{x}) - D_{KL}(Q\|P(\boldsymbol{z}|\boldsymbol{x}))
+\end{aligned}$$
+
+移项即得。
+
+**因为 KL 散度 $\ge 0$**，所以 ELBO 是 $\log P(\boldsymbol{x})$ 的**下界**，且当 $Q(\boldsymbol{z}) = P(\boldsymbol{z}|\boldsymbol{x};\boldsymbol{\theta})$ 时取等号。
+
+### 2.4 为什么 EM 单调不降（收敛性证明）
+
+记第 $t$ 步参数为 $\boldsymbol{\theta}_t$，$Q_t(\boldsymbol{z}) = P(\boldsymbol{z}|\boldsymbol{x};\boldsymbol{\theta}_t)$。
+
+**下界性质**：因为 $Q_t$ 让 ELBO 与对数似然相等，
+
+$$\ell(\boldsymbol{\theta}_t) = \mathcal{L}(Q_t,\boldsymbol{\theta}_t)$$
+
+**M 步**：$\boldsymbol{\theta}_{t+1} = \arg\max_{\boldsymbol{\theta}}\mathcal{L}(Q_t,\boldsymbol{\theta})$，所以
+
+$$\mathcal{L}(Q_t,\boldsymbol{\theta}_{t+1}) \ge \mathcal{L}(Q_t,\boldsymbol{\theta}_t) = \ell(\boldsymbol{\theta}_t)$$
+
+**E 步**：$\mathcal{L}(Q_{t+1}, \boldsymbol{\theta}_{t+1}) \ge \mathcal{L}(Q_t,\boldsymbol{\theta}_{t+1})$（因为 $Q_{t+1}$ 是最优的 $Q$）
+
+**合并**：
+
+$$\ell(\boldsymbol{\theta}_{t+1}) = \mathcal{L}(Q_{t+1},\boldsymbol{\theta}_{t+1}) \ge \mathcal{L}(Q_t,\boldsymbol{\theta}_{t+1}) \ge \mathcal{L}(Q_t,\boldsymbol{\theta}_t) = \ell(\boldsymbol{\theta}_t)$$
+
+$$\boxed{\ \ell(\boldsymbol{\theta}_{t+1}) \ge \ell(\boldsymbol{\theta}_t)\ }\quad\text{（对数似然单调不降）}$$
+
+**这就是 EM 的收敛保证。**
+
+> **注意**：EM 只保证收敛到**驻点**（可能是局部最优或鞍点），不保证全局最优。实践中用多次不同初始化取最优。
+
+---
+
+## 三、GMM 的 EM 推导（重点）
+
+### 3.1 模型
+
+$$P(\boldsymbol{x}) = \sum_{k=1}^{K}\pi_k\,\mathcal{N}(\boldsymbol{x};\ \boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k)$$
+
+**隐变量**：$z\in\{1,\dots,K\}$ 表示样本来自哪个高斯成分。
+
+**参数**：$\boldsymbol{\theta} = \{\pi_k, \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k\}_{k=1}^K$，约束 $\sum_k\pi_k = 1$。
+
+### 3.2 E 步：计算"责任度"
+
+由贝叶斯公式：
+
+$$\boxed{\ \gamma_{ik} = P(z_i = k \mid \boldsymbol{x}_i;\boldsymbol{\theta}) = \frac{\pi_k\,\mathcal{N}(\boldsymbol{x}_i;\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k)}{\sum_{j=1}^{K}\pi_j\,\mathcal{N}(\boldsymbol{x}_i;\boldsymbol{\mu}_j,\boldsymbol{\Sigma}_j)}\ }$$
+
+$\gamma_{ik}$ 称为**责任度（responsibility）**：第 $k$ 个成分对第 $i$ 个样本的"解释程度"。
+
+### 3.3 M 步：更新参数
+
+**完全数据对数似然**：
+
+$$\log P(\mathbf{X},\mathbf{Z}) = \sum_i\sum_k \mathbb{1}[z_i=k]\left[\log\pi_k + \log\mathcal{N}(\boldsymbol{x}_i;\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k)\right]$$
+
+取期望（用 $\gamma_{ik}$ 代替 $\mathbb{1}[z_i=k]$）：
+
+$$\mathbb{E}[\log P] = \sum_i\sum_k\gamma_{ik}\left[\log\pi_k - \frac{1}{2}\log|\boldsymbol{\Sigma}_k| - \frac{d}{2}\log2\pi - \frac{1}{2}(\boldsymbol{x}_i-\boldsymbol{\mu}_k)^\top\boldsymbol{\Sigma}_k^{-1}(\boldsymbol{x}_i-\boldsymbol{\mu}_k)\right]$$
+
+**对 $\boldsymbol{\mu}_k$ 求导置零**：
+
+$$\frac{\partial}{\partial\boldsymbol{\mu}_k} = \sum_i\gamma_{ik}\boldsymbol{\Sigma}_k^{-1}(\boldsymbol{x}_i-\boldsymbol{\mu}_k) = 0 \quad\Rightarrow\quad \boxed{\boldsymbol{\mu}_k^{\text{new}} = \frac{\sum_i\gamma_{ik}\boldsymbol{x}_i}{\sum_i\gamma_{ik}}}$$
+
+**对 $\boldsymbol{\Sigma}_k$ 求导置零**：
+
+$$\boxed{\ \boldsymbol{\Sigma}_k^{\text{new}} = \frac{\sum_i\gamma_{ik}(\boldsymbol{x}_i-\boldsymbol{\mu}_k^{\text{new}})(\boldsymbol{x}_i-\boldsymbol{\mu}_k^{\text{new}})^\top}{\sum_i\gamma_{ik}}\ }$$
+
+**对 $\pi_k$**（带约束 $\sum_k\pi_k=1$，用拉格朗日乘子）：
+
+$$\boxed{\ \pi_k^{\text{new}} = \frac{\sum_i\gamma_{ik}}{m}\ }$$
+
+**注意**：三个公式都是"**以责任度为权重的加权平均**"。
+
+### 3.4 算法流程
+
+```
+初始化: 随机选 K 个点作为 μ_k，π_k = 1/K，Σ_k = 全体协方差
+重复:
+    E 步: 计算所有 γ_ik
+    M 步: 更新 μ_k, Σ_k, π_k
+    计算对数似然, 若无明显变化则停止
+```
+
+### 3.5 GMM 与 K-Means 的关系
+
+| 对比 | K-Means | GMM |
+| --- | --- | --- |
+| 隐变量 | **硬分配**（0 或 1） | **软分配**（$\gamma_{ik}\in[0,1]$） |
+| 簇形状 | 球形、等大小 | **任意椭圆**（各自协方差） |
+| 目标 | 最小化簇内平方和 | 最大化似然 |
+| 输出 | 簇标签 | 概率分布 |
+| 与 EM 的关系 | 是 GMM 的**极限特例** | 一般 EM |
+
+**极限关系**：令所有 $\boldsymbol{\Sigma}_k = \sigma^2\mathbf{I}$ 并让 $\sigma\to0$，软分配会趋近于硬分配，GMM 退化为 K-Means。
+
+### 3.6 实际中的问题与对策
+
+| 问题 | 表现 | 对策 |
+| --- | --- | --- |
+| 局部最优 | 不同初始化结果不同 | 多次重启取最优（`n_init`） |
+| **奇异解** | 某成分只含 1 个样本，$\boldsymbol{\Sigma}_k\to0$，似然 $\to\infty$ | 加正则 $\epsilon\mathbf{I}$ 到协方差 |
+| 成分消失 | 某 $\pi_k\to0$ | 减少 $K$ 或用模糊先验 |
+| 收敛慢 | 需要数百次迭代 | 限制迭代次数 + 早停 |
+
+**奇异解详解**：若某个高斯的均值恰好落在某个样本上且方差趋于 0，则密度在该点趋于无穷，似然无界。这不是数值 bug，而是**模型本身的病态**。标准做法是给协方差加一个小的对角正则项，或限制协方差的行列式下界。
+
+---
+
+## 四、EM 的其他应用
+
+| 应用 | 隐变量含义 |
+| --- | --- |
+| 高斯混合聚类 | 样本属于哪个成分 |
+| 隐马尔可夫模型（HMM） | 状态序列（Baum-Welch 算法） |
+| 缺失数据填补 | 缺失的值 |
+| 混合专家模型 | 由哪个专家负责 |
+| VAE 的预训练 | 潜在表示 |
+
+---
+
+## 五、代码实践
+
+```python
+import numpy as np
+
+def gmm_em(X, K=3, n_iter=100, tol=1e-6, seed=0):
+    rng = np.random.default_rng(seed)
+    m, d = X.shape
+    # 初始化: 随机挑 K 个样本作为均值
+    idx = rng.choice(m, K, replace=False)
+    mu = X[idx].copy()
+    cov = np.array([np.cov(X.T) + 1e-3 * np.eye(d) for _ in range(K)])
+    pi = np.ones(K) / K
+
+    loglik_hist = []
+    for _ in range(n_iter):
+        # ---------- E 步: 计算责任度 ----------
+        log_prob = np.zeros((m, K))
+        for k in range(K):
+            diff = X - mu[k]
+            inv = np.linalg.inv(cov[k])
+            log_det = np.log(np.linalg.det(cov[k]))
+            log_prob[:, k] = (np.log(pi[k]) - 0.5 * (d * np.log(2 * np.pi)
+                              + log_det + (diff @ inv * diff).sum(axis=1)))
+        # 用 log-sum-exp 归一化，数值稳定
+        lse = log_prob.max(axis=1, keepdims=True)
+        norm = lse + np.log(np.exp(log_prob - lse).sum(axis=1, keepdims=True))
+        gamma = np.exp(log_prob - norm)
+        loglik = float(norm.sum())
+        loglik_hist.append(loglik)
+
+        # ---------- M 步: 更新参数 ----------
+        Nk = gamma.sum(axis=0)                 # 每个成分的"有效样本数"
+        mu = (gamma.T @ X) / Nk[:, None]
+        for k in range(K):
+            diff = X - mu[k]
+            cov[k] = (diff * gamma[:, k:k + 1]).T @ diff / Nk[k] \
+                     + 1e-6 * np.eye(d)        # 加正则防奇异
+        pi = Nk / m
+
+        if len(loglik_hist) > 1 and abs(loglik_hist[-1] - loglik_hist[-2]) < tol:
+            break
+    return mu, cov, pi, gamma, loglik_hist
+```
+
+完整版本见 `code/day4_em_gmm.py`，包含：
+
+1. 从零实现 GMM 的 EM，打印每轮的对数似然（验证**单调不降**）；
+2. 恢复出的均值/协方差与真实参数对比；
+3. **软分配 vs 硬分配**（K-Means 风格）的对比；
+4. **奇异解实验**：K 过大时观察协方差塌缩，以及加正则后的修复；
+5. **多次重启**取最优似然；
+6. 贝叶斯网络的精确推断（变量消元的小例子）。
+
+---
+
+## 六、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 认为 EM 收敛到全局最优 | 只保证到驻点；需多次重启 |
+| 忘记加协方差正则 | 会出现奇异解（似然 → ∞） |
+| 直接算 $\log\sum\exp$ | 数值下溢；用 log-sum-exp |
+| 用硬分配代替责任度 | 那就退化成 K-Means 了 |
+| 迭代次数不设上限 | 收敛可能很慢 |
+| 认为"单调不降"意味着一定收敛快 | 在鞍点附近会非常慢 |
+| 混淆 EM 与梯度下降 | EM 是"下界最大化"，不需要学习率 |
+
+---
+
+## 七、练习题
+
+**基础**
+
+1. 写出贝叶斯网络的联合分布分解式。
+2. 说明 E 步与 M 步各自做什么。
+3. 写出 GMM 的 E 步责任度公式。
+
+**进阶**
+
+4. 推导 ELBO 恒等式 $\log P(\boldsymbol{x}) = \mathcal{L}(Q,\boldsymbol{\theta}) + D_{KL}(Q\|P(\boldsymbol{z}|\boldsymbol{x}))$。
+5. 证明 EM 算法的单调性 $\ell(\boldsymbol{\theta}_{t+1})\ge\ell(\boldsymbol{\theta}_t)$。
+6. 对 GMM 的期望完全数据对数似然求 $\boldsymbol{\mu}_k$ 的导数，推导 $\boldsymbol{\mu}_k^{\text{new}}$ 公式。
+7. 对 $\pi_k$ 使用拉格朗日乘子 $\lambda(\sum_k\pi_k-1)$，推导 $\pi_k^{\text{new}} = \frac{\sum_i\gamma_{ik}}{m}$。
+
+**思考题**
+
+8. 为什么 EM 会收敛到局部最优？请从 ELBO 的几何图形角度解释。
+9. GMM 的"奇异解"为什么会导致似然趋向无穷？请举出一个具体的 $\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k$ 构造。
+10. 若 K-Means 是 GMM 的极限特例，那么在什么数据上两者结果会非常接近，什么数据上差异很大？
+
+<details>
+<summary>第 9 题答案要点</summary>
+
+**构造**：设 $K=2$，其中一个成分的参数为
+
+$$\boldsymbol{\mu}_1 = \boldsymbol{x}_1, \qquad \boldsymbol{\Sigma}_1 = \epsilon\mathbf{I}$$
+
+则第 1 个样本在该成分下的密度为
+
+$$\mathcal{N}(\boldsymbol{x}_1;\boldsymbol{x}_1,\epsilon\mathbf{I}) = \frac{1}{(2\pi\epsilon)^{d/2}} \xrightarrow{\epsilon\to0^{+}} \infty$$
+
+因此对数似然无界 ⇒ EM 会不断把 $\epsilon$ 推向 0。
+
+**特征**：该成分只"占用"一个样本（$\gamma_{11}\approx1$），其余样本责任度接近 0。
+
+**对策**：$\boldsymbol{\Sigma}_k \leftarrow \boldsymbol{\Sigma}_k + \epsilon_0\mathbf{I}$（固定小正则），或设置 $|\boldsymbol{\Sigma}_k|$ 的下界。
+</details>
+
+<details>
+<summary>第 10 题要点</summary>
+
+**结果接近**：各簇**球形、大小相近、分离清晰**时，软分配自然接近 0/1，GMM ≈ K-Means。
+
+**差异很大**：
+
+- 各簇**形状不同**（拉长/旋转）：K-Means 强行用球形分割，会切错；GMM 能拟合椭圆。
+- 各簇**大小/密度不同**：K-Means 倾向切出等体积区域；GMM 用 $\pi_k$ 与 $\boldsymbol{\Sigma}_k$ 建模。
+- 簇**重叠**：GMM 给出有意义的软概率；K-Means 的硬边界是任意的。
+</details>
+
+---
+
+## 八、一句话总结
+
+**EM 算法把"含有隐变量的最大似然"转化成"猜隐变量 → 更新参数"的交替迭代；它的每一步都在抬高对数似然的下界，因此天然收敛——但只到局部最优。**
+
+---
+
+**明日预告**：Day5 是本周实战——我们把 SVM 用到真实分类任务上，并解决它"没有概率输出"的问题。
+

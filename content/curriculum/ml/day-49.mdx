@@ -1,0 +1,360 @@
+---
+slug: day-49
+kind: day
+day: 49
+week: 9
+weekTitle: PyTorch 框架与数据管线
+weekBlurb: 张量、自动求导、计算图，Dataset / DataLoader 与第一个训练循环。
+title: 训练循环与优化器
+lead: '今日目标：把 `DataLoader`、`model`、`criterion`、`optimizer` 串成**标准训练循环**；……'
+sourcePath: Week09_PyTorch框架与数据管线/Day4_训练循环与优化器.md
+---
+
+> 今日目标：把 `DataLoader`、`model`、`criterion`、`optimizer` 串成**标准训练循环**；掌握常用优化器的差异、学习率调度的写法、`train`/`eval` 模式的作用、模型的保存与断点续训。
+> 配套案例：`code/day4_training_loop.py`
+
+---
+
+## 4.1 知识地图
+
+```
+Day1  Tensor + autograd        ← 求梯度
+Day2  nn.Module                ← 建模型
+Day3  Dataset + DataLoader     ← 供数据
+        │
+        ▼
+Day4（今天）★ 把零件装成机器
+  ├─ 训练循环五步骨架
+  ├─ 优化器：SGD / Momentum / Adam / AdamW
+  ├─ 学习率调度
+  ├─ train/eval 模式
+  └─ 保存 / 加载 / 早停
+        │
+        ▼
+Day5  综合实战：完整跑通 MNIST
+Week10+  只换模型结构，循环不变
+```
+
+**今天这一套循环，是后面所有深度学习代码的模板。** CNN、RNN、Transformer 差别只在 `model` 那个变量里。
+
+---
+
+## 4.2 训练循环的五步骨架
+
+```python
+for epoch in range(epochs):
+    model.train()                                    # ① 切换到训练模式
+    for xb, yb in train_loader:
+        xb, yb = xb.to(device), yb.to(device)
+
+        optimizer.zero_grad()                        # ② 清空上一轮梯度
+        logits = model(xb)                           # ③ 前向
+        loss = criterion(logits, yb)                 #    算损失
+        loss.backward()                              # ④ 反向（填 .grad）
+        optimizer.step()                             # ⑤ 更新参数
+
+    # 每个 epoch 结束后验证
+    model.eval()                                     # ⑥ 切换到评估模式
+    with torch.no_grad():                            #    关闭计算图
+        for xb, yb in val_loader:
+            ...
+```
+
+**五步的顺序不能变**，特别是 `zero_grad()` 必须在 `backward()` 之前（Day1 的梯度累积坑）。
+
+**与 Week07 手写版的对照**：
+
+| 步骤 | Week07 手写 | Day4 |
+| --- | --- | --- |
+| 清梯度 | 不需要（每次覆盖） | `optimizer.zero_grad()` |
+| 前向 | `net.forward(x)` | `model(x)` |
+| 损失 | `SoftmaxWithLoss.forward()` | `criterion(logits, y)` |
+| 反向 | `net.backward()` 手写链式 | `loss.backward()` |
+| 更新 | `optimizer.update(params)` 自己写 | `optimizer.step()` |
+
+---
+
+## 4.3 优化器
+
+### 4.3.1 从 SGD 到 Adam
+
+| 优化器 | 更新思想 | 典型学习率 | 适用 |
+| --- | --- | --- | --- |
+| `SGD` | $\theta \leftarrow \theta - \eta g$ | 0.01 ~ 0.1 | 传统 CV，收敛慢但泛化好 |
+| `SGD(momentum=0.9)` | 加动量项，抑制震荡 | 0.01 ~ 0.1 | ResNet 训练的经典配置 |
+| `RMSProp` | 按梯度平方的滑动平均缩放 | 1e-3 | RNN 常用 |
+| `Adam` | 动量 + 自适应缩放 | **1e-3** | 默认首选，收敛快 |
+| `AdamW` | Adam + 正确的权重衰减 | 1e-3 ~ 3e-4 | **Transformer/BERT 标配** |
+
+**动量（Momentum）在做什么**（呼应 Week03 Day2 的"震荡"问题）：
+
+$$v_t = \beta v_{t-1} + g_t, \qquad \theta \leftarrow \theta - \eta v_t$$
+
+在"峡谷形"损失面上，垂直于最优方向的梯度正负交替，动量把它们平均掉；沿最优方向的梯度方向一致，动量把它们累积放大。效果就是**震荡被抑制、前进被加速**。
+
+**Adam 在做什么**：同时估计梯度的一阶矩（动量）和二阶矩（梯度平方），并对每个参数单独缩放：
+
+$$m_t = \beta_1 m_{t-1} + (1-\beta_1)g_t, \quad v_t = \beta_2 v_{t-1} + (1-\beta_2)g_t^2$$
+$$\theta \leftarrow \theta - \eta\frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}$$
+
+好处是**对学习率不敏感**（不同参数自动获得不同步长），代价是可能陷入"过小的有效步长"而泛化略差。
+
+### 4.3.2 weight_decay：L2 正则的框架版
+
+呼应 Week03 Day1 的岭回归：
+
+$$\text{Loss}_{\text{total}} = \text{Loss} + \lambda \lVert \theta \rVert^2$$
+
+```python
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01, weight_decay=1e-4)
+```
+
+**关键细节**：`weight_decay` 会作用到**所有参数**，包括偏置和 BatchNorm 的缩放参数 —— 这通常不是我们想要的。正确做法是**参数分组**：
+
+```python
+decay, no_decay = [], []
+for name, p in model.named_parameters():
+    if p.ndim == 1:                     # 偏置、BN 的 weight/bias 都是 1 维
+        no_decay.append(p)
+    else:
+        decay.append(p)
+
+optimizer = torch.optim.AdamW([
+    {"params": decay, "weight_decay": 0.01},
+    {"params": no_decay, "weight_decay": 0.0},
+], lr=1e-3)
+```
+
+**为什么 Transformer 都用 AdamW 而不是 Adam + weight_decay？**
+因为 Adam 的 L2 正则会被它自己的自适应缩放"吃掉"，导致实际的正则强度与学习率耦合；AdamW 把权重衰减从梯度里解耦出来，直接用 $\theta \leftarrow \theta - \eta\lambda\theta$ 更新，正则强度可控。这是 2017 年后被广泛验证的结论。
+
+### 4.3.3 参数组：不同层用不同学习率
+
+微调预训练模型时最常用（Week14 用 ViT 时会遇到）：
+
+```python
+optimizer = torch.optim.SGD([
+    {"params": model.backbone.parameters(), "lr": 1e-4},    # 预训练部分：小学习率
+    {"params": model.head.parameters(),     "lr": 1e-2},    # 新加的头：大学习率
+], momentum=0.9)
+```
+
+---
+
+## 4.4 学习率调度
+
+学习率是**最影响结果的超参数**。固定学习率往往前期太慢、后期来回震荡；调度器让它在训练过程中变化。
+
+| 调度器 | 曲线 | 适用 |
+| --- | --- | --- |
+| `StepLR` | 每 N 个 epoch 乘 0.1 | 经典 CNN |
+| `MultiStepLR` | 在指定 epoch 处衰减 | ResNet 经典配置 |
+| `CosineAnnealingLR` | 余弦曲线平滑下降 | **现代默认首选** |
+| `ReduceLROnPlateau` | 验证指标不降时才降 | 不确定何时降时 |
+| `OneCycleLR` | 先升后降 | 快速训练（super-convergence） |
+
+```python
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+
+for epoch in range(epochs):
+    train_one_epoch(...)
+    scheduler.step()                    # ★ 按 epoch 调度，放在 epoch 末尾
+```
+
+**三个易错点**：
+
+1. **`scheduler.step()` 的位置**：按 epoch 的调度器放 epoch 末尾；按 batch 的（`OneCycleLR`）放 `optimizer.step()` 之后。
+2. **`ReduceLROnPlateau` 要传指标**：`scheduler.step(val_loss)`，其他调度器不用传。
+3. **断点续训时别忘了 scheduler 的状态**：`torch.save` 里要一起存 `scheduler.state_dict()`。
+
+**Warmup**：训练最初几百步学习率从 0 线性升到目标值，避免随机初始化的参数被大梯度"打飞"。Transformer 训练必备：
+
+```python
+def lr_lambda(step):
+    if step < warmup_steps:
+        return step / warmup_steps                 # 线性上升
+    progress = (step - warmup_steps) / max(1, total_steps - warmup_steps)
+    return 0.5 * (1 + math.cos(math.pi * progress))   # 余弦下降
+
+scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+```
+
+---
+
+## 4.5 train() 与 eval()：不只是习惯
+
+`model.train()` 与 `model.eval()` 会**递归切换所有子模块**的行为：
+
+| 层 | train 模式 | eval 模式 |
+| --- | --- | --- |
+| `Dropout` | 随机置零（缩放 $1/(1-p)$） | **直接透传** |
+| `BatchNorm` | 用当前 batch 的均值/方差，并更新 running 统计 | **用 running 统计**，不更新 |
+| 其他层 | 无差别 | 无差别 |
+
+**不切换的后果**：
+
+- 忘了 `model.eval()`：验证时 Dropout 仍在随机丢弃，指标偏低且每次不同（更糟的是，"验证"实际是在一个随机子网络上做的）；
+- 忘了 `model.train()`：BatchNorm 一直用 running 统计，训练不收敛。
+
+```python
+model.train()
+for xb, yb in train_loader:
+    ...
+model.eval()
+with torch.no_grad():
+    ...
+```
+
+> **记忆点**：`train()` 是**每个 epoch 训练前必须调用**的，`eval()` 是**每次评估前必须调用**的。它们和 `zero_grad()` 一样属于"忘一次就出问题"的类别。
+
+**`no_grad()` 与 `eval()` 是两件事**：前者关计算图（省显存），后者切层行为（保正确）。评估时**两个都要**。
+
+---
+
+## 4.6 设备管理
+
+```python
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(device)
+
+model = model.to(device)                 # 递归移动所有参数
+for xb, yb in loader:
+    xb, yb = xb.to(device), yb.to(device)   # 数据也要移动
+    logits = model(xb)
+```
+
+**三个常见错误**：
+
+1. 只移动了模型，忘了移动数据 → `Expected all tensors to be on the same device`
+2. 在循环外创建了张量，循环里忘了移动 → 同上
+3. `.cuda()` 硬编码 → 换到无 GPU 机器直接崩
+
+**性能细节**：`.to(device)` 在 CPU→GPU 时是**同步拷贝**，比较慢。所以：
+
+- 用 `pin_memory=True` + `non_blocking=True` 让拷贝与计算重叠；
+- 不要在循环里做 `.item()` 之外的 CPU-GPU 往返（`.item()` 本身也会同步，日志记录要攒批）。
+
+```python
+xb = xb.to(device, non_blocking=True)
+```
+
+---
+
+## 4.7 保存与加载
+
+**标准做法：只存 `state_dict`**
+
+```python
+# 保存
+torch.save({
+    "epoch": epoch,
+    "model": model.state_dict(),
+    "optimizer": optimizer.state_dict(),
+    "scheduler": scheduler.state_dict(),
+    "best_acc": best_acc,
+}, "checkpoint.pt")
+
+# 加载（推理）
+model = MyNet()
+model.load_state_dict(torch.load("checkpoint.pt", map_location=device)["model"])
+model.eval()
+
+# 加载（断点续训）
+ckpt = torch.load("checkpoint.pt", map_location=device)
+model.load_state_dict(ckpt["model"])
+optimizer.load_state_dict(ckpt["optimizer"])
+scheduler.load_state_dict(ckpt["scheduler"])
+start_epoch = ckpt["epoch"] + 1
+```
+
+**要点**：
+
+- **只保存 `state_dict`，不保存整个模型对象**。保存整个对象用的是 pickle，依赖类的定义路径，换目录/改类名就加载失败；
+- `map_location=device` 让在 GPU 上保存的模型能在 CPU 上加载；
+- 断点续训必须把 optimizer 和 scheduler 的状态一起存 —— 否则动量、自适应步长、学习率进度全部丢失，训练曲线会出现"重启抖动"。
+
+**保存最优模型 vs 保存最后一个**：
+
+```python
+if val_acc > best_acc:
+    best_acc = val_acc
+    torch.save(model.state_dict(), "best.pt")     # 只有变好才存
+```
+
+---
+
+## 4.8 早停（Early Stopping）
+
+呼应 Week02 Day2 的过拟合讨论：验证集指标连续多个 epoch 不再提升就停止。
+
+```python
+best_acc, best_epoch, patience = 0.0, 0, 5
+
+for epoch in range(epochs):
+    train_loss, train_acc = train_one_epoch(...)
+    val_loss, val_acc = evaluate(...)
+
+    if val_acc > best_acc:
+        best_acc, best_epoch = val_acc, epoch
+        torch.save(model.state_dict(), "best.pt")     # 保存当前最优
+    elif epoch - best_epoch >= patience:
+        print(f"验证集 {patience} 个 epoch 没有提升，提前停止")
+        break
+```
+
+**关键纪律**：早停看的是**验证集**，不是测试集。测试集只在最后评估一次（Week02 Day2 的铁律）。
+
+---
+
+## 4.9 可复现性
+
+```python
+import random, numpy as np, torch
+
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True     # 略慢，但结果可复现
+    torch.backends.cudnn.benchmark = False
+```
+
+**为什么需要**：权重初始化、Dropout、数据打乱都涉及随机数。不固定种子，两次运行的精度差异可能有 1%，无法判断是"改动有效"还是"随机波动"。
+
+ 完全的可复现性在 GPU 上代价较高（有些算子没有确定性实现）。实践中至少固定 CPU 与 Python 侧的种子。
+
+---
+
+## 4.10 常见坑
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| loss 变成 nan | 学习率过大 / 忘记 zero_grad / 除零 | 降 lr、检查梯度、加 eps |
+| 验证指标每次都不一样 | 忘了 `model.eval()` | 评估前调用 |
+| 训练完全不收敛 | 忘了 `model.train()`（BatchNorm 卡在 eval） | 训练前调用 |
+| 显存持续增长最后 OOM | 验证没包 `no_grad()`，或在循环里存了带图的 loss | 加 `no_grad()`，用 `loss.item()` |
+| 加载模型报 `Unexpected key(s)` | 保存的是整个模型而非 state_dict | 统一用 `state_dict()` |
+| 断点续训后 loss 跳变 | 没存 optimizer / scheduler 状态 | checkpoint 里一起保存 |
+| `Expected all tensors to be on the same device` | 数据没 `.to(device)` | 移动数据 |
+| 第二次运行结果不同 | 未固定随机种子 | `set_seed()` |
+| 学习率一直不变 | 忘了 `scheduler.step()` | 放在 epoch 末尾 |
+
+---
+
+## 4.11 今日自测
+
+1. 写出训练循环五步骨架，并解释为什么 `zero_grad()` 在 `backward()` 之前。
+2. 用同一模型分别跑 `SGD(lr=0.01)`、`SGD(momentum=0.9, lr=0.01)`、`Adam(lr=1e-3)`，各 3 个 epoch，比较验证集准确率。
+3. 打印 `CosineAnnealingLR` 在 10 个 epoch 中的学习率变化，画出数值曲线。
+4. 构造一个带 `Dropout` 的模型，在 `train` 与 `eval` 模式下各调用两次，验证输出的差异。
+5. 训练 2 个 epoch，保存 checkpoint，再加载回来继续训练 1 个 epoch，确认 loss 曲线连续（不跳变）。
+
+---
+
+## 4.12 一句话总结
+
+**训练循环只有五步，但每一步都有对应的坑：`zero_grad` 防累积、`train/eval` 管行为、`no_grad` 省显存、`to(device)` 保一致、`state_dict` 存状态。**
+
+**明日预告**：Day5 综合实战 —— 用 PyTorch 把 Week07 的两层网络完整重写，跑通 MNIST，对比 NumPy 版的精度与速度，并画出训练曲线。
+

@@ -1,0 +1,375 @@
+---
+slug: day-28
+kind: day
+day: 28
+week: 5
+weekTitle: 支持向量机与概率模型
+weekBlurb: 间隔与对偶、核方法，以及贝叶斯分类器的概率视角。
+title: 贝叶斯决策论与朴素贝叶斯
+lead: '前两天的 SVM 是**判别式**模型：直接学决策边界。今天换一条路——**生成式**建模：先学 $P(\boldsymbol{x}|y)$ 和 $P(y)$，……'
+sourcePath: Week05_支持向量机与概率模型/Day3_贝叶斯决策论与朴素贝叶斯.md
+---
+
+> 西瓜书第 7 章 7.1–7.3 节 · 南瓜书 7.1–7.20
+
+前两天的 SVM 是**判别式**模型：直接学决策边界。今天换一条路——**生成式**建模：先学 $P(\boldsymbol{x}|y)$ 和 $P(y)$，再用贝叶斯公式反推 $P(y|\boldsymbol{x})$。朴素贝叶斯是这条路上最简洁也最实用的模型。
+
+---
+
+## 今日目标
+
+1. 理解贝叶斯决策论：最小化期望风险 ⟺ 最大化后验概率；
+2. 分清判别式模型与生成式模型的本质差异；
+3. 独立推导朴素贝叶斯分类器；
+4. 掌握拉普拉斯平滑，理解为什么它必不可少；
+5. 分清高斯朴素贝叶斯、多项式朴素贝叶斯、伯努利朴素贝叶斯；
+6. 从零实现朴素贝叶斯并用于文本分类。
+
+---
+
+## 知识地图
+
+```
+Week05
+├── Day1 最大间隔 ✅
+├── Day2 核与软间隔 ✅
+├── Day3 贝叶斯决策论与朴素贝叶斯  ← 你在这里
+├── Day4 EM 与贝叶斯网络
+└── Day5 实战 SVM
+
+依赖: Week01 Day3（贝叶斯公式、MLE）
+Week03 Day3（逻辑回归，对照判别式路线）
+```
+
+---
+
+## 一、贝叶斯决策论
+
+### 1.1 期望风险
+
+设有 $N$ 个类别 $\mathcal{Y} = \{c_1,\dots,c_N\}$，$\lambda_{ij}$ 表示"真实为 $c_i$ 却判定为 $c_j$"的损失。
+
+**后验概率** $P(c_i|\boldsymbol{x})$ 表示看到样本 $\boldsymbol{x}$ 后它属于 $c_i$ 的信念。
+
+**对样本 $\boldsymbol{x}$ 采取决策 $c_j$ 的条件风险**：
+
+$$R(c_j|\boldsymbol{x}) = \sum_{i=1}^{N}\lambda_{ij}P(c_i|\boldsymbol{x})$$
+
+**总体期望风险**：$R = \mathbb{E}_{\boldsymbol{x}}[R(h(\boldsymbol{x})|\boldsymbol{x})]$。
+
+### 1.2 贝叶斯判定准则
+
+$$\boxed{\ h^*(\boldsymbol{x}) = \arg\min_{c_j\in\mathcal{Y}}\ R(c_j|\boldsymbol{x})\ }$$
+
+**特例：0-1 损失**（$\lambda_{ij} = \mathbb{1}[i\ne j]$）：
+
+$$R(c_j|\boldsymbol{x}) = 1 - P(c_j|\boldsymbol{x})$$
+
+于是最小化风险等价于：
+
+$$\boxed{\ h^*(\boldsymbol{x}) = \arg\max_{c\in\mathcal{Y}}\ P(c|\boldsymbol{x})\ }$$
+
+**结论**：**最小化分类错误率 ⟺ 最大化后验概率（MAP）**。
+
+---
+
+## 二、判别式 vs 生成式
+
+用贝叶斯公式展开后验：
+
+$$P(c|\boldsymbol{x}) = \frac{P(\boldsymbol{x}|c)P(c)}{P(\boldsymbol{x})}$$
+
+因为 $P(\boldsymbol{x})$ 与类别无关：
+
+$$\arg\max_c P(c|\boldsymbol{x}) = \arg\max_c\ \underbrace{P(\boldsymbol{x}|c)}_{\text{似然}}\underbrace{P(c)}_{\text{先验}}$$
+
+| 类型 | 建模对象 | 代表算法 |
+| --- | --- | --- |
+| **判别式** | 直接建模 $P(c\vert\boldsymbol{x})$ 或决策边界 | 逻辑回归、SVM、神经网络 |
+| **生成式** | 建模 $P(\boldsymbol{x}\vert c)$ 和 $P(c)$ | 朴素贝叶斯、GMM、HMM、VAE |
+
+> **术语来源**：生成式模型能"生成"数据（可从 $P(\boldsymbol{x}|c)$ 采样），判别式模型不能。
+
+**两者的取舍**：
+
+| 维度 | 判别式 | 生成式 |
+| --- | --- | --- |
+| 目标 | 直接优化分类 | 建模数据分布 |
+| 小样本 | 一般 | **好**（先验起作用） |
+| 假设错误时 | 更鲁棒 | 可能很差 |
+| 缺失特征 | 难处理 | **天然易处理**（边际化） |
+| 无监督场景 | 不适用 | **适用** |
+
+---
+
+## 三、朴素贝叶斯分类器
+
+### 3.1 核心假设
+
+直接建模 $P(\boldsymbol{x}|c)$ 的问题是：$\boldsymbol{x}$ 有 $n$ 个属性，联合分布在 $n$ 大时**指数级爆炸**（需要估计 $O(|\mathcal{Y}|\cdot\prod_j |\mathcal{X}_j|)$ 个参数）。
+
+**朴素贝叶斯假设（属性条件独立性）**：
+
+$$\boxed{\ P(\boldsymbol{x}|c) = \prod_{j=1}^{n}P(x_j|c)\ }$$
+
+即：**给定类别后，各属性相互独立**。
+
+> 这个假设在现实中几乎总是错的（例如文本中"机器"和"学习"同时出现的概率远大于独立假设），但**分类效果却常常很好**。原因见 3.4。
+
+### 3.2 分类决策式
+
+$$\boxed{\ h_{nb}(\boldsymbol{x}) = \arg\max_{c\in\mathcal{Y}}\ P(c)\prod_{j=1}^{n}P(x_j|c)\ }$$
+
+取对数（数值稳定，且把乘积变求和）：
+
+$$\hat c = \arg\max_{c}\left[\log P(c) + \sum_{j=1}^{n}\log P(x_j|c)\right]$$
+
+### 3.3 参数估计（MLE）
+
+**类先验**：
+
+$$P(c) = \frac{|D_c|}{|D|}$$
+
+**类条件概率**（离散属性）：
+
+$$P(x_j = v \mid c) = \frac{|D_{c,x_j=v}|}{|D_c|}$$
+
+### 3.4 为什么"错误假设"仍然有效
+
+三个原因：
+
+1. **分类只需要排序正确**。即使 $P(c|\boldsymbol{x})$ 的绝对值估计有偏，只要 $\arg\max$ 正确就不影响分类；
+2. **属性间的相关性对各类别的影响往往是"对称"的**，在比较中抵消；
+3. **参数少 ⇒ 方差小**。在样本有限时，简单模型的偏差-方差权衡更好。
+
+**已知的失效场景**：当属性高度相关且这种相关性与类别强相关时，朴素贝叶斯会明显退化。经典例子是"属性复制"（把同一个特征复制两份，会让该特征的影响被平方放大）。
+
+### 3.5 拉普拉斯平滑
+
+**问题**：若某属性值在训练集的类 $c$ 中从未出现，则
+
+$$P(x_j=v|c) = 0 \quad\Rightarrow\quad P(c)\prod_j P(x_j|c) = 0$$
+
+整个乘积被"一票否决"，即使其他属性都强烈支持 $c$。
+
+**解决（拉普拉斯平滑 / 加一平滑）**：
+
+$$\boxed{\ P(x_j=v\mid c) = \frac{|D_{c,x_j=v}| + \alpha}{|D_c| + \alpha\cdot N_j}\ }$$
+
+其中 $N_j$ 是属性 $j$ 的可能取值个数，$\alpha$ 常取 1。
+
+**同理平滑先验**：
+
+$$P(c) = \frac{|D_c| + \alpha}{|D| + \alpha N}$$
+
+**性质**：
+
+- $\alpha = 0$：无平滑（风险大）；
+- $\alpha = 1$：加一平滑（最常用）；
+- $\alpha \to \infty$：退化为均匀分布（过度平滑）。
+
+> **为什么需要 $N_j$ 这个因子**：要保证 $\sum_{v}P(x_j=v|c) = 1$。
+
+**另一种平滑**：Lidstone 平滑（$\alpha$ 取任意正数）；文本分类中还有"补集朴素贝叶斯"（Complement NB），对不平衡文本效果更好。
+
+---
+
+## 四、三种常用的朴素贝叶斯
+
+### 4.1 高斯朴素贝叶斯（Gaussian NB）
+
+**适用**：特征是**连续值**。
+
+**假设**：
+
+$$P(x_j|c) = \mathcal{N}(x_j;\ \mu_{c,j},\ \sigma_{c,j}^2) = \frac{1}{\sqrt{2\pi\sigma_{c,j}^2}}\exp\left(-\frac{(x_j-\mu_{c,j})^2}{2\sigma_{c,j}^2}\right)$$
+
+**参数估计**（MLE）：
+
+$$\hat\mu_{c,j} = \frac{1}{|D_c|}\sum_{\boldsymbol{x}\in D_c}x_j, \qquad \hat\sigma^2_{c,j} = \frac{1}{|D_c|}\sum_{\boldsymbol{x}\in D_c}(x_j - \hat\mu_{c,j})^2$$
+
+**决策式**：
+
+$$\hat c = \arg\max_c\left[\log P(c) - \frac{1}{2}\sum_j\left(\log 2\pi\sigma_{c,j}^2 + \frac{(x_j-\mu_{c,j})^2}{\sigma_{c,j}^2}\right)\right]$$
+
+**注意**：这里隐含假设"同类别下，各特征独立且各维方差可以不同"。
+
+### 4.2 多项式朴素贝叶斯（Multinomial NB）
+
+**适用**：**计数型特征**（词频、TF-IDF 的整数部分）。
+
+$$P(\boldsymbol{x}|c) = \frac{\left(\sum_j x_j\right)!}{\prod_j x_j!}\prod_j \theta_{c,j}^{x_j}$$
+
+其中 $\theta_{c,j} = P(\text{词}j|c)$，用平滑估计：
+
+$$\hat\theta_{c,j} = \frac{\sum_{\boldsymbol{x}\in D_c}x_j + \alpha}{\sum_{j'}\sum_{\boldsymbol{x}\in D_c}x_{j'} + \alpha n}$$
+
+**这是文本分类的经典配置。**
+
+### 4.3 伯努利朴素贝叶斯（Bernoulli NB）
+
+**适用**：**二值特征**（词出现/不出现）。
+
+$$P(x_j|c) = \theta_{c,j}^{x_j}(1-\theta_{c,j})^{1-x_j}$$
+
+**与多项式 NB 的区别**：伯努利 NB **显式惩罚"词未出现"**，因此在短文本上可能更好；多项式 NB 只关心出现次数。
+
+### 4.4 三种 NB 的选择
+
+| 数据类型 | 推荐 |
+| --- | --- |
+| 连续特征 | Gaussian NB |
+| 词频 / 计数 | Multinomial NB |
+| 二值特征 / 短文本 | Bernoulli NB |
+| 大规模文本 + 不平衡 | Complement NB |
+
+---
+
+## 五、朴素贝叶斯的优缺点
+
+### 优点
+
+| 优点 | 说明 |
+| --- | --- |
+| 训练极快 | 只需统计计数，$O(mn)$ |
+| 小样本可用 | 参数少，方差低 |
+| 天然多分类 | 无需 OvO/OvR |
+| 输出概率 | 可用于排序与决策 |
+| 增量学习 | 新样本只需更新计数 |
+| 对无关特征鲁棒 | 无关特征的 $\log P(x_j\vertc)$ 在各类别间近似抵消 |
+
+### 缺点
+
+| 缺点 | 说明 |
+| --- | --- |
+| 独立性假设过强 | 特征相关时性能下降 |
+| 概率估计不准 | 概率被推向 0/1，需校准 |
+| 连续特征用高斯假设 | 分布非高斯时效果差 |
+| 对特征缩放敏感 | 高斯 NB 的方差估计受尺度影响 |
+| 无法建模特征交互 | 例如 XOR 型规律 |
+
+---
+
+## 六、代码实践
+
+```python
+import numpy as np
+
+class GaussianNB:
+    def fit(self, X, y):
+        self.classes_ = np.unique(y)
+        self.mu_, self.var_, self.prior_ = {}, {}, {}
+        for c in self.classes_:
+            Xc = X[y == c]
+            self.mu_[c] = Xc.mean(axis=0)
+            self.var_[c] = Xc.var(axis=0) + 1e-9      # 防止方差为 0
+            self.prior_[c] = len(Xc) / len(y)
+        return self
+
+    def _log_likelihood(self, X, c):
+        mu, var = self.mu_[c], self.var_[c]
+        return -0.5 * (np.log(2 * np.pi * var)
+                       + (X - mu) ** 2 / var).sum(axis=1)
+
+    def predict(self, X):
+        scores = np.column_stack([
+            np.log(self.prior_[c]) + self._log_likelihood(X, c)
+            for c in self.classes_])
+        return self.classes_[scores.argmax(axis=1)]
+```
+
+完整版本见 `code/day3_naive_bayes.py`，包含：
+
+1. 从零实现 **Gaussian NB / Multinomial NB / Bernoulli NB**；
+2. 在高斯数据上与解析决策边界对比（等协方差时退化为线性边界，验证 Day3 练习的结论）；
+3. **属性复制实验**：把同一个特征复制一份，观察朴素贝叶斯退化；
+4. **拉普拉斯平滑实验**：$\alpha$ 从 0 到 10 对测试精度的影响；
+5. 20-newsgroups 风格的**稀疏文本分类**演示（用合成词袋数据）；
+6. 与 `sklearn.naive_bayes` 三种实现对照。
+
+---
+
+## 七、常见坑
+
+| 坑 | 说明 |
+| --- | --- |
+| 不做平滑 | 训练集未出现的组合会让概率为 0，整个预测失效 |
+| 用浮点原始概率连乘 | 下溢到 0；**必须取对数** |
+| 高斯 NB 直接吃未标准化的数据 | 方差估计受量纲影响 |
+| 混淆多项式与伯努利 NB | 前者用计数，后者用 0/1 且惩罚未出现 |
+| 认为朴素贝叶斯假设成立 | 它几乎总是不成立，只是"错得恰好不影响排序" |
+| 把 NB 的概率当真 | 概率极度偏向 0/1（过自信），需校准 |
+| 方差为 0 时不处理 | 除零导致 nan；加极小值或使用平滑方差 |
+| 忽略类别不平衡 | 先验被多数类主导，可手动调整先验 |
+
+---
+
+## 八、练习题
+
+**基础**
+
+1. 写出朴素贝叶斯的分类决策式与对数形式。
+2. 说明拉普拉斯平滑的公式，以及分母中 $\alpha N_j$ 的作用。
+3. 某类别下属性 $j$ 取值 0 的样本有 0 个，总样本 10 个，$N_j = 3$，求 $\alpha=1$ 平滑后的 $P(x_j=0|c)$。
+
+**进阶**
+
+4. 证明：0-1 损失下，最小化期望风险等价于最大化后验概率。
+5. 推导高斯朴素贝叶斯的对数后验评分式。
+6. 证明高斯朴素贝叶斯（各类方差相同）的决策边界关于 $\boldsymbol{x}$ 是**线性**的。
+7. 【属性复制实验】设某属性 $x_j$ 在各类别的条件概率为 $p_1$（正类）、$p_2$（负类），先验各 0.5。若把该属性复制 $k$ 份，写出后验对数几率的变化式，并说明 $k$ 增大时会怎样。
+
+**思考题**
+
+8. 为什么朴素贝叶斯在文本分类上表现好，而在特征高度相关的表格数据上表现差？
+9. "朴素贝叶斯输出的概率不可信"这一说法是否意味着它不能用于需要概率的场景？如何补救？
+10. 朴素贝叶斯与逻辑回归在什么条件下等价？（提示：高斯类条件分布 + 等协方差）
+
+<details>
+<summary>第 3 题答案</summary>
+
+$$P(x_j=0|c) = \frac{0 + 1}{10 + 1\times3} = \frac{1}{13} \approx 0.0769$$
+
+若无平滑则为 0，会让整个乘积归零。
+</details>
+
+<details>
+<summary>第 6 题答案要点</summary>
+
+设两个类别 $c_1, c_2$，条件分布分别为 $\mathcal{N}(\boldsymbol{\mu}_1,\boldsymbol{\Sigma})$ 与 $\mathcal{N}(\boldsymbol{\mu}_2,\boldsymbol{\Sigma})$（协方差相同）。
+
+取对数后验比：
+
+$$\log\frac{P(c_1|\boldsymbol{x})}{P(c_2|\boldsymbol{x})} = \log\frac{P(c_1)}{P(c_2)} - \frac{1}{2}(\boldsymbol{x}-\boldsymbol{\mu}_1)^\top\boldsymbol{\Sigma}^{-1}(\boldsymbol{x}-\boldsymbol{\mu}_1) + \frac{1}{2}(\boldsymbol{x}-\boldsymbol{\mu}_2)^\top\boldsymbol{\Sigma}^{-1}(\boldsymbol{x}-\boldsymbol{\mu}_2)$$
+
+展开两个二次型，**$\boldsymbol{x}^\top\boldsymbol{\Sigma}^{-1}\boldsymbol{x}$ 项完全相同，相互抵消**：
+
+$$= \text{const} + \boldsymbol{x}^\top\boldsymbol{\Sigma}^{-1}(\boldsymbol{\mu}_1-\boldsymbol{\mu}_2)$$
+
+这正是关于 $\boldsymbol{x}$ 的**线性函数** ⇒ 决策边界是超平面。∎
+
+**附注**：这个 $\boldsymbol{\Sigma}^{-1}(\boldsymbol{\mu}_1-\boldsymbol{\mu}_2)$ 与 Week03 Day4 的 LDA 解完全一致。
+</details>
+
+<details>
+<summary>第 7 题答案要点</summary>
+
+后验对数几率（复制 $k$ 份后）：
+
+$$\log\frac{P(c_1|\boldsymbol{x})}{P(c_2|\boldsymbol{x})} = \log\frac{P(c_1)}{P(c_2)} + k\log\frac{p_1}{p_2}$$
+
+**只要 $p_1 \ne p_2$，$k$ 增大时第二项的绝对值线性增长** ⇒ 该特征的影响力被放大 $k$ 倍 ⇒ 决策完全被这一个特征主导。
+
+**结论**：属性复制会让朴素贝叶斯"过度自信"，这是独立性假设失效的典型表现。实践中要注意**去重高度相关的特征**。
+</details>
+
+---
+
+## 九、一句话总结
+
+**朴素贝叶斯用"条件独立"这个极强假设换来了极简的参数估计与极快的训练速度；它估计的概率不准，但排序常常够用——这就是它几十年不过时的原因。**
+
+---
+
+**明日预告**：Day4 讲 EM 算法。你会看到当数据存在"隐变量"（例如样本属于哪个高斯成分）时，如何通过"猜测-更新"的迭代来求解最大似然。
+

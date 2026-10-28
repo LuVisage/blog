@@ -1,0 +1,51 @@
+name: Uptime check
+
+# 纯静态站点没有服务端日志可用，探活是最基本的监控：
+# 每 30 分钟对首页、条款页与 RSS 各发一次请求，
+# 任一路径非 200 就开/更新一个 issue，修复后手动关闭即可。
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe site paths
+        id: probe
+        run: |
+          BASE="https://luvisage.github.io/blog"
+          FAILED=""
+          for path in "/" "/terms/" "/rss.xml"; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -L "$BASE$path")
+            echo "$path -> $code"
+            if [ "$code" != "200" ]; then
+              FAILED="$FAILED $path($code)"
+            fi
+          done
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update issue on failure
+        if: steps.probe.outputs.failed != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED: ${{ steps.probe.outputs.failed }}
+        run: |
+          TITLE="Uptime alert: site probe failed ($FAILED)"
+          STAMP=$(date -u +%FT%TZ)
+          EXISTING=$(gh issue list --search "in:title \"$TITLE\"" --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "再次探测失败：$STAMP，路径：$FAILED"
+          else
+            gh issue create --title "$TITLE" --body "首次探测失败：$STAMP，路径：$FAILED。修复后请关闭本 issue。"
+          fi
