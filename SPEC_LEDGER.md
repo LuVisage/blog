@@ -515,3 +515,14 @@
 | 4 | 首屏节奏压缩 | hero section `mb-24/32 → mb-16/20`、ledger `mt-16 → mt-12`、头条区 `mb-24/32 → mb-20/24`，头条卡提前进入首屏视口 | 首页首屏 |
 
 **自检**：零新硬编码色（全部走 `--color-primary` 令牌）；名字唯一性 = h1 一处 + 顶部 mono 词标（品牌行与标题分离，不算重复）；bu.js 实测 signature-bar `34×3px rgb(61,70,194)`、头条竖条 `rgb(61,70,194)`、`h1.display` 计数 1。
+
+### 11.9 分类页密度补充（第 5 轮追加 · 用户授权「都听你的」后收口）
+
+分类页此前仅 2 个分类，主体下方大片空白。补充两个**真实数据**模块（非凑数）：
+
+| 模块 | 数据源 | 实现 | 感知点 |
+| --- | --- | --- | --- |
+| 系列 · Series | `getAllSeries()`（Vibe Coding 实战 2 / Agent 学习笔记 2 / 博客搭建 1） | `.capsule` 行 + 篇数 meta，href `/series/<name>`（路由已存在） | 分类索引下方 |
+| 课程 · Learn | `COURSES` + `getCurriculumStats()`（5 门：devtool 83 篇 13 周 / ml 85 篇 17 周 / backend 10 篇 2 周 / agent 41 篇 9 周 / csp 20 篇 3 周） | 发丝线行：课程名 + `N 篇 · N 周` + hover 箭头滑入；尾部「进入课程体系」btn-ghost | 系列下方 |
+
+**自检**：统计全部来自 `getCurriculumStats`（读盘计算，非手写）；样式复用既有 `.capsule` / 发丝线 / `btn-ghost`，零新增令牌；headless 实测渲染正确（OCR 复核 5 门课篇数与周数）。
