@@ -40,6 +40,12 @@ export function FeatureCard({ post }: { post: PostMeta }) {
         <div className="media-parallax">
           <img src={cover.url} alt="" loading="eager" decoding="async" className="media-zoom" />
         </div>
+        {/* indigo 签名左竖条（第 5 轮 +）：头条卡的强调色记忆点 */}
+        <span
+          className="absolute left-0 top-0 bottom-0 w-[3px] z-[1]"
+          style={{ background: 'var(--color-primary)' }}
+          aria-hidden="true"
+        />
         <span className="absolute top-4 left-4 eyebrow eyebrow-accent">精选</span>
       </div>
 

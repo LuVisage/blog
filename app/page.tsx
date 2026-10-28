@@ -1,4 +1,4 @@
-import { SITE, ABOUT, SOCIAL_LINKS } from '@/lib/constants'
+import { SITE, SOCIAL_LINKS } from '@/lib/constants'
 import { getAllPosts, getAllTags, getAllCategories } from '@/lib/posts'
 import { PostList, FeatureCard } from '@/components/post-card'
 import { AIHotNews } from '@/components/ai-hot-news'
@@ -26,7 +26,7 @@ export default function HomePage() {
   return (
     <div>
       {/* ════════════ Masthead ════════════ */}
-      <section className="mb-24 sm:mb-32">
+      <section className="mb-16 sm:mb-20">
         <div
           className="flex items-center justify-between gap-4 py-3"
           style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
@@ -35,93 +35,79 @@ export default function HomePage() {
           <span className="eyebrow eyebrow-accent">AI / Agent / LLM</span>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-10 lg:gap-16 pt-12 sm:pt-16 items-start">
-          {/* parallax 是 [文档外] 签名动效（位移封顶 48px，见 SPEC_LEDGER §1.8.4） */}
-          <AnimatedContent direction="up" distance={14} duration={0.4} parallax={32}>
-            <div>
-              <SplitReveal as="h1" text={SITE.title} className="display" />
+        <AnimatedContent direction="up" distance={14} duration={0.4} parallax={32}>
+          <div className="pt-10 sm:pt-14">
+            <div className="signature-bar" aria-hidden="true" />
 
-              <div className="mt-5">
-                <TerminalGreeting />
-              </div>
+            <SplitReveal as="h1" text={SITE.title} className="display" />
 
-              <p className="body-lg mt-6 max-w-xl" style={{ color: 'var(--body)' }}>
-                {SITE.description}
-              </p>
+            <div className="mt-5">
+              <TerminalGreeting />
+            </div>
 
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-9">
+            <p className="body-lg mt-6 max-w-xl" style={{ color: 'var(--body)' }}>
+              {SITE.description}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-9">
+              <Magnetic>
+                <Link
+                  href="/posts"
+                  className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer"
+                  style={{ color: 'var(--ink)' }}
+                >
+                  <IconBook size={16} strokeWidth={1.75} />
+                  阅读文章
+                </Link>
+              </Magnetic>
+              {SOCIAL_LINKS.github && (
                 <Magnetic>
-                  <Link
-                    href="/posts"
+                  <a
+                    href={SOCIAL_LINKS.github}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer"
                     style={{ color: 'var(--ink)' }}
                   >
-                    <IconBook size={16} strokeWidth={1.75} />
-                    阅读文章
-                  </Link>
+                    <IconBrandGithub size={16} strokeWidth={1.75} />
+                    GitHub
+                  </a>
                 </Magnetic>
-                {SOCIAL_LINKS.github && (
-                  <Magnetic>
-                    <a
-                      href={SOCIAL_LINKS.github}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer"
-                      style={{ color: 'var(--ink)' }}
-                    >
-                      <IconBrandGithub size={16} strokeWidth={1.75} />
-                      GitHub
-                    </a>
-                  </Magnetic>
-                )}
-                <Magnetic>
-                  <Link
-                    href="/rss.xml"
-                    className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer"
-                    style={{ color: 'var(--muted)' }}
-                  >
-                    <IconRss size={15} strokeWidth={1.75} />
-                    RSS
-                  </Link>
-                </Magnetic>
-              </div>
-            </div>
-          </AnimatedContent>
-
-          {/* Author card */}
-          <AnimatedContent direction="up" distance={14} duration={0.4} delay={0.12}>
-            <div className="flex lg:flex-col items-center lg:items-start gap-5 lg:gap-0">
-              <div
-                className="w-20 h-20 lg:w-32 lg:h-32 flex-shrink-0 overflow-hidden"
-                style={{ border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-xs)' }}
-              >
-                <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
-              </div>
-              <div className="lg:mt-5">
-                <div
-                  className="font-serif font-bold lg:text-base"
-                  style={{ fontSize: 'clamp(15px, 4vw, 17px)', color: 'var(--ink)' }}
+              )}
+              <Magnetic>
+                <Link
+                  href="/rss.xml"
+                  className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer"
+                  style={{ color: 'var(--muted)' }}
                 >
-                  {SITE.author.name}
-                </div>
-                <div className="eyebrow mt-1.5">{ABOUT.title}</div>
-              </div>
+                  <IconRss size={15} strokeWidth={1.75} />
+                  RSS
+                </Link>
+              </Magnetic>
             </div>
-          </AnimatedContent>
-        </div>
+          </div>
+        </AnimatedContent>
 
-        {/* Ledger strip */}
+        {/* Ledger strip：作者头像 + 统计台账 + 最近更新（头像不再重复名字，名字只在 h1） */}
         <AnimatedContent direction="up" distance={10} duration={0.4} delay={0.18}>
           <div
-            className="mt-16 py-8"
+            className="mt-12 py-8"
             style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
           >
-            <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
-              <StatsTileRow>
-                <StatsTile value={allPosts.length} label="文章" />
-                <StatsTile value={categories.length} label="分类" />
-                <StatsTile value={tags.length} label="标签" />
-              </StatsTileRow>
+            <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-6">
+              <div className="flex items-center gap-6 sm:gap-8">
+                <div
+                  className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 overflow-hidden"
+                  style={{ border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-xs)' }}
+                >
+                  <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
+                </div>
+                <StatsTileRow>
+                  <StatsTile value={allPosts.length} label="文章" />
+                  <StatsTile value={categories.length} label="分类" />
+                  <StatsTile value={tags.length} label="标签" />
+                </StatsTileRow>
+              </div>
               <span className="eyebrow">
                 最近更新{' '}
                 {latest ? format(parseISO(latest.date), 'yyyy.MM.dd', { locale: zhCN }) : '—'}
@@ -134,7 +120,7 @@ export default function HomePage() {
       {/* ════════════ Lead story ════════════ */}
       {lead && (
         <AnimatedContent direction="up">
-          <section className="mb-24 sm:mb-32">
+          <section className="mb-20 sm:mb-24">
             <div className="flex items-end justify-between gap-4 mb-6">
               <div>
                 <div className="eyebrow mb-2">头条</div>

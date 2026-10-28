@@ -443,6 +443,14 @@
     text-wrap: balance;
   }
 
+  /* ── hero 签名色带（第 5 轮 +）：h1 上方的 indigo 短条，are.na 签名色记忆点 ── */
+  .signature-bar {
+    width: 34px;
+    height: 3px;
+    background: var(--color-primary);
+    margin-bottom: var(--space-16);
+  }
+
   .heading-1 {
     font-family: var(--font-serif);
     font-size: clamp(var(--text-h2), 5vw, var(--text-h1));

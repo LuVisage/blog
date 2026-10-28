@@ -500,7 +500,18 @@
 | --- | --- | --- | --- | --- |
 | 1 | 统计翻板数字 | Aceternity Text Flipping Board / Vestaboard 类 | `stats-tile.tsx` 重写：count-up → 每位数字沿 0-9 数字列滚到目标位（`.flip-reel` translateY(-digit*1em)，1.15s easeOutExpo）；IO 触发时机与首屏档位沿用 §11.1；reduced-motion 直显 | 首页 6/2/26 统计条 |
 | 2 | 封面鼠标视差 | 编辑感鼠标视差 | FeatureCard/GridCard `media-frame` 内 `.media-parallax` 层：`--dx/--dy` = 相对卡片中心偏移 × 5%（与聚光 --mx/--my 同一次 pointermove 计算），pointerleave 回弹；与 media-zoom 封面缩放共存 | 头条/网格卡封面 |
-| 3 | 回顶走 Lenis | — | `back-to-top.tsx`：`__lenis.scrollTo(0, 1.2s)`，无 Lenis 回退原生 smooth | 全站 |
-| 4 | TOC 点击走 Lenis | — | `toc.tsx`：`__lenis.scrollTo(el, { offset: -96, duration: 1.0 })`（避让 sticky 头），reduced-motion 直跳 | 文章目录（桌面+移动） |
+| 3 | 回顶走 Lenis | — | `back-to-top.tsx`：`useLenis().scrollTo(0, 1.2s)`（React Context 下发实例，无 Lenis 回退原生 smooth） | 全站 |
+| 4 | TOC 点击走 Lenis | — | `toc.tsx`：`useLenis().scrollTo(el, { offset: -96, duration: 1.0 })`（避让 sticky 头），reduced-motion 直跳 | 文章目录（桌面+移动） |
 
-**自检**：翻板数字零新色；视差系数 5% 克制（配合 4px 卡片浮起与 1.05 封面缩放三层叠加不打架）；reduced-motion 下数字直显、视差过渡被全局守卫瞬平；Lenis scrollTo 均带 duration 且回退路径保留。
+**自检**：翻板数字零新色；视差系数 5% 克制（配合 4px 卡片浮起与 1.05 封面缩放三层叠加不打架）；reduced-motion 下数字直显、视差过渡被全局守卫瞬平；Lenis scrollTo 均带 duration 且回退路径保留。**补充**：Lenis 实例自第 3 批起经 React Context 下发（`lenis-provider.tsx` 的 `useLenis()`，全局 `window.__lenis` 仅兜底），命令面板滚动锁、TOC、回顶同源。
+
+### 11.8 首屏重排与 indigo 签名（第 5 轮追加 · 用户拍板「开始动手」后的视觉收口）
+
+| # | 改动 | 实现 | 感知点 |
+| --- | --- | --- | --- |
+| 1 | hero 单栏聚焦 | 删除右侧作者卡（Baron_Zhang 名字与「AI 探索者」定位在首屏重复 ×3/×2 → 名字仅 h1 一处）；头像（56px 方块，无文字）移入 ledger strip 与统计台账并排 | 首页首屏 |
+| 2 | 签名色带 | `.signature-bar`（globals.css）：34×3px indigo 短条置于 h1 上方，are.na 签名色记忆点（亮 #3d46c2 / 暗 #5b64e0 随令牌自动适配） | 首页 hero |
+| 3 | 头条卡 indigo 左竖条 | FeatureCard `media-frame` 左缘 3px `--color-primary` 竖条（z 序在封面上） | 头条卡封面 |
+| 4 | 首屏节奏压缩 | hero section `mb-24/32 → mb-16/20`、ledger `mt-16 → mt-12`、头条区 `mb-24/32 → mb-20/24`，头条卡提前进入首屏视口 | 首页首屏 |
+
+**自检**：零新硬编码色（全部走 `--color-primary` 令牌）；名字唯一性 = h1 一处 + 顶部 mono 词标（品牌行与标题分离，不算重复）；bu.js 实测 signature-bar `34×3px rgb(61,70,194)`、头条竖条 `rgb(61,70,194)`、`h1.display` 计数 1。

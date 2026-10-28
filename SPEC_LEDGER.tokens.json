@@ -152,7 +152,8 @@
    "编号 .issue-badge 改灰阶 mono 数字（无边框无胶囊），hover 转 indigo；新增 .capsule mono 10px uppercase 胶囊（gray1 底 3px）",
    "§11.5 交互增强：标题逐字符入场、索引行三联动（灰面淡入+刻度+位移+箭头滑入）、卡片 4px 浮起+唯一阴影浮现、全局极淡光标光晕（pointer:fine only）、代码块 hover/复制闪烁；动效档位仍 200/300/400ms",
    "§11.6 组件融合第 2 批（React Bits/Aceternity 形态）：Lenis 平滑滚动（html.lenis + ScrollTrigger 同步 + 命令面板 stop/start）、自定义光标点+环、磁吸按钮（≤6px）、标题解密文字（CJK 跳过）、聚光卡片（260px indigo 径向跟手）、索引行封面跟手预览（138×92 微旋转+唯一阴影）",
-   "§11.7 第 3 批：统计数字翻板滚筒（每位置 0-9 列滚到目标位 1.15s easeOutExpo，替代 count-up）、封面鼠标视差（中心偏移×5%）、TOC/回顶接入 Lenis scrollTo（React Context 传递实例，全局通道仅兜底）"
+   "§11.7 第 3 批：统计数字翻板滚筒（每位置 0-9 列滚到目标位 1.15s easeOutExpo，替代 count-up）、封面鼠标视差（中心偏移×5%）、TOC/回顶接入 Lenis scrollTo（React Context 传递实例，全局通道仅兜底）",
+   "§11.8 首屏重排：hero 单栏聚焦（名字仅 h1 一处，头像入 ledger 台账）、.signature-bar 34×3px indigo 签名色带、头条卡 3px indigo 左竖条、首屏节奏压缩（头条提前入视口）"
   ],
   "diverged": [
    "间距基数：are.na 档案 5px → 落地沿用 4px（比例节奏照搬，基数差异登记）",
