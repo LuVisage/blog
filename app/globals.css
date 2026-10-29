@@ -294,7 +294,7 @@
 
   .bg-body { position: relative; }
 
-  /* 第 4 轮换血：科技蓝用于 ::selection。 */
+  /* 第 5 轮换血：indigo 用于 ::selection（跟随 --color-primary 令牌，暗色自动适配）。 */
   ::selection {
     background: var(--color-primary);
     color: var(--on-accent);
@@ -708,6 +708,22 @@
   font-style: normal;
 }
 .prose blockquote p { margin: var(--space-8) 0; }
+
+/* 键盘键帽：技术写作中的 ⌘K / Ctrl+C 等提示（自设计登记 §11.10）。
+   灰阶 mono + 2px 底边发丝线，3px 圆角，贴合全站编辑感；字号用 text-sm。 */
+.prose kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-xs);
+  padding: 1px var(--space-8);
+  margin: 0 1px;
+  white-space: nowrap;
+}
 
 .prose ul, .prose ol { padding-left: var(--space-24); margin: var(--space-16) 0; }
 /* preflight 把 marker 清成了 none，这里补回来，mdx-components 就不必再挂 list-disc。 */

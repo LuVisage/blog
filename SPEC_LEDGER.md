@@ -526,3 +526,16 @@
 | 课程 · Learn | `COURSES` + `getCurriculumStats()`（5 门：devtool 83 篇 13 周 / ml 85 篇 17 周 / backend 10 篇 2 周 / agent 41 篇 9 周 / csp 20 篇 3 周） | 发丝线行：课程名 + `N 篇 · N 周` + hover 箭头滑入；尾部「进入课程体系」btn-ghost | 系列下方 |
 
 **自检**：统计全部来自 `getCurriculumStats`（读盘计算，非手写）；样式复用既有 `.capsule` / 发丝线 / `btn-ghost`，零新增令牌；headless 实测渲染正确（OCR 复核 5 门课篇数与周数）。
+
+### 11.10 文章页标题 Blur 入场 + 正文 kbd 键帽（第 6 轮 · 持续精进）
+
+用户授权"继续不断精进和优化，可在 UI 知识库与五个组件网页找灵感"。复核 are.na 档案（profile.md/patterns.md）：5 条指纹签名已全落地，无遗漏；本轮灵感取自 **React Bits Blur Text 形态**（组件站均未入知识库，按降级纪律参数自设计登记）。
+
+| 项 | 落点 | 实现 | 设计参数 |
+| --- | --- | --- | --- |
+| 标题模糊聚焦入场 | `app/posts/[slug]/page.tsx` header 重构 | 元信息行（stagger）→ 标题（独立 `BlurReveal`，与首页 SplitReveal 区分）→ 摘要/系列/标签（stagger）；新组件 `components/ui/blur-reveal.tsx` | `filter blur(8px)` + `translateY(10px)` + `opacity 0` → 清晰，500ms `cubic-bezier(.16,1,.3,1)`（are.na 档案动效曲线）；IO threshold 0.1 + 1.2s 兜底 timer（防自动化/IO 异常致标题不可见）；reduced-motion 直显；只动 filter/opacity/transform |
+| 正文键盘键帽 | `.prose kbd`（globals.css） | mono 键帽：surface-2 底 + 1px 发丝线 + 2px 底边 + 3px 圆角 | 全部引用既有令牌（`--font-mono`/`--text-sm`/`--surface-2`/`--line`/`--radius-xs`/`--space-8`），零新硬编码；正文暂无 kbd 用例，属样式注册（防御性） |
+
+**顺带**：修正 `::selection` 注释（"科技蓝"→ indigo，实现本已跟随 `--color-primary` 令牌，暗色自动适配）。
+
+**自检**：`npm run build` 通过（含 326 页导出 + 审计 1144 文件；期间两次因用户机器上 22 个 dev server 负载导致 /learn 单页导出 >60s 超时，负载回落第三次通过——编译本身 326/326 全过，非代码问题）；headless 截文章页验证标题完成态清晰、结构顺序正确（元信息 → 标题 → 摘要/系列/标签）。

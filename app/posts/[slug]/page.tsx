@@ -11,6 +11,7 @@ import { RelatedPosts } from '@/components/related-posts'
 import { FontSizeControl } from '@/components/font-size-control'
 import { ReadingProgress } from '@/components/ui/reading-progress'
 import { ProseReveal } from '@/components/ui/prose-reveal'
+import { BlurReveal } from '@/components/ui/blur-reveal'
 import { ReadingAchievements } from '@/components/reading-achievements'
 import { CodeBlockEnhancer } from '@/components/code-block-enhancer'
 import { LikeButton } from '@/components/like-button'
@@ -83,60 +84,64 @@ export default async function PostPage({ params }: { params: PageParams }) {
             <FontSizeControl />
           </div>
 
-          {/* Article header — 元信息 / 标题 / 摘要 / 系列 / 标签逐级入场（.stagger，见 SPEC_LEDGER §1.8.3） */}
-          <header className="stagger pt-10 sm:pt-14 pb-8">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 eyebrow">
-              {post.category && (
+          {/* Article header — 元信息行（stagger）→ 标题（Blur 聚焦入场 §11.10）→ 摘要/系列/标签（stagger） */}
+          <div className="pt-10 sm:pt-14 pb-8">
+            <header className="stagger">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 eyebrow">
+                {post.category && (
+                  <Link
+                    href={`/categories/${post.category}`}
+                    className="eyebrow eyebrow-accent inline-flex min-h-6 items-center hover:underline underline-offset-4"
+                  >
+                    {post.category}
+                  </Link>
+                )}
+                {post.category && <span style={{ color: 'var(--faint)' }}>/</span>}
+                <span>{format(date, 'yyyy.MM.dd', { locale: zhCN })}</span>
+                <span style={{ color: 'var(--faint)' }}>/</span>
+                <span>{post.readingTime} 分钟阅读</span>
+                {post.updated && (
+                  <span style={{ color: 'var(--faint)' }}>
+                    （更新于 {format(parseISO(post.updated), 'yyyy.MM.dd', { locale: zhCN })}）
+                  </span>
+                )}
+              </div>
+            </header>
+
+            <BlurReveal className="display mt-5" style={{ fontSize: 'clamp(30px, 5.6vw, 54px)', lineHeight: 1.16 }}>
+              {post.title}
+            </BlurReveal>
+
+            <header className="stagger mt-0">
+              {post.description && (
+                <p className="body-lg mt-6 max-w-2xl" style={{ color: 'var(--muted)' }}>
+                  {post.description}
+                </p>
+              )}
+
+              {post.series && (
                 <Link
-                  href={`/categories/${post.category}`}
-                  className="eyebrow eyebrow-accent inline-flex min-h-6 items-center hover:underline underline-offset-4"
+                  href={`/series/${post.series}`}
+                  className="chip inline-flex mt-7 px-3 py-1.5 text-xs hover:text-[var(--accent-text)] transition-colors"
+                  style={{ color: 'var(--body)', borderRadius: 'var(--radius-pill)' }}
                 >
-                  {post.category}
+                  <span className="eyebrow">系列</span>
+                  {post.series}
                 </Link>
               )}
-              {post.category && <span style={{ color: 'var(--faint)' }}>/</span>}
-              <span>{format(date, 'yyyy.MM.dd', { locale: zhCN })}</span>
-              <span style={{ color: 'var(--faint)' }}>/</span>
-              <span>{post.readingTime} 分钟阅读</span>
-              {post.updated && (
-                <span style={{ color: 'var(--faint)' }}>
-                  （更新于 {format(parseISO(post.updated), 'yyyy.MM.dd', { locale: zhCN })}）
-                </span>
-              )}
-            </div>
 
-            <h1 className="display mt-5" style={{ fontSize: 'clamp(30px, 5.6vw, 54px)', lineHeight: 1.16 }}>
-              {post.title}
-            </h1>
-
-            {post.description && (
-              <p className="body-lg mt-6 max-w-2xl" style={{ color: 'var(--muted)' }}>
-                {post.description}
-              </p>
-            )}
-
-            {post.series && (
-              <Link
-                href={`/series/${post.series}`}
-                className="chip inline-flex mt-7 px-3 py-1.5 text-xs hover:text-[var(--accent-text)] transition-colors"
-                style={{ color: 'var(--body)', borderRadius: 'var(--radius-pill)' }}
+              <div
+                className="flex flex-wrap items-center gap-2 mt-8 pt-6"
+                style={{ borderTop: '1px solid var(--line)' }}
               >
-                <span className="eyebrow">系列</span>
-                {post.series}
-              </Link>
-            )}
-
-            <div
-              className="flex flex-wrap items-center gap-2 mt-8 pt-6"
-              style={{ borderTop: '1px solid var(--line)' }}
-            >
-              {post.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
-              <div className="flex items-center gap-3 ml-auto">
-                <SocialShare title={post.title} url={postUrl} />
-                <LikeButton slug={slug} />
+                {post.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
+                <div className="flex items-center gap-3 ml-auto">
+                  <SocialShare title={post.title} url={postUrl} />
+                  <LikeButton slug={slug} />
+                </div>
               </div>
-            </div>
-          </header>
+            </header>
+          </div>
 
           {/* Article content — no card, text sits on the canvas */}
           {/* 行长由 .prose 的 --measure（38em，对应中文 34-40 全角）决定，这里不再覆盖。
