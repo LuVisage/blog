@@ -93,6 +93,12 @@ function MetadataFilter() {
       >
         expr = {expr || '""（不过滤）'}
       </div>
+      {/* 换过滤条件改的是右边那一列的条数，而两边列本身是按需挂载的 —— 容器得常驻，
+          第一次变化才有地方播报（同进度墙与检索页的约定，WCAG 4.1.3）。 */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {expr ? `过滤条件 ${expr}，` : '不设过滤条件，'}
+        命中 {kept.length} 条，被条件挡掉 {dropped.length} 条。
+      </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
         <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
@@ -228,7 +234,14 @@ function ParentDocument() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 pt-4" style={{ borderTop: '1px solid var(--line)' }}>
+      <div
+        className="flex flex-wrap gap-x-6 gap-y-2 mt-4 pt-4"
+        style={{ borderTop: '1px solid var(--line)' }}
+        // 切「返回子块 / 上溯父块」改的就是这三个数；容器常驻，直接挂 live
+        // （同进度墙计数条的约定，WCAG 4.1.3）。
+        role="status"
+        aria-live="polite"
+      >
         <Stat label="命中子块" value={`${hits.length} 条`} />
         <Stat label="去重后父块" value={`${parentOrder.length} 节`} />
         <Stat label="上下文字数（不含空格）" value={`${contextChars} 字`} />

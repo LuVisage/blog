@@ -13,7 +13,7 @@ function usePlayer(length: number) {
       setPlaying(false)
       return
     }
-    const timer = setTimeout(() => setShown((value) => value + 1), 1100)
+    const timer = setTimeout(() => setShown((value) => value + 1), 800)
     return () => clearTimeout(timer)
   }, [playing, shown, length])
   return { shown, setShown, playing, setPlaying }
@@ -23,6 +23,7 @@ function Controls({
   shown,
   total,
   playing,
+  status,
   onPlay,
   onStep,
   onReset,
@@ -30,24 +31,31 @@ function Controls({
   shown: number
   total: number
   playing: boolean
+  /** 这一条到底讲了什么 —— 只有父层知道，工具条负责把它念出去。 */
+  status: string
   onPlay: () => void
   onStep: () => void
   onReset: () => void
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <button type="button" onClick={onStep} disabled={shown >= total} className="btn-secondary px-3 py-1.5 text-xs" style={{ color: 'var(--body)' }}>
+      <button type="button" onClick={onStep} disabled={shown >= total} className="btn-secondary px-3 py-1.5 text-xs tint-body">
         下一条
       </button>
-      <button type="button" onClick={onPlay} className="btn-secondary px-3 py-1.5 text-xs" style={{ color: 'var(--body)' }}>
+      <button type="button" onClick={onPlay} className="btn-secondary px-3 py-1.5 text-xs tint-body">
         {playing ? '暂停' : '自动播放'}
       </button>
-      <button type="button" onClick={onReset} className="btn-ghost px-3 py-1.5 text-xs" style={{ color: 'var(--muted)' }}>
+      <button type="button" onClick={onReset} className="btn-ghost px-3 py-1.5 text-xs tint-muted">
         重置
       </button>
       <span className="meta tabular-nums ml-auto" style={{ color: 'var(--muted)' }}>
         {Math.min(shown, total)}/{total}
       </span>
+      {/* 常驻的 live 容器：按「下一条」时变化的是下面列表里新长出来的一条报文，
+          它自己不在任何可播报的区域里（WCAG 4.1.3，同检索页与进度墙的约定）。 */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {status}
+      </p>
     </div>
   )
 }
@@ -81,6 +89,7 @@ const MCP_WIRE = (() => {
 
 function McpTrace() {
   const { shown, setShown, playing, setPlaying } = usePlayer(MCP_TRACE.length)
+  const latest = MCP_WIRE[Math.min(shown, MCP_WIRE.length) - 1]
 
   return (
     <>
@@ -88,6 +97,13 @@ function McpTrace() {
         shown={shown}
         total={MCP_TRACE.length}
         playing={playing}
+        status={
+          shown === 0
+            ? `还没开始，共 ${MCP_TRACE.length} 条报文。`
+            : `第 ${Math.min(shown, MCP_TRACE.length)} 条，共 ${MCP_TRACE.length} 条：${latest?.method}${
+                latest ? (latest.dir === '→' ? '，客户端发给服务端。' : '，服务端回给客户端。') : ''
+              }`
+        }
         onPlay={() => {
           if (shown >= MCP_TRACE.length) setShown(0)
           setPlaying((value) => !value)
@@ -145,6 +161,7 @@ function LangSmithTrace() {
   const tokens = rows.filter((span) => span.tokens).reduce((sum, span) => sum + (span.tokens ?? 0), 0)
   const inner = rows.filter((span) => span.depth > 0)
   const slowest = inner.reduce((best, span) => (span.ms > best.ms ? span : best), inner[0])
+  const latest = rows[rows.length - 1]
 
   return (
     <>
@@ -152,6 +169,11 @@ function LangSmithTrace() {
         shown={shown}
         total={TRACE_LANGSMITH.length}
         playing={playing}
+        status={
+          rows.length === 0
+            ? `还没开始，共 ${TRACE_LANGSMITH.length} 个节点。`
+            : `第 ${rows.length} 个，共 ${TRACE_LANGSMITH.length} 个：${latest.name}${latest.status === 'error' ? '，这一步报错。' : '，' + latest.ms + ' 毫秒。'}`
+        }
         onPlay={() => {
           if (shown >= TRACE_LANGSMITH.length) setShown(0)
           setPlaying((value) => !value)

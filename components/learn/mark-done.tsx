@@ -12,6 +12,7 @@ export function MarkDone({ course, slug, label }: { course: CourseId; slug: stri
     <button
       type="button"
       aria-pressed={done}
+      data-js-only
       onClick={() => toggleDone(slug)}
       className="btn-secondary inline-flex items-center gap-2 px-4 py-2 text-sm cursor-pointer transition-colors"
       style={

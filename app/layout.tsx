@@ -9,7 +9,6 @@ import { AuraCursor } from '@/components/ui/aura-cursor'
 import { CustomCursor } from '@/components/ui/custom-cursor'
 import { LenisProvider } from '@/components/ui/lenis-provider'
 import { GSAPProvider } from '@/components/gsap-provider'
-import { MusicPlayerProvider, MusicPlayerFAB } from '@/components/music-player'
 import { ToastProvider } from '@/components/ui/toast'
 import { PaletteProvider } from '@/components/command-palette'
 import { KonamiEasterEgg } from '@/components/reading-achievements'
@@ -104,12 +103,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="alternate" type="application/atom+xml" title={`${SITE.title} Atom`} href={basePathUrl('/atom.xml')} />
         <link rel="preconnect" href="https://giscus.app" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://api.github.com" crossOrigin="anonymous" />
+        {/* 关掉 JS 时，页面上每一个还留着的 `<button>` 都是一具死控件：看得见、进 Tab 序列、
+            按下去没有任何事 —— 这正是 §11.20 四 判过的那种错（「按下去什么都不做的钮比不出现的钮更糟」），
+            只是它发生在「无 JS」这一维，前面的 noscript 闸只数透明文字与链接，从没数过死控件（§11.22）。
+            纯 chrome（命令面板触发钮、主题切换、喜欢、复制链接、标记完成、检索框）整块摘除：
+            它们的全部价值就是那一下点击，没有点击就没有价值，留着只是骗人按。
+            内容型控件不在此列 —— 课程清单的行是正文本身，改的是组件（挂载前渲染成非交互行）。
+            style-src 里有 'unsafe-inline'（本页第 94 行的预置脚本同理），这条不需要动 CSP。 */}
+        <noscript
+          dangerouslySetInnerHTML={{
+            __html: '<style>[data-js-only]{display:none!important}</style>',
+          }}
+        />
       </head>
       <body className="flex flex-col min-h-screen relative bg-body">
         <a href="#main-content" className="skip-to-content">跳到主要内容</a>
         <ThemeProvider>
           <ToastProvider>
-          <MusicPlayerProvider>
           <GSAPProvider>
           <LenisProvider>
           <PaletteProvider posts={palettePosts} lessons={paletteLessons}>
@@ -117,19 +127,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuraCursor />
           <CustomCursor />
           <Header />
-          {/* §2.1 容器 1200px；§1 区块留白按 96px 档展开。 */}
-          <main id="main-content" data-pagefind-body className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24 relative z-10">
+          {/* §2.1 容器 1200px；§1 区块留白按 96px 档展开。
+              tabIndex=-1 是让「跳到主要内容」真的能落脚：不可聚焦的目标只会改 hash，
+              焦点仍留在 BODY，读屏不播报正文、下一跳 Tab 回到页头。 */}
+          <main id="main-content" tabIndex={-1} data-pagefind-body className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24 relative z-10">
             <PageTransition>{children}</PageTransition>
           </main>
           <Footer />
           <BackToTop />
-          <MusicPlayerFAB />
           <KonamiEasterEgg />
           <Analytics />
           </PaletteProvider>
           </LenisProvider>
           </GSAPProvider>
-          </MusicPlayerProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

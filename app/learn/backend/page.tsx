@@ -17,7 +17,7 @@ export default function BackendCurriculumPage() {
   return (
     <CourseOverview
       course="backend"
-      eyebrow={`Curriculum / 5 周 ${stats.lessons} 课`}
+      eyebrow="Curriculum / 5 周"
       title="Python 工程化与后端实战"
       lead={`「能训练模型」和「能交付产品」之间的那一段路：Week1 工程化（类型注解、装饰器、异步、测试、日志、项目结构），Week2 FastAPI 后端（依赖注入、JWT、SSE 流式输出、错误处理），Week3–5 依次换上真正的数据库、容器部署与向量检索 RAG，毕业直接对接 Agent 课。`}
       counter={`${stats.minutes} 分钟 · ${stats.lessons} 课${labs ? ` · ${labs} 课带实验台` : ''}`}

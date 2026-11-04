@@ -45,8 +45,8 @@ export default function NotFound() {
                 {String(i + 1).padStart(2, '0')}
               </span>
               <span
-                className="font-serif font-bold transition-colors group-hover:text-[var(--accent-text)]"
-                style={{ fontSize: 18, color: 'var(--ink)' }}
+                className="font-serif font-bold transition-colors group-hover:text-[var(--accent-text)] tint-ink"
+                style={{ fontSize: 18 }}
               >
                 {link.label}
               </span>

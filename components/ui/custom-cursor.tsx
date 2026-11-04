@@ -51,6 +51,10 @@ export function CustomCursor() {
       if (t && t.closest('a, button, [data-cursor]')) ring.classList.remove('is-hover')
     }
 
+    // 两个元素是 fixed left/top 0，transform 只在 pointermove 里写；
+    // 不先归位，首屏会在左上角留下一个孤立的 indigo 点 + 环。
+    render()
+
     window.addEventListener('pointermove', onMove, { passive: true })
     document.addEventListener('pointerover', onOver, { passive: true })
     document.addEventListener('pointerout', onOut, { passive: true })

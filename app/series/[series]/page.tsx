@@ -57,8 +57,7 @@ export default async function SeriesDetailPage({ params }: { params: PageParams 
             <Link
               key={other}
               href={`/series/${other}`}
-              className="chip px-2.5 py-1 text-xs transition-colors hover:border-[var(--accent-line)]"
-              style={{ color: 'var(--muted)' }}
+              className="chip px-2.5 py-1 text-xs transition-colors hover:border-[var(--accent-line)] tint-muted"
             >
               {other}
             </Link>

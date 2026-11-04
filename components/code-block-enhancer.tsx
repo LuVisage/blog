@@ -49,9 +49,12 @@ export function CodeBlockEnhancer({ children }: { children: React.ReactNode }) {
       }
 
       // ── Copy button (top-right) ──
+      // .code-copy 在 hover:none 的设备上常驻可见：group-hover 的 opacity-0
+      // 在触屏上等于永久隐身（SPEC_LEDGER §11.11）。淡入交给 .pressable（无层，
+      // 会赢过 utility，所以这里不再挂 transition-*）。
       const btn = document.createElement('button')
       btn.className =
-        'pressable absolute top-2 right-2 z-10 p-1.5 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all duration-200'
+        'code-copy pressable absolute top-2 right-2 z-10 p-1.5 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
       btn.style.backgroundColor = 'var(--demo-chip)'
       btn.style.color = 'var(--demo-muted)'
       btn.addEventListener('mouseenter', () => {
@@ -92,7 +95,7 @@ export function CodeBlockEnhancer({ children }: { children: React.ReactNode }) {
         btn.innerHTML =
           '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
         btn.style.backgroundColor = 'var(--color-primary-subtle)'
-        btn.style.color = 'var(--color-primary)'
+        btn.style.color = 'var(--accent-text)'
         btn.classList.add('animate-scale-in')
         btn.setAttribute('aria-label', '已复制')
         btn.title = '已复制'

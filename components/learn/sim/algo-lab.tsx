@@ -113,7 +113,8 @@ export function AlgoLab({ algo }: { algo: string }) {
       setPlaying(false)
       return
     }
-    const timer = setTimeout(() => setCursor((value) => value + 1), 700)
+    // 自动播放的步进节拍取 §1.8.2 档位表里的 800ms，三个播放器共用同一拍。
+    const timer = setTimeout(() => setCursor((value) => value + 1), 800)
     return () => clearTimeout(timer)
   }, [playing, shown, total])
 
@@ -133,6 +134,7 @@ export function AlgoLab({ algo }: { algo: string }) {
           <ControlRow key={field.key} label={field.label}>
             {field.kind === 'range' ? (
               <Range
+                label={field.label}
                 value={Number(input[field.key] ?? field.def)}
                 min={field.min}
                 max={field.max}
@@ -144,13 +146,8 @@ export function AlgoLab({ algo }: { algo: string }) {
               <button
                 type="button"
                 onClick={() => set(field.key, !input[field.key])}
-                className="chip px-2.5 py-1 text-xs transition-colors"
-                style={{
-                  borderRadius: 'var(--radius-xs)',
-                  color: input[field.key] ? 'var(--ink)' : 'var(--muted)',
-                  borderColor: input[field.key] ? 'var(--accent-line)' : 'var(--line)',
-                  background: input[field.key] ? 'var(--accent-soft)' : 'transparent',
-                }}
+                aria-pressed={!!input[field.key]}
+                className="chip chip-toggle px-2.5 py-1 text-xs"
               >
                 {input[field.key] ? field.on : field.off}
               </button>
@@ -176,8 +173,7 @@ export function AlgoLab({ algo }: { algo: string }) {
             setCursor((value) => Math.min(value + 1, total))
           }}
           disabled={shown >= total}
-          className="btn-secondary px-3 py-1.5 text-xs"
-          style={{ color: 'var(--body)' }}
+          className="btn-secondary px-3 py-1.5 text-xs tint-body"
         >
           单步执行
         </button>
@@ -188,8 +184,7 @@ export function AlgoLab({ algo }: { algo: string }) {
             setPlaying((value) => !value)
           }}
           disabled={total === 0}
-          className="btn-secondary px-3 py-1.5 text-xs"
-          style={{ color: 'var(--body)' }}
+          className="btn-secondary px-3 py-1.5 text-xs tint-body"
         >
           {playing ? '暂停' : '自动播放'}
         </button>
@@ -199,14 +194,24 @@ export function AlgoLab({ algo }: { algo: string }) {
             setPlaying(false)
             setCursor(0)
           }}
-          className="btn-ghost px-3 py-1.5 text-xs"
-          style={{ color: 'var(--muted)' }}
+          className="btn-ghost px-3 py-1.5 text-xs tint-muted"
         >
           回到开头
         </button>
         <span className="meta tabular-nums ml-auto" style={{ color: 'var(--muted)' }}>
           步 {shown}/{total}
         </span>
+        {/* 常驻 live 容器（同检索页与进度墙的约定，WCAG 4.1.3）：点一次「单步执行」，变的只有
+            下面那块按需挂载的讲解卡 —— 区域本身随点随现的话读屏不会播报，所以容器必须一直挂着。 */}
+        <p className="sr-only" role="status" aria-live="polite">
+          {total === 0
+            ? '输入没解析出可算的东西。'
+            : shown === 0
+              ? `还没开始，共 ${total} 步。`
+              : shown >= total
+                ? `第 ${shown} 步，共 ${total} 步：${step?.text ?? ''}跑完了：${run.verdict}`
+                : `第 ${shown} 步，共 ${total} 步：${step?.text ?? ''}`}
+        </p>
       </div>
 
       {total === 0 && (

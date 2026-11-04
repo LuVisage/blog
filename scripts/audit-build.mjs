@@ -83,16 +83,37 @@ function walk(dir, acc = []) {
 
 const files = walk(OUT)
 
-/* ── 1.5. 站长邮箱明文扫描：页面只应出现 base64 密文（防收割）── */
+/* ── 1.5. 站长邮箱明文扫描：产物只应出现 base64 密文（防收割）── */
+/** 明文本该出现的例外：RFC 9116 要求 security.txt 给出可用联系渠道。 */
+const EMAIL_PLAIN_OK = ['.well-known/security.txt']
+
 function auditEmailPlaintext() {
   const constants = readFileSync(join(process.cwd(), 'lib', 'constants.ts'), 'utf8')
-  const match = constants.match(/email:\s*'([^']+)'/)
-  if (!match) return
-  const email = match[1]
-  for (const file of files.filter((f) => extname(f) === '.html' || f.endsWith('.xml'))) {
-    const text = readFileSync(file, 'utf8')
-    if (text.includes(email)) fail(`站长邮箱明文出现在 out/${relative(OUT, file).replace(/\\/g, '/')}（应只放 EMAIL_OBFUSCATED 密文）`)
+  // 从密文常量取值再自己解码。不能反过来在源里正则抓 `email: '明文'`：那要求常量
+  // 里存在连续明文，而明文一旦被我修走，抓不到就 return —— 这道闸会被它自己
+  // 刚刚守成功的结果关掉。取不到值必须判失败，不是静默跳过。
+  const match = constants.match(/const EMAIL_B64 = '([^']+)'/)
+  if (!match) {
+    fail('lib/constants.ts 里没有 const EMAIL_B64 —— 邮箱明文扫描取不到比对值，这道闸已失效')
+    return
   }
+  const email = Buffer.from(match[1], 'base64').toString('utf8')
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    fail(`EMAIL_B64 解出来不像邮箱（${email.slice(0, 3)}…）—— 比对值不可信，这道闸已失效`)
+    return
+  }
+  // 扫全部文本类产物。只扫 .html/.xml 是上一版的漏法：10 处明文正是躺在 5 个
+  // 客户端 .js 分块里过了闸的（§11.23）。
+  const textExts = ['.html', '.xml', '.js', '.css', '.json', '.txt', '.md', '.svg']
+  const scanned = files.filter((f) => textExts.includes(extname(f)))
+  for (const file of scanned) {
+    const rel = relative(OUT, file).replace(/\\/g, '/')
+    if (EMAIL_PLAIN_OK.includes(rel)) continue
+    if (readFileSync(file, 'utf8').includes(email)) {
+      fail(`站长邮箱明文出现在 out/${rel}（应只放 EMAIL_OBFUSCATED 密文）`)
+    }
+  }
+  console.log(`邮箱明文扫描：${scanned.length} 个文本产物 · 放行 ${EMAIL_PLAIN_OK.length} 个（${EMAIL_PLAIN_OK.join(', ')}）`)
 }
 auditEmailPlaintext()
 

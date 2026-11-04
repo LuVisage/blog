@@ -10,10 +10,13 @@ import { useEffect, useRef, type ReactNode } from 'react'
 export function Magnetic({
   children,
   strength = 0.35,
+  max = 6,
   className,
 }: {
   children: ReactNode
   strength?: number
+  /** 位移上限（px）：不夹紧时 78px 宽的行内链接会被拖走 13px，注释里的「6px 上限」只是愿望。 */
+  max?: number
   className?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -33,12 +36,14 @@ export function Magnetic({
       raf = 0
     }
 
+    const clamp = (v: number) => Math.max(-max, Math.min(max, v))
+
     const onMove = (e: PointerEvent) => {
       const r = el.getBoundingClientRect()
       const dx = e.clientX - (r.left + r.width / 2)
       const dy = e.clientY - (r.top + r.height / 2)
-      tx = dx * strength
-      ty = dy * strength
+      tx = clamp(dx * strength)
+      ty = clamp(dy * strength)
       if (!raf) raf = requestAnimationFrame(render)
     }
 
@@ -55,7 +60,7 @@ export function Magnetic({
       el.removeEventListener('pointerleave', onLeave)
       cancelAnimationFrame(raf)
     }
-  }, [strength])
+  }, [strength, max])
 
   return (
     <div ref={ref} className={className} style={{ transition: 'transform var(--duration-fast) var(--ease-out)' }}>

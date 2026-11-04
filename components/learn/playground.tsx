@@ -245,10 +245,10 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <ControlRow label="temperature">
-            <Range value={temperature} min={0} max={1} step={0.05} onChange={(value) => touches(() => setTemperature(value))} />
+            <Range label="temperature" value={temperature} min={0} max={1} step={0.05} onChange={(value) => touches(() => setTemperature(value))} />
           </ControlRow>
           <ControlRow label="max_tokens">
-            <Range value={maxTokens} min={64} max={MAX_TOKENS_CAP} step={32} onChange={(value) => touches(() => setMaxTokens(value))} />
+            <Range label="max_tokens" value={maxTokens} min={64} max={MAX_TOKENS_CAP} step={32} onChange={(value) => touches(() => setMaxTokens(value))} />
           </ControlRow>
         </div>
 
@@ -271,7 +271,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
             </button>
           )}
           {ready && armed && !running && (
-            <button type="button" onClick={() => setArmed(false)} className="btn-ghost px-3 py-2 text-xs" style={{ color: 'var(--muted)' }}>
+            <button type="button" onClick={() => setArmed(false)} className="btn-ghost px-3 py-2 text-xs tint-muted">
               取消
             </button>
           )}
@@ -279,8 +279,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
             <button
               type="button"
               onClick={() => abort.current?.abort()}
-              className="btn-secondary inline-flex items-center gap-2 px-3.5 py-2 text-xs"
-              style={{ color: 'var(--body)' }}
+              className="btn-secondary inline-flex items-center gap-2 px-3.5 py-2 text-xs tint-body"
             >
               <IconLoader size={13} strokeWidth={1.7} className="animate-spin" />
               停止
@@ -294,8 +293,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
           <button
             type="button"
             onClick={() => setShowRequest((value) => !value)}
-            className="btn-ghost px-3 py-2 text-xs"
-            style={{ color: 'var(--muted)' }}
+            className="btn-ghost px-3 py-2 text-xs tint-muted"
           >
             {showRequest ? '收起请求体' : '查看请求体'}
           </button>
@@ -306,8 +304,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
                 setLog([])
                 setArmed(false)
               }}
-              className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs"
-              style={{ color: 'var(--muted)' }}
+              className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs tint-muted"
             >
               <IconTrash size={13} strokeWidth={1.7} />
               清空历史
@@ -323,7 +320,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
         {armed && !running && (
           <div
             className="p-3.5"
-            style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--gold)', borderRadius: 'var(--radius-xs)' }}
+            style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--color-warning)', borderRadius: 'var(--radius-xs)' }}
           >
             <p className="body-sm" style={{ color: 'var(--body)' }}>
               {settings.mode === 'ollama'
@@ -413,6 +410,13 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
             </div>
           </div>
         )}
+
+        {/* 失败原因和「正在握手」一样是状态消息：容器常驻 DOM 并挂 live，读屏才会在它
+            出现的那一刻报出来（同检索页 / 勾选清单的约定，WCAG 4.1.3）。上面那块红色是
+            和数据同时挂载的，读屏看不见 —— 而这一句恰恰是花钱失败后最需要听到的。 */}
+        <p className="sr-only" role="status" aria-live="polite">
+          {failure ? `调用失败：${failure.message}。${failure.hint}` : ''}
+        </p>
 
         {showRequest && (
           <div className="space-y-3 pt-1">

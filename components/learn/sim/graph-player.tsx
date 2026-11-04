@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { GRAPH_DAY16, GRAPH_DAY17, GRAPH_DAY18, GRAPH_DAY33, type GraphFixture, type GraphState } from '@/lib/sim/corpus'
 import { runGraph, stateEntries, type GraphStep } from '@/lib/sim/graph'
 import { SimFrame } from './frame'
@@ -59,7 +59,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
       setPlaying(false)
       return
     }
-    const timer = setTimeout(() => setCursor((value) => value + 1), 900)
+    const timer = setTimeout(() => setCursor((value) => value + 1), 800)
     return () => clearTimeout(timer)
   }, [playing, shown, total])
 
@@ -72,6 +72,27 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
 
   const paused = run.status === 'paused' ? run.pending : null
 
+  /** 工具条是这块里唯一不会随状态消失的容器，键盘焦点掉回来时至少还有个落点。 */
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const pristine = shown === 0 && !playing && approved === undefined && !resume
+
+  /** 决定批准后整个「等待人工输入」面板连同两个按钮一起卸载，焦点会掉回 BODY。 */
+  const decide = (ok: boolean) => {
+    setApproved(ok)
+    setCursor((value) => value + 1)
+    toolbarRef.current?.focus()
+  }
+
+  const spoken = paused
+    ? `图停在 ${paused}，等你批准或驳回。`
+    : run.status === 'limit'
+      ? `第 ${shown} 步，撞上步数上限 ${fixture.limit}，图没有走到结束节点。`
+      : shown === 0
+        ? `还没开始，共 ${total} 步。`
+        : shown >= total
+          ? `第 ${shown} 步，共 ${total} 步：${currentStep?.node}。图已走完。`
+          : `第 ${shown} 步，共 ${total} 步：${currentStep?.node}，${currentStep?.summary ?? ''}`
+
   return (
     <SimFrame
       label={label}
@@ -83,7 +104,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
           : `${fixture.source}。状态机在浏览器真实执行，但节点内容是为了讲清机制而写的演示代码。`
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div ref={toolbarRef} tabIndex={-1} className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => {
@@ -91,8 +112,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
             setCursor((value) => Math.min(value + 1, total))
           }}
           disabled={shown >= total || !!paused}
-          className="btn-secondary px-3 py-1.5 text-xs"
-          style={{ color: 'var(--body)' }}
+          className="btn-secondary px-3 py-1.5 text-xs tint-body"
         >
           单步执行
         </button>
@@ -103,19 +123,15 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
             setPlaying((value) => !value)
           }}
           disabled={Boolean(paused)}
-          className="btn-secondary px-3 py-1.5 text-xs"
-          style={{ color: 'var(--body)' }}
+          className="btn-secondary px-3 py-1.5 text-xs tint-body"
         >
           {playing ? '暂停' : '自动播放'}
         </button>
-        <button
-          type="button"
-          onClick={reset}
-          className="btn-ghost px-3 py-1.5 text-xs"
-          style={{ color: 'var(--muted)' }}
-        >
-          重置
-        </button>
+        {!pristine && (
+          <button type="button" onClick={reset} className="btn-ghost px-3 py-1.5 text-xs tint-muted">
+            重置
+          </button>
+        )}
         {resume && (
           <button
             type="button"
@@ -123,9 +139,11 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
               setResume(null)
               setCursor(0)
               setPlaying(false)
+              // 这枚 chip 按下去就随 resume 一起消失，不接住焦点的话 activeElement 掉回 BODY
+              toolbarRef.current?.focus()
             }}
-            className="chip px-2.5 py-1 text-[11px]"
-            style={{ color: 'var(--accent-text)', borderColor: 'var(--accent-line)', borderRadius: 'var(--radius-xs)' }}
+            className="chip px-2.5 py-1 text-[11px] tint-accent"
+            style={{ borderColor: 'var(--accent-line)', borderRadius: 'var(--radius-xs)' }}
           >
             检查点：第 {resume.index + 1} 步之后 · 回到最初
           </button>
@@ -134,6 +152,12 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
           步 {shown}/{total || 0} · 上限 {fixture.limit}
         </span>
       </div>
+      {/* 单步执行改的是下面那份轨迹，可见文字全在别处 —— 没有常驻的 live 区，读屏用户按一步
+          等于什么都不知道（同检索页与进度墙的约定，WCAG 4.1.3）。它住在工具条外面：批准/驳回
+          之后焦点交还给工具条，容器会把里面所有文字读一遍，句子再躲在里头就是读两遍。 */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {spoken}
+      </p>
 
       <div className="mt-4 px-3 py-2 text-xs font-mono overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)', color: 'var(--muted)' }}>
         {fixture.edges.map((edge) => `${edge.from} → ${edge.to}`).join('   ')}
@@ -179,9 +203,10 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
       {paused && (
         <div
           className="mt-4 p-4"
-          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--gold)', borderRadius: 'var(--radius-xs)' }}
+          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--color-warning)', borderRadius: 'var(--radius-xs)' }}
         >
-          <div className="eyebrow mb-2.5" style={{ color: 'var(--gold)' }}>
+          {/* 同上：橙色只上 2px 标记，文字留在 indigo 以保持 10px eyebrow 的对比度 */}
+          <div className="eyebrow mb-2.5" style={{ color: 'var(--accent-text)' }}>
             图停在 {paused} —— 等待人工输入
           </div>
           <p className="body-sm mb-3" style={{ color: 'var(--muted)' }}>
@@ -190,22 +215,15 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => {
-                setApproved(true)
-                setCursor((value) => value + 1)
-              }}
+              onClick={() => decide(true)}
               className="btn-primary px-3 py-1.5 text-xs"
             >
               批准，继续
             </button>
             <button
               type="button"
-              onClick={() => {
-                setApproved(false)
-                setCursor((value) => value + 1)
-              }}
-              className="btn-secondary px-3 py-1.5 text-xs"
-              style={{ color: 'var(--body)' }}
+              onClick={() => decide(false)}
+              className="btn-secondary px-3 py-1.5 text-xs tint-body"
             >
               驳回
             </button>
@@ -262,6 +280,8 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
                       setResume({ step, index })
                       setCursor(0)
                       setApproved(undefined)
+                      // 回到开头会抹掉这一整列，按钮自己也跟着没了：焦点先接回工具条
+                      toolbarRef.current?.focus()
                     }}
                     className="ml-auto text-xs underline underline-offset-4"
                     style={{ color: 'var(--muted)' }}

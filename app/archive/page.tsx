@@ -46,7 +46,7 @@ export default function ArchivePage() {
             <StatsTile value={totalPosts} label="文章总数" />
             <StatsTile value={postsThisYear} label={`${currentYear} 年`} />
             <StatsTile value={archive.length} label="写作年份" />
-            <StatsTile value={activeMonths} label="活跃月份" suffix="月" />
+            <StatsTile value={activeMonths} label="活跃月份" />
           </StatsTileRow>
         </div>
       </AnimatedContent>
@@ -89,14 +89,15 @@ export default function ArchivePage() {
                       key={month}
                       className="grid grid-cols-1 md:grid-cols-[92px_minmax(0,1fr)] gap-x-10"
                     >
-                      <div className="eyebrow pt-6 md:pt-[26px]">{MONTH_NAMES[month - 1]}</div>
+                      {/* 月份标签跟随整月滚动：md 以上网格项默认 stretch，盒子撑满该月行高，
+                          所以 sticky 的可行范围正好是这一个月（§11.12）。 */}
+                      <div className="eyebrow pt-5 md:sticky md:top-[90px]">{MONTH_NAMES[month - 1]}</div>
                       <div className="stagger">
                         {posts.map((post) => (
                           <Link
                             key={post.slug}
                             href={`/posts/${post.slug}`}
-                            data-spotlight="row"
-                            className="pressable group grid grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-4 sm:gap-6 py-4 rule"
+                            className="pressable row-line group grid grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-4 sm:gap-6 py-5 rule"
                           >
                             <time
                               className="meta tabular-nums w-9 text-right transition-colors group-hover:text-[var(--accent-text)]"
@@ -105,8 +106,8 @@ export default function ArchivePage() {
                               {format(parseISO(post.date), 'M/d', { locale: zhCN })}
                             </time>
                             <span
-                              className="font-serif font-bold truncate transition-colors group-hover:text-[var(--accent-text)]"
-                              style={{ fontSize: 17, lineHeight: 1.45, color: 'var(--ink)' }}
+                              className="font-serif font-bold row-title transition-colors group-hover:text-[var(--accent-text)] tint-ink"
+                              style={{ fontSize: 17, lineHeight: 1.45 }}
                             >
                               {post.title}
                             </span>

@@ -57,8 +57,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="chip px-3 py-1.5 text-xs font-medium transition-colors"
-          style={{ color: 'var(--ink)' }}
+          className="chip tint-ink px-3 py-1.5 text-xs font-medium"
           title={`分享到 ${link.name}`}
         >
           {link.icon}
@@ -68,8 +67,8 @@ export function SocialShare({ title, url }: SocialShareProps) {
 
       <button
         onClick={handleCopy}
-        className="chip px-3 py-1.5 text-xs font-medium transition-colors"
-        style={{ color: copied ? 'var(--success)' : 'var(--ink)' }}
+        data-js-only
+        className={`chip px-3 py-1.5 text-xs font-medium ${copied ? 'chip-ok' : 'tint-ink'}`}
       >
         {copied ? (
           <>

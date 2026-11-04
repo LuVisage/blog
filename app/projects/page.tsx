@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { SITE, PROJECTS } from '@/lib/constants'
 import { PageMasthead } from '@/components/page-masthead'
+import { Ledger } from '@/components/ledger-row'
+import { IndexRail } from '@/components/index-rail'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { EmptyState } from '@/components/ui/empty-state'
 import { IconCode, IconExternalLink } from '@tabler/icons-react'
@@ -20,26 +22,26 @@ export default function ProjectsPage() {
         counter={`${PROJECTS.length} 个项目`}
       />
 
-      {PROJECTS.length > 0 ? (
-        <AnimatedContent direction="up">
-          <div>
-            <div className="eyebrow mb-2">清单</div>
-            <h2 className="section-title mb-2">作品</h2>
-            <div>
-              {PROJECTS.map((project, i) => (
-                <article
-                  key={project.url}
-                  data-spotlight="row"
-                  className="group relative grid grid-cols-[44px_minmax(0,1fr)_auto] gap-x-5 sm:gap-x-6 gap-y-3 items-start py-7"
-                  style={i > 0 ? { borderTop: '1px solid var(--line)' } : undefined}
-                >
-                  {/* 第 3 轮：序号改编号胶囊（pudding.cool 方向） */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-16 items-start">
+        <div className="min-w-0">
+          {PROJECTS.length > 0 ? (
+            <AnimatedContent direction="up">
+              <div>
+                <div className="eyebrow mb-2">清单</div>
+                <h2 className="section-title mb-2">作品</h2>
+                <Ledger>
+                  {PROJECTS.map((project, i) => (
+                    <article
+                      key={project.url}
+                      className="pressable row-line group relative grid grid-cols-[44px_minmax(0,1fr)_auto] gap-x-5 sm:gap-x-6 gap-y-3 items-start py-6 rule"
+                    >
+                  {/* are.na 编号：mono 数字，无边框无胶囊（§11.5 换血） */}
                   <span className="issue-badge tabular-nums mt-1">{String(i + 1).padStart(2, '0')}</span>
 
                   <div className="min-w-0">
                     <h3
-                      className="font-serif font-bold truncate transition-colors group-hover:text-[var(--accent-text)]"
-                      style={{ fontSize: 'var(--text-h3)', lineHeight: 1.4, color: 'var(--ink)', letterSpacing: 'var(--tracking-heading)' }}
+                      className="font-serif font-bold truncate transition-colors group-hover:text-[var(--accent-text)] tint-ink"
+                      style={{ fontSize: 'var(--text-h3)', lineHeight: 1.4, letterSpacing: 'var(--tracking-heading)' }}
                     >
                       <a
                         href={project.url}
@@ -70,18 +72,21 @@ export default function ProjectsPage() {
                     />
                   </div>
                 </article>
-              ))}
-            </div>
-            <div className="rule" />
-          </div>
-        </AnimatedContent>
-      ) : (
-        <EmptyState
-          icon={<IconCode size={30} strokeWidth={1.25} />}
-          title="还没有项目"
-          description="在 lib/constants.ts 中配置 PROJECTS"
-        />
-      )}
+                  ))}
+                </Ledger>
+              </div>
+            </AnimatedContent>
+          ) : (
+            <EmptyState
+              icon={<IconCode size={30} strokeWidth={1.25} />}
+              title="还没有项目"
+              description="在 lib/constants.ts 中配置 PROJECTS"
+            />
+          )}
+        </div>
+
+        <IndexRail />
+      </div>
     </div>
   )
 }

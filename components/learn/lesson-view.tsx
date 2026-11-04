@@ -7,8 +7,10 @@ import { getSimSpecs } from '@/lib/sim/registry'
 import { MDXContent } from '@/components/mdx-content'
 import { CodeBlockEnhancer } from '@/components/code-block-enhancer'
 import { TableOfContents } from '@/components/toc'
+import { ChapterBar } from '@/components/chapter-bar'
 import { FontSizeControl } from '@/components/font-size-control'
 import { ReadingProgress } from '@/components/ui/reading-progress'
+import { ProseReveal } from '@/components/ui/prose-reveal'
 import { Quiz } from '@/components/learn/quiz'
 import { Checklist } from '@/components/learn/checklist'
 import { GotchaTable } from '@/components/learn/gotcha-table'
@@ -92,7 +94,10 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 eyebrow">
               {!reference && weekLessons.length < 2 && (
                 <>
-                  <Link href={root} className="eyebrow eyebrow-accent hover:underline underline-offset-4">
+                  <Link
+                    href={root}
+                    className="eyebrow eyebrow-accent inline-flex min-h-6 items-center hover:underline underline-offset-4"
+                  >
                     {lesson.week === 0 ? '环境日' : `第 ${lesson.week} 周`}
                   </Link>
                   <span style={{ color: 'var(--faint)' }}>/</span>
@@ -135,8 +140,7 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
               <div className="mt-5">
                 <a
                   href="#labs"
-                  className="eyebrow inline-flex min-h-6 items-center gap-1.5 transition-colors hover:text-[var(--accent-text)]"
-                  style={{ color: 'var(--accent-text)' }}
+                  className="eyebrow inline-flex min-h-6 items-center gap-1.5 transition-colors hover:text-[var(--accent-text)] tint-accent"
                 >
                   本课 {specs.length} 个可动手实验台 · 在正文末尾
                 </a>
@@ -144,18 +148,23 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
             )}
           </header>
 
-          <div className="xl:hidden mb-8">
-            <TableOfContents />
+          {/* 窄屏常驻阅读定位条（§11.11），与文章页同一套语汇 */}
+          <div className="mb-8 xl:mb-0">
+            <ChapterBar />
           </div>
 
-          <div className="prose mx-0 max-w-[68ch] mb-14">
+          {/* 行长交给 .prose 的 --measure（无层样式，本来就赢过 Tailwind 工具类），
+              原来这里的 max-w-[68ch] 是条从没生效的死类。 */}
+          <ProseReveal className="prose mx-0 mb-14">
             <CodeBlockEnhancer>
               <MDXContent source={lesson.content} components={components} />
             </CodeBlockEnhancer>
-          </div>
+          </ProseReveal>
 
+          {/* tabIndex=-1：上面那条「本课 N 个可动手实验台」是页内跳转，可聚焦的落点
+              才会真的把焦点交过来；否则只改 hash，焦点留在 BODY，下一跳 Tab 回页头。 */}
           {specs.length > 0 && (
-            <section id="labs" className="mb-14" style={{ scrollMarginTop: '5rem' }} aria-label="本课实验台">
+            <section id="labs" tabIndex={-1} className="mb-14" style={{ scrollMarginTop: '5rem' }} aria-label="本课实验台">
               <Suspense fallback={<LabSkeleton count={specs.length} />}>
                 <SimulatorClient specs={specs} />
               </Suspense>
@@ -204,12 +213,11 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
           <div
             className="sticky top-24 self-start flex flex-col w-full max-h-[calc(100vh-8rem)] py-5"
           >
-            <TableOfContents />
+            <TableOfContents variant="desktop" />
             {next && (
               <Link
                 href={lessonHref(course, next.slug)}
-                className="btn-secondary mt-6 w-full inline-flex items-center justify-between gap-2 px-3 py-2 text-xs transition-colors flex-none"
-                style={{ color: 'var(--body)' }}
+                className="btn-secondary mt-6 w-full inline-flex items-center justify-between gap-2 px-3 py-2 text-xs transition-colors flex-none tint-body"
               >
                 下一课
                 <IconArrowRight size={13} strokeWidth={2} />

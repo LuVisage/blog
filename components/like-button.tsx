@@ -9,44 +9,36 @@ interface LikeButtonProps {
 
 export function LikeButton({ slug }: LikeButtonProps) {
   const [liked, setLiked] = useState(false)
-  const [count, setCount] = useState(0)
   const [animating, setAnimating] = useState(false)
 
   useEffect(() => {
     const likedPosts = JSON.parse(localStorage.getItem('liked-posts') || '{}')
     setLiked(!!likedPosts[slug])
-    setCount(likedPosts[slug] || 0)
   }, [slug])
 
   const handleLike = useCallback(() => {
     const likedPosts = JSON.parse(localStorage.getItem('liked-posts') || '{}')
+    const next = !liked
 
     setAnimating(true)
     setTimeout(() => setAnimating(false), 300)
 
-    if (likedPosts[slug]) {
-      delete likedPosts[slug]
-      setLiked(false)
-      setCount(prev => Math.max(0, prev - 1))
-    } else {
-      likedPosts[slug] = (likedPosts[slug] || 0) + 1
-      setLiked(true)
-      setCount(prev => prev + 1)
-    }
-
+    if (next) likedPosts[slug] = true
+    else delete likedPosts[slug]
     localStorage.setItem('liked-posts', JSON.stringify(likedPosts))
-  }, [slug])
+    setLiked(next)
+  }, [slug, liked])
 
   return (
+    // 中文的 min-content 宽度是一个字：这一排被挤窄时「喜欢」会竖排断行，
+    // 390px 上真出现过 105×80 的方盒子。nowrap 让它宁可换行也不竖排。
     <button
       onClick={handleLike}
-      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded surface text-sm font-medium transition-all duration-200 ${
+      aria-pressed={liked}
+      data-js-only
+      className={`pressable like-btn inline-flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded surface text-sm font-medium ${
         animating ? 'scale-110' : ''
       }`}
-      style={{
-        color: liked ? 'var(--danger)' : 'var(--muted)',
-        borderColor: liked ? 'var(--danger)' : 'var(--line)',
-      }}
     >
       {liked ? (
         <IconHeartFilled size={16} strokeWidth={1.5} />
@@ -54,7 +46,6 @@ export function LikeButton({ slug }: LikeButtonProps) {
         <IconHeart size={16} strokeWidth={1.5} />
       )}
       喜欢
-      {count > 0 && <span className="font-mono text-xs ml-1">{count}</span>}
     </button>
   )
 }

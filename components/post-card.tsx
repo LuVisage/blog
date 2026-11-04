@@ -7,7 +7,6 @@ import type { PostMeta } from '@/lib/posts'
 import { EmptyState } from '@/components/ui/empty-state'
 import { coverFor } from '@/lib/covers'
 import { IconFileText, IconArrowUpRight } from '@tabler/icons-react'
-import { ScrambleText } from '@/components/ui/scramble-text'
 
 type Layout = 'index' | 'grid' | 'feature'
 
@@ -23,6 +22,7 @@ export function FeatureCard({ post }: { post: PostMeta }) {
       href={`/posts/${post.slug}`}
       className="group surface surface-hover hover-zoom spotlight-card grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] overflow-hidden"
       onPointerMove={(e) => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
         const r = e.currentTarget.getBoundingClientRect()
         e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`)
         e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`)
@@ -71,8 +71,7 @@ export function FeatureCard({ post }: { post: PostMeta }) {
             </span>
           )}
           <span
-            className="inline-flex items-center gap-1 text-xs font-medium transition-colors group-hover:text-[var(--accent-text)]"
-            style={{ color: 'var(--muted)' }}
+            className="inline-flex items-center gap-1 text-xs font-medium transition-colors group-hover:text-[var(--accent-text)] tint-muted"
           >
             阅读
             <IconArrowUpRight size={14} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -90,23 +89,19 @@ function IndexRow({ post, ordinal }: { post: PostMeta; ordinal: number }) {
       href={`/posts/${post.slug}`}
       data-spotlight="row"
       className="group grid grid-cols-[44px_minmax(0,1fr)_auto] items-baseline gap-3 sm:gap-6 py-6 rule transition-colors"
-      onMouseMove={(e) => {
-        const r = e.currentTarget.getBoundingClientRect()
-        e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`)
-      }}
     >
-      {/* §11.6 封面跟手预览：hover 时封面小图沿光标滑出（reduced-motion 下直接显示） */}
+      {/* 封面预览钉在序号栏（globals.css §11.6 row-cover）：不再跟手，也就压不到正文 */}
       <img src={coverFor(post).url} alt="" loading="lazy" decoding="async" className="row-cover" />
 
-      {/* 第 5 轮换血：序号 → are.na 灰阶 mono 数字（无边框无胶囊），hover 随行转 indigo */}
+      {/* 第 5 轮换血：序号 → are.na 灰阶 mono 数字（无边框无胶囊），hover 让位给封面 */}
       <span className="issue-badge tabular-nums">{String(ordinal).padStart(2, '0')}</span>
 
       <div className="min-w-0">
         <h3
-          className="row-shift font-serif font-bold truncate transition-colors group-hover:text-[var(--accent-text)]"
-          style={{ fontSize: 20, lineHeight: 1.4, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+          className="row-shift row-title font-serif font-bold transition-colors group-hover:text-[var(--accent-text)] group-focus-visible:text-[var(--accent-text)] tint-ink"
+          style={{ fontSize: 20, lineHeight: 1.4, letterSpacing: '-0.01em' }}
         >
-          <ScrambleText text={post.title} />
+          {post.title}
         </h3>
         {post.description && (
           <p className="body-sm line-clamp-1 mt-1.5">{post.description}</p>
@@ -126,10 +121,13 @@ function IndexRow({ post, ordinal }: { post: PostMeta; ordinal: number }) {
       <div className="text-right flex-shrink-0 relative pl-6">
         <div className="meta transition-opacity group-hover:opacity-60">{shortDate(post.date)}</div>
         <div className="caption mt-1 transition-opacity group-hover:opacity-60">{post.readingTime} 分钟</div>
+        {/* 箭头走 pl-6 预留的那 24px（left-0），不站在 right-0：日期与阅读时长都是
+            右对齐贴到列的右边缘，箭头压在同一列上就会盖住字（390px 实测盖在日期中段）。
+            键盘焦点与悬停共用同一套揭示条件，否则 Tab 用户只看到半套反馈。 */}
         <IconArrowUpRight
           size={16}
           strokeWidth={2}
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 opacity-0 transition-all duration-[300ms] group-hover:translate-x-0 group-hover:opacity-100"
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 opacity-0 transition-[opacity,transform] duration-[300ms] group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100"
           style={{ color: 'var(--accent-text)' }}
         />
       </div>
@@ -145,6 +143,7 @@ function GridCard({ post }: { post: PostMeta }) {
       href={`/posts/${post.slug}`}
       className="group surface surface-hover hover-zoom spotlight-card flex flex-col overflow-hidden"
       onPointerMove={(e) => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
         const r = e.currentTarget.getBoundingClientRect()
         e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`)
         e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`)
@@ -168,8 +167,8 @@ function GridCard({ post }: { post: PostMeta }) {
           <span className="meta ml-auto">{shortDate(post.date)}</span>
         </div>
         <h3
-          className="font-serif font-bold mb-2 line-clamp-2 transition-colors group-hover:text-[var(--accent-text)]"
-          style={{ fontSize: 17, lineHeight: 1.4, color: 'var(--ink)' }}
+          className="font-serif font-bold mb-2 line-clamp-2 transition-colors group-hover:text-[var(--accent-text)] tint-ink"
+          style={{ fontSize: 17, lineHeight: 1.4 }}
         >
           {post.title}
         </h3>

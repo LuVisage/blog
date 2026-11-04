@@ -60,7 +60,8 @@ export function ChunkLab() {
   const [overlap, setOverlap] = useState(0)
   const [separatorSet, setSeparatorSet] = useState('default')
 
-  const separators = (SEPARATOR_SETS.find((s) => s.value === separatorSet) || SEPARATOR_SETS[0]).list
+  const sepSet = SEPARATOR_SETS.find((s) => s.value === separatorSet) || SEPARATOR_SETS[0]
+  const separators = sepSet.list
   const chunks = useMemo(
     () => splitText(CHUNK_SAMPLE, { chunkSize: size, overlap, separators: [...separators] }),
     [size, overlap, separators]
@@ -99,10 +100,10 @@ export function ChunkLab() {
     >
       <div className="space-y-4">
         <ControlRow label="chunk_size">
-          <Range value={size} min={40} max={240} step={10} onChange={setSize} />
+          <Range label="chunk_size" value={size} min={40} max={240} step={10} onChange={setSize} />
         </ControlRow>
         <ControlRow label="overlap">
-          <Range value={overlap} min={0} max={Math.max(0, size - 20)} step={5} onChange={setOverlap} />
+          <Range label="overlap" value={overlap} min={0} max={Math.max(0, size - 20)} step={5} onChange={setOverlap} />
         </ControlRow>
         <ControlRow label="separators">
           <Pills items={SEPARATOR_SETS} active={separatorSet} onPick={setSeparatorSet} />
@@ -127,6 +128,14 @@ export function ChunkLab() {
         <Stat label="最长块" value={`${lengths.length ? Math.max(...lengths) : 0} 字`} />
         <Stat label="被切断的整句" value={`${broken.length} 句`} />
         <Stat label="与上一块重复" value={`${sharedTotal} 字`} />
+        {/* 这一排数字挂 live 是不够的：这份 218 字样例上，换一套分隔符常常一个数字都不变
+            （只有下刀的位置变了），读屏就彻底没声音。所以播报里必须带上「用的是哪套分隔符」，
+            让每次换档都有一句话可念。容器常驻，同检索页与进度墙的约定（WCAG 4.1.3）。 */}
+        <p className="sr-only" role="status" aria-live="polite">
+          {presetName ? `预设「${presetName}」：` : '自定义参数：'}分隔符 {sepSet.label}，切成 {chunks.length} 块，
+          平均 {average} 字，最长 {lengths.length ? Math.max(...lengths) : 0} 字，被切断的整句 {broken.length} 句，
+          与上一块重复 {sharedTotal} 字。
+        </p>
       </div>
 
       <ol className="mt-5 space-y-3">
@@ -197,9 +206,11 @@ export function ChunkLab() {
       {broken.length > 0 && (
         <div
           className="mt-5 p-4"
-          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--gold)', borderRadius: 'var(--radius-xs)' }}
+          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--color-warning)', borderRadius: 'var(--radius-xs)' }}
         >
-          <div className="eyebrow mb-2" style={{ color: 'var(--gold)' }}>
+          {/* 警示由 2px 橙标承担；标题文字留在 indigo —— --color-warning #e15100 对白底
+              只有 3.9:1，10px eyebrow 够不到 AA，不能当正文色用。 */}
+          <div className="eyebrow mb-2" style={{ color: 'var(--accent-text)' }}>
             这些整句没有完整落在任何一块里
           </div>
           <ul className="space-y-1.5">

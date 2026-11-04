@@ -6,6 +6,7 @@ import { MDXContent } from '@/components/mdx-content'
 import { TagBadge } from '@/components/tag-badge'
 import { GiscusComments } from '@/components/giscus-comments'
 import { TableOfContents } from '@/components/toc'
+import { ChapterBar } from '@/components/chapter-bar'
 import { SocialShare } from '@/components/social-share'
 import { RelatedPosts } from '@/components/related-posts'
 import { FontSizeControl } from '@/components/font-size-control'
@@ -70,13 +71,12 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
       <div className="xl:flex xl:gap-16">
         <article className="flex-1 min-w-0">
-          {/* Mobile TOC */}
-          <div className="xl:hidden mb-6"><TableOfContents /></div>
+          {/* 窄屏常驻阅读定位条（§11.11）：取代滚过即失联的页首折叠目录 */}
+          <ChapterBar />
 
-          {/* Top rail */}
+          {/* Top rail — xl 才自带上线，窄屏由 ChapterBar 的下发丝线承担分隔 */}
           <div
-            className="flex items-center justify-between gap-4 py-2.5"
-            style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
+            className="flex items-center justify-between gap-4 py-2.5 border-b-[color:var(--line)] xl:border-t-[color:var(--line-strong)]"
           >
             <Link href="/posts" className="eyebrow inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors">
               ← 文章目录
@@ -122,8 +122,8 @@ export default async function PostPage({ params }: { params: PageParams }) {
               {post.series && (
                 <Link
                   href={`/series/${post.series}`}
-                  className="chip inline-flex mt-7 px-3 py-1.5 text-xs hover:text-[var(--accent-text)] transition-colors"
-                  style={{ color: 'var(--body)', borderRadius: 'var(--radius-pill)' }}
+                  className="chip chip-body inline-flex mt-7 px-3 py-1.5 text-xs"
+                  style={{ borderRadius: 'var(--radius-pill)' }}
                 >
                   <span className="eyebrow">系列</span>
                   {post.series}
@@ -135,7 +135,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                 style={{ borderTop: '1px solid var(--line)' }}
               >
                 {post.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
-                <div className="flex items-center gap-3 ml-auto">
+                <div className="flex flex-wrap items-center gap-3 ml-auto">
                   <SocialShare title={post.title} url={postUrl} />
                   <LikeButton slug={slug} />
                 </div>
@@ -161,7 +161,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                 <span className="caption flex items-center gap-1.5">
                   <IconChevronLeft size={13} strokeWidth={2} /> 上一篇
                 </span>
-                <span className="heading-3 truncate transition-colors group-hover:text-[var(--accent-text)]">
+                <span className="heading-3 row-title transition-colors group-hover:text-[var(--accent-text)]">
                   {prev.title}
                 </span>
               </Link>
@@ -176,7 +176,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
               <span className="caption flex items-center gap-1.5">
                 {next ? '下一篇' : '返回列表'} <IconChevronRight size={13} strokeWidth={2} />
               </span>
-              <span className="heading-3 max-w-full truncate transition-colors group-hover:text-[var(--accent-text)]">
+              <span className="heading-3 max-w-full row-title transition-colors group-hover:text-[var(--accent-text)]">
                 {next ? next.title : '查看更多文章'}
               </span>
             </Link>
@@ -204,7 +204,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                       ) : (
                         <Link
                           href={`/posts/${sp.slug}`}
-                          className="body-md truncate no-underline hover:text-[var(--accent-text)] transition-colors"
+                          className="body-md row-title no-underline hover:text-[var(--accent-text)] transition-colors"
                         >
                           {sp.title}
                         </Link>
@@ -226,7 +226,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
         {/* Desktop TOC — sticky rail, no card */}
         <aside className="hidden xl:flex xl:flex-col xl:w-56 xl:flex-shrink-0">
           <div className="sticky top-24 self-start flex flex-col w-full max-h-[calc(100vh-8rem)] py-5">
-            <TableOfContents />
+            <TableOfContents variant="desktop" />
           </div>
         </aside>
       </div>

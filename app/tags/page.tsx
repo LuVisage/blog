@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { SITE } from '@/lib/constants'
 import { getAllPosts, getAllTags } from '@/lib/posts'
-import { TagFilter } from '@/components/tag-filter'
+import { TagIndex } from '@/components/tag-index'
 
 export const metadata: Metadata = {
   title: '标签',
@@ -12,5 +12,5 @@ export default function TagsPage() {
   const posts = getAllPosts()
   const tags = getAllTags()
 
-  return <TagFilter posts={posts} tags={tags} />
+  return <TagIndex posts={posts} tags={tags} />
 }

@@ -6,7 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { CustomEase } from 'gsap/CustomEase'
 import { cn } from '@/lib/utils'
 
-gsap.registerPlugin(ScrollTrigger)
+gsap.registerPlugin(ScrollTrigger, CustomEase)
 
 /**
  * 文档 §11.1 的缓动 `cubic-bezier(0.16, 1, 0.3, 1)` 在 GSAP 侧等价实现，
@@ -84,10 +84,13 @@ export function AnimatedContent({
       }
     }
 
+    let detachFocusReveal: () => void = () => {}
+
     const ctx = gsap.context(() => {
       const targets = stagger > 0 ? Array.from(el.children) : el
-      gsap.fromTo(targets, getFromVars(), {
-        ...getToVars(direction),
+      const to = getToVars(direction)
+      const tw = gsap.fromTo(targets, getFromVars(), {
+        ...to,
         duration,
         delay,
         stagger,
@@ -98,6 +101,33 @@ export function AnimatedContent({
           once,
         },
       })
+
+      // 焦点落进这一块，就把手里的入场直接做完，不再赌滚动有没有越线。
+      // ScrollTrigger 的 start 是初始化时按当时布局算的，字体/图片回流后会偏；
+      // 纯键盘一路 Tab 下去实测到过一格在 380ms 与 1580ms 两个采样点都还是
+      // opacity:0 —— 焦点环画在透明块上，WCAG 2.4.7 不认。
+      // 用 set 而不是补一段 tween：浏览器的「聚焦即滚动」发生在 focusin **之前**，
+      // 它按聚焦那一刻的视觉盒（还带着入场位移）决定滚到哪；再动就是我们自己把
+      // 刚聚焦的那一格挪走。
+      const revealNow = (e: FocusEvent) => {
+        const t = e.target instanceof Element ? e.target : null
+        tw.scrollTrigger?.kill()
+        tw.kill()
+        ctx.add(() => gsap.set(targets, to))
+        detachFocusReveal()
+        // 上面那次 set 可能把刚聚焦的一格抬出视口（/learn/ml/day-10/ 的复制钮实测
+        // 定在 y=-170 达 3.6s）。只在它真的不在视口里时重新滚进来 —— 无条件补一次
+        // 等量 scrollBy 是错的：真按 Tab 走全站，34 格被这条补滚推出视口（Lenis 在
+        // 飞的时候原生滚动会被它接管，补的量和落点都对不上）。
+        if (t) {
+          const r = t.getBoundingClientRect()
+          if (r.top < 0 || r.bottom > window.innerHeight) {
+            t.scrollIntoView({ block: 'center', behavior: 'instant' })
+          }
+        }
+      }
+      el.addEventListener('focusin', revealNow)
+      detachFocusReveal = () => el.removeEventListener('focusin', revealNow)
 
       // 刊头视差：滚动联动（scrub），只动 transform，幅值封顶 PARALLAX_MAX。
       if (parallax > 0 && driftRef.current) {
@@ -114,7 +144,10 @@ export function AnimatedContent({
       }
     }, el)
 
-    return () => ctx.revert()
+    return () => {
+      detachFocusReveal()
+      ctx.revert()
+    }
   }, [direction, distance, duration, delay, once, stagger, parallax])
 
   return (

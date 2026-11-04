@@ -55,7 +55,7 @@ export function ObfuscatedEmailIcon({
   const email = useDecoded(encoded)
   if (!email) {
     return (
-      <span className={className} style={style} aria-label={label} role="img">
+      <span className={className} style={style} aria-label={label} role="img" title="邮箱已做防收割处理，启用 JavaScript 后显示">
         {children}
       </span>
     )

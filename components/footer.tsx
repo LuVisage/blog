@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { SITE, ABOUT, SOCIAL_LINKS, EMAIL_OBFUSCATED, basePathUrl } from '@/lib/constants'
 import { CurrentYear } from '@/components/ui/current-year'
+import { SITE_SECTIONS } from '@/components/site-sections'
 import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 import { IconBrandGithub, IconMail, IconRss } from '@tabler/icons-react'
 
@@ -37,7 +38,11 @@ export function Footer() {
       className="relative z-10 mt-auto"
       style={{ background: 'var(--footer-bg)', color: 'var(--footer-ink)' }}
     >
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* 底部留 80px 而不是 48px：右下角那块 68×68 是「回到顶部」的固定泊位
+          （bottom-6 right-6 + 44×44，z-50）。滚到底时页脚最后一行的下沿原本落在
+          视口底 -48px，正好压进泊位里 —— 768px 实测 RSS 被盖掉 84%，点它等于点回顶。
+          多出来的 32px 空白把整行抬到泊位上沿之上，任何宽度都不再抢同一块地皮。 */}
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-20">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
           <div>
             <span
@@ -51,17 +56,12 @@ export function Footer() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="footer-links flex items-center gap-2">
             {SOCIAL_LINKS.email && (
               <ObfuscatedEmailIcon
                 encoded={EMAIL_OBFUSCATED}
                 label="邮件"
-                className="chip w-9 h-9 justify-center cursor-pointer transition-colors"
-                style={{
-                  color: 'var(--footer-muted)',
-                  borderColor: 'var(--footer-chip-line)',
-                  borderRadius: 'var(--radius-xs)',
-                }}
+                className="chip w-9 h-9 justify-center cursor-pointer"
               >
                 <IconMail size={15} strokeWidth={1.75} />
               </ObfuscatedEmailIcon>
@@ -71,18 +71,35 @@ export function Footer() {
                 key={item.label}
                 href={item.href}
                 {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                className="chip w-9 h-9 justify-center cursor-pointer transition-colors"
-                style={{
-                  color: 'var(--footer-muted)',
-                  borderColor: 'var(--footer-chip-line)',
-                  borderRadius: 'var(--radius-xs)',
-                }}
+                className="chip w-9 h-9 justify-center cursor-pointer"
                 aria-label={item.label}
               >
                 {item.icon}
               </a>
             ))}
           </div>
+        </div>
+
+        {/* 站点目录：顶导航只有 7 项，系列/项目/友链此前只有直链可达（§11.12）。
+            页脚每页都在，用同一份 SITE_SECTIONS 补齐入口，行列靠发丝线分格。 */}
+        <div className="mt-10 pt-6" style={{ borderTop: '1px solid var(--footer-line)' }}>
+          <span className="eyebrow mb-4 block" style={{ color: 'var(--footer-muted)' }}>
+            站点目录
+          </span>
+          <nav
+            aria-label="站点目录"
+            className="footer-links grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5"
+          >
+            {SITE_SECTIONS.map((section) => (
+              <Link
+                key={section.href}
+                href={section.href}
+                className="link-underline pressable meta inline-flex min-h-6 items-center transition-colors no-underline cursor-pointer"
+              >
+                {section.label}
+              </Link>
+            ))}
+          </nav>
         </div>
 
         <div
@@ -96,21 +113,18 @@ export function Footer() {
             <Link
               href="/terms"
               className="link-underline pressable meta inline-flex min-h-6 items-center transition-colors no-underline cursor-pointer"
-              style={{ color: 'var(--footer-muted)' }}
             >
               条款
             </Link>
             <Link
               href="/privacy"
               className="link-underline pressable meta inline-flex min-h-6 items-center transition-colors no-underline cursor-pointer"
-              style={{ color: 'var(--footer-muted)' }}
             >
               隐私
             </Link>
             <a
               href={basePathUrl('/rss.xml')}
               className="link-underline pressable meta inline-flex min-h-6 items-center transition-colors no-underline cursor-pointer"
-              style={{ color: 'var(--footer-muted)' }}
             >
               RSS
             </a>

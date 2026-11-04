@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { useLenis } from '@/components/ui/lenis-provider'
 import {
@@ -130,6 +130,8 @@ export function PaletteProvider({
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const restoreFocus = useRef<HTMLElement | null>(null)
+  const focusAfterNav = useRef(false)
+  const pathname = usePathname()
 
   useEffect(() => setMounted(true), [])
 
@@ -155,14 +157,26 @@ export function PaletteProvider({
 
   useEffect(() => {
     if (!open) return
+    focusAfterNav.current = false
     restoreFocus.current = document.activeElement as HTMLElement | null
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     // §11.6：Lenis 平滑滚动存在时同步停/启，避免命令面板打开后页面仍可滚
     lenis?.stop()
+    // Esc 挂在 window 上而不是面板的 onKeyDown 上：Chromium 会把可滚动的结果区当成
+    // 一个 Tab 站点，焦点一旦走到它外面，绑在浮层内的处理器再也收不到这个键 ——
+    // 遮罩还在、body 仍是 overflow:hidden，页面就锁死了。
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
     const raf = requestAnimationFrame(() => inputRef.current?.focus())
     return () => {
       cancelAnimationFrame(raf)
+      window.removeEventListener('keydown', onKey)
       document.body.style.overflow = previousOverflow
       lenis?.start()
       restoreFocus.current?.focus?.()
@@ -172,10 +186,20 @@ export function PaletteProvider({
   const go = useCallback(
     (href: string) => {
       setOpen(false)
+      focusAfterNav.current = true
       router.push(href)
     },
     [router]
   )
+
+  /* 面板导航后焦点原本掉在 BODY：读屏不会播报「到了新页面」，键盘用户下一次 Tab
+     又从页首翻起。等 pathname 落地（新页已经 commit）再把焦点交给带 tabIndex=-1
+     的 <main> —— 也就是「跳到主要内容」的那个落点，两处共用同一个契约。 */
+  useEffect(() => {
+    if (!focusAfterNav.current) return
+    focusAfterNav.current = false
+    document.getElementById('main-content')?.focus({ preventScroll: true })
+  }, [pathname])
 
   const items = useMemo<Item[]>(() => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark'
@@ -322,9 +346,12 @@ export function PaletteProvider({
     } else if (e.key === 'Enter') {
       e.preventDefault()
       runRow(active)
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Tab') {
+      // 组合框的游标只有输入框一个：结果行是 tabIndex={-1}，可滚动的列表区却是
+      // Chromium 自动加的 Tab 站点，再往后就走进遮罩背后的页面。行选中本来就靠
+      // 方向键 + aria-activedescendant，列表区自己会跟着滚动，所以把 Tab 按回输入框。
       e.preventDefault()
-      setOpen(false)
+      inputRef.current?.focus()
     }
   }
 
@@ -377,7 +404,9 @@ export function PaletteProvider({
               <kbd className="meta hidden sm:inline" style={{ color: 'var(--faint)' }}>esc</kbd>
             </div>
 
-            <div ref={listRef} id="palette-listbox" role="listbox" aria-label="命令面板结果" className="flex-1 overflow-y-auto py-2">
+            {/* tabIndex=-1：Chromium 127 起可滚动容器会自动进 Tab 序列，而组合框模式的
+                焦点归输入框（列表靠 aria-activedescendant 播报），这一格不该是 Tab 站点。 */}
+            <div ref={listRef} id="palette-listbox" role="listbox" tabIndex={-1} aria-label="命令面板结果" className="flex-1 overflow-y-auto py-2">
               {rows.length === 0 ? (
                 <p className="body-sm px-4 py-10 text-center">没有匹配「{query}」的结果</p>
               ) : (

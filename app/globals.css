@@ -12,40 +12,6 @@
    规格台账：SPEC_LEDGER.md ｜ 审计报告：AUDIT.md
    ============================================ */
 
-/* ── Music player gutter ──────────────────────────────────────
-   At xl+ the rail docks beside the text column, so the column has to
-   make room for it. Below xl the panel is an overlay with its own
-   backdrop and must not reflow anything. The amount is derived from
-   the real column width here — never copied into a second place. */
-:root {
-  --music-panel-w: 220px;
-  --music-panel-edge: 24px;
-  --music-panel-gap: 6px;
-  --music-rail: calc(var(--music-panel-w) + var(--music-panel-edge) + var(--music-panel-gap));
-  --music-scrollbar: 15px;
-}
-
-@media (min-width: 1280px) {
-  /* Declared apart from the :has() rule so it still exists when the panel
-     unmounts — otherwise the gutter snaps back instead of easing closed. */
-  #main-content {
-    transition: padding-right 300ms ease-out;
-  }
-
-  /* min(100vw, column) gives the free margin on each side; the rail only
-     needs what's left after that. 100vw counts the scrollbar, fixed
-     positioning does not, so it is added back as headroom. */
-  body:has([data-music-panel]) #main-content {
-    padding-right: calc(
-      max(
-        2rem,
-        var(--music-rail) + var(--music-scrollbar)
-          - (100vw - min(100vw, 72rem)) / 2
-      )
-    );
-  }
-}
-
 /* ==============================================
    1. Tokens
    第一块是第 4 轮换血后的现行值（ciechanow 方向，数值自设计并登记）；
@@ -65,7 +31,11 @@
   --color-text-prose: #1a1a1a;
   --color-text-secondary: #333333;
   --color-text-muted: #696969;
-  --color-text-faint: #999999;
+  /* 微标签（.eyebrow/.meta/.caption 的 11–12px 小字）原本用 #999999：
+     白画布上 2.85:1、--surface-2 上 2.66:1，够不到正文要求的 WCAG AA 4.5:1。
+     收到 #717171 后分别是 4.88:1 与 4.55:1；浅灰的层次留给描边令牌
+     （--color-border-*，仍是 #ededed/#dedede/#999999）去承担。 */
+  --color-text-faint: #717171;
   --color-text-inverse: #ffffff;
   --color-border-subtle: #ededed;
   --color-border-default: #dedede;
@@ -210,6 +180,7 @@
   --footer-muted: rgba(255, 255, 255, 0.72);
   --footer-line: rgba(255, 255, 255, 0.18);
   --footer-chip-line: rgba(255, 255, 255, 0.3);
+  --footer-chip-hover: rgba(255, 255, 255, 0.08);
 
   /* ── 数据图表四色（沿用既有自设计四色，仅核验与灰阶并置对比度，
      登记 SPEC_LEDGER §1.9；不参与 UI 强调色）。 ── */
@@ -247,7 +218,9 @@
   --color-text-prose: #dedee2;
   --color-text-secondary: #b3b3b9;
   --color-text-muted: #8f8f97;
-  --color-text-faint: #67676f;
+  /* 与亮色同一处收口：暗色 faint 原本 #67676f，在画布 #0f0f13 上 3.41:1，
+     在 --surface-2（#1e1e23）上只有 2.96:1。抬到 #888890 后 5.44:1 / 4.72:1。 */
+  --color-text-faint: #888890;
   --color-text-inverse: #0f0f13;
   --color-border-subtle: #2a2a30;
   --color-border-default: #3a3a42;
@@ -262,6 +235,10 @@
   --color-overlay: rgba(15, 15, 19, 0.92);
   --color-scrim: rgba(0, 0, 0, 0.4);
   --line-faint: rgba(244, 244, 246, 0.08);
+  /* 强调色只换「文字」这一角色：#5b64e0 在白底 4.9:1 够用，压到 #0f0f13 画布上
+     只剩 3.96:1，链接与小号 eyebrow 全部够不到 AA。抬到 hover 档的 #7b82ea
+     （5.67:1）后文字可读，色块/描边/热力图仍走原 --color-primary，观感不变。 */
+  --accent-text: var(--color-primary-hover);
   --accent-line: rgba(91, 100, 224, 0.4);
   --heat-0: rgba(91, 100, 224, 0.1);
   --heat-1: rgba(91, 100, 224, 0.35);
@@ -301,8 +278,10 @@
   }
 
   .skip-to-content {
-    position: absolute;
-    top: -100%;
+    /* fixed 而不是 absolute：absolute 的 top 相对 10000px 高的 body，读到文章中段
+       再按 Tab，跳转链接其实远在屏幕之外，浏览器还会为它把页面滚回顶部。 */
+    position: fixed;
+    top: var(--space-12);
     left: var(--space-16);
     z-index: 9999;
     padding: var(--space-12) var(--space-20);
@@ -312,9 +291,16 @@
     font-size: var(--text-sm);
     border-radius: var(--radius-xs);
     text-decoration: none;
-    transition: top var(--duration-fast) var(--ease);
+    /* 位移交给 transform，不 animate top —— top 是布局属性，动一次整页重排。 */
+    transform: translateY(calc(-100% - var(--space-32)));
+    transition: transform var(--duration-fast) var(--ease);
   }
-  .skip-to-content:focus { top: var(--space-12); }
+  .skip-to-content:focus { transform: none; }
+
+  /* 跳转落点（正文、实验台）给的是 tabindex=-1：焦点落在它身上是为了读屏播报和
+     后续 Tab 的位置，它本身不是控件，画一圈 1200px 宽、上万 px 高的描边像布局坏了。 */
+  [tabindex='-1']:focus,
+  [tabindex='-1']:focus-visible { outline: none; }
 
   :focus-visible {
     outline: 2px solid var(--color-primary);
@@ -376,10 +362,42 @@
   }
   .chip:hover {
     border-color: var(--color-primary);
-    color: var(--color-primary);
+    color: var(--accent-text);
   }
   /* 按下反馈：只动 transform（§12.4 白名单），200ms 落在 §11.1 实测档。 */
   .chip:active { transform: scale(0.98); }
+
+  /* ── 分段选择（阅读字号 小/中/大）与喜欢按钮：同一套「状态在 CSS 里」的写法。
+     顺序是 hover → 选中 → 选中态 hover，靠特异度而非行内样式决胜。 ── */
+  .seg-btn {
+    color: var(--muted);
+    border-radius: var(--radius-xs);
+    transition: color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+  }
+  .seg-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .seg-btn[aria-pressed='true'] { background: var(--accent-soft); color: var(--ink); }
+  .seg-btn[aria-pressed='true']:hover { background: var(--accent-soft); }
+
+  /* 选中态胶囊（模式选择、参数预设、周历）。状态由 aria-pressed 表达，样式留在 CSS 里：
+     原来每颗都写行内三件套（color/background/border-color），等于把 .chip:hover
+     整条压掉 —— 没选中的那些悬停上去毫无反应。放在 .chip:hover 之后，
+     选中的那颗保持状态色，没选中的照常得到悬停反馈。 */
+  .chip-toggle { color: var(--muted); }
+  .chip-toggle[aria-pressed='true'],
+  .chip-toggle[aria-current='page'] {
+    color: var(--ink);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+  }
+
+  .like-btn {
+    color: var(--muted);
+    border-color: var(--line);
+    transition: color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+  }
+  .like-btn:hover { color: var(--ink); border-color: var(--line-strong); }
+  .like-btn[aria-pressed='true'] { color: var(--danger); border-color: var(--danger); }
+  .like-btn[aria-pressed='true']:hover { color: var(--danger); }
 
   /* ── 编号（第 5 轮换血）：pudding.cool 胶囊 → are.na 灰阶数字。
      文章索引行与项目清单行的序号：mono 11px 灰四档数字，无边框无胶囊，
@@ -395,11 +413,11 @@
     letter-spacing: 0.08em;
     color: var(--subtle);
     font-variant-numeric: tabular-nums;
-    transition: color var(--duration-fast) var(--ease);
+    transition: color var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
   }
   .group:hover .issue-badge,
   .issue-badge:hover {
-    color: var(--color-primary);
+    color: var(--accent-text);
   }
 
   /* ── mono 大写胶囊（第 5 轮新增）：are.na 元信息语汇。
@@ -423,7 +441,15 @@
   }
   .capsule:hover {
     background: var(--color-primary-subtle);
-    color: var(--color-primary);
+    color: var(--accent-text);
+  }
+  /* 指尖按 9mm 算，10px 大写胶囊只有 18px 高（≈4.8mm），够不到 WCAG 2.5.8 的 24px 下限。
+     只放大有 href 的 a.capsule —— 同款的静态标签（post-card 里的 span）不跟着长，
+     纸面节奏原样保留；只在粗指针设备生效，鼠标下仍是 18px 的细胶囊。 */
+  @media (pointer: coarse) {
+    a.capsule {
+      min-height: 2rem;
+    }
   }
 }
 
@@ -579,7 +605,7 @@
   }
   .btn-secondary:hover {
     border-color: var(--color-primary);
-    color: var(--color-primary);
+    color: var(--accent-text);
     background: var(--color-primary-subtle);
   }
   .btn-secondary:active { transform: scale(0.98); }
@@ -616,6 +642,46 @@
   }
 }
 
+/* ── 静止字色的 class 版（放在所有 components 规则之后，同级靠后者胜出：
+     .meta/.eyebrow/.body-* 这些先声明的类不再把交互元素的字色抢回去）。
+     为什么要有这一族：交互元素一旦写 style={{ color }}，行内样式压过任何规则
+     —— 包括 .chip:hover、.btn-secondary:hover，也包括 Tailwind 的
+     hover:/group-hover: 工具类 —— 于是「悬停转 indigo」全部画不出来。
+     这四条与 .tint-* 的用法一一对应，值完全照旧，只是换了级联位置。 ── */
+@layer components {
+  .tint-ink { color: var(--ink); }
+  .tint-body { color: var(--body); }
+  .tint-muted { color: var(--muted); }
+  .tint-accent { color: var(--accent-text); }
+  .tint-faint { color: var(--faint); }
+  /* 状态色（复制成功）是结果不是邀请，多一级 .chip 压过 .chip:hover。 */
+  .chip.chip-ok { color: var(--success); }
+
+  /* 目录项三态：静止灰 → 悬停加深 → 当前项 ink + 加粗。
+     .is-active 写在 :hover 之后，同级靠后者胜出，所以「悬停已激活项」不会被拽回灰色。 */
+  .toc-link { color: var(--muted); }
+  .toc-link:hover { color: var(--body); }
+  .toc-link.is-active { color: var(--ink); font-weight: 600; }
+
+  /* 移动抽屉与顶部导航行：静止灰，悬停加深，当前项 ink。
+     行内 style 会把 :hover 整条压掉，所以状态写在 CSS 里、用 aria-current 表达。
+     状态规则写在 :hover 之后（同级靠后者胜出），悬停当前项不会掉回灰色。 */
+  .nav-row { color: var(--muted); }
+  .nav-row:hover { color: var(--ink); }
+  .nav-row[aria-current='page'] { color: var(--ink); }
+
+  /* 实心强调小按钮（歌单加载钮）：跟 .btn-primary 共用「悬停加深一档」的语汇，
+     但不接管尺寸 —— 几何仍由调用方的 utility 决定。按下缩放交给 .pressable。 */
+  .btn-accent { background: var(--color-primary); color: var(--on-accent); }
+  .btn-accent:hover { background: var(--color-primary-hover); }
+
+  /* 歌单行：静止 body → 悬停加深并铺次级底；正在播的那行走强调色（aria-current 表达）。
+     [aria-current] 写在 :hover 之后，同级靠后者胜出，悬停播放中那行不会掉回普通态。 */
+  .song-row { color: var(--body); }
+  .song-row:hover { color: var(--ink); background: var(--surface-2); }
+  .song-row[aria-current='true'] { color: var(--accent-text); background: var(--accent-soft); font-weight: 500; }
+}
+
 /* ==============================================
    6. Prose — the reading surface
    行长按 §12.1 折算为中文 34–40 全角（[推断]，见 SPEC_LEDGER §1.3）。
@@ -625,21 +691,26 @@
   font-size: var(--text-body);
   line-height: var(--leading-read);
   color: var(--body);
+  /* 引言块（提示/坑/导读）永远比正文高一档。档位随阅读字号一起走，
+     所以这里记「高一档是多少」，而不是写死 18px —— 否则读者选「小」，
+     正文缩到 15px，引言块还停在 18px，比正文还大。 */
+  --prose-quote: var(--text-lg);
 }
 
 /* 阅读字号偏好。tailwind typography 的 prose-sm/base/lg 生成在 @layer 里，
    永远输给上面这条无层的 .prose，所以这里自带三个类，选择器多一级即可压住。
    三档对齐 SPEC_LEDGER §1.3 的声明阶梯。 */
-.prose.is-sm { font-size: var(--text-reading-sm); }
-.prose.is-md { font-size: var(--text-body); }
-.prose.is-lg { font-size: var(--text-lg); }
+.prose.is-sm { font-size: var(--text-reading-sm); --prose-quote: var(--text-body); }
+.prose.is-md { font-size: var(--text-body); --prose-quote: var(--text-lg); }
+.prose.is-lg { font-size: var(--text-lg); --prose-quote: var(--text-h3); }
 
 .prose h1, .prose h2, .prose h3, .prose h4 {
   color: var(--ink);
   font-family: var(--font-serif);
   font-weight: 700;
   letter-spacing: var(--tracking-heading);
-  scroll-margin-top: var(--space-96);
+  /* 锚点让位由 html 的 scroll-padding-top（§L281）统一负责。
+     这里不要再加 scroll-margin-top：两条会相加，标题落点比头部多空 96px。 */
 }
 
 .prose h1 {
@@ -688,6 +759,10 @@
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
   transition: text-decoration-color var(--duration-fast) var(--ease);
+  /* 正文里的裸链接（`https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md`）
+     是一个 483px 长的整块不可断词，320px 上把 li 顶穿、整页横滚 209px。
+     和行内代码同一味药：只在真的放不下时才断，宽屏排版逐像素不变。 */
+  overflow-wrap: anywhere;
 }
 /* 正文链接：下划线与字色一起过渡（只动 color 与 text-decoration-color，不触发布局） */
 .prose a:hover {
@@ -703,7 +778,7 @@
   margin: var(--space-32) 0;
   color: var(--ink);
   font-family: var(--font-serif);
-  font-size: var(--text-lg);
+  font-size: var(--prose-quote);
   line-height: 1.7;
   font-style: normal;
 }
@@ -787,8 +862,12 @@
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
 }
-.prose figure[data-rehype-pretty-code-figure]:has([data-rehype-pretty-code-title]) pre {
-  padding-top: var(--space-40);
+/* 顶栏留白：标题（静态 [data-rehype-pretty-code-title]）与语言标签
+   （code-block-enhancer 注入的绝对定位胶囊）都坐在同一条 gutter 里，
+   只给标题让位的话，语言标签会压在代码第一行上。 */
+.prose figure[data-rehype-pretty-code-figure]:has([data-rehype-pretty-code-title]) pre,
+.prose figure[data-rehype-pretty-code-figure]:has(code[data-language]) pre {
+  padding-top: var(--space-48);
 }
 
 .prose code:not(pre code) {
@@ -800,6 +879,38 @@
   font-size: var(--text-code);
   font-weight: 500;
   border: 1px solid var(--line);
+  /* 行内代码是一个整块不可断的词：`Path(__file__).resolve().parents[2]` 有 282px，
+     在 320px 上顶穿 264px 的 li，整页能横滚 45px。给断行机会而不是加 overflow:hidden
+     —— hidden 会把内容裁掉。只在真的放不下时才断，宽屏排版不变。
+     （.learn-block code 早就带着同一条，这里补齐 prose 侧。） */
+  overflow-wrap: anywhere;
+}
+
+/* ── 行内公式的窄屏出口 ──
+   KaTeX 给 .katex 和 .base 自带 white-space:nowrap：一个 \boxed{…} 就是一整块
+   断不开的墨，320px 上最宽 781px，整页因此能横滚 486px —— 页面一旦能横滚，
+   吸顶头部、TOC、阅读进度条的几何全跟着晃。
+   这里既不裁内容也不改公式排版：把「可横滚」从页面降级到段落，和代码块 /
+   GFM 表格同一套语汇（那两处早就这么处理了）。
+   overflow-y 写 clip 而不是留空：auto 会连带出一根纵向滚动条 —— 实测 320px 上
+   505 个公式段落的 scrollHeight 比 clientHeight 多 2~6px（KaTeX 零高 vlist 撑的），
+   每段都会挂条；clip 不滚动，而公式矩形越出段落盒的数量实测为 0，不裁墨。 */
+.prose p:has(.katex),
+.prose li:has(.katex),
+.prose dd:has(.katex),
+.prose td:has(.katex),
+.prose h3:has(.katex),
+.prose h4:has(.katex),
+.prose blockquote:has(.katex) {
+  overflow-x: auto;
+  overflow-y: clip;
+}
+
+/* 解析失败的公式由 KaTeX 原样吐成 .katex-error：一串没有空格的 LaTeX 源码，
+   挂在 div 下时上面那条管不到，直接给它断行机会。 */
+.prose .katex-error {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ── GFM tables ── */
@@ -846,6 +957,14 @@ code[data-theme*=' '] span { color: var(--shiki-light, var(--demo-ink)); }
 
 pre[data-rehype-pretty-code-figure],
 figure[data-rehype-pretty-code-figure] pre { background: transparent !important; }
+
+/* 暗色的行内代码胶囊退一档底色：#7b82ea 压在 --surface-3（#27272d）上只有 4.40:1，
+   够不到 13px 小字要求的 AA；换 --surface-2（#1e1e23）后 4.92:1，
+   胶囊的分层照旧由底色 + 描边承担。亮色不动（#2f34a0 on #ededed ≈ 8.5:1）。 */
+.dark .prose code:not(pre code),
+.dark .learn-block code {
+  background: var(--surface-2);
+}
 
 /* ==============================================
    7. Theme transition (circular reveal)
@@ -922,28 +1041,6 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
   to { transform: rotate(360deg); }
 }
 
-/* Spectrum bars for the music player */
-@keyframes spectrum-0 { 0%,100%{height:9px} 30%{height:24px} 60%{height:6px} }
-@keyframes spectrum-1 { 0%,100%{height:18px} 25%{height:6px} 55%{height:30px} 85%{height:12px} }
-@keyframes spectrum-2 { 0%,100%{height:12px} 40%{height:28px} 70%{height:8px} }
-@keyframes spectrum-3 { 0%,100%{height:24px} 20%{height:8px} 50%{height:32px} 75%{height:10px} }
-@keyframes spectrum-4 { 0%,100%{height:15px} 35%{height:28px} 65%{height:6px} }
-@keyframes spectrum-5 { 0%,100%{height:21px} 30%{height:6px} 60%{height:26px} 90%{height:10px} }
-@keyframes spectrum-6 { 0%,100%{height:9px} 45%{height:22px} 75%{height:6px} }
-@keyframes spectrum-7 { 0%,100%{height:18px} 25%{height:30px} 55%{height:10px} 80%{height:24px} }
-@keyframes spectrum-8 { 0%,100%{height:15px} 20%{height:6px} 50%{height:26px} }
-@keyframes spectrum-9 { 0%,100%{height:27px} 35%{height:8px} 65%{height:20px} }
-@keyframes spectrum-10 { 0%,100%{height:12px} 30%{height:24px} 60%{height:6px} }
-@keyframes spectrum-11 { 0%,100%{height:21px} 40%{height:8px} 70%{height:28px} }
-@keyframes spectrum-12 { 0%,100%{height:15px} 25%{height:26px} 55%{height:6px} 85%{height:20px} }
-@keyframes spectrum-13 { 0%,100%{height:24px} 20%{height:8px} 50%{height:30px} }
-@keyframes spectrum-14 { 0%,100%{height:18px} 35%{height:6px} 65%{height:26px} }
-@keyframes spectrum-15 { 0%,100%{height:12px} 45%{height:22px} 75%{height:8px} }
-@keyframes spectrum-16 { 0%,100%{height:21px} 30%{height:8px} 60%{height:28px} }
-@keyframes spectrum-17 { 0%,100%{height:15px} 25%{height:26px} 55%{height:6px} }
-@keyframes spectrum-18 { 0%,100%{height:24px} 40%{height:8px} 70%{height:20px} }
-@keyframes spectrum-19 { 0%,100%{height:18px} 20%{height:6px} 50%{height:28px} 80%{height:12px} }
-
 /* ==============================================
    9. Utilities
    §8.3：卡片 hover 用 scale(1.05) + 200ms ease，而不是位移或投影。
@@ -1014,6 +1111,7 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
   pointer-events: none;
 }
 [data-spotlight='row']:hover::after,
+[data-spotlight='row']:focus-visible::after,
 .row-tick:hover::after { transform: translateY(-50%) scaleY(1); }
 
 /* ==============================================
@@ -1064,7 +1162,10 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
 
 /* 按下反馈：按钮、标签、台账行、面板行共用。 */
 .pressable {
-  transition: transform var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease);
+  /* 这条是无层样式，优先级高于 Tailwind 的 @layer utilities —— 挂在 .pressable 元素上的
+     transition-* 工具类一律不生效（回顶按钮与代码块复制按钮的淡入此前就是这么静默失效的）。
+     所以淡入/淡出要生效就得列在这里，而不是指望调用方补一条 utility。 */
+  transition: transform var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease);
 }
 .pressable:active { transform: scale(0.98); }
 
@@ -1089,12 +1190,15 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
 /* 深蓝页脚上下文：下划线生长改白色（indigo 在 #00075f 上对比不足），
    悬停/聚焦整链转白。 */
 .footer-links .link-underline::after { background: var(--footer-ink); }
+/* 静止态也放这儿，不写行内样式 —— 行内会把下面两条 :hover 一起压掉。 */
+.footer-links .link-underline { color: var(--footer-muted); }
+.footer-links .chip { color: var(--footer-muted); border-color: var(--footer-chip-line); }
 .footer-links .link-underline:hover,
 .footer-links .link-underline:focus-visible { color: var(--footer-ink); }
 .footer-links .chip:hover {
   border-color: var(--footer-ink);
   color: var(--footer-ink);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--footer-chip-hover);
 }
 
 /* 指示条：导航激活项、目录激活项、命令面板选中行共用一条滑动语汇。
@@ -1153,7 +1257,8 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
    9f. Marquee — 单行内容带
    DESIGN_DNA §11.3 的关键帧清单里有 `marquee`，§11.2 也实测到
    `.logo_marquee:hover { animation-play-state: paused }`，
-   所以这条语汇是文档内的：只动 transform，悬停与键盘聚焦时暂停。
+   所以这条语汇是文档内的：只动 transform，悬停暂停；键盘聚焦除了停，还要
+   把偏移收回来，焦点环才落在看得见的位置（见下面的 :focus-within）。
    边缘用 mask 做淡出（功能性的遮罩，不是装饰性渐变）。
    ============================================== */
 .marquee {
@@ -1177,8 +1282,16 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
   gap: var(--space-24);
   flex-shrink: 0;
 }
-.marquee:hover .marquee__track,
-.marquee:focus-within .marquee__track { animation-play-state: paused; }
+/* 悬停只暂停 —— 鼠标用户看得见它在动，停下就够读。
+   键盘聚焦不能只暂停：暂停是把轨道钉在当前的负偏移上，焦点环于是画在
+   overflow 裁掉的那块区域里，浏览器也滚不回去（负偏移在滚动原点之外，
+   WCAG 2.4.7 要求焦点指示可见）。animation:none 让轨道退回 translateX(0)，
+   负偏移消失；被裁掉的尾部仍在 scrollWidth 里，而 overflow:hidden 的盒子
+   可编程滚动，聚焦时浏览器能把那枚胶囊滚进可视带 —— 不出现滚动条，
+   也不改变这一行的视觉高度。scroll-padding 把焦点元素停在 48px 淡出区之外。 */
+.marquee:hover .marquee__track { animation-play-state: paused; }
+.marquee:focus-within .marquee__track { animation: none; }
+.marquee:focus-within { scroll-padding-inline: 48px; }
 
 @keyframes marquee {
   from { transform: translateX(0); }
@@ -1193,8 +1306,12 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
     overflow: visible;
   }
   .marquee__track { animation: none; }
+  /* width 给成 100% 而不是 auto：.marquee__group 带着 flex-shrink:0，
+     auto 宽度的它会直接取 max-content（16 枚胶囊 = 1494px），于是这里写的
+     flex-wrap: wrap 永远不触发 —— 换行读全量的意图落空，还把文档撑到 1510px，
+     整页可以横向拖动。100% 让它退回容器宽，胶囊才真的换得下去。 */
   .marquee__track,
-  .marquee__group { flex-wrap: wrap; width: auto; }
+  .marquee__group { flex-wrap: wrap; width: 100%; }
   .marquee__group[aria-hidden='true'] { display: none; }
 }
 
@@ -1231,13 +1348,14 @@ a:hover > .media-zoom,
   to { opacity: 1; }
 }
 
-/* 真实 <img> 的加载渐显（头像这类能拿到 load 事件的图）：由 .is-loaded 触发。
-   属 [文档外] 签名动效，依据见 SPEC_LEDGER §1.8.4。 */
+/* 真实 <img> 的加载渐显（头像这类）。原先是 `opacity:0` 等 JS 的 onLoad 加 `.is-loaded`
+   点亮 —— 但 `.media-fade` 这个类名是 React 烘进 HTML 的，关掉 JS 就永远停在透明：
+   头像占着位置、alt 还在，一个人也看不见；图片加载失败同样是透明的洞（onError 换图标
+   也要 JS）。改成和 .media-zoom 一样的一次性关键帧：静态样式就是可见，动画只是装饰，
+   无 JS、加载失败、reduced-motion 三种情况拿到的都是正常显示的图。 */
 .media-fade {
-  opacity: 0;
-  transition: opacity var(--duration-slow) var(--ease-out);
+  animation: mediaFade var(--duration-slow) var(--ease-out) backwards;
 }
-.media-fade.is-loaded { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .stagger > * { animation: none; }
@@ -1350,17 +1468,20 @@ a:hover > .media-zoom,
   background: var(--color-primary);
 }
 
+/* 滑块焦点环用实色 --color-primary，不用 --color-focus-ring：
+   45% 透明的 indigo 混到白底上只有 ~1.9:1，够不到 WCAG 2.4.11 要求指示物自身的 3:1，
+   而且和全站其余 :focus-visible（实色 2px）是两套强度。 */
 .range-control:focus-visible {
   outline: none;
 }
 
 .range-control:focus-visible::-webkit-slider-thumb {
-  outline: 2px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 .range-control:focus-visible::-moz-range-thumb {
-  outline: 2px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -1383,6 +1504,20 @@ a:hover > .media-zoom,
 @keyframes charUp {
   from { opacity: 0; transform: translateY(0.95em); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 标题模糊聚焦入场（BlurReveal）──
+   和 .sr-char 同一套做法：初态只活在 keyframes 的 from 里，元素本身的静态样式永远是
+   「清晰」。于是关掉 JS / hydration 没跑起来 / 脚本被扩展拦掉，看到的都是最终态，
+   不会像先前那样把 h1 画在 opacity:0 上（台账 §11.18 五）。
+   也不用 JS 先接管再放开：那条路必然先画清晰、再闪回模糊（首帧与 hydration 之间
+   有几百毫秒），比缺陷本身更难看。 ── */
+.blur-reveal {
+  animation: blurIn 500ms var(--ease-out) backwards;
+}
+@keyframes blurIn {
+  from { opacity: 0; filter: blur(8px); transform: translateY(10px); }
+  to   { opacity: 1; filter: blur(0); transform: translateY(0); }
 }
 
 /* ── 全局光标光晕（AuraCursor）：极淡 indigo 径向渐变，transform-only。
@@ -1423,6 +1558,28 @@ figure[data-rehype-pretty-code-figure]:hover {
 }
 .group:hover .row-shift,
 .group:focus-visible .row-shift { transform: translateX(2px); }
+
+/* ── 台账/索引行标题的响应式截断 ──
+   桌面单行省略是 are.na 台账的读法；窄屏照搬会把标题吃掉大半：
+   390px 下标题列只有 194–230px，而 /learn 的课名要 500–870px 才放得下，
+   实测最坏只剩 27% ——「前端与应用部署平台教程（…」这种读法等于没有导航。
+   所以 <640px 放开换行、封顶 3 行，≥640px 回到单行省略。 */
+.row-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  white-space: normal;
+}
+@media (min-width: 640px) {
+  .row-title {
+    display: block;
+    -webkit-line-clamp: unset;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
 
 /* ==============================================
    11.6 组件融合交互（第 5 轮追加 · React Bits / Aceternity 形态，自设计登记 §11.6）
@@ -1485,35 +1642,56 @@ html.lenis body { height: auto; }
 }
 .spotlight-card:hover::before { opacity: 1; }
 
-/* ── 索引行封面跟手预览（row-cover）：hover 时封面小图沿光标滑出（--mx 驱动） ── */
+/* ── 索引行封面预览（row-cover）：封面缩略图钉在序号栏里，与序号交叉换位 ──
+   旧形态是 138×92 的跟手浮图（`--mx` 驱动，`translate(calc(var(--mx)+16px))`）。
+   1440px 下首页索引行宽 752、标题列从 68 起：光标停在行首时浮图占 16..154，
+   压住标题开头 86px（约四个汉字）；光标走到列中央它就跟到中央，占 416..554 ——
+   换句话说 hover 时用户正在读的那两行字，永远被一张不相干的装饰图盖住。
+   现在把它收回序号栏（0..44，sm 0..56）：标题列 left 68，连旋转带来的 1px
+   外扩也算进去，最坏还留 11px 空白，任何光标位置都压不到字；
+   `--mx` 随之从这一行删除（省下每次 mousemove 的样式写入）。
+   序号是让位的一方：同一格里两张信息叠在一起只会糊成一团。 */
 .row-cover {
   position: absolute;
   top: 50%;
   left: 0;
-  width: 138px;
-  height: 92px;
+  width: 44px;
+  height: 44px;
   object-fit: cover;
   border-radius: var(--radius-xs);
   background: var(--surface-2);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-pop);
   opacity: 0;
-  transform: translate(calc(var(--mx, 0px) + 16px), -50%) scale(0.96) rotate(-1.5deg);
+  transform: translateY(-50%) scale(0.9) rotate(-1.5deg);
   transition: opacity var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease-out);
   pointer-events: none;
   z-index: 2;
 }
+@media (min-width: 640px) {
+  /* sm 起行首栏与标题列之间是 24px 间距（gap-6），图放到 56 仍在 left 68 之外 */
+  .row-cover {
+    width: 56px;
+    height: 56px;
+  }
+}
 .group:hover .row-cover,
 .group:focus-visible .row-cover {
   opacity: 1;
-  transform: translate(calc(var(--mx, 0px) + 16px), -50%) scale(1) rotate(-1.5deg);
+  transform: translateY(-50%) scale(1) rotate(-1.5deg);
+}
+/* 序号退场：只作用于带封面预览的台账行（.issue-badge 也用在 /projects，那边没有 data-spotlight）。 */
+[data-spotlight='row']:hover .issue-badge,
+[data-spotlight='row']:focus-visible .issue-badge {
+  opacity: 0;
+  transform: translateY(-3px);
 }
 
 /* ==============================================
    11.7 组件融合交互 · 第 3 批（§11.7 自设计登记）
    ============================================== */
 
-/* ── 统计翻板数字（FlipDigits）：每位从 0 沿数字列滚到目标位（easeOutExpo 1.15s） ── */
+/* ── 统计翻板数字（FlipDigits）：每位从 0 沿数字列滚到目标位（§1.8 的 1200ms 档） ── */
 .flip-digits { display: inline-flex; align-items: baseline; }
 .flip-digit {
   display: inline-block;
@@ -1523,10 +1701,24 @@ html.lenis body { height: auto; }
 }
 .flip-reel {
   display: block;
-  line-height: 1em;
   transform: translateY(calc(var(--digit, 0) * -1em));
-  transition: transform 1.15s cubic-bezier(0.16, 1, 0.3, 1);
+  /* 滚筒的「从 0 滚到目标位」交给 CSS 播一次：静态样式本身就是终点（真值写进
+     --digit，SSR 出去的就是正确数字），动画缺 100% 关键帧时用底样收敛。
+     早先靠 JS 把 --digit 先归 0 再改回来，HTML 里存的是 0 —— 关掉 JS 首页计量条
+     就成了「文章 0 / 分类 0」（台账 §11.18 五）。 */
+  animation: reelRoll 1200ms var(--ease-out);
   will-change: transform;
+}
+@keyframes reelRoll {
+  from { transform: translateY(0); }
+}
+/* 滚筒必须是「10 行 × 1em」，-digit*1em 才落在正确那一格。
+   把 "0123456789" 当一个文本节点时 10 位挤在同一行，-6em 直接把整行
+   推出 1em 高的窗口 —— 数字全站画不出来（首页三项统计、归档总览）。 */
+.flip-cell {
+  display: block;
+  height: 1em;
+  line-height: 1em;
 }
 
 /* ── 封面鼠标视差（media-parallax）：封面随卡片内光标位置微移（--dx/--dy，
@@ -1540,6 +1732,166 @@ html.lenis body { height: auto; }
 }
 
 /* ==============================================
+   11.11 阅读面定位层（第 7 轮 · ScrollSpy 比例尺 + 章节翻牌，自设计登记 §11.11）
+   ============================================== */
+
+/* ── 阅读比例尺（ReadRule）：1px 发丝线上盖一条 indigo scaleX 填充。
+    滚动链接的是「位置映射」而不是「定时动效」，所以不挂过渡 —— 挂过渡会滞后于滚动。
+    只动 transform，零新色（--line-strong / --color-primary 均为既有令牌）。 ── */
+.read-rule {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line-strong);
+  overflow: hidden;
+}
+.read-rule__fill {
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary);
+  transform: scaleX(var(--p, 0));
+  transform-origin: left center;
+}
+
+/* ── 章节条（ChapterBar）：<xl 吸顶在阅读区上方，紧贴 70px 页头（header.tsx 的 height: 70）。
+    浮层用 --overlay（92% 实色、无模糊），层次仍由发丝线表达（§7）。 ── */
+.chapter-bar {
+  position: sticky;
+  top: 70px;
+  z-index: 30;
+  background: var(--overlay);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+/* 章节名翻牌：进场只动 opacity + 4px 位移，200ms（§1.8.2 悬停/微移档）。
+   换章节由 React 的 key 重挂元素来重播，不做逐字解码（§11.6 已否掉文字重演形态）。 */
+.chapter-flip { display: grid; }
+.chapter-flip > span {
+  grid-area: 1 / 1;
+  animation: chapterIn var(--duration-fast) var(--ease) both;
+}
+@keyframes chapterIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 目录面板：300ms ease-out 上移进入（§1.8.2 浮层与抽屉进入档） */
+.chapter-panel { animation: panelUp var(--duration-base) var(--ease-out) both; }
+@keyframes panelUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 触屏常驻控件：hover:none 的设备上 group-hover:opacity-100 等于永久隐身，
+    代码块复制按钮在手机上从来点不到（gap f）。 ── */
+@media (hover: none) {
+  .code-copy { opacity: 1; }
+}
+
+/* ==============================================
+   11.12 索引密度层（第 7 轮 · 行语汇 + 计数比例尺，自设计登记 §11.12）
+   ============================================== */
+
+/* ── 行语汇（RowLine）：1px indigo 发丝线沿行顶自左向右擦过，精确盖在该行自己的
+    .rule 边框上（top:-1px），所以最后一行也不会擦到虚空里。
+    台账行由此不再依赖 --surface-2 底色板（§11.5 的 spotlight 板保留给文章卡与搜索
+    结果，那里行高够大，板读起来是"整块可点"；索引行只有一行文字，板会让清单变成
+    设置菜单）。只用 transform，300ms ease-out（§1.8.2 展开档），零新色。 ── */
+.row-line { position: relative; }
+.row-line::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 1px;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--duration-base) var(--ease-out);
+  pointer-events: none;
+}
+.row-line:hover::after,
+.row-line:focus-visible::after { transform: scaleX(1); }
+
+/* ── 右侧竖线栏（IndexRail）：稀疏索引页的骨架。整栏由一条 1px 竖线界定，
+    栏内靠发丝线分行，层次仍全部由线表达（§7：无板、无边框卡）。 ── */
+.index-rail {
+  border-left: 1px solid var(--line);
+  padding-left: var(--space-24);
+}
+@media (max-width: 1023px) {
+  .index-rail { border-left: 0; padding-left: 0; }
+}
+
+/* ── 分格竖线（CellRule）：2 栏 ↔ 4 栏换列时，"每行第一格"会变，
+    用 i>0 判断内联 borderLeft 会让第二行首格带上一条悬空的线（首页栏目格 / 统计格的实测 gap）。
+    线位交给 CSS 按列数算：两列时奇数格是行首，四列时只有 first-child 是行首。 ── */
+.cell-rule {
+  border-left: 1px solid var(--line);
+  padding-inline: var(--space-24);
+}
+.cell-rule:nth-child(odd),
+.cell-rule:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+@media (min-width: 640px) {
+  .cell-rule:nth-child(odd) {
+    border-left: 1px solid var(--line);
+    padding-left: var(--space-24);
+  }
+  .cell-rule:first-child {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+/* ==============================================
+   11.13 学习面反馈层（第 7 轮 · Batch C · 勾选反馈 + 状态比例尺，自设计登记 §11.13）
+   ============================================== */
+
+/* ── 状态比例尺：§11.11 的 .read-rule 是「滚动链接」的，刻意不过渡（挂过渡会滞后于滚动）。
+      勾选进度是离散状态变化，反过来必须过渡才读得出「刚刚变了」。
+      所以加修饰类而不是给原语挂过渡 —— 原语那一条继续服务于滚动。 ── */
+.read-rule.is-state > .read-rule__fill {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+/* 对勾单独挂进场：它是条件渲染的元素，所以每次勾选都会重播，不需要 JS 配合。 */
+.tick-pop { animation: tickIn var(--duration-fast) var(--ease-out) both; }
+@keyframes tickIn {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* 全部勾完的提示挂在清单末尾，只动 opacity + 4px 位移。
+   不预留等高空槽：空槽会让每一条 checklist 末尾都多出一段永远空着的发丝线。 */
+.tick-note { animation: noteIn var(--duration-base) var(--ease-out) both; }
+@keyframes noteIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 评论区嵌入布局（giscus）：client.js 会往宿主文档插一枚
+   <link rel="stylesheet" href="https://giscus.app/default.css">，那份表的全部内容就是下面
+   这几条布局规则。本站 CSP 的 style-src 不放行 giscus.app（app/layout.tsx 第 75 行），外链被拒后
+   iframe 退回浏览器默认的 300px —— 1440 档评论区实测 300/790（右侧空 490px），390 档 300/316。
+   布局不该托付给第三方样式表（它慢、被墙、被拒都该照样对），所以本地镜像一份。
+   刻意不镜像它的 `.giscus-frame--loading { opacity: 0 }`：把内容按在透明态等别人来点亮，
+   正是台账 §11.18 五 刚清掉的那一类缺陷。 */
+.giscus,
+.giscus-frame {
+  width: 100%;
+  min-height: 150px;
+}
+
+.giscus-frame {
+  border: none;
+}
+
+/* ==============================================
    12. Reduced motion
    §11.4 文档未观察到，站点既有全局守卫（跨站加分项）保留。
    ============================================== */
@@ -1547,7 +1899,34 @@ html.lenis body { height: auto; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    /* 只归时长不归延迟是个漏：delay + fill-mode: backwards 的元素在 delay 期间
+       被按在 from 态（opacity:0）。关掉动效的首页实测有 11 个刊头字母卡在那里
+       约 0.5s 才逐格补齐 —— 守卫要连延迟一起清零，「减少动态」才是真的静止。 */
+    animation-delay: 0.01ms !important;
+    transition-delay: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  /* 但清零不够：新建的 CSS 动画有一段「待启动(pending)」期（要等合成器确认第一帧），
+     这段时间 fill-mode 的 backwards/both 照样把元素按在 from 态 —— 于是 reduce 档
+     实测刊头 11 个字母空 171ms、文章标题模糊 891ms。压时长压不掉 pending。
+     正解是把这些一次性入场整个取消：终态就是元素的静态样式，没什么可等的。
+     只列「动画终点 == 静态样式」的那些；.animate-fade-out 的终点是 opacity:0，
+     它属于退场，取消会把该消失的东西留在屏上，所以继续交给上面的时长清零。
+     与 §10 里 .stagger > * / .media-zoom 的既有做法一致（台账 §11.18 五）。 */
+  .animate-scale-in,
+  .animate-fade-up,
+  .animate-slide-down,
+  .stagger > *,
+  .media-zoom,
+  .media-fade,
+  .sr-char,
+  .blur-reveal,
+  .flip-reel,
+  .chapter-flip > span,
+  .chapter-panel,
+  .tick-pop,
+  .tick-note {
+    animation: none !important;
   }
   html { scroll-behavior: auto; }
 }

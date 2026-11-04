@@ -33,6 +33,9 @@ export function AuraCursor() {
       if (!raf) raf = requestAnimationFrame(render)
     }
 
+    // 元素是 fixed 0,0 的 520px 方块，transform 只在 pointermove 里写；
+    // 不先归位，首屏左上角会留一层盖在正文上的光晕（窄屏还会撑出几何越界）。
+    render()
     window.addEventListener('pointermove', onMove, { passive: true })
     return () => {
       window.removeEventListener('pointermove', onMove)

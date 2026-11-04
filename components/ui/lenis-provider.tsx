@@ -25,6 +25,9 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     if (!window.matchMedia('(pointer: fine)').matches) return
 
     const l = new Lenis({
+      // lenis 1.3 的 autoRaf 默认 false：实例只接走 wheel 并 preventDefault，
+      // 却没有 rAF 时钟推进动画 —— 页面看起来「有平滑滚动」其实滚不动。
+      autoRaf: true,
       duration: 1.1,
       easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,

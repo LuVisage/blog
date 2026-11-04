@@ -20,6 +20,7 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false)
 
   const navRef = useRef<HTMLElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
   const [indicator, setIndicator] = useState<{ x: number; width: number } | null>(null)
 
   useEffect(() => {
@@ -28,6 +29,23 @@ export function Header() {
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Esc 关抽屉：处理器挂在 window 上，而不是遮罩的 onKeyDown —— 打开后焦点仍停在
+  // 汉堡按钮上，遮罩收不到那个键（chapter-bar 用的是同一种写法）。
+  // 关掉后把焦点交还汉堡：抽屉里的链接整片卸载，焦点不接就掉回 <body>，
+  // 键盘用户下一个 Tab 从头开始翻。
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    const trigger = menuButtonRef.current
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      trigger?.focus()
+    }
+  }, [mobileMenuOpen])
 
   useEffect(() => {
     const nav = navRef.current
@@ -89,9 +107,8 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className="pressable relative px-3 py-2 text-sm font-medium transition-colors cursor-pointer"
+                  className="nav-row pressable relative px-3 py-2 text-sm font-medium transition-colors cursor-pointer"
                   style={{
-                    color: isActive ? 'var(--ink)' : 'var(--muted)',
                     transitionDuration: 'var(--duration-fast)',
                   }}
                 >
@@ -101,10 +118,11 @@ export function Header() {
             })}
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -bottom-px left-0 h-[2px] transition-[transform,width,opacity]"
+              className="pointer-events-none absolute -bottom-px left-0 h-[2px] w-px origin-left transition-[transform,opacity]"
               style={{
-                width: indicator?.width ?? 0,
-                transform: `translateX(${indicator?.x ?? 0}px)`,
+                // 1px 基准 + scaleX：位移只走 transform（§1.8 契约不允许 animate width）。
+                // 这根 2px 的方头短杠没有圆角，缩放与改宽在像素上等价。
+                transform: `translateX(${indicator?.x ?? 0}px) scaleX(${indicator?.width ?? 0})`,
                 background: 'var(--color-primary)',
                 opacity: indicator ? 1 : 0,
                 transitionDuration: 'var(--duration-base)',
@@ -118,9 +136,10 @@ export function Header() {
             <PaletteTrigger />
             <ThemeToggle />
             <button
+              ref={menuButtonRef}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="pressable md:hidden w-10 h-10 flex items-center justify-center cursor-pointer"
-              style={{ color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)' }}
+              className="pressable surface surface-hover tint-muted md:hidden w-10 h-10 flex items-center justify-center cursor-pointer"
+              style={{ borderRadius: 'var(--radius-xs)' }}
               aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
               aria-expanded={mobileMenuOpen}
             >
@@ -142,8 +161,9 @@ export function Header() {
           className="md:hidden fixed inset-0 top-[70px] z-40"
           role="button"
           tabIndex={0}
+          aria-label="关闭导航菜单"
           onClick={() => setMobileMenuOpen(false)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setMobileMenuOpen(false) }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMobileMenuOpen(false) } }}
           style={{ background: 'var(--scrim)' }}
         />
       )}
@@ -153,6 +173,16 @@ export function Header() {
         <nav
           className="md:hidden relative z-50 animate-slide-down"
           aria-label="移动端导航"
+          onKeyDown={(e) => {
+            // 遮罩是全屏的：Tab 走过最后一行会走进遮罩背后，焦点落在肉眼看不见的正文上。
+            // 抽屉里只有这一组链接，首尾相接；出去的路是 Esc（交还焦点）和点遮罩。
+            if (e.key !== 'Tab') return
+            const links = Array.from(e.currentTarget.querySelectorAll<HTMLAnchorElement>('a[href]'))
+            const i = links.indexOf(document.activeElement as HTMLAnchorElement)
+            if (i === -1 || !links.length) return
+            e.preventDefault()
+            links[(i + (e.shiftKey ? -1 : 1) + links.length) % links.length].focus()
+          }}
           style={{ background: 'var(--canvas)', borderBottom: '1px solid var(--line-strong)' }}
         >
           {NAV_LINKS.map((link) => {
@@ -163,9 +193,8 @@ export function Header() {
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 aria-current={isActive ? 'page' : undefined}
-                className="pressable relative block px-4 sm:px-6 py-3.5 text-sm font-medium transition-colors cursor-pointer"
+                className="nav-row pressable relative block px-4 sm:px-6 py-3.5 text-sm font-medium transition-colors cursor-pointer"
                 style={{
-                  color: isActive ? 'var(--ink)' : 'var(--muted)',
                   borderTop: '1px solid var(--line)',
                   transitionDuration: 'var(--duration-fast)',
                 }}

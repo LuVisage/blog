@@ -35,13 +35,7 @@ export function WeekStrip({ course, current, week, weekTitle, lessons }: WeekStr
                 href={lessonHref(course, lesson.slug)}
                 aria-current={active ? 'page' : undefined}
                 title={lesson.title}
-                className="chip px-2.5 py-1 transition-colors"
-                style={{
-                  borderRadius: 'var(--radius-xs)',
-                  color: active ? 'var(--ink)' : 'var(--muted)',
-                  borderColor: active ? 'var(--accent-line)' : 'var(--line)',
-                  background: active ? 'var(--accent-soft)' : 'transparent',
-                }}
+                className="chip chip-toggle px-2.5 py-1"
               >
                 <span
                   className="meta tabular-nums"
@@ -50,8 +44,14 @@ export function WeekStrip({ course, current, week, weekTitle, lessons }: WeekStr
                   {String(lesson.day).padStart(2, '0')}
                 </span>
                 <span className="hidden sm:inline max-w-[14ch] truncate text-xs">{lesson.title}</span>
+                {/* 窄屏上面那条被 display:none 摘掉了，读屏名只剩两位序号；补一条只对窄屏
+                    可见的 sr-only 标题，宽屏再读一遍就是重读。 */}
+                <span className="sr-only sm:hidden">{lesson.title}</span>
                 {done && (
-                  <IconCheck size={12} strokeWidth={2.5} style={{ color: 'var(--accent-text)' }} />
+                  <>
+                    <IconCheck size={12} strokeWidth={2.5} aria-hidden="true" style={{ color: 'var(--accent-text)' }} />
+                    <span className="sr-only">已完成</span>
+                  </>
                 )}
               </Link>
             </li>

@@ -83,22 +83,36 @@ export function GiscusComments() {
   // ──────────────────────────────────────
   // 3. Theme change → postMessage (no iframe destroy!)
   // ──────────────────────────────────────
+  // status 是 client.js 的 onload，那一刻 iframe 往往还停在 about:blank（同源）。
+  // 对着它 postMessage('*'→'https://giscus.app') 会被浏览器判目标源不符并整条丢弃，
+  // 控制台每篇都红一行；更实在的后果是「评论区刚出来的那一秒里切主题」永远不生效。
+  // 所以首帧之前先挂 load，等 iframe 真成了 giscus.app 的文档再发；之后每次换主题直发。
+  const frameLoaded = useRef(false)
   useEffect(() => {
     if (status !== 'ready') return
 
     const iframe = document.querySelector<HTMLIFrameElement>(
       'iframe.giscus-frame'
     )
-    iframe?.contentWindow?.postMessage(
-      {
-        giscus: {
-          setConfig: {
-            theme: getGiscusTheme(resolvedTheme),
-          },
-        },
-      },
-      'https://giscus.app'
-    )
+    if (!iframe) return
+
+    const post = (theme: string) =>
+      iframe.contentWindow?.postMessage(
+        { giscus: { setConfig: { theme } } },
+        'https://giscus.app'
+      )
+
+    if (frameLoaded.current) {
+      post(getGiscusTheme(resolvedTheme))
+      return
+    }
+    const onLoad = () => {
+      frameLoaded.current = true
+      // 用 ref 而不是闭包里的 resolvedTheme：加载期间用户可能已经切过。
+      post(getGiscusTheme(themeRef.current))
+    }
+    iframe.addEventListener('load', onLoad, { once: true })
+    return () => iframe.removeEventListener('load', onLoad)
   }, [resolvedTheme, status])
 
   // ──────────────────────────────────────
@@ -149,21 +163,21 @@ export function GiscusComments() {
       {/* Error fallback with diagnostic steps */}
       {status === 'error' && (
         <div className="text-center py-8 px-6 rounded-xl" style={{ border: '1px dashed var(--gold)', background: 'var(--surface)' }}>
-          <p className="inline-flex items-center justify-center gap-2 font-medium mb-3" style={{ color: 'var(--gold)' }}>
+          <p className="inline-flex items-center justify-center gap-2 font-medium mb-3" style={{ color: 'var(--accent-text)' }}>
             <IconAlertTriangle size={16} strokeWidth={1.7} />
             评论区加载失败
           </p>
           <ul className="text-left text-sm space-y-1.5 max-w-md mx-auto" style={{ color: 'var(--body)' }}>
             <li className="flex items-start gap-2">
-              <span style={{ color: 'var(--gold)' }} className="mt-0.5">1.</span>
+              <span style={{ color: 'var(--accent-text)' }} className="mt-0.5">1.</span>
               <span>仓库已启用 <b>Discussions</b>（Settings → Features → 勾选 Discussions）</span>
             </li>
             <li className="flex items-start gap-2">
-              <span style={{ color: 'var(--gold)' }} className="mt-0.5">2.</span>
-              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--body)' }}>giscus App</a> 并授权 <code className="text-xs px-1 rounded" style={{ background: 'var(--surface-2)' }}>LuVisage/blog</code></span>
+              <span style={{ color: 'var(--accent-text)' }} className="mt-0.5">2.</span>
+              <span>已安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" className="underline tint-body hover:text-[var(--accent-text)]">giscus App</a> 并授权 <code className="text-xs px-1 rounded" style={{ background: 'var(--surface-2)' }}>LuVisage/blog</code></span>
             </li>
             <li className="flex items-start gap-2">
-              <span style={{ color: 'var(--gold)' }} className="mt-0.5">3.</span>
+              <span style={{ color: 'var(--accent-text)' }} className="mt-0.5">3.</span>
               <span>仓库为 <b>Public</b>（私有仓库不支持 Giscus）</span>
             </li>
           </ul>
@@ -173,8 +187,7 @@ export function GiscusComments() {
               const container = document.getElementById('giscus-container')
               if (container) container.innerHTML = ''
             }}
-            className="mt-4 text-xs underline transition-colors hover:text-[var(--accent-text)]"
-            style={{ color: 'var(--body)' }}
+            className="mt-4 text-xs underline transition-colors hover:text-[var(--accent-text)] tint-body"
           >
             点击重试
           </button>

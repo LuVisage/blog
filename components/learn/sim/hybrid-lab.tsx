@@ -121,7 +121,14 @@ export function HybridLab() {
         <RankColumn column={fusionColumn} vectorRank={vectorRank} />
       </div>
 
-      <p className="body-sm mt-4" style={{ color: 'var(--muted)' }}>
+      <p
+        className="body-sm mt-4"
+        style={{ color: 'var(--muted)' }}
+        // 换查询重写的是这一句实算结论，而它常驻 DOM —— 挂在可见的那句上，不另写一份
+        // （同进度墙计数条与检索页的约定，WCAG 4.1.3）。
+        role="status"
+        aria-live="polite"
+      >
         {`实算结果：向量列把 #${topTwo[0]} 和 #${topTwo[1]} 拉开 ${gap.toFixed(4)}，${gap < 0.02 ? '这个差距小到单靠向量分不出高下' : '这个差距已经足够分清先后'}。BM25 命中 ${bm25Column.order.length} 条，融合列相对向量列有 ${moved} 行换了名次，第一名是 #${
           fusionColumn.order[0] ? HYBRID_DOCS[fusionColumn.order[0].index].pk : '—'
         }。`}

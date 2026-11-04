@@ -35,17 +35,43 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
     setProbe({ state: 'idle' })
   }
 
+  /**
+   * 「配置写进本机」和「连得上」是两件事：`isConfigured` 只看字段非空，所以旧写法里
+   * 手滑填错 Worker 地址的那一刻 chip 就绿了，而同一屏下面正挂着红色的连不上。
+   * 绿色只留给真验过的这一次握手。
+   */
+  const chipTone = !ready
+    ? 'var(--muted)'
+    : probe.state !== 'done'
+      ? 'var(--body)'
+      : probe.ok
+        ? 'var(--success)'
+        : 'var(--danger)'
+
+  /** 面板收起时这行是唯一出口，所以空闲态也要把「还没验过」讲出来。 */
+  const status =
+    probe.state === 'running'
+      ? { tone: 'var(--muted)', icon: <IconLoader size={13} strokeWidth={1.7} className="animate-spin mt-0.5" />, text: '正在握手' }
+      : probe.state === 'done'
+        ? {
+            tone: probe.ok ? 'var(--success)' : 'var(--danger)',
+            icon: probe.ok ? <IconCheck size={13} strokeWidth={2} className="mt-0.5" /> : <IconAlertTriangle size={13} strokeWidth={1.7} className="mt-0.5" />,
+            text: probe.detail || '没有返回内容',
+          }
+        : !open && ready
+          ? { tone: 'var(--muted)', icon: null, text: '本机存着配置，这次还没测过连接。' }
+          : null
+
   return (
     <div className="mt-3" style={{ borderTop: '1px solid var(--line)', paddingTop: 10 }}>
       <button
         type="button"
         onClick={() => onToggle(!open)}
-        className="flex items-center gap-2 text-xs transition-colors hover:text-[var(--accent-text)]"
-        style={{ color: 'var(--muted)' }}
+        className="flex items-center gap-2 text-xs transition-colors hover:text-[var(--accent-text)] tint-muted"
       >
         <IconSettings size={13} strokeWidth={1.7} />
         接口设置
-        <span className="chip px-2 py-0.5 text-[11px]" style={{ color: ready ? 'var(--success)' : 'var(--muted)', borderColor: 'var(--line-faint)', borderRadius: 'var(--radius-xs)' }}>
+        <span className="chip px-2 py-0.5 text-[11px]" style={{ color: chipTone, borderColor: 'var(--line-faint)', borderRadius: 'var(--radius-xs)' }}>
           {ready ? (settings.mode === 'ollama' ? `本机 ${settings.ollamaModel}` : `代理 ${maskKey(settings.apiKey)}`) : '未配置'}
         </span>
         <span className="meta" style={{ color: 'var(--muted)' }}>
@@ -69,13 +95,8 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
                     key={option.value}
                     type="button"
                     onClick={() => set('mode', option.value)}
-                    className="chip px-3 py-1.5 text-xs"
-                    style={{
-                      borderRadius: 'var(--radius-xs)',
-                      color: on ? 'var(--ink)' : 'var(--muted)',
-                      borderColor: on ? 'var(--accent-line)' : 'var(--line)',
-                      background: on ? 'var(--accent-soft)' : 'transparent',
-                    }}
+                    aria-pressed={on}
+                    className="chip chip-toggle px-3 py-1.5 text-xs"
                   >
                     {option.label}
                   </button>
@@ -164,18 +185,6 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
               <IconTrash size={13} strokeWidth={1.7} />
               清除本机记录
             </button>
-            {probe.state === 'running' && (
-              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted)' }}>
-                <IconLoader size={13} strokeWidth={1.7} className="animate-spin" />
-                正在握手
-              </span>
-            )}
-            {probe.state === 'done' && (
-              <span className="inline-flex items-start gap-1.5 text-xs max-w-[46ch]" style={{ color: probe.ok ? 'var(--success)' : 'var(--danger)' }}>
-                {probe.ok ? <IconCheck size={13} strokeWidth={2} /> : <IconAlertTriangle size={13} strokeWidth={1.7} className="mt-0.5" />}
-                <span>{probe.detail}</span>
-              </span>
-            )}
           </div>
 
           <p className="body-sm" style={{ color: 'var(--muted)' }}>
@@ -183,6 +192,25 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
           </p>
         </div>
       )}
+
+      {/* 这次动作的回执。容器常驻 DOM 并挂 live（同检索页与勾选清单的约定，WCAG 4.1.3），
+          而且必须住在 {open && …} 外面：展开状态是父层按 !ready 推导的，「保存并测试连接」
+          一按就把 ready 翻真、面板收走 —— 实测 0.4s 与 4.4s 两次快照里按钮、「正在握手」、
+          失败原因全部不在屏上。反馈写在会被自己收掉的抽屉里，等于按了没按。 */}
+      <div
+        role="status"
+        aria-live="polite"
+        className={`flex flex-wrap items-start gap-1.5 text-xs${status ? ' mt-3' : ''}`}
+      >
+        {status && (
+          <>
+            {status.icon}
+            <span className="max-w-[46ch]" style={{ color: status.tone }}>
+              {status.text}
+            </span>
+          </>
+        )}
+      </div>
     </div>
   )
 }

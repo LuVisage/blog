@@ -47,7 +47,7 @@ export function VectorLab({ presets = false }: { presets?: boolean }) {
           <TextField value={query} onChange={setQuery} label="查询文本" placeholder="想知道什么，就打什么" />
         </ControlRow>
         <ControlRow label="k">
-          <Range value={k} min={1} max={KB_DOCS.length} onChange={setK} />
+          <Range label="检索条数 k" value={k} min={1} max={KB_DOCS.length} onChange={setK} />
         </ControlRow>
         <ControlRow label={presets ? '四种问法' : '示例查询'}>
           <Pills
@@ -58,7 +58,14 @@ export function VectorLab({ presets = false }: { presets?: boolean }) {
         </ControlRow>
       </div>
 
-      <div className="flex flex-wrap gap-x-6 gap-y-2 mt-6 pt-4" style={{ borderTop: '1px solid var(--line)' }}>
+      <div
+        className="flex flex-wrap gap-x-6 gap-y-2 mt-6 pt-4"
+        style={{ borderTop: '1px solid var(--line)' }}
+        // 查询、k、预设改的都首先是这一排数；容器常驻，所以第一次变化就有地方播报
+        // （同进度墙计数条与检索页的约定，WCAG 4.1.3）。
+        role="status"
+        aria-live="polite"
+      >
         <Stat label="语料块" value={`${KB_DOCS.length}`} />
         <Stat label="召回" value={`${hits.length}`} />
         <Stat label="第一名分数" value={top.toFixed(4)} />

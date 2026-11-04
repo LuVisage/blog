@@ -41,20 +41,17 @@ export function FontSizeControl() {
 
   if (!mounted) return null
 
-  const baseBtnClass = 'px-2.5 py-1 rounded text-xs font-medium transition-colors duration-200'
+  const baseBtnClass = 'seg-btn px-2.5 py-1 text-xs font-medium'
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5" role="group" aria-label="阅读字号">
       <span className="text-xs" style={{ color: 'var(--faint)' }}>字体：</span>
       {(['small', 'medium', 'large'] as FontSize[]).map((s) => (
         <button
           key={s}
           onClick={() => setSize(s)}
+          aria-pressed={size === s}
           className={baseBtnClass}
-          style={{
-            backgroundColor: size === s ? 'var(--accent-soft)' : 'transparent',
-            color: size === s ? 'var(--ink)' : 'var(--muted)',
-          }}
         >
           {s === 'small' ? '小' : s === 'medium' ? '中' : '大'}
         </button>

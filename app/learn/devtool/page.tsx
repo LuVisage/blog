@@ -17,7 +17,7 @@ export default function DevtoolCurriculumPage() {
   return (
     <CourseOverview
       course="devtool"
-      eyebrow={`Toolbox / 13 章 ${stats.lessons} 篇`}
+      eyebrow="Toolbox / 13 章"
       title="工具箱：开发工具链全集"
       lead={`一套按"什么时候需要"重排过的工具手册：版本控制、包管理、编辑器、终端先起步，调试、检查、测试管质量，构建、容器、CI/CD 管交付，数据库、可观测性管规模化。共 ${stats.minutes} 分钟正文，每篇自带安装、配置、常用命令与常见坑。`}
       counter={`${stats.minutes} 分钟 · ${stats.lessons} 篇${labs ? ` · ${labs} 篇带实验台` : ''}`}

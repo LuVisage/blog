@@ -17,7 +17,7 @@ export default function MlCurriculumPage() {
   return (
     <CourseOverview
       course="ml"
-      eyebrow={`Curriculum / 17 周 ${stats.lessons} 天`}
+      eyebrow="Curriculum / 17 周"
       title="机器学习与深度学习 17 周"
       lead={`一条由浅入深的完整主线：Week00 给没写过代码的人起步，Week01–06 用西瓜书打传统机器学习的地基，Week07 起纯 NumPy 手写神经网络，再进 PyTorch、CNN、注意力与 Transformer，最后以生成模型和大语言模型收尾——正好接上 Agent 课。每周附可检验的复盘清单。`}
       counter={`${stats.minutes} 分钟 · ${stats.lessons} 天${labs ? ` · ${labs} 课带实验台` : ''}`}

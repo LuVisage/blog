@@ -74,6 +74,7 @@ function setCache(data: Repo[]) {
 export function AIHotNews() {
   const [repos, setRepos] = useState<Repo[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
   const [lastFetch, setLastFetch] = useState<number | null>(null)
   const cacheDate = lastFetch ? new Date(lastFetch).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) : null
 
@@ -106,6 +107,7 @@ export function AIHotNews() {
       } catch {
         if (!cancelled) {
           setRepos(null)
+          setFailed(true)
         }
       }
 
@@ -118,11 +120,31 @@ export function AIHotNews() {
     }
   }, [])
 
-  // ── Loading skeleton ─────────────────────────────
-  if (loading) {
-    return (
-      <div style={{ cursor: 'default' }}>
-        <div className="eyebrow mb-4">加载中</div>
+  const rows = repos ?? []
+  const empty = !loading && !failed && rows.length === 0
+  const stateWord = loading ? '加载中' : failed ? '没应答' : empty ? '没有命中' : `${cacheDate} 更新`
+  // 骨架 → 列表 → 失败都是页面加载完才发生的替换，容器必须常驻才播得出来（§11.20 的挂法）。
+  const spoken = loading
+    ? 'AI 热榜正在向 GitHub 取数据。'
+    : failed
+      ? 'AI 热榜这次没取到，GitHub 没有应答。'
+      : empty
+        ? 'AI 热榜近 7 日没有命中的项目。'
+        : `AI 热榜取到 ${rows.length} 条，${stateWord}。`
+
+  return (
+    <div style={{ cursor: 'default' }}>
+      {/* Header —— 三种状态都留着，标题不随数据消失 */}
+      <div
+        className="flex items-end justify-between gap-3 pb-3 mb-1"
+        style={{ borderBottom: '1px solid var(--line-strong)' }}
+      >
+        <h2 className="section-title">AI 热榜</h2>
+        <span className="eyebrow mb-1">{stateWord}</span>
+      </div>
+
+      {/* Loading skeleton */}
+      {loading && (
         <div className="space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-baseline gap-3">
@@ -134,28 +156,21 @@ export function AIHotNews() {
             </div>
           ))}
         </div>
-      </div>
-    )
-  }
+      )}
 
-  // ── Error / no data ────────────────────────────
-  if (!repos || repos.length === 0) return null
-
-  // ── Ready ──────────────────────────────────────
-  return (
-    <div style={{ cursor: 'default' }}>
-      {/* Header */}
-      <div
-        className="flex items-end justify-between gap-3 pb-3 mb-1"
-        style={{ borderBottom: '1px solid var(--line-strong)' }}
-      >
-        <h2 className="section-title">AI 热榜</h2>
-        <span className="eyebrow mb-1">{lastFetch ? `${cacheDate} 更新` : '近 7 日'}</span>
-      </div>
+      {/* 拉取失败 / 空榜：留一句能读的原因，别把整块抹掉留个空标题 */}
+      {!loading && (failed || empty) && (
+        <p className="body-sm py-5" style={{ color: 'var(--muted)' }}>
+          {failed
+            ? '热榜要现场问 GitHub，这次没得到应答。稍后再进首页会自动再试。'
+            : '近 7 日没有同时命中这两个主题的项目。'}
+        </p>
+      )}
 
       {/* Repo list */}
-      <div>
-        {repos.map((repo, i) => (
+      {!loading &&
+        !failed &&
+        rows.map((repo, i) => (
           <a
             key={repo.id}
             href={repo.html_url}
@@ -167,7 +182,7 @@ export function AIHotNews() {
             {/* Rank */}
             <span
               className="meta tabular-nums transition-colors group-hover:text-[var(--accent-text)]"
-              style={i < 3 ? { color: 'var(--gold)' } : undefined}
+              style={i < 3 ? { color: 'var(--accent-text)' } : undefined}
             >
               {String(i + 1).padStart(2, '0')}
             </span>
@@ -175,7 +190,7 @@ export function AIHotNews() {
             {/* Content */}
             <div className="min-w-0">
               <div className="flex items-baseline gap-2">
-                <p className="text-sm font-medium truncate transition-colors group-hover:text-[var(--accent-text)]" style={{ color: 'var(--ink)' }}>
+                <p className="text-sm font-medium truncate transition-colors group-hover:text-[var(--accent-text)] tint-ink">
                   {repo.full_name}
                 </p>
                 {repo.language && (
@@ -209,7 +224,8 @@ export function AIHotNews() {
             </span>
           </a>
         ))}
-      </div>
+
+      <p className="sr-only" role="status" aria-live="polite">{spoken}</p>
 
       {/* Footer */}
       <div className="mt-1 pt-4 text-center" style={{ borderTop: '1px solid var(--line)' }}>
@@ -217,8 +233,7 @@ export function AIHotNews() {
           href="https://github.com/topics/artificial-intelligence"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex min-h-6 items-center text-xs font-medium transition-colors hover:text-[var(--accent-text)]"
-          style={{ color: 'var(--muted)' }}
+          className="inline-flex min-h-6 items-center text-xs font-medium transition-colors hover:text-[var(--accent-text)] tint-muted"
         >
           在 GitHub 上查看更多 AI 项目 →
         </a>

@@ -25,7 +25,11 @@ export function BackToTop() {
     <button
       onClick={handleClick}
       aria-label="回到顶部"
-      className="pressable w-11 h-11 rounded surface flex items-center justify-center fixed bottom-6 right-6 z-50 transition-all duration-300 cursor-pointer"
+      // 隐藏态只是 opacity:0 —— 按钮还留在 Tab 序列里，键盘用户会停在一枚看不见的
+      // 控件上，焦点环无处可画（WCAG 2.4.7 要求焦点指示可见）。pointer-events:none
+      // 挡得住鼠标，挡不住键盘，所以序列里也得把它摘出去。
+      tabIndex={visible ? 0 : -1}
+      className="pressable w-11 h-11 rounded surface flex items-center justify-center fixed bottom-6 right-6 z-50 cursor-pointer"
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateY(0)' : 'translateY(20px)',

@@ -15,6 +15,26 @@ export const DEPLOY_BASE_PATH = '/blog'
  */
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
+/**
+ * 邮箱的唯一真源，base64 形态。别把它改回明文，理由量出来过：
+ * `SITE` 和 `SOCIAL_LINKS` 都会进浏览器，静态站的 JS 分块又是公开可读的，
+ * 所以只要常量里存在连续的 `局部@域.后缀`，旧写法 `EMAIL_OBFUSCATED = btoa(email)`
+ * 保护的就只有 HTML —— 实测那版在 5 个客户端分块里留了 10 处明文（台账 §11.23）。
+ * 存密文、用时 `atob` 是运行时调用，压缩器不会把它折叠成明文常量。
+ *
+ * 变量名 `EMAIL_B64` 也是契约的一部分：`scripts/audit-build.mjs` 与
+ * `ui-concepts/verify/flows6.mjs` 都按这个名字取比对值，改名等于同时关掉这两道
+ * 防收割的闸（前者现在会报「闸已失效」，后者会 FAIL —— 都是这一轮补上的）。
+ *
+ * 这条挡掉的是正则型抓取（绝大多数收割器），不是铁幕：肯花五分钟的人照样能还原。
+ * 真要收窄暴露面只有两条路 —— 换联系渠道（GitHub issue 已经在 `.well-known/security.txt`
+ * 和页脚里作为并列出路），或把地址挪到服务端渲染，而那需要后端，本站是纯静态。
+ *
+ * 换邮箱：改下面这一串（`btoa('新地址')`），其余两处引用会跟着走。
+ */
+const EMAIL_B64 = 'MTk3NzkyODg3OEBxcS5jb20='
+const EMAIL = atob(EMAIL_B64)
+
 export const SITE = {
   title: 'Baron_Zhang',
   description: 'AI 探索者 & Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。',
@@ -22,7 +42,7 @@ export const SITE = {
   repo: 'https://github.com/LuVisage/blog',
   author: {
     name: 'Baron_Zhang',
-    email: '1977928878@qq.com',
+    email: EMAIL,
   },
   avatar: '/avatar.jpg',
   locale: 'zh-CN',
@@ -63,16 +83,16 @@ export const NAV_LINKS = [
 export const SOCIAL_LINKS = {
   github: 'https://github.com/LuVisage',
   twitter: '',
-  email: '1977928878@qq.com',
+  email: EMAIL,
 } as const
 
 /**
- * 防收割密文：SITE.author.email 的 base64。站点是纯静态托管，HTML 里任何明文
- * 邮箱（mailto: 链接或正文）都会被收割机器人原样捡走，所以页面上只出现这串
- * 密文，由 components/obfuscated-email.tsx 在浏览器挂载后解码。换邮箱时
- * 改上面两处即可，这串会跟着重算。
+ * 防收割密文：页面上只出现这一串 base64，由 components/obfuscated-email.tsx 在浏览器
+ * 挂载后解码成可点的 mailto —— 关掉 JS 的人看到的是带解释的占位，不是一个坏链接。
+ * 它本来就是 `EMAIL_B64` 同一个值，所以这里直接引用，不再 `btoa(明文)`：
+ * 旧写法为了得到一个已经是密文的东西，把明文永久留在了客户端分块里（§11.23）。
  */
-export const EMAIL_OBFUSCATED = btoa(SOCIAL_LINKS.email)
+export const EMAIL_OBFUSCATED = EMAIL_B64
 
 /** Giscus configuration */
 export const GISCUS_CONFIG = {

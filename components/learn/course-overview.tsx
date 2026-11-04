@@ -1,11 +1,10 @@
-import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { IconArrowRight } from '@tabler/icons-react'
 import { getAllLessons, getReferencePages, getWeeks, lessonHref, type CourseId } from '@/lib/curriculum'
 import { getSimSpecs } from '@/lib/sim/registry'
 import { PageMasthead } from '@/components/page-masthead'
 import { Ledger, LedgerRow } from '@/components/ledger-row'
 import { ProgressWall } from '@/components/learn/progress-wall'
+import { ContinueCard } from '@/components/learn/continue-card'
 
 interface CourseOverviewProps {
   course: CourseId
@@ -25,7 +24,6 @@ export function CourseOverview({ course, eyebrow, title, lead, counter, notes }:
   const lessons = getAllLessons(course)
   const references = getReferencePages(course)
   const weeks = getWeeks(course)
-  const first = lessons[0]
 
   return (
     <div className="py-12 sm:py-16">
@@ -34,14 +32,7 @@ export function CourseOverview({ course, eyebrow, title, lead, counter, notes }:
         title={title}
         lead={lead}
         counter={counter}
-        actions={
-          first && (
-            <Link href={lessonHref(course, first.slug)} className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm">
-              从 Day {first.day} 开始
-              <IconArrowRight size={15} strokeWidth={2} />
-            </Link>
-          )
-        }
+        actions={<ContinueCard course={course} lessons={lessons} />}
       />
 
       <ProgressWall course={course} lessons={lessons} />

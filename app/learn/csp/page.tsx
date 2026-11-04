@@ -15,7 +15,7 @@ export default function CspCurriculumPage() {
   return (
     <CourseOverview
       course="csp"
-      eyebrow="Curriculum / 3 周 20 天"
+      eyebrow="Curriculum / 3 周"
       title="CSP 认证 20 天冲刺"
       lead={`把一份写给自己的备考计划搬上网页。${stats.lessons} 天全部可读，每天一张任务单加一份验收清单，题号能点的都点了链接，进度只存在你自己的浏览器里。`}
       counter={`${stats.minutes} 分钟 · ${stats.lessons} 天`}

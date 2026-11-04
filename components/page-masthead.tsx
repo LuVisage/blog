@@ -27,7 +27,8 @@ export function PageMasthead({ eyebrow, title, lead, counter, actions }: PageMas
           <h1 className="heading-1">{title}</h1>
           {lead && <p className="body-lg mt-4 max-w-2xl">{lead}</p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
+        {/* 不带 min-w-0 时这格顶不住收缩，卡片的 truncate 永不生效：320px 上把 288px 父栏撑到 335px。 */}
+        {actions && <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">{actions}</div>}
       </div>
     </header>
   )

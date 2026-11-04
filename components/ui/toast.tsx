@@ -77,6 +77,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
+      {/* 提示卡本体不吃指针：三枚成就叠在左下角时有 320×308，正压着页脚的站次链接，
+          悬停与点击全被吞掉。关掉按钮自己恢复 auto，卡片只当一块会浮的说明。 */}
       <div
         className="fixed bottom-5 left-4 sm:left-6 z-[70] flex flex-col gap-2 w-[min(320px,calc(100vw-2rem))] pointer-events-none"
         role="status"
@@ -85,7 +87,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`surface ${toast.leaving ? 'animate-fade-out' : 'animate-fade-up'} pointer-events-auto flex items-start gap-3 px-4 py-3.5`}
+            className={`surface ${toast.leaving ? 'animate-fade-out' : 'animate-fade-up'} pointer-events-none flex items-start gap-3 px-4 py-3.5`}
             style={{ borderRadius: 'var(--radius-xs)' }}
           >
             <span className="mt-0.5 flex-shrink-0">
@@ -105,8 +107,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             </div>
             <button
               onClick={() => dismiss(toast.id)}
-              className="pressable flex-shrink-0 -mr-1.5 -mt-1.5 p-1.5 cursor-pointer transition-colors hover:text-[var(--ink)]"
-              style={{ color: 'var(--faint)' }}
+              className="pressable pointer-events-auto flex-shrink-0 -mr-1.5 -mt-1.5 p-1.5 cursor-pointer transition-colors hover:text-[var(--ink)] tint-faint"
               aria-label="关闭提示"
             >
               <IconX size={13} strokeWidth={2} />

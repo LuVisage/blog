@@ -3,6 +3,7 @@ import { SITE } from '@/lib/constants'
 import { getAllSeries, getAllPosts } from '@/lib/posts'
 import { PageMasthead } from '@/components/page-masthead'
 import { LedgerRow, Ledger } from '@/components/ledger-row'
+import { IndexRail } from '@/components/index-rail'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { EmptyState } from '@/components/ui/empty-state'
 import { IconBooks } from '@tabler/icons-react'
@@ -24,6 +25,7 @@ export default function SeriesPage() {
   })
 
   const total = series.reduce((sum, s) => sum + s.count, 0)
+  const max = series[0]?.count ?? 1
 
   return (
     <div>
@@ -34,31 +36,38 @@ export default function SeriesPage() {
         counter={`${series.length} 个系列 · ${total} 篇文章`}
       />
 
-      {series.length > 0 ? (
-        <AnimatedContent direction="up">
-          <div>
-            <div className="eyebrow mb-5">索引</div>
-            <Ledger>
-              {series.map(({ series: name, count }, i) => (
-                <LedgerRow
-                  key={name}
-                  ordinal={i + 1}
-                  href={`/series/${name}`}
-                  title={name}
-                  label={startBySeries.get(name) ? `始于 ${startBySeries.get(name)}` : undefined}
-                  meta={`${count} 篇`}
-                />
-              ))}
-            </Ledger>
-          </div>
-        </AnimatedContent>
-      ) : (
-        <EmptyState
-          icon={<IconBooks size={30} strokeWidth={1.25} />}
-          title="还没有系列文章"
-          description="在文章 frontmatter 中添加 series 和 seriesOrder 字段"
-        />
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-16 items-start">
+        <div className="min-w-0">
+          {series.length > 0 ? (
+            <AnimatedContent direction="up">
+              <div>
+                <div className="eyebrow mb-5">索引</div>
+                <Ledger>
+                  {series.map(({ series: name, count }, i) => (
+                    <LedgerRow
+                      key={name}
+                      ordinal={i + 1}
+                      href={`/series/${name}`}
+                      title={name}
+                      label={startBySeries.get(name) ? `始于 ${startBySeries.get(name)}` : undefined}
+                      meta={`${count} 篇`}
+                      ratio={count / max}
+                    />
+                  ))}
+                </Ledger>
+              </div>
+            </AnimatedContent>
+          ) : (
+            <EmptyState
+              icon={<IconBooks size={30} strokeWidth={1.25} />}
+              title="还没有系列文章"
+              description="在文章 frontmatter 中添加 series 和 seriesOrder 字段"
+            />
+          )}
+        </div>
+
+        <IndexRail hide={['series']} />
+      </div>
     </div>
   )
 }

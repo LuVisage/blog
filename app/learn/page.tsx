@@ -6,6 +6,7 @@ import { COURSES, getCurriculumStats, getReferencePages, getWeeks, lessonHref, t
 import { simLessonCount } from '@/lib/sim/registry'
 import { PageMasthead } from '@/components/page-masthead'
 import { Ledger, LedgerRow } from '@/components/ledger-row'
+import { CourseProgress } from '@/components/learn/course-progress'
 
 export const metadata: Metadata = {
   title: '交互教程',
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 const CARDS: { course: CourseId; name: string; tagline: string }[] = [
   {
     course: 'devtool',
-    name: '工具箱 · 开发工具链 84 篇',
+    name: '工具箱 · 开发工具链',
     tagline: '按需查阅的工具手册：只有「新机起步」5 篇（Git、Python 环境、VSCode、终端）建议顺序读，其余遇到什么查什么。Docker、pytest、数据库工具等与三门课程互为手册与实战。',
   },
   {
@@ -67,25 +68,35 @@ export default function LearnPage() {
         counter={`${courses.length} 门课 · ${totalLessons} 课 · ${totalMinutes} 分钟`}
       />
 
-      <section className="mb-14 rounded-xl p-5" style={{ border: '1px solid var(--line)', background: 'var(--surface-2)' }}>
-        <h2 className="section-title mb-3">推荐学习路径</h2>
-        <p className="body-sm max-w-3xl">
-          想走「AI 应用工程师」这条路，按下面的顺序推进，知识点是一条线接一条线的：
-          <strong>工具箱</strong>里只有「新机起步」几篇（版本控制、Python 环境、VSCode、终端）是所有课程的前置，其余按需查；
-          <strong>机器学习与深度学习 17 周</strong>补齐模型原理，Week16 的大语言模型正好讲到 Agent 课的门口，每周附可检验的复盘清单；
-          <strong>Python 工程化与后端实战</strong>把模型装进服务，Week1–2 可与基础课并行；
-          最后<strong>Agent 课</strong>把前两块拼成生产级项目。
-          <strong>CSP 冲刺</strong>是独立的备考线，随时可以插进来。
-          跨课程的统一术语见 <Link href="/learn/ml/glossary">术语表</Link>。
-        </p>
-        <p className="meta mt-3">
-          工具箱「新机起步」→ ml Week00–16 → backend Week1–5 → agent 40 天（CSP 随时）
-        </p>
-      </section>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-16 items-start">
+        <div className="min-w-0">
+          <section className="mb-14 rounded-xl p-5" style={{ border: '1px solid var(--line)', background: 'var(--surface-2)' }}>
+            <h2 className="section-title mb-3">推荐学习路径</h2>
+            <p className="body-sm max-w-3xl">
+              想走「AI 应用工程师」这条路，按下面的顺序推进，知识点是一条线接一条线的：
+              <strong>工具箱</strong>里只有「新机起步」几篇（版本控制、Python 环境、VSCode、终端）是所有课程的前置，其余按需查；
+              <strong>机器学习与深度学习 17 周</strong>补齐模型原理，Week16 的大语言模型正好讲到 Agent 课的门口，每周附可检验的复盘清单；
+              <strong>Python 工程化与后端实战</strong>把模型装进服务，Week1–2 可与基础课并行；
+              最后<strong>Agent 课</strong>把前两块拼成生产级项目。
+              <strong>CSP 冲刺</strong>是独立的备考线，随时可以插进来。
+              跨课程的统一术语见{' '}
+              <Link href="/learn/ml/glossary" className="link-underline tint-accent">
+                术语表
+              </Link>
+              。
+            </p>
+            <p className="meta mt-3">
+              工具箱「新机起步」→ ml Week00–16 → backend Week1–5 → agent 40 天（CSP 随时）
+            </p>
+          </section>
 
-      <div className="space-y-16">
-        {courses.map((course, index) => (
-          <section key={course.course}>
+          <div className="space-y-16">
+            {courses.map((course, index) => (
+              <section
+                key={course.course}
+                id={`course-${course.course}`}
+                style={{ scrollMarginTop: '5rem' }}
+              >
             <div className="grid grid-cols-1 md:grid-cols-[92px_minmax(0,1fr)] gap-x-10 gap-y-2 items-end mb-2">
               <span className="eyebrow eyebrow-accent">Course {String(index + 1).padStart(2, '0')}</span>
               <div>
@@ -130,6 +141,10 @@ export default function LearnPage() {
                 进入课程
                 <IconArrowRight size={15} strokeWidth={2} />
               </Link>
+              <CourseProgress
+                course={course.course}
+                slugs={course.weeks.flatMap((week) => week.lessons.map((lesson) => lesson.slug))}
+              />
               <span className="meta">
                 {course.stats.weeks} 周 · {course.stats.minutes} 分钟
                 {course.labs ? ` · ${course.labs} 课带实验台` : ''}
@@ -137,24 +152,49 @@ export default function LearnPage() {
             </div>
           </section>
         ))}
-      </div>
+          </div>
 
-      <section className="mt-16 pt-8 grid gap-10 md:grid-cols-2" style={{ borderTop: '1px solid var(--line-strong)' }}>
-        <div>
-          <h3 className="section-title mb-4">进度是怎么存的</h3>
-          <ul className="space-y-3 body-sm">
-            <li>勾选、完成标记全部写在这台设备的浏览器里，各门课各存各的，互不覆盖；不上传，也不需要账号。</li>
-            <li>换设备或清缓存会归零，每门课页面上的重置按钮随时可以手动清空。</li>
-          </ul>
+          <section className="mt-16 pt-8 grid gap-10 md:grid-cols-2" style={{ borderTop: '1px solid var(--line-strong)' }}>
+            <div>
+              <h3 className="section-title mb-4">进度是怎么存的</h3>
+              <ul className="space-y-3 body-sm">
+                <li>勾选、完成标记全部写在这台设备的浏览器里，各门课各存各的，互不覆盖；不上传，也不需要账号。</li>
+                <li>换设备或清缓存会归零，每门课页面上的重置按钮随时可以手动清空。</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="section-title mb-4">还有一件事</h3>
+              <ul className="space-y-3 body-sm">
+                <li>教程正文里的实验台全部在浏览器里算，标注「演示数据」的是为了讲清机制造的样例，不是实测结果。</li>
+                <li>需要花真钱的部分只有 Agent 课的「真实调用」，那要用你自己的 Key、你自己的额度。</li>
+              </ul>
+            </div>
+          </section>
         </div>
-        <div>
-          <h3 className="section-title mb-4">还有一件事</h3>
-          <ul className="space-y-3 body-sm">
-            <li>教程正文里的实验台全部在浏览器里算，标注「演示数据」的是为了讲清机制造的样例，不是实测结果。</li>
-            <li>需要花真钱的部分只有 Agent 课的「真实调用」，那要用你自己的 Key、你自己的额度。</li>
-          </ul>
-        </div>
-      </section>
+
+        {/* 这一页按周排开有 239 行，光靠滚没有方向感；给一条课程跳转栏。
+            栏本身很短，粘性行程因此很宽（§11.12 的行程约束）。 */}
+        <aside className="index-rail lg:sticky lg:top-28">
+          <span className="eyebrow mb-3 block">课程跳转</span>
+          <nav aria-label="课程跳转">
+            {courses.map((course, index) => (
+              <a
+                key={course.course}
+                href={`#course-${course.course}`}
+                className="row-line pressable group flex items-baseline gap-3 py-2 text-sm rule"
+              >
+                <span className="meta tabular-nums flex-shrink-0" style={{ color: 'var(--muted)' }}>
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="min-w-0 flex-1 truncate transition-colors group-hover:text-[var(--accent-text)]">
+                  {course.name}
+                </span>
+                <span className="meta tabular-nums flex-shrink-0">{course.stats.lessons}</span>
+              </a>
+            ))}
+          </nav>
+        </aside>
+      </div>
     </div>
   )
 }

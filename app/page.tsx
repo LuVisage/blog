@@ -1,4 +1,4 @@
-import { SITE, SOCIAL_LINKS } from '@/lib/constants'
+import { SITE, SOCIAL_LINKS, basePathUrl } from '@/lib/constants'
 import { getAllPosts, getAllTags, getAllCategories } from '@/lib/posts'
 import { PostList, FeatureCard } from '@/components/post-card'
 import { AIHotNews } from '@/components/ai-hot-news'
@@ -53,8 +53,7 @@ export default function HomePage() {
               <Magnetic>
                 <Link
                   href="/posts"
-                  className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer"
-                  style={{ color: 'var(--ink)' }}
+                  className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer tint-ink"
                 >
                   <IconBook size={16} strokeWidth={1.75} />
                   阅读文章
@@ -66,8 +65,7 @@ export default function HomePage() {
                     href={SOCIAL_LINKS.github}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer"
-                    style={{ color: 'var(--ink)' }}
+                    className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer tint-ink"
                   >
                     <IconBrandGithub size={16} strokeWidth={1.75} />
                     GitHub
@@ -75,14 +73,16 @@ export default function HomePage() {
                 </Magnetic>
               )}
               <Magnetic>
-                <Link
-                  href="/rss.xml"
-                  className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer"
-                  style={{ color: 'var(--muted)' }}
+                {/* 静态产物里的 rss.xml 是文件不是路由：用 Link 会让路由器去预取
+                    /rss.xml.txt 的 RSC 载荷，导出目录里没有这个文件，每次进首页都
+                    掉一条 404。页脚同一处用的是 <a>，这里保持一致。 */}
+                <a
+                  href={basePathUrl('/rss.xml')}
+                  className="link-underline pressable inline-flex items-center gap-1.5 font-bold text-sm min-h-6 transition-colors cursor-pointer tint-muted"
                 >
                   <IconRss size={15} strokeWidth={1.75} />
                   RSS
-                </Link>
+                </a>
               </Magnetic>
             </div>
           </div>
@@ -144,13 +144,8 @@ export default function HomePage() {
           <section>
             <div className="eyebrow mb-2">目录</div>
             <h2 className="section-title mb-4">文章索引</h2>
-            {allPosts.length > 0 ? (
-              <PostList posts={allPosts} layout="index" emptyHref={`${SITE.repo}/new/main/content/posts/`} />
-            ) : (
-              <p className="body-sm py-10 text-center rule">
-                还没有文章，<Link href="/posts" className="underline underline-offset-2" style={{ color: 'var(--accent-text)' }}>去文章列表看看</Link>
-              </p>
-            )}
+            {/* PostList 自带空态，这里不再重复一份本地文案 */}
+            <PostList posts={allPosts} layout="index" emptyHref={`${SITE.repo}/new/main/content/posts/`} />
 
             {tags.length > 0 && (
               <div className="mt-12 pt-8" style={{ borderTop: '1px solid var(--line)' }}>
@@ -177,6 +172,15 @@ export default function HomePage() {
           <aside>
             <div className="eyebrow mb-2">外部</div>
             <AIHotNews />
+            {/* 骨架条在没有 JS 时会一直躺着，看着像卡在「加载中」。用 noscript 补一句
+                真话；写成 dangerouslySetInnerHTML 是给 React 留一颗纯字符串节点，
+                浏览器开了 JS 时 noscript 的内容不会变成 DOM，不会被判水合不匹配。 */}
+            <noscript
+              dangerouslySetInnerHTML={{
+                __html:
+                  '<p class="body-sm mt-3" style="color:var(--muted)">热榜由浏览器现场向 GitHub 取回，需要执行 JavaScript；不执行时这里只会留着说明。</p>',
+              }}
+            />
           </aside>
         </AnimatedContent>
       </div>
@@ -185,7 +189,7 @@ export default function HomePage() {
       <AnimatedContent direction="up" delay={0.15}>
         <nav
           aria-label="站点栏目"
-          className="stagger grid grid-cols-2 sm:grid-cols-4 py-8"
+          className="stagger grid grid-cols-2 sm:grid-cols-4 gap-y-8 sm:gap-y-0 py-8"
           style={{ borderTop: '1px solid var(--line-strong)' }}
         >
           {[
@@ -193,16 +197,14 @@ export default function HomePage() {
             { href: '/tags', label: '标签', count: tags.length },
             { href: '/archive', label: '归档', count: allPosts.length },
             { href: '/about', label: '关于', count: null },
-          ].map((item, i) => (
+          ].map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="group px-6 sm:px-8 first:pl-0 block"
-              style={i > 0 ? { borderLeft: '1px solid var(--line)' } : undefined}
+              className="pressable group cell-rule block"
             >
               <span
-                className="font-serif font-bold text-lg block transition-colors group-hover:text-[var(--accent-text)]"
-                style={{ color: 'var(--ink)' }}
+                className="font-serif font-bold text-lg block transition-colors group-hover:text-[var(--accent-text)] tint-ink"
               >
                 {item.label}
               </span>

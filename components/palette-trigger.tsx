@@ -16,6 +16,7 @@ export function PaletteTrigger() {
   return (
     <button
       onClick={() => setOpen(true)}
+      data-js-only
       className="pressable group surface surface-hover flex items-center gap-2 h-10 pl-3 pr-2.5 cursor-pointer"
       style={{ borderRadius: 'var(--radius-xs)', color: 'var(--muted)' }}
       aria-label="打开命令面板"

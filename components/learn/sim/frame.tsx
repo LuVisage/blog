@@ -36,10 +36,10 @@ export function SimFrame({ label, hint, source, tone = 'local', children }: SimF
           {BADGES[tone]}
         </span>
       </div>
-      <p className="body-sm mt-2 max-w-[68ch]" style={{ color: 'var(--muted)' }}>
+      <p className="body-sm mt-2 max-w-[var(--measure)]" style={{ color: 'var(--muted)' }}>
         {hint}
       </p>
-      <p className="meta mt-1.5 max-w-[68ch]" style={{ color: 'var(--muted)' }}>
+      <p className="meta mt-1.5 max-w-[var(--measure)]" style={{ color: 'var(--muted)' }}>
         {source}
       </p>
       <div className="mt-5">{children}</div>
@@ -63,10 +63,12 @@ interface RangeProps {
   max: number
   step?: number
   suffix?: string
+  /** 读屏用的控件名：ControlRow 的可见标签是兄弟节点，不构成关联。 */
+  label: string
   onChange: (value: number) => void
 }
 
-export function Range({ value, min, max, step = 1, suffix, onChange }: RangeProps) {
+export function Range({ value, min, max, step = 1, suffix, label, onChange }: RangeProps) {
   const fill = max === min ? 0 : ((value - min) / (max - min)) * 100
   return (
     <div className="flex items-center gap-3">
@@ -79,6 +81,7 @@ export function Range({ value, min, max, step = 1, suffix, onChange }: RangeProp
         onChange={(e) => onChange(Number(e.target.value))}
         className="range-control flex-1"
         style={{ '--range-fill': `${fill}%` } as CSSProperties}
+        aria-label={label}
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
@@ -128,13 +131,8 @@ export function Pills({ items, active, onPick }: PillsProps) {
             key={item.value}
             type="button"
             onClick={() => onPick(item.value)}
-            className="chip px-2.5 py-1 text-xs transition-colors"
-            style={{
-              borderRadius: 'var(--radius-xs)',
-              color: on ? 'var(--ink)' : 'var(--muted)',
-              borderColor: on ? 'var(--accent-line)' : 'var(--line)',
-              background: on ? 'var(--accent-soft)' : 'transparent',
-            }}
+            aria-pressed={on}
+            className="chip chip-toggle px-2.5 py-1 text-xs"
           >
             {item.label}
           </button>
@@ -148,9 +146,11 @@ export function ScoreBar({ ratio }: { ratio: number }) {
   const clamped = Math.max(0, Math.min(1, ratio))
   return (
     <span className="block h-1 w-full overflow-hidden" style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-pill)' }}>
+      {/* 填充走 scaleX 而不是 width：§1.8.1 的属性白名单里没有布局属性。
+          origin-left 让缩放从左上角起，视觉与 width 增长一致。 */}
       <span
-        className="block h-full transition-[width] duration-300"
-        style={{ width: `${clamped * 100}%`, background: 'var(--accent)' }}
+        className="block h-full origin-left transition-transform duration-300"
+        style={{ transform: `scaleX(${clamped})`, background: 'var(--accent)' }}
       />
     </span>
   )

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRef } from 'react'
 import { IconRotate } from '@tabler/icons-react'
 import { lessonHref, type CourseId } from '@/lib/courses'
 import type { LessonMeta } from '@/lib/curriculum'
@@ -10,6 +11,7 @@ import { useLearnProgress } from './use-progress'
 /** The day grid. Colour encodes the visitor's own localStorage state, nothing else. */
 export function ProgressWall({ course, lessons }: { course: CourseId; lessons: LessonMeta[] }) {
   const { map, reset } = useLearnProgress(course)
+  const shellRef = useRef<HTMLElement>(null)
   const completed = lessons.filter((l) => map[l.slug]?.done).length
   const started = lessons.filter((l) => !map[l.slug]?.done && touched(map[l.slug])).length
 
@@ -21,20 +23,26 @@ export function ProgressWall({ course, lessons }: { course: CourseId; lessons: L
   }
 
   return (
-    <section aria-label="学习进度" className="mb-14">
+    <section ref={shellRef} aria-label="学习进度" tabIndex={-1} className="mb-14">
       <div
         className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-2.5"
         style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
       >
         <span className="eyebrow">Progress / 学习进度</span>
         <div className="flex items-center gap-5">
-          <span className="meta tabular-nums">
+          {/* 计数是状态消息：常驻容器 + live，重置后才会有播报。 */}
+          <span className="meta tabular-nums" role="status" aria-live="polite">
             {completed} 完成 · {started} 进行中 · {lessons.length} 总课次
           </span>
           {completed > 0 && (
             <button
               type="button"
-              onClick={reset}
+              onClick={() => {
+                reset()
+                // 重置后这条按钮随 completed 一起消失：先把它自己的焦点交还给区块，
+                // 否则 activeElement 掉回 BODY，键盘用户的下一跳从文档开头重来。
+                shellRef.current?.focus()
+              }}
               className="btn-ghost inline-flex items-center gap-1.5 text-xs cursor-pointer transition-colors"
               title="清空本机浏览器里的进度"
             >
@@ -53,7 +61,7 @@ export function ProgressWall({ course, lessons }: { course: CourseId; lessons: L
               key={lesson.slug}
               href={lessonHref(course, lesson.slug)}
               title={`Day ${lesson.day} · ${lesson.title}`}
-              className="group relative aspect-square grid place-items-center transition-transform duration-200 hover:scale-[1.18] hover:z-10"
+              className="group relative aspect-square grid place-items-center transition-transform duration-200 hover:scale-[1.12] hover:z-10"
               style={{
                 borderRadius: 'var(--radius-xs)',
                 border: `1px solid ${state === 'done' ? 'var(--accent)' : 'var(--line)'}`,

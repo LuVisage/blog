@@ -52,8 +52,7 @@ export default async function TagPage({ params }: { params: PageParams }) {
               <Link
                 key={other}
                 href={`/tags/${other}`}
-                className="chip px-2.5 py-1 text-xs transition-colors hover:border-[var(--accent-line)]"
-                style={{ color: 'var(--muted)' }}
+                className="chip px-2.5 py-1 text-xs transition-colors hover:border-[var(--accent-line)] tint-muted"
               >
                 {other}
               </Link>

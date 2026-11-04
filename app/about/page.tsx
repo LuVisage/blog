@@ -163,9 +163,9 @@ export default function AboutPage() {
                   <IconArrowRight size={14} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />
                 </ObfuscatedEmailIcon>
               )}
-              <Link href="/posts" className="btn-ghost h-10 justify-between px-3 text-sm">
+              <Link href="/posts" className="btn-secondary h-10 justify-between px-3 text-sm">
                 浏览文章
-                <IconArrowRight size={14} strokeWidth={1.75} />
+                <IconArrowRight size={14} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />
               </Link>
             </div>
           </aside>

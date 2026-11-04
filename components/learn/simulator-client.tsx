@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import type { SimSpec } from '@/lib/sim/registry'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 /**
  * Each lab is its own chunk: a lesson only downloads the simulators it renders,
@@ -31,27 +32,32 @@ export function SimulatorClient({ specs }: { specs: SimSpec[] }) {
     <>
       {specs.map((spec, index) => {
         const key = `${spec.kind}-${index}`
-        switch (spec.kind) {
-          case 'chunk':
-            return <ChunkLab key={key} />
-          case 'vector':
-            return <VectorLab key={key} presets={spec.presets} />
-          case 'hybrid':
-            return <HybridLab key={key} />
-          case 'filter':
-            return <FilterLab key={key} mode={spec.mode} />
-          case 'algo':
-            return <AlgoLab key={key} algo={spec.algo} />
-          case 'graph':
-            return <GraphPlayer key={key} graph={spec.graph} checkpoint={spec.checkpoint} label={spec.label} hint={spec.hint} />
-          case 'trace':
-            return <TracePlayer key={key} trace={spec.trace} label={spec.label} hint={spec.hint} />
-          case 'playground':
-            return <Playground key={key} mode={spec.mode} label={spec.label} hint={spec.hint} history={spec.history} seed={spec.seed} />
-          default:
-            return null
-        }
+        // 一课可以挂 7 个实验台：一个坏了只塌它自己那格，正文和其余实验台照常。
+        return <ErrorBoundary key={key}>{renderLab(spec)}</ErrorBoundary>
       })}
     </>
   )
+}
+
+function renderLab(spec: SimSpec) {
+  switch (spec.kind) {
+    case 'chunk':
+      return <ChunkLab />
+    case 'vector':
+      return <VectorLab presets={spec.presets} />
+    case 'hybrid':
+      return <HybridLab />
+    case 'filter':
+      return <FilterLab mode={spec.mode} />
+    case 'algo':
+      return <AlgoLab algo={spec.algo} />
+    case 'graph':
+      return <GraphPlayer graph={spec.graph} checkpoint={spec.checkpoint} label={spec.label} hint={spec.hint} />
+    case 'trace':
+      return <TracePlayer trace={spec.trace} label={spec.label} hint={spec.hint} />
+    case 'playground':
+      return <Playground mode={spec.mode} label={spec.label} hint={spec.hint} history={spec.history} seed={spec.seed} />
+    default:
+      return null
+  }
 }

@@ -17,7 +17,7 @@ export default function AgentCurriculumPage() {
   return (
     <CourseOverview
       course="agent"
-      eyebrow="Curriculum / 8 周 41 天"
+      eyebrow="Curriculum / 8 周"
       title="从零到生产级 Agent"
       lead={`把一份跟着敲过的学习笔记搬上网页。${stats.lessons} 课全部可读，每课附自测清单和常见坑速查，其中 ${labs} 课带能在页面上直接动手的实验台，进度只存在你自己的浏览器里。`}
       counter={`${stats.minutes} 分钟 · ${stats.lessons} 课${labs ? ` · ${labs} 课带实验台` : ''}`}
