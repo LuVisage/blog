@@ -94,6 +94,13 @@
   --heat-1: rgba(61, 70, 194, 0.34);
   --heat-2: rgba(61, 70, 194, 0.68);
 
+  /* 写作日历的格子尺寸与间距。宽屏维持 13px 的密度观感（这是这张图的语言），
+     窄屏整块放大到 24px —— 一天一篇时格子本身就是文章链接，13px 在触屏上按不中
+     （实测与相邻格子重叠 6–33px²，台账 §11.24）。尺寸放在 CSS 里而不是组件常量，
+     为的是静态导出的首屏与 SSR 一致，不引入水合后再改尺寸的那一下跳动。 */
+  --cal-day: 13px;
+  --cal-gap: 3px;
+
   /* ── 排版（第 5 轮换血：字重分层——展示/标题走 Space Grotesk 700 × 无衬线正文；
      方向参考 are.na 的「h2 与正文同字号、靠字重分层」） ── */
   --font-serif: 'Space Grotesk', 'Noto Sans SC', -apple-system, system-ui, sans-serif;
@@ -191,6 +198,19 @@
 
   /* 元数据字距：jhey.dev 0.06em 大写元数据，中文语境取 0.05em（沿用）。 */
   --tracking-meta: 0.05em;
+}
+
+/* 写作日历：窄屏把格子放大到 24px 才按得中（一天一篇时格子本身就是文章链接，
+   13px 实测与邻格重叠 6–33px²，台账 §11.24）。用断点而不是 (pointer: coarse)，
+   是因为站里所有窄屏几何闸（hscroll3 / flows4 / flows9）都以视口宽度为条件，
+   这样这次改动会被既有回归一并覆盖到；代价是窄窗口的鼠标用户也拿到 24px，
+   而那一档本来就已经换成了单列布局。宽屏维持 13px 的密度，由同页月表里
+   同一篇文章的整行链接（实测 ≥24px）满足 WCAG 2.5.8 的「等效」例外。 */
+@media (max-width: 896px) {
+  :root {
+    --cal-day: 24px;
+    --cal-gap: 4px;
+  }
 }
 
 /* 暗色下代码块面层再压深一档：亮色灰面 #f7f7f7 → 暗色深面 #1a1a1f 制造「下沉」深度。 */
@@ -1200,6 +1220,11 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
   color: var(--footer-ink);
   background: var(--footer-chip-hover);
 }
+/* 页脚里的焦点环也要换色：全站默认那圈 indigo 压在 #00075f 上实测 2.39:1，
+   过不了 2.4.13 的 3:1（focusvis 闸在 /tags/ 和 /about/ 的页脚一次量出 30 站；
+   同一组数暗色下是 3.63:1，所以这条只在亮色成立 —— 但环是同一个环，一起换）。
+   换成页脚自己的白墨 = 17.56:1，和上面「悬停/聚焦整链转白」是同一套语汇，不引新色。 */
+footer :focus-visible { outline-color: var(--footer-ink); }
 
 /* 指示条：导航激活项、目录激活项、命令面板选中行共用一条滑动语汇。
    默认收起（scaleY 0），父级命中 hover 或标记为当前项时展开。 */

@@ -15,7 +15,6 @@ interface Props {
 }
 
 const MONTH_COUNT = 6
-const DAY_SIZE = 13
 const EDGE = 12
 const GAP = 8
 
@@ -104,11 +103,11 @@ export function PostsCalendar({ posts }: Props) {
           <div key={label} className="flex flex-col gap-1">
             <span className="eyebrow leading-none mb-2">{label}</span>
             <div
-              className="grid gap-[3px]"
-              style={{ gridTemplateColumns: `repeat(7, ${DAY_SIZE}px)` }}
+              className="grid"
+              style={{ gap: 'var(--cal-gap)', gridTemplateColumns: 'repeat(7, var(--cal-day))' }}
             >
               {days.map((day, i) => {
-                if (!day) return <div key={`pad-${i}`} style={{ width: DAY_SIZE, height: DAY_SIZE }} />
+                if (!day) return <div key={`pad-${i}`} style={{ width: 'var(--cal-day)', height: 'var(--cal-day)' }} />
 
                 const key = format(day, 'yyyy-MM-dd')
                 const hasPost = postDates.has(key)
@@ -117,8 +116,8 @@ export function PostsCalendar({ posts }: Props) {
                 const only = dayPosts.length === 1 ? dayPosts[0] : null
 
                 const cellStyle: React.CSSProperties = {
-                  width: DAY_SIZE,
-                  height: DAY_SIZE,
+                  width: 'var(--cal-day)',
+                  height: 'var(--cal-day)',
                   ...(isFuture ? { background: 'transparent' } : getCellStyle(hasPost, dayPosts.length > 1)),
                   borderRadius: 'var(--radius-xs)',
                 }
