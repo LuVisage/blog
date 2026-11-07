@@ -87,8 +87,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* 第 5 轮换血：字重分层——标题走 Space Grotesk 700（拉丁展示）× Noto Sans SC（中文）；
             正文 Inter / Noto Sans SC；等宽 JetBrains Mono（胶囊与代码）。
-            域名仍在 CSP 与字体白名单内，无需改动策略。 */}
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+            域名仍在 CSP 与字体白名单内，无需改动策略。
+            第 14 轮（§11.27）汉字侧改成可变区间 400..700。两笔实测把它逼出来的：
+            ① 开销在 CSS 文本而不在二进制——Google 给 Noto Sans SC 的 101 个汉字子集切片
+               在字重之间是同一批文件（400 / 500 / 700 三档的文件交集 101/101），首页过线的
+               汉字字节因此一直是 919KB / 16 片，一档没省下来；省下的只有那条外链的 CSS
+               （离散三档 92.0KB → 两档 61.8KB，全是渲染阻塞的关键路径）。
+            ② 收成 400;700 那一版确实改了排版：站内「计算字重 500 且含汉字」的元素有 20–27 个、
+               61–92 个字，全在顶部导航（首页/文章/归档…）上；CSS 匹配在只有 400 与 700 时
+               往下取 400，实测那段中文在 400 与 500 下截图逐字节相同——字重档被悄悄削掉了。
+            区间写法两块都躲开：@font-face 从 202 块降到 101 块（未压缩 219.4KB → 110.1KB），
+            同时 500 落回真正的 500 档。
+            第 14 轮（§11.29）拉丁侧也改成区间。汉字改完后 fontwt.mjs 升级成「族 × 字重档」覆盖闸，
+            它反手报出 5 处：h3 的 600 在 Space Grotesk（只声明 500/700）里被 CSS 匹配往上取 700 ——
+            这一档标题一直和 h1 一样粗，写了却不存在；strong 的 650 在 Inter 里取 700、在汉字侧
+            落真 650，同一句话里两种文字一深一浅。而 Google 给这三族的离散档和区间档指的是
+            同一批可变文件（117 个 URL 交集 117/117，二进制 4720.0KB 一字节不差），
+            改成区间只是把 @font-face 从 153 块减到 117 块、CSS 文本 129.5KB 减到 116.2KB：
+            零字节代价换回 600/650 两档真实排版。 */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Space+Grotesk:wght@500..700&family=Noto+Sans+SC:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap"
+          rel="stylesheet"
+        />
         {/* 参照站默认亮色（§3.3），所以无存储时跟随系统：
             只有显式选过暗色才预置 .dark，避免亮色画布先闪一下墨色。 */}
         <script dangerouslySetInnerHTML={{ __html: `

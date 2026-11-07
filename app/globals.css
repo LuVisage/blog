@@ -357,7 +357,7 @@
     border-radius: var(--radius-xs);
   }
   .surface-hover {
-    transition: border-color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+    transition: border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
   }
   .surface-hover:hover {
     background: var(--surface-2);
@@ -378,7 +378,7 @@
     border: 1px solid var(--color-border-default);
     border-radius: var(--radius-xs);
     background: transparent;
-    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
   }
   .chip:hover {
     border-color: var(--color-primary);
@@ -392,7 +392,7 @@
   .seg-btn {
     color: var(--muted);
     border-radius: var(--radius-xs);
-    transition: color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+    transition: color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease);
   }
   .seg-btn:hover { background: var(--surface-2); color: var(--ink); }
   .seg-btn[aria-pressed='true'] { background: var(--accent-soft); color: var(--ink); }
@@ -457,7 +457,7 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--faint);
-    transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+    transition: background-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
   }
   .capsule:hover {
     background: var(--color-primary-subtle);
@@ -621,7 +621,7 @@
     border-radius: var(--radius-xs);
     cursor: pointer;
     text-decoration: none;
-    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+    transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
   }
   .btn-secondary:hover {
     border-color: var(--color-primary);
@@ -651,7 +651,7 @@
     border-radius: var(--radius-xs);
     cursor: pointer;
     text-decoration: none;
-    transition: color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+    transition: color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
   }
   .btn-ghost:hover { color: var(--ink); background: var(--surface-2); }
   .btn-ghost:active { transform: scale(0.98); }
@@ -960,7 +960,7 @@
   color: var(--body);
 }
 .prose tbody tr:last-child td { border-bottom: none; }
-.prose tbody tr { transition: background var(--duration-fast) var(--ease); }
+.prose tbody tr { transition: background-color var(--duration-fast) var(--ease); }
 .prose tbody tr:hover { background: var(--surface-2); }
 
 /* ── Shiki 双主题 → 随模式着色（灰阶面层）──
@@ -1068,10 +1068,11 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
 /* 卡片悬停（§11.5 交互增强）：1px 弱 scale 升级为 4px 上浮 + 唯一阴影浮现 + indigo 发丝线。
    封面缩放仍由 .media-zoom 独立承担，文字不参与缩放。 */
 .hover-zoom {
+  /* 投影不插值：box-shadow 是逐帧重绘的属性，跟 4px 抬起一起瞬时出现就够，
+     缓动它只会让卡片「先浮起来再变厚」。 */
   transition: transform var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease),
-    background var(--duration-fast) var(--ease);
+    background-color var(--duration-fast) var(--ease);
 }
 .hover-zoom:hover {
   transform: translateY(-4px);
@@ -1471,7 +1472,7 @@ a:hover > .media-zoom,
   border-radius: var(--radius-xs);
   background: var(--ink);
   border: 1px solid var(--canvas);
-  transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease);
+  transition: transform var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease);
 }
 
 .range-control::-moz-range-thumb {
@@ -1639,12 +1640,11 @@ html.lenis body { height: auto; }
   border-radius: var(--radius-full);
   border: 1px solid var(--color-primary);
   opacity: 0.5;
-  transition: width var(--duration-fast) var(--ease), height var(--duration-fast) var(--ease),
-    border-color var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease);
+  /* 尺寸不动，放大由 JS 把 scale() 拼进 transform：这里若 transition transform，
+     会和每帧重写打架，环就永远拖在光标后面。 */
+  transition: border-color var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease);
 }
 .custom-cursor-ring.is-hover {
-  width: 36px;
-  height: 36px;
   border-color: var(--accent-line);
   opacity: 0.85;
 }

@@ -27,12 +27,15 @@ export function TocList({ maxHeight, onNavigate }: TocListProps) {
     if (!activeId) return
     const list = listRef.current
     if (!list) return
-    // 焦点在这个列表里时不跟随。Tab 进目录的那一刻浏览器会把列表滚到被聚焦的那一项，
-    // 紧接着页面位移又让 spy 换了 activeId —— 这个 effect 会把列表拽回去居中高亮项，
-    // 于是「焦点在一个刚被推出可视区的项上」：实测 day-10 第 37 站落在视口上方 -424px，
-    // 用户按了 Tab 但屏幕上什么都没有（WCAG 2.4.7 焦点可见 / 2.4.11 不被遮挡）。
-    // 键盘在读这一段时就别抢他的滚动位置，等焦点离开列表再恢复跟随。
-    if (list.contains(document.activeElement)) return
+    // 焦点在这个列表里、而且是键盘走过来的（:focus-visible 画出了环）时才不跟随。
+    // Tab 进目录的那一刻浏览器会把列表滚到被聚焦的那一项，紧接着页面位移又让 spy 换了
+    // activeId —— 这个 effect 会把列表拽回去居中高亮项，于是「焦点在一个刚被推出可视区的
+    // 项上」：实测 day-10 第 37 站落在视口上方 -424px，用户按了 Tab 但屏幕上什么都没有
+    //（WCAG 2.4.7 焦点可见 / 2.4.11 不被遮挡）。
+    // 判据用 :focus-visible 而不是「焦点在不在列表里」：鼠标点目录会把焦点留在那条链接上
+    // 却根本不画环，此时不跟随只会让高亮项跟着滚丢 —— 只有真看得见环的那位才需要让位。
+    const focused = document.activeElement
+    if (focused && list.contains(focused) && focused.matches(':focus-visible')) return
 
     const item = list.querySelector<HTMLElement>(`[data-toc-id="${activeId}"]`)
     if (!item) return
