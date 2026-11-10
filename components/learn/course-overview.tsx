@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { getAllLessons, getReferencePages, getWeeks, lessonHref, type CourseId } from '@/lib/curriculum'
 import { getSimSpecs } from '@/lib/sim/registry'
 import { PageMasthead } from '@/components/page-masthead'
+import { plainInline } from '@/components/inline-md'
 import { Ledger, LedgerRow } from '@/components/ledger-row'
 import { ProgressWall } from '@/components/learn/progress-wall'
 import { ContinueCard } from '@/components/learn/continue-card'
@@ -62,7 +63,7 @@ export function CourseOverview({ course, eyebrow, title, lead, counter, notes }:
                     href={lessonHref(course, lesson.slug)}
                     label={`Day ${lesson.day}`}
                     title={lesson.title}
-                    desc={lesson.lead}
+                    desc={plainInline(lesson.lead)}
                     meta={`${lesson.readingTime} 分钟`}
                     note={[lesson.examples.length ? `${lesson.examples.length} 个案例` : '', simCount ? `${simCount} 个实验台` : ''].filter(Boolean).join(' · ') || undefined}
                   />
@@ -92,7 +93,7 @@ export function CourseOverview({ course, eyebrow, title, lead, counter, notes }:
                 href={lessonHref(course, page.slug)}
                 label="随查"
                 title={page.title}
-                desc={page.lead}
+                desc={plainInline(page.lead)}
                 meta={`${page.readingTime} 分钟`}
               />
             ))}

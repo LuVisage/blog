@@ -1,13 +1,116 @@
 ---
 name: Baron_Zhang Blog
-version: 5.3.0
-codename: Paper
-updated: 2026-11-06
+version: 8.0.0
+codename: Grid Editorial
+updated: 2026-11-07
 ---
 
-# Baron_Zhang Blog — Paper Design System v5.1
+# Baron_Zhang Blog — Design System（当前 v8 · Grid Editorial）
 
-> 唯一事实来源：`C:\Users\lusha\Desktop\UI_skill\design-dna\22-anthropic\DESIGN_DNA.md`（Anthropic 设计 DNA 逆向工程，14 章）。
+> **现行事实源：`app/globals.css` 末尾的「第 7 轮 · 博客编辑层」（配色 / 排版）
+> 与「第 8 轮 · 分栏编排」（布局）。** 两者都后置声明，覆盖 v5 / v6 / v6.1 的全部取值。
+> **下文与 `DESIGN-DNA-UPGRADE.md`、`AUDIT.md`、`SPEC_LEDGER.md` 的配色与禁令均为历史档案，
+> 不要再按它们改代码。** v6 的落地页组件类留作未引用的历史规则，首页不再渲染。
+
+## v7 的依据：6 个博客的实测数据（1440px 视口，computed style）
+
+| 站点 | 内容宽 | 正文 | H1 | 强调色 | 链接色 |
+|---|---|---|---|---|---|
+| Jim Nielsen's Blog | 576px | 18px / 27px / system-ui | 36px / 43.2px / 900 | `#d60015` | `#d60015` |
+| overreacted | 632px | 16px / 24px / Merriweather | 28px / 28px / 900 | `#e5007d` | `#222222` |
+| Retypeset（重新编排） | 704px | 16px / 24px / +0.4px 字距 | 36px / 54px / 700 | 黑白灰印刷 | 深灰 |
+| Lee Robinson | ~430px + 插画 | 17px / 27.2px / Iowan Old Style | 42.4px / 48.8px / 600 | 衬线 + 插画 | `#282828` |
+| Josh W. Comeau | 627px | 16px / 24px / Wotfard | 32px / 48px / 700 | `#e60067` | `#4242fa` |
+| Rauno Freiberg | 1440px | 16px | 32px / 500 | 灰底 `#ededed` | `#000000` |
+
+**归纳出的尺度与否定性规律**（这几条才是 v7 的设计契约）：
+
+- 内容宽 **576–704px**；正文 **16–18px / 行高 1.5–1.7 / 字距 normal**；
+  H1 **28–42px**，不是 72–80px。宽屏靠留白而不是靠放大字号。
+- 首页就是文章列表：**日期 → 标题 → 一句话摘要 → 标签**，发丝线分隔。
+  没有 hero 大标题、产品舞台、三列价值卡、深色营销带、CTA 按钮堆。
+- 层级靠**字重、留白、1px 发丝线、一个强调色**建立，不靠卡片、阴影、
+  玻璃、渐变、抽象图形。6 个站点里 5 个用纯白或极浅底。
+- 强调色至多一个，且只出现在链接 / 当前项 / hover；多数站点链接甚至是墨色。
+- 正文字距对中文应为 `0` 或微正值；负字距（v6 的 `-0.045em`）是拉丁字母规则，
+  套到方块汉字上会把笔画挤在一起。
+
+v7 落地：纸白 `#ffffff` + 暖灰发丝线 `#e8e5df` + 近黑墨 `#23211e`
++ 单一朱砂 `#b4442f`；680px 正文栏；小圆角 4–16px；阴影与玻璃全部退场；
+`--font-*` 仍是系统栈（四族 Google Fonts 外链已于 v6 下线）。
+
+## v8 的依据：布局型博客的实测网格（1440px 与 390px 两档）
+
+| 站点 | 容器 | 网格 | 编排方式 | 390px |
+|---|---|---|---|---|
+| Maggie Appleton | 1268px（左右各 86px） | 3 列 × 379px | 刊头全宽；garden-section 里 Essays 跨 2 列（823px）、Notes 1 列、Patterns 1 列、Library 跨 2 列 | 全部 1 列 360px，汉堡菜单 |
+| Gwern.net | main 935px / article 895px | 2 列 × 428px | NEWEST 与 POPULAR 并排成紧凑链接列；右上角浮动工具栏 | 全部 1 列 358px |
+| Frank Chimero | 720px 固定半屏 | header 内 2 列 × 339px | sticky 左半屏刊头 + 右侧内容 | header 变 390×360 普通块 |
+| Brian Lovin | 未实测 | 全局侧栏 + 多栏 list-detail | 作者自述「跳出单栏个人站」，受 macOS / iPadOS 启发 | 未实测 |
+
+> Brian Lovin 站点被 Vercel 验证页拦截，只依据其公开描述；Daring Fireball 访问超时，
+> 两者均未纳入实测数值。不把「听说」写成「量到」。
+
+**归纳**：刊头跨全宽 → 内容按重要度分栏或跨列 → 全站容器共用同一中轴 → 窄屏整列坍缩。
+统计、精选、书架、订阅这类辅助信息常驻侧栏，而不是线性堆在页面底部。
+
+v8 落地：首页与文章列表 / 文章页共用同一个 `1200px` main 容器（1440px 视口下
+内容区 1136px、起点 x=152）；首页内部为 `760px 主栏 + 320px 侧栏 / gap 56px`，
+`max-width: 900px` 起坍缩成单列。侧栏区块用发丝线分隔、字号 13–14px，
+主栏维持 17px 正文流。实测 1440 / 900 / 390 三档均无横向溢出。
+v7 那套 680px 单栏不再用于首页与内页混排，避免切页时内容轴跳动。
+
+## v9：体检后的分栏统一与交互打磨
+
+跨 14 个页面 × 桌面 / 移动两档，外加 3 个暗色页体检：**0 控制台错误、
+0 横向溢出、每页恰 1 个 h1、0 缺 alt、0 空链接**。没有坏掉的页面，于是按量到的
+数值做收敛：
+
+- 定义 `--layout-side: 320px` / `--layout-gap: 56px`；首页与 8 个列表型内页
+  统一成 `760px + 320px / gap 56px`（原内页是 832/240、gap 64）。
+- 分类 / 标签 / 系列详情页单栏时把文章行收回 `760px`（原 1136px，
+  标题列 946px，中文一行 60+ 字，超出可读行长）。
+- 搜索「Agent」原一次铺 84 条，改为首屏 30 条 + 「再显示」，切换筛选重置计数。
+- 3D 舞台可键盘聚焦：方向键旋转、+/- 缩放；进入视口才加载 Three.js 与模型；
+  省流量模式直接保留静态海报；移动端海报高度 320 → 190px；触屏设备提示改为
+  「单指拖动 / 双指缩放」。
+
+**回归记录**：分栏令牌第一次写成无条件声明，后置覆盖了第 8 轮的移动端单列规则，
+390px 主栏被压成几十像素、图注竖排。已把双列规则限定在 `min-width: 901px`，
+并补一条 `max-width: 900px` 的单列兜底；复测 390px 下 grid = `358px`、
+`figcaption` 宽 358px。教训：本文件的规则全靠后置覆盖，新增布局规则必须写明断点。
+
+**实测驱动的交互收敛（第 15 轮 · 台账 §11.30）**：CLS 与 INP 第一次量化
+（`vitals.mjs`，15 类页面 × 2 视图）之后按数改了三处：主题切换去掉
+View Transition（9036 节点的数学页上点击呈现段实测 285ms，快照绘制 + 全篇
+KaTeX 重样式），统一走圆形遮罩揭示，reduced-motion 直接换；骨架微光从
+`background-position` 改 `::after` 的 transform（前者每帧重绘整条）；同周条
+标签独占一行，消掉字体到货时 `ch` 宽度推过换行边界造成的 26px 位移往返。
+收尾 30 站最差 CLS 0.0000、最慢交互 192ms（闸 200ms）。
+
+**巡检收口与简介渲染契约（第 16 轮 · 台账 §11.31）**：lead 简介的行内
+markdown 不再露星号——课时导语照正文语义渲染（`InlineMd`，`lead-md` 借
+`:is(.prose, .lead-md)` 共用链接/粗体/行内代码语汇），索引行 desc 取纯文本
+（整行已是 `<Link>`，不能再嵌 `<a>`）。/subscribe 嵌卡走 `bare`，摘掉与页
+masthead 重复的标题与导语。3D 舞台键盘契约第一次实测（`stage-key.mjs`
+6/6：可聚焦 + 读屏名、方向键旋转与 +/- 缩放在 reduced-motion 下以像素差
+归因、ArrowDown 不滚页）。收尾 30 站最差 CLS 0.0000、最慢交互 160ms；
+两次越线复跑归因为测量期 CPU 争用（残留巡检浏览器），静机复测全绿，
+闸与阈值不动。
+
+**博客感补全（第 17 轮 · 台账 §11.32）**：标题下署名（圆头像 + 名字）、
+元信息行字数、文末 CC BY-NC-SA 4.0 许可行（`data-pagefind-ignore`）、
+页脚运行天数（客户端计算，SSR 只渲起始日避 hydration mismatch）与许可
+入口、系列内上一篇/下一篇；/terms 增「内容许可」章。顺带摘掉 Typography
+插件给 blockquote 自动加的 open/close-quote（与内容自带引号叠双、给提示框
+凭空加引号），引号与否归还内容。收尾 30 站最差 CLS 0.0000、最慢交互
+160ms；batchy 18/18、sweep2 215 检查 0 findings。
+
+保留的基建（v5 起，不随换肤推倒）：`prefers-reduced-motion`、无 JS 兜底、
+焦点环、44px 触摸靶、`aria-current` / `aria-pressed`、命令面板、主题切换、
+`scripts/ui-discipline.mjs` 的令牌化纪律闸。
+
+> 历史（v5.1）：唯一事实来源为 `C:\Users\lusha\Desktop\UI_skill\design-dna\22-anthropic\DESIGN_DNA.md`（Anthropic 设计 DNA 逆向工程，14 章）。
 > 本文件是该 DNA 在本站的落地规范：值取自文档原文，文档未覆盖处全部标注 `[推断]`。
 > 逐条来源、冲突裁决与缺口清单见 `SPEC_LEDGER.md`；机器比对结果见 `AUDIT.md`。
 

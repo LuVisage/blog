@@ -35,6 +35,14 @@ export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 const EMAIL_B64 = 'MTk3NzkyODg3OEBxcS5jb20='
 const EMAIL = atob(EMAIL_B64)
 
+/** 主题色只在这里写死：layout.tsx 要交给 viewport metadata，而 UI 纪律闸
+ *  R5 不允许页面里出现裸色号（lib/ 是令牌与配置的事实源）。
+ *  取值跟第 7 轮编辑层的画布走（globals.css 后置 :root / .dark 的 --color-canvas）。 */
+export const THEME_COLORS = {
+  light: '#ffffff',
+  dark: '#141311',
+} as const
+
 export const SITE = {
   title: 'Baron_Zhang',
   description: 'AI 探索者 & Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。',
@@ -46,7 +54,8 @@ export const SITE = {
   },
   avatar: '/avatar.jpg',
   locale: 'zh-CN',
-  postsPerPage: 10,
+  /** 列表页每页篇数。分页路由 /posts/page/[n] 按它切分，内容变多后调回 10 即可。 */
+  postsPerPage: 4,
 } as const
 
 /**
@@ -80,9 +89,10 @@ export const NAV_LINKS = [
   { href: '/about', label: '关于' },
 ] as const
 
+/** 只改 .env.local / GitHub Actions 变量即可开社交，不必碰源码。 */
 export const SOCIAL_LINKS = {
-  github: 'https://github.com/LuVisage',
-  twitter: '',
+  github: process.env.NEXT_PUBLIC_GITHUB_URL || 'https://github.com/LuVisage',
+  twitter: process.env.NEXT_PUBLIC_TWITTER_URL || '',
   email: EMAIL,
 } as const
 
@@ -109,11 +119,24 @@ export const GISCUS_CONFIG = {
 
 // ─── Analytics ────────────────────────────────────────────
 
-export const ANALYTICS = {
-  provider: 'none' as 'google' | 'umami' | 'none',
-  googleId: '',
-  umamiSrc: '',
-  umamiId: '',
+/**
+ * 访问统计：默认关闭（纯静态站不主动注入第三方脚本）。
+ * 启用只需在构建环境里给 NEXT_PUBLIC_* 赋值，不用改这份源码：
+ *   NEXT_PUBLIC_ANALYTICS_PROVIDER=google  + NEXT_PUBLIC_GA_ID=G-XXXX
+ *   NEXT_PUBLIC_ANALYTICS_PROVIDER=umami   + NEXT_PUBLIC_UMAMI_SRC / NEXT_PUBLIC_UMAMI_ID
+ * provider 只认这两个值，其余输入一律回落到 none —— 避免拼错时静默注入半个脚本。
+ */
+const analyticsProvider = process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER
+export const ANALYTICS: {
+  provider: 'google' | 'umami' | 'none'
+  googleId: string
+  umamiSrc: string
+  umamiId: string
+} = {
+  provider: analyticsProvider === 'google' || analyticsProvider === 'umami' ? analyticsProvider : 'none',
+  googleId: process.env.NEXT_PUBLIC_GA_ID || '',
+  umamiSrc: process.env.NEXT_PUBLIC_UMAMI_SRC || '',
+  umamiId: process.env.NEXT_PUBLIC_UMAMI_ID || '',
 }
 
 // ─── Friends (友情链接) ──────────────────────────────────
@@ -153,11 +176,37 @@ export const PROJECTS: Project[] = [
   },
 ]
 
+// ─── /now：作者近况 ──────────────────────────────────────
+
+/** 只写可核对的事实。personalNote 留空时 /now 只展示从 MDX / 课程数据现算的
+ *  站点近况，不替作者编造「在读什么、人在哪、在做什么项目」。 */
+export const NOW = {
+  personalNote: '',
+  focus: [
+    'AI Agent 架构与多 Agent 协作',
+    '大模型应用：RAG、工具调用与工程化',
+    '技术写作：把跑通的东西讲清楚',
+  ],
+} as const
+
+// ─── /uses：本站技术栈 ───────────────────────────────────
+
+export const USES = {
+  note: '以下是本站实际使用的技术栈，可在 package.json 与仓库配置里逐项核对。个人设备与常用软件可在 lib/constants.ts 的 USES 里补充。',
+  groups: [
+    { label: '框架与语言', items: ['Next.js 15 · App Router / 静态导出', 'React 19', 'TypeScript 5.7'] },
+    { label: '内容与排版', items: ['MDX + gray-matter', 'Tailwind CSS 3.4', 'Shiki（rehype-pretty-code）', 'KaTeX'] },
+    { label: '站内功能', items: ['Pagefind · 客户端全文检索', 'Giscus · 评论', 'next-themes · 深色模式', 'Three.js · 可交互 3D 模型'] },
+    { label: '发布与订阅', items: ['GitHub Pages + GitHub Actions', 'RSS 2.0 / Atom 1.0 / JSON Feed 1.1', 'sitemap.xml / robots.txt'] },
+  ],
+} as const
+
 // ─── About Page Content ──────────────────────────────────
 
 export const ABOUT = {
   greeting: '你好，我是 Baron_Zhang',
   title: 'AI 探索者 & Agent 开发者',
+  shortBio: '关注大模型应用、Agent 架构与工程实践，也记录把技术讲清楚的过程。',
   bio: `
 我专注于 AI Agent 开发与大模型应用实践。在这个博客里，我分享 AI 开发中的实战经验与技术思考，记录构建智能体应用的探索过程。
 

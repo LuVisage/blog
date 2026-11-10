@@ -14,18 +14,27 @@ interface WeekStripProps {
   lessons: LessonMeta[]
 }
 
-/** Same-week hops. Horizontal so it uses the band width instead of stealing it. */
+/**
+ * Same-week hops. Horizontal so it uses the band width instead of stealing it.
+ *
+ * 标签独占一行、chip 行拿满带宽，不是为了好看：两者做 flex 兄弟时，chip 的宽度上限是
+ * `max-w-[14ch]`，而 `ch` 跟着字体走 —— Noto 子集分批到货时每个 chip 宽了约 9px，
+ * 七个一起把整行推过换行边界，于是「标签+chip 同行」↔「标签独占一行」来回翻，
+ * 下方正文跟着上下跳 26px（实测 day-06 @1280：t=566ms 上跳、t=746ms 跳回，
+ * CLS 0.127；三遍里复现一遍，字体到货时序决定，真实网络下只会更频繁）。
+ * 标签让出那一行之后 chip 行拿到的是整条带宽而不是减去标签宽的余量，边界不再被跨过。
+ */
 export function WeekStrip({ course, current, week, weekTitle, lessons }: WeekStripProps) {
   const { map } = useLearnProgress(course)
   if (lessons.length < 2) return null
 
   return (
-    <nav aria-label="本周课次" className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className="eyebrow flex-shrink-0" style={{ color: 'var(--muted)' }}>
+    <nav aria-label="本周课次" className="mt-5">
+      <span className="eyebrow block" style={{ color: 'var(--muted)' }}>
         {week === 0 ? 'Day 0' : `Week ${String(week).padStart(2, '0')}`} · {weekTitle}
       </span>
 
-      <ol className="flex flex-wrap items-center gap-1.5">
+      <ol className="mt-2 flex flex-wrap items-center gap-1.5">
         {lessons.map((lesson) => {
           const active = lesson.slug === current
           const done = map[lesson.slug]?.done

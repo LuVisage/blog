@@ -1,9 +1,9 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { IconAward, IconSparkles, IconFlag, IconX } from '@tabler/icons-react'
+import { IconSparkles, IconFlag, IconX } from '@tabler/icons-react'
 
-export type ToastTone = 'info' | 'achievement' | 'secret'
+export type ToastTone = 'info' | 'secret'
 
 export interface ToastInput {
   label: string
@@ -23,14 +23,12 @@ interface ToastRecord extends Required<Omit<ToastInput, 'description'>> {
 
 const TONE_DURATION: Record<ToastTone, number> = {
   info: 3600,
-  achievement: 5200,
   secret: 6800,
 }
 
 function ToneIcon({ tone }: { tone: ToastTone }) {
   const props = { size: 16, strokeWidth: 1.75 }
   if (tone === 'secret') return <IconSparkles {...props} style={{ color: 'var(--accent-text)' }} />
-  if (tone === 'achievement') return <IconAward {...props} style={{ color: 'var(--accent-text)' }} />
   return <IconFlag {...props} style={{ color: 'var(--muted)' }} />
 }
 

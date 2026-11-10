@@ -8,11 +8,9 @@ import { PaletteTrigger } from './palette-trigger'
 import { useRef, useState, useEffect } from 'react'
 
 /**
- * Top navigation.
- *
- * DESIGN_DNA §8.2：导航固定吸顶、高 4.375rem（70px）、层级只用一条发丝线表达
- * （§7 否定性规律：没有阴影、没有毛玻璃、没有圆角容器）。
- * 激活项由一条 2px 强调色实线指示（§12.1 强调色只出现在高权重位置）。
+ * Top navigation — 第 6 轮 Apple 产品叙事。
+ * 玻璃吸顶（强度走 --glass-blur 令牌）、高 --nav-h（52px）、滚动后浮现细线；
+ * 激活项仍由一条 2px 强调色实线指示。
  */
 export function Header() {
   const pathname = usePathname()
@@ -76,16 +74,9 @@ export function Header() {
   }, [pathname])
 
   return (
-    <header
-      className="sticky top-0 z-50 w-full"
-      style={{
-        background: 'var(--overlay)',
-        borderBottom: `1px solid ${scrolled ? 'var(--line-strong)' : 'var(--line)'}`,
-        transition: 'border-color var(--duration-fast) var(--ease)',
-      }}
-    >
+    <header className={`apple-nav sticky top-0 z-50 w-full${scrolled ? ' is-scrolled' : ''}`}>
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-6" style={{ height: 70 }}>
+        <div className="flex items-center justify-between gap-6" style={{ height: 'var(--nav-h)' }}>
           {/* Wordmark */}
           <Link
             href="/"
@@ -99,7 +90,7 @@ export function Header() {
           </Link>
 
           {/* Desktop nav */}
-          <nav ref={navRef} className="relative hidden md:flex items-center" aria-label="主导航">
+          <nav ref={navRef} className="relative hidden lg:flex items-center" aria-label="主导航">
             {NAV_LINKS.map((link) => {
               const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href)
               return (
@@ -107,7 +98,7 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className="nav-row pressable relative px-3 py-2 text-sm font-medium transition-colors cursor-pointer"
+                  className="nav-row pressable relative px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors cursor-pointer"
                   style={{
                     transitionDuration: 'var(--duration-fast)',
                   }}
@@ -138,7 +129,7 @@ export function Header() {
             <button
               ref={menuButtonRef}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="pressable surface surface-hover tint-muted md:hidden w-10 h-10 flex items-center justify-center cursor-pointer"
+              className="pressable surface surface-hover tint-muted lg:hidden w-10 h-10 flex items-center justify-center cursor-pointer"
               style={{ borderRadius: 'var(--radius-xs)' }}
               aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
               aria-expanded={mobileMenuOpen}
@@ -158,20 +149,20 @@ export function Header() {
       {/* Mobile backdrop */}
       {mobileMenuOpen && (
         <div
-          className="md:hidden fixed inset-0 top-[70px] z-40"
+          className="lg:hidden fixed inset-0 z-40"
+          style={{ top: 'var(--nav-h)', background: 'var(--scrim)' }}
           role="button"
           tabIndex={0}
           aria-label="关闭导航菜单"
           onClick={() => setMobileMenuOpen(false)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMobileMenuOpen(false) } }}
-          style={{ background: 'var(--scrim)' }}
         />
       )}
 
       {/* Mobile menu — hairline rows, no radius (抽屉菜单) */}
       {mobileMenuOpen && (
         <nav
-          className="md:hidden relative z-50 animate-slide-down"
+          className="lg:hidden relative z-50 animate-slide-down"
           aria-label="移动端导航"
           onKeyDown={(e) => {
             // 遮罩是全屏的：Tab 走过最后一行会走进遮罩背后，焦点落在肉眼看不见的正文上。

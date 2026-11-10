@@ -14,6 +14,8 @@ export interface PostMeta {
   series?: string
   seriesOrder?: number
   popular?: boolean
+  /** frontmatter 里的自定义封面（相对 public/，如 /images/foo.jpg）。缺省时由 lib/covers.ts 生成。 */
+  cover?: string
   draft: boolean
   readingTime: number
 }
@@ -57,6 +59,7 @@ interface PostFrontmatter {
   series?: string
   seriesOrder?: number
   popular?: boolean
+  cover?: string
   draft?: boolean
 }
 
@@ -73,6 +76,7 @@ function toPost(slug: string, data: PostFrontmatter, content: string): PostMeta 
     series: data.series || undefined,
     seriesOrder: data.seriesOrder ?? undefined,
     popular: data.popular === true,
+    cover: data.cover || undefined,
     draft: data.draft === true,
     readingTime: estimateReadingTime(content),
   }

@@ -5,6 +5,7 @@ import { IconArrowLeft, IconArrowRight, IconChevronLeft, IconChevronRight } from
 import { COURSES, getAdjacentLessons, getWeekLessons, lessonHref, type Lesson } from '@/lib/curriculum'
 import { getSimSpecs } from '@/lib/sim/registry'
 import { MDXContent } from '@/components/mdx-content'
+import { InlineMd } from '@/components/inline-md'
 import { CodeBlockEnhancer } from '@/components/code-block-enhancer'
 import { TableOfContents } from '@/components/toc'
 import { ChapterBar } from '@/components/chapter-bar'
@@ -113,8 +114,8 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
             </h1>
 
             {lesson.lead && (
-              <p className="body-lg mt-5 max-w-2xl" style={{ color: 'var(--muted)' }}>
-                {lesson.lead}
+              <p className="body-lg lead-md mt-5 max-w-2xl" style={{ color: 'var(--muted)' }}>
+                <InlineMd text={lesson.lead} />
               </p>
             )}
 

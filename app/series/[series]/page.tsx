@@ -65,7 +65,9 @@ export default async function SeriesDetailPage({ params }: { params: PageParams 
         </div>
       )}
 
-      <PostList posts={posts} />
+      <div className="page-list-narrow">
+        <PostList posts={posts} />
+      </div>
     </div>
   )
 }

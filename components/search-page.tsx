@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { IconSearch, IconCommand, IconX } from '@tabler/icons-react'
 import { PageMasthead } from '@/components/page-masthead'
@@ -19,10 +20,17 @@ declare global {
   }
 }
 
+type Kind = '文章' | '教程' | '分类' | '标签' | '系列' | '栏目'
+const FILTERS = ['全部', '文章', '教程', '分类', '标签', '系列', '栏目'] as const
+type Filter = typeof FILTERS[number]
+
+/** 一次最多铺开多少条；再多走「显示更多」，避免 80+ 条结果把页面拉到无限长。 */
+const RESULT_PAGE = 30
+
 interface SearchResult {
   title: string
   url: string
-  kind: '文章' | '教程'
+  kind: Kind
 }
 
 /** 服务端算好的真实体量，客户端不猜数字。 */
@@ -33,10 +41,19 @@ export interface Start {
   unit: string
 }
 
-/** Trailing slashes everywhere, so match the slug segments rather than the prefix. */
-function resultKind(url: string): SearchResult['kind'] | null {
-  if (/\/posts\/[^/]+\/$/.test(url)) return '文章'
-  if (/\/learn\/[^/]+\/[^/]+\/$/.test(url)) return '教程'
+/**
+ * 检索覆盖面：除文章与课时外，分类/标签/系列/栏目页也是内容，不该被丢掉。
+ * 分页路由 /posts/page/N/ 只是列表切片，不当成独立结果。
+ */
+function resultKind(url: string): Kind | null {
+  const path = BASE_PATH && url.startsWith(BASE_PATH + '/') ? url.slice(BASE_PATH.length) : url
+  if (/^\/posts\/page\/\d+\/$/.test(path)) return null
+  if (/^\/posts\/[^/]+\/$/.test(path)) return '文章'
+  if (/^\/learn\/[^/]+\/[^/]+\/$/.test(path)) return '教程'
+  if (/^\/categories\/[^/]+\/$/.test(path)) return '分类'
+  if (/^\/tags\/[^/]+\/$/.test(path)) return '标签'
+  if (/^\/series\/[^/]+\/$/.test(path)) return '系列'
+  if (/^\/(posts|learn|categories|tags|series|archive|projects|friends|about|search)\/$/.test(path)) return '栏目'
   return null
 }
 
@@ -46,12 +63,34 @@ function routePath(url: string): string {
   return BASE_PATH && url.startsWith(BASE_PATH + '/') ? url.slice(BASE_PATH.length) : url
 }
 
+/** 关键词高亮：按片段拼 React 节点，不碰 innerHTML，用户输入天然被转义。 */
+function Highlight({ text, term }: { text: string; term: string }) {
+  const needle = term.trim().toLowerCase()
+  if (!needle) return <>{text}</>
+  const lower = text.toLowerCase()
+  const parts: ReactNode[] = []
+  let cursor = 0
+  for (;;) {
+    const at = lower.indexOf(needle, cursor)
+    if (at === -1) {
+      parts.push(text.slice(cursor))
+      break
+    }
+    if (at > cursor) parts.push(text.slice(cursor, at))
+    parts.push(<mark key={at} className="apple-mark">{text.slice(at, at + needle.length)}</mark>)
+    cursor = at + needle.length
+  }
+  return <>{parts}</>
+}
+
 export function SearchPage({ starts }: { starts: Start[] }) {
   const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<Filter>('全部')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [ready, setReady] = useState(false)
+  const [visible, setVisible] = useState(RESULT_PAGE)
   const pagefindRef = useRef<Pagefind | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -98,6 +137,7 @@ export function SearchPage({ starts }: { starts: Start[] }) {
 
     setLoading(true)
     setSearched(true)
+    setVisible(RESULT_PAGE)
 
     try {
       const search = await pagefindRef.current.search(term.trim())
@@ -151,12 +191,15 @@ export function SearchPage({ starts }: { starts: Start[] }) {
     }
   }, [query, doSearch])
 
+  const shown = filter === '全部' ? results : results.filter((r) => r.kind === filter)
+  const displayed = shown.slice(0, visible)
+
   return (
     <div data-pagefind-ignore>
       <PageMasthead
         eyebrow="搜索 — Search"
         title="搜索"
-        lead="输入关键词，在全部文章和教程里找相关内容。"
+        lead="输入关键词，在文章、教程与各个栏目里找相关内容。"
         counter="⌘K 随时可用"
       />
 
@@ -169,9 +212,9 @@ export function SearchPage({ starts }: { starts: Start[] }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="搜索文章与教程…"
+          placeholder="搜索文章、教程与栏目…"
           autoFocus
-          aria-label="搜索文章与教程"
+          aria-label="搜索全站内容"
           className="flex-1 min-w-0 bg-transparent border-0 outline-none font-serif"
           style={{
             fontSize: 'clamp(20px, 4vw, 28px)',
@@ -212,10 +255,9 @@ export function SearchPage({ starts }: { starts: Start[] }) {
         }}
       />
 
-      {/* 结果条数是状态消息：容器得常驻 DOM，读屏才会在文案换掉时播报。
-          把可见的「结果 / N 条」标题挂 aria-live 没用 —— 它和数据是同一次挂载才出现的。 */}
+      {/* 结果条数是状态消息：容器得常驻 DOM，读屏才会在文案换掉时播报。 */}
       <p className="sr-only" role="status" aria-live="polite">
-        {loading ? '正在检索' : searched ? (results.length ? `共 ${results.length} 条结果` : '没有匹配的内容') : ''}
+        {loading ? '正在检索' : searched ? (shown.length ? `共 ${shown.length} 条结果` : '没有匹配的内容') : ''}
       </p>
 
       {/* Results */}
@@ -223,7 +265,7 @@ export function SearchPage({ starts }: { starts: Start[] }) {
         <nav className="pt-14" aria-label="检索之外的入口">
           <div className="flex items-baseline justify-between gap-4 pb-4">
             <span className="eyebrow">还没想好搜什么</span>
-            <span className="meta">这里只检索文章与教程的正文</span>
+            <span className="meta">全站正文与栏目页都可检索</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {starts.map((start) => (
@@ -270,16 +312,33 @@ export function SearchPage({ starts }: { starts: Start[] }) {
         </div>
       )}
 
-      {!loading && results.length > 0 && (
+      {!loading && shown.length > 0 && (
         <div className="pt-9">
-          <div className="flex items-baseline justify-between gap-4 mb-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-4 mb-5">
             <div className="eyebrow">结果</div>
-            <span className="meta">{results.length} 条</span>
+            <span className="meta">{shown.length} 条</span>
           </div>
+
+          <div className="apple-filters mb-7" role="group" aria-label="按类型筛选结果">
+            {FILTERS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                data-js-only
+                className="apple-filter"
+                aria-pressed={filter === item}
+                onClick={() => { setFilter(item); setVisible(RESULT_PAGE) }}
+              >
+                {item}
+                {item !== '全部' && (
+                  <span className="meta ml-1.5">{results.filter((r) => r.kind === item).length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="stagger">
-            {/* 原先这里是裸 <a>：搜到就整页重载，转场动画、焦点交接、预取一个都不参与，
-                慢半拍还把滚动位置甩回顶部。Link 渲染的仍是 <a>，样式与聚光行照旧。 */}
-            {results.map((result, i) => (
+            {displayed.map((result, i) => (
               <Link
                 key={result.url}
                 href={routePath(result.url)}
@@ -293,13 +352,35 @@ export function SearchPage({ starts }: { starts: Start[] }) {
                   className="font-serif font-bold row-title transition-colors group-hover:text-[var(--accent-text)] tint-ink"
                   style={{ fontSize: 18, lineHeight: 1.4, letterSpacing: '-0.01em' }}
                 >
-                  {result.title}
+                  <Highlight text={result.title} term={query} />
                 </span>
                 <span className="caption flex-shrink-0">{result.kind}</span>
               </Link>
             ))}
           </div>
+
+          {shown.length > displayed.length && (
+            <div className="pt-6 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                data-js-only
+                className="apple-copy-btn"
+                onClick={() => setVisible((v) => v + RESULT_PAGE)}
+              >
+                再显示 {Math.min(RESULT_PAGE, shown.length - displayed.length)} 条
+              </button>
+              <span className="meta">已显示 {displayed.length} / {shown.length}</span>
+            </div>
+          )}
           <div className="rule" />
+        </div>
+      )}
+
+      {/* 有结果、但当前筛选档下一条都没有 —— 别误报成「整站搜不到」。 */}
+      {!loading && searched && results.length > 0 && shown.length === 0 && (
+        <div className="pt-14 pb-6 text-center rule">
+          <p className="body-lg">「{filter}」这一档没有匹配。</p>
+          <p className="body-sm mt-2">切回「全部」可以看到另外 {results.length} 条结果。</p>
         </div>
       )}
     </div>

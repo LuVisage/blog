@@ -38,7 +38,7 @@ export function FeatureCard({ post }: { post: PostMeta }) {
       <div className="media-frame relative min-h-[190px] sm:min-h-[280px]">
         {/* 首屏封面用 eager + 同步解码：它是 LCP 元素；占位色由 .media-frame 铺在下面 */}
         <div className="media-parallax">
-          <img src={cover.url} alt="" loading="eager" decoding="async" className="media-zoom" />
+          <img src={cover.url} alt={cover.alt} loading="eager" decoding="async" className="media-zoom" />
         </div>
         {/* indigo 签名左竖条（第 5 轮 +）：头条卡的强调色记忆点 */}
         <span
@@ -84,6 +84,7 @@ export function FeatureCard({ post }: { post: PostMeta }) {
 
 /** Numbered row — the editorial index. Deliberately not a card. */
 function IndexRow({ post, ordinal }: { post: PostMeta; ordinal: number }) {
+  const cover = coverFor(post)
   return (
     <Link
       href={`/posts/${post.slug}`}
@@ -91,7 +92,7 @@ function IndexRow({ post, ordinal }: { post: PostMeta; ordinal: number }) {
       className="group grid grid-cols-[44px_minmax(0,1fr)_auto] items-baseline gap-3 sm:gap-6 py-6 rule transition-colors"
     >
       {/* 封面预览钉在序号栏（globals.css §11.6 row-cover）：不再跟手，也就压不到正文 */}
-      <img src={coverFor(post).url} alt="" loading="lazy" decoding="async" className="row-cover" />
+      <img src={cover.url} alt={cover.alt} loading="lazy" decoding="async" className="row-cover" />
 
       {/* 第 5 轮换血：序号 → are.na 灰阶 mono 数字（无边框无胶囊），hover 让位给封面 */}
       <span className="issue-badge tabular-nums">{String(ordinal).padStart(2, '0')}</span>
@@ -158,7 +159,7 @@ function GridCard({ post }: { post: PostMeta }) {
       <div className="media-frame h-28 sm:h-32">
         {/* 网格卡多在首屏之外：懒加载 + 异步解码，占位色先撑住版面 */}
         <div className="media-parallax">
-          <img src={cover.url} alt="" loading="lazy" decoding="async" className="media-zoom" />
+          <img src={cover.url} alt={cover.alt} loading="lazy" decoding="async" className="media-zoom" />
         </div>
       </div>
       <div className="p-6 flex flex-col flex-1">

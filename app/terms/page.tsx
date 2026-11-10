@@ -123,7 +123,18 @@ export default function TermsPage() {
             <a href="/.well-known/security.txt">security.txt</a> 中的渠道负责任地披露。
           </p>
 
-          <h2>6. 附则</h2>
+          <h2 id="license">6. 内容许可</h2>
+          <p>
+            本站原创文章与配图采用{' '}
+            <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans" target="_blank" rel="license noopener noreferrer">
+              CC BY-NC-SA 4.0
+            </a>{' '}
+            （署名—非商业性使用—相同方式共享）许可：转载与改编须署名作者并附原文链接，
+            不得用于商业目的，衍生作品须以相同许可分享。文中代码片段的学习与笔记使用见第 1 节；
+            超出许可范围的使用（商用、数据集、语料库）按第 2 节须另行取得许可。
+          </p>
+
+          <h2>7. 附则</h2>
           <p>
             本协定即站长的使用意愿声明；机器可读部分（robots.txt、security.txt）与页面如有出入，以本页为准。协定更新后本页日期会同步。
           </p>

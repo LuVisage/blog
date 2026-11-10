@@ -30,6 +30,7 @@ function getPosts() {
         updated: data.updated ? new Date(data.updated) : undefined,
         description: data.description || '',
         slug,
+        tags: Array.isArray(data.tags) ? data.tags : [],
         draft: data.draft === true,
       }
     })
@@ -108,6 +109,28 @@ ${entries}
 </feed>`
 }
 
+/** JSON Feed 1.1 —— Jim Nielsen 等个人博客同时提供 RSS 与 JSON Feed。 */
+function generateJsonFeed(posts) {
+  return JSON.stringify({
+    version: 'https://jsonfeed.org/version/1.1',
+    title: SITE.title,
+    description: SITE.description,
+    home_page_url: siteUrl(),
+    feed_url: siteUrl('feed.json'),
+    language: SITE.locale,
+    authors: [{ name: SITE.author.name, url: siteUrl() }],
+    items: posts.map((post) => ({
+      id: siteUrl(`posts/${post.slug}`),
+      url: siteUrl(`posts/${post.slug}`),
+      title: post.title,
+      summary: post.description,
+      date_published: post.date.toISOString(),
+      date_modified: (post.updated || post.date).toISOString(),
+      tags: post.tags,
+    })),
+  }, null, 2)
+}
+
 function main() {
   if (!existsSync(publicDir)) {
     mkdirSync(publicDir, { recursive: true })
@@ -122,7 +145,10 @@ function main() {
   writeFileSync(join(publicDir, 'atom.xml'), generateAtom(posts))
   console.log('已生成 atom.xml')
 
-  console.log('RSS feeds generated successfully!')
+  writeFileSync(join(publicDir, 'feed.json'), generateJsonFeed(posts))
+  console.log('已生成 feed.json')
+
+  console.log('Feeds generated successfully!')
 }
 
 main()

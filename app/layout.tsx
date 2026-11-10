@@ -1,17 +1,14 @@
-import type { Metadata } from 'next'
-import { SITE, basePathUrl, siteUrl } from '@/lib/constants'
+import type { Metadata, Viewport } from 'next'
+import { SITE, SOCIAL_LINKS, THEME_COLORS, basePathUrl, siteUrl } from '@/lib/constants'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { Analytics } from '@/components/analytics'
 import { BackToTop } from '@/components/back-to-top'
-import { AuraCursor } from '@/components/ui/aura-cursor'
-import { CustomCursor } from '@/components/ui/custom-cursor'
 import { LenisProvider } from '@/components/ui/lenis-provider'
 import { GSAPProvider } from '@/components/gsap-provider'
 import { ToastProvider } from '@/components/ui/toast'
 import { PaletteProvider } from '@/components/command-palette'
-import { KonamiEasterEgg } from '@/components/reading-achievements'
 import { PageTransition, PageSweep } from '@/components/page-transition'
 import { getAllPosts } from '@/lib/posts'
 import { COURSE_IDS, getAllLessons, getReferencePages } from '@/lib/curriculum'
@@ -28,15 +25,34 @@ export const metadata: Metadata = {
   openGraph: {
     title: SITE.title, description: SITE.description, url: siteUrl(),
     siteName: SITE.title, locale: SITE.locale, type: 'website',
-    images: [{ url: siteUrl('og-default.svg'), width: 1200, height: 630, alt: SITE.title }],
+    images: [{ url: siteUrl('images/3d/og-3d.jpg'), width: 1200, height: 630, alt: SITE.title }],
   },
-  twitter: { card: 'summary_large_image', title: SITE.title, description: SITE.description, images: [siteUrl('og-default.svg')] },
+  twitter: { card: 'summary_large_image', title: SITE.title, description: SITE.description, images: [siteUrl('images/3d/og-3d.jpg')] },
   robots: { index: true, follow: true },
   icons: [{ url: basePathUrl('/favicon.svg'), type: 'image/svg+xml' }],
+  manifest: basePathUrl('/manifest.webmanifest'),
+  appleWebApp: { capable: true, title: SITE.title, statusBarStyle: 'default' },
+}
+
+/**
+ * Next dev 的 HMR 运行时用 eval 装载模块，生产构建不需要。只在开发环境把
+ * 'unsafe-eval' 补进 script-src，避免本地控制台被 EvalError 刷屏、页面停在
+ * 未水合状态；静态导出时这段是空串，线上策略保持严格。
+ */
+const DEV_SCRIPT_SRC = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: THEME_COLORS.light },
+    { media: '(prefers-color-scheme: dark)', color: THEME_COLORS.dark },
+  ],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const palettePosts = getAllPosts().map((p) => ({
+  const allPosts = getAllPosts()
+  const palettePosts = allPosts.map((p) => ({
     slug: p.slug,
     title: p.title,
     description: p.description,
@@ -71,44 +87,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             "object-src 'none'",
             "form-action 'self'",
             'frame-src https://giscus.app',
-            "script-src 'self' 'unsafe-inline' https://giscus.app https://www.googletagmanager.com",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "font-src 'self' data: https://fonts.gstatic.com",
+            `script-src 'self' 'unsafe-inline'${DEV_SCRIPT_SRC} 'wasm-unsafe-eval' https://giscus.app https://www.googletagmanager.com`,
+            "style-src 'self' 'unsafe-inline'",
+            "font-src 'self' data:",
             "img-src 'self' data: blob: https:",
             "media-src 'self' blob: https:",
-            "connect-src 'self' https: http://localhost:* http://127.0.0.1:*",
+            "connect-src 'self' blob: https: http://localhost:* http://127.0.0.1:*",
             "worker-src 'self' blob:",
             'upgrade-insecure-requests',
           ].join('; ')}
         />
         {/* 评论 iframe 等跨源引用只送 origin，不给完整 URL。 */}
         <meta name="referrer" content="strict-origin-when-cross-origin" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* 第 5 轮换血：字重分层——标题走 Space Grotesk 700（拉丁展示）× Noto Sans SC（中文）；
-            正文 Inter / Noto Sans SC；等宽 JetBrains Mono（胶囊与代码）。
-            域名仍在 CSP 与字体白名单内，无需改动策略。
-            第 14 轮（§11.27）汉字侧改成可变区间 400..700。两笔实测把它逼出来的：
-            ① 开销在 CSS 文本而不在二进制——Google 给 Noto Sans SC 的 101 个汉字子集切片
-               在字重之间是同一批文件（400 / 500 / 700 三档的文件交集 101/101），首页过线的
-               汉字字节因此一直是 919KB / 16 片，一档没省下来；省下的只有那条外链的 CSS
-               （离散三档 92.0KB → 两档 61.8KB，全是渲染阻塞的关键路径）。
-            ② 收成 400;700 那一版确实改了排版：站内「计算字重 500 且含汉字」的元素有 20–27 个、
-               61–92 个字，全在顶部导航（首页/文章/归档…）上；CSS 匹配在只有 400 与 700 时
-               往下取 400，实测那段中文在 400 与 500 下截图逐字节相同——字重档被悄悄削掉了。
-            区间写法两块都躲开：@font-face 从 202 块降到 101 块（未压缩 219.4KB → 110.1KB），
-            同时 500 落回真正的 500 档。
-            第 14 轮（§11.29）拉丁侧也改成区间。汉字改完后 fontwt.mjs 升级成「族 × 字重档」覆盖闸，
-            它反手报出 5 处：h3 的 600 在 Space Grotesk（只声明 500/700）里被 CSS 匹配往上取 700 ——
-            这一档标题一直和 h1 一样粗，写了却不存在；strong 的 650 在 Inter 里取 700、在汉字侧
-            落真 650，同一句话里两种文字一深一浅。而 Google 给这三族的离散档和区间档指的是
-            同一批可变文件（117 个 URL 交集 117/117，二进制 4720.0KB 一字节不差），
-            改成区间只是把 @font-face 从 153 块减到 117 块、CSS 文本 129.5KB 减到 116.2KB：
-            零字节代价换回 600/650 两档真实排版。 */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Space+Grotesk:wght@500..700&family=Noto+Sans+SC:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap"
-          rel="stylesheet"
-        />
+        {/* 第 6 轮：四族 Google Fonts 外链全部下线，改用系统字体栈
+            （globals.css 的 --font-sans / --font-serif / --font-mono）。
+            理由：汉字一族过线 919KB / 16 片且 CSS 渲染阻塞；而在 macOS / iOS 上
+            它盖掉的恰好是我们要的 SF Pro 与 PingFang SC。CSP 的字体白名单同步收窄。 */}
         {/* 参照站默认亮色（§3.3），所以无存储时跟随系统：
             只有显式选过暗色才预置 .dark，避免亮色画布先闪一下墨色。 */}
         <script dangerouslySetInnerHTML={{ __html: `
@@ -121,6 +115,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         `}} />
         <link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href={basePathUrl('/rss.xml')} />
         <link rel="alternate" type="application/atom+xml" title={`${SITE.title} Atom`} href={basePathUrl('/atom.xml')} />
+        <link rel="alternate" type="application/feed+json" title={`${SITE.title} JSON Feed`} href={basePathUrl('/feed.json')} />
+        {SOCIAL_LINKS.github && <link rel="me" href={SOCIAL_LINKS.github} />}
         <link rel="preconnect" href="https://giscus.app" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://api.github.com" crossOrigin="anonymous" />
         {/* 关掉 JS 时，页面上每一个还留着的 `<button>` 都是一具死控件：看得见、进 Tab 序列、
@@ -144,8 +140,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LenisProvider>
           <PaletteProvider posts={palettePosts} lessons={paletteLessons}>
           <PageSweep />
-          <AuraCursor />
-          <CustomCursor />
           <Header />
           {/* §2.1 容器 1200px；§1 区块留白按 96px 档展开。
               tabIndex=-1 是让「跳到主要内容」真的能落脚：不可聚焦的目标只会改 hash，
@@ -153,9 +147,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main id="main-content" tabIndex={-1} data-pagefind-body className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24 relative z-10">
             <PageTransition>{children}</PageTransition>
           </main>
-          <Footer />
+          <Footer since={allPosts[allPosts.length - 1]?.date ?? ''} />
           <BackToTop />
-          <KonamiEasterEgg />
           <Analytics />
           </PaletteProvider>
           </LenisProvider>

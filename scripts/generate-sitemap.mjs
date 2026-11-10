@@ -6,7 +6,7 @@ import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from 
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import matter from 'gray-matter'
-import { siteUrl } from '../lib/constants.ts'
+import { SITE, siteUrl } from '../lib/constants.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const postsDir = join(__dirname, '..', 'content', 'posts')
@@ -26,6 +26,9 @@ const staticPages = [
   { path: '/projects/', priority: '0.4', changefreq: 'monthly' },
   { path: '/friends/', priority: '0.3', changefreq: 'monthly' },
   { path: '/privacy/', priority: '0.1', changefreq: 'yearly' },
+  { path: '/now/', priority: '0.4', changefreq: 'monthly' },
+  { path: '/uses/', priority: '0.3', changefreq: 'yearly' },
+  { path: '/subscribe/', priority: '0.4', changefreq: 'yearly' },
 ]
 
 function getPosts() {
@@ -122,6 +125,12 @@ function main() {
       generateUrlEntry(siteUrl(`posts/${post.slug}`), post.updated || post.date, priority, 'monthly')
     )
   })
+
+  // Paginated list routes (page 1 is /posts/, already listed above).
+  const totalPages = Math.ceil(posts.length / SITE.postsPerPage)
+  for (let p = 2; p <= totalPages; p++) {
+    urls.push(generateUrlEntry(siteUrl(`posts/page/${p}`), new Date(), '0.5', 'weekly'))
+  }
 
   // Curriculum: the /learn shelf, one page per course, then every lesson.
   const courses = getCourses()

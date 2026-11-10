@@ -9,8 +9,8 @@
 //   R2 缓动        —— 只准 var(--ease) / var(--ease-out) / ease / cubic-bezier(0.16,1,0.3,1)；
 //                     linear 与 steps() 只准用在 infinite 上。
 //   R3 可动画属性  —— transition 与 @keyframes 只准碰 transform / opacity / color 系。
-//   R4 语汇禁区    —— 禁渐变（遮罩与四处分名的既有用法除外）、禁 backdrop-filter，
-//                     box-shadow 只准 var(--shadow-pop)。
+//   R4 语汇令牌化  —— 渐变 / backdrop-filter / box-shadow 可以有，但强度与配色
+//                     必须住在令牌里，组件只准 var() 引用（第 6 轮改判）。
 //   R5 硬编码颜色  —— 组件与页面里的色号一律走令牌；CSS 只准在令牌定义里写十六进制。
 //   R6 关键帧存在 —— animation 引用的名字必须真在某个 @keyframes 里定义过
 //                    （改了名或删了关键帧，动画永不播放，屏幕上什么都不会发生）。
@@ -90,7 +90,6 @@ const ALLOW_PROP = new Set([
   'stroke',
   'none',
 ])
-const LAYOUT_PROP = /^(width|height|margin\w*|padding\w*|top|left|right|bottom|font-size|line-height|inset\w*)$/
 // Tailwind 的动效工具类住在 className 里，不是 CSS 声明：上面那些按 `transition:`
 // 匹配的正则对这一整类字串完全失明，而站内有 84 处。Tailwind 自带的默认档
 // （150ms + cubic-bezier(0.4, 0, 0.2, 1) + 属性表含 box-shadow / filter）
@@ -109,10 +108,13 @@ const TW_OK_EASE = new Set(['ease-out']) // config 里已把 out 定义成 --eas
 const EXCEPT = {
   // 渐变在这里表达的是进度或光斑，色标两端全是令牌，没有引入新色
   gradient: {
-    '.skeleton-line': '骨架微光的扫过带（transparent ↔ --surface-3）',
     '.range-control::-webkit-slider-runnable-track': '滑块已填充段：--color-primary 到 --range-fill 为止',
     '.aura-cursor': '§11.6 登记的既有形态（氛围光晕），色标走 --accent-glow',
     '.spotlight-card::before': '§11.6 登记的既有形态（卡面聚光），色标走 --accent-glow',
+  },
+  // 关键帧里允许表外的属性，按关键帧名点名（名字比行号稳定）。
+  keyframeProp: {
+    blurIn: ['filter'], // BlurReveal 聚焦入场（台账 §11.18 五）：filter 在 Chrome/Firefox 走合成层，不触发布局；初态只活在 from，静态永远清晰
   },
   hexSkipDirs: ['lib', 'content'],
 }
@@ -145,18 +147,20 @@ for (const f of files) {
     let mode = null
     let depth = 0
     let start = -1
+    let kfName = ''
     for (let i = 0; i < lines.length; i++) {
       const L = lines[i]
       if (mode) {
         depth += (L.match(/\{/g) || []).length - (L.match(/\}/g) || []).length
         if (depth <= 0 && i > start) {
-          ;(mode === 'reduce' ? reduceRanges : kfRanges).push([start, i])
+          ;(mode === 'reduce' ? reduceRanges : kfRanges).push([start, i, mode === 'kf' ? kfName : ''])
           mode = null
         }
         continue
       }
       if (/prefers-reduced-motion/.test(L) || /@keyframes/.test(L)) {
         mode = /@keyframes/.test(L) ? 'kf' : 'reduce'
+        if (mode === 'kf') kfName = (L.match(/@keyframes\s+([\w-]+)/) || [])[1] || ''
         start = i
         depth = (L.match(/\{/g) || []).length - (L.match(/\}/g) || []).length
         if (depth <= 0) mode = null
@@ -165,6 +169,7 @@ for (const f of files) {
   }
   const inReduce = (n) => reduceRanges.some(([a, b]) => n >= a && n <= b)
   const inKeyframes = (n) => kfRanges.some(([a, b]) => n >= a && n <= b)
+  const kfNameOf = (n) => (kfRanges.find(([a, b]) => n >= a && n <= b) || [])[2] || ''
   // 这一行归属于哪条选择器。站内有一批单行规则
   // （`.stagger > *:nth-child(2) { animation-delay: 40ms; }`），
   // 只往上找「以 { 结尾的行」会认不出这种写法，例外因此不生效。
@@ -291,31 +296,46 @@ for (const f of files) {
     }
 
     // ── R3 可动画属性（关键帧侧）─────────────────────────────────────────
+    // 与 transition 侧共用一张允许表。早先这里是一张「布局属性黑名单」，
+    // 于是 filter / letter-spacing / background-position 这类不在黑名单上的
+    // 属性整类静默放行 —— 规则文本写着「只准 transform/opacity/color 系」，
+    // 判据却只拦它点名的那几个，等于闸对自己射程外的事报绿。
     if (inKeyframes(i)) {
       for (const m of L.matchAll(/([-a-zA-Z]+)\s*:\s*[^;]+/g)) {
-        if (!LAYOUT_PROP.test(m[1])) continue
+        const p = m[1]
+        if (p.startsWith('--')) continue
         seen.prop++
         if (reduce) continue
-        mark('R3 可动画属性', where, `@keyframes 里动画化了 ${m[1]}`, '布局属性不进插值；同样的形变用 transform 表达')
+        if (ALLOW_PROP.has(p)) continue
+        if ((EXCEPT.keyframeProp[kfNameOf(i)] || []).includes(p)) continue
+        mark('R3 可动画属性', where, `@keyframes ${kfNameOf(i)} 里动画化了 ${p}`, '只准 transform / opacity / color 系；确有需要按关键帧名加进 EXCEPT.keyframeProp 并写理由')
       }
     }
 
-    // ── R4 语汇禁区 ──────────────────────────────────────────────────────
+    // ── R4 语汇纪律（第 6 轮：从「禁止」改为「必须令牌化」）──────────────
+    // Apple 产品叙事需要玻璃导航、柔和投影与叙事渐变。一刀切禁用只会把作者推向
+    // 行内样式（那才是真正绕开令牌的做法）。现在的要求是：效果可以有，但强度、
+    // 配色、模糊半径必须住在 :root 令牌里，组件只准 var() 引用 —— 换肤仍是一处生效。
+    // 令牌定义行（--x: …）与 reduced-motion 段照旧放行。
+    const tokenLine = /^\s*--[\w-]+\s*:/.test(L.trim())
     for (const m of L.matchAll(/\b(linear-gradient|radial-gradient|conic-gradient)\s*\(/g)) {
       seen.ban++
       const sel = selOf(i)
-      if (!/mask-image/.test(L) && !EXCEPT.gradient[sel])
-        mark('R4 语汇', where, `${m[1]}()（在 ${sel || '未知选择器'} 里）`, '站点不用渐变。要「进度」就用两个令牌之间的色标；要放行就加进 EXCEPT.gradient 并写理由')
+      if (tokenLine || /mask-image/.test(L) || EXCEPT.gradient[sel]) continue
+      mark('R4 语汇', where, `${m[1]}()（在 ${sel || '未知选择器'} 里）`, '渐变只准定义在 --gradient-* / --hero-* 令牌里，组件用 var() 引用')
     }
-    for (const m of L.matchAll(/\bbackdrop-filter\s*:/g)) {
+    for (const m of L.matchAll(/(?:-webkit-)?backdrop-filter\s*:\s*([^;{}]+)/g)) {
       seen.ban++
-      if (!reduce) mark('R4 语汇', where, 'backdrop-filter', '不用玻璃拟态：浮层靠 --shadow-pop 与边线分层')
+      if (reduce || tokenLine) continue
+      const v = m[1].trim()
+      if (v !== 'none' && !/^var\(--glass/.test(v))
+        mark('R4 语汇', where, `backdrop-filter: ${v}`, '玻璃强度只走 --glass-* 令牌，别把模糊半径写进组件')
     }
     for (const m of L.matchAll(/\bbox-shadow\s*:\s*([^;{}'"]+)/g)) {
       seen.ban++
       const v = m[1].trim()
       if (reduce || tokenDef) continue
-      if (v !== 'none' && !/^var\(--shadow/.test(v)) mark('R4 语汇', where, `box-shadow: ${v}`, '投影只有 --shadow-pop 一个档')
+      if (v !== 'none' && !/^var\(--shadow/.test(v)) mark('R4 语汇', where, `box-shadow: ${v}`, '投影只走 --shadow-* 令牌，别散落字面值')
     }
 
     // ── R5 硬编码颜色 ────────────────────────────────────────────────────

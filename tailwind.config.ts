@@ -26,19 +26,19 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', '"Noto Sans SC"', '-apple-system', 'system-ui', 'sans-serif'],
-        serif: ['"Space Grotesk"', '"Noto Sans SC"', '-apple-system', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', '"Fira Code"', 'ui-monospace', 'monospace'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Helvetica Neue"', '"PingFang SC"', '"Microsoft YaHei"', 'system-ui', 'sans-serif'],
+        serif: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Helvetica Neue"', '"PingFang SC"', '"Microsoft YaHei"', 'system-ui', 'sans-serif'],
+        mono: ['ui-monospace', '"SFMono-Regular"', '"JetBrains Mono"', 'Menlo', 'monospace'],
       },
       borderRadius: {
         none: '0',
-        sm: '3px',
-        DEFAULT: '3px',
-        md: '3px',
-        lg: '3px',
-        xl: '3px',
-        '2xl': '3px',
-        '3xl': '3px',
+        sm: '8px',
+        DEFAULT: '12px',
+        md: '16px',
+        lg: '18px',
+        xl: '22px',
+        '2xl': '28px',
+        '3xl': '32px',
       },
       // 与 globals.css 的 --duration-fast/base/slow 同一套档位；不带 duration-* 的
       // transition-* 工具类因此落进 200ms 而不是 Tailwind 的 150ms。

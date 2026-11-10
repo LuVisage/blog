@@ -1405,3 +1405,113 @@ Google 早就在给 Inter / Space Grotesk / JetBrains Mono 下可变文件，离
 - 回归：`npm run check` 全绿；`weight-net.mjs` 三页过线 2613.1 / 2730.2 / 5961.1KB，字体二进制与 §11.27 逐项相同（首页 Noto 918.8KB · 16 片）；320/360px 横向溢出 0 页，320/390px 短标签多行 0 处（该闸自带的「摘掉 nowrap」自检仍抓到 1 处）；`names.mjs` 复跑 55 控件 / 99 角色 / 不一致 0。
 - 一条如实登记：像素那一半只能证「同一族的两档画得出差别」，证不了「Google 服务的是可变文件」—— 后者靠本轮的 URL 集合交集（117/117）与 `document.fonts` 里 `400 700` 这种区间写法。哪天 Google 改回静态文件，写法会先变、两两像素会跟着变，两条都在闸上。
 
+### 11.30 上下跳的 26px 与按下去的 285ms（第 15 轮 · Batch V · CLS 与 INP 第一次量化）
+
+**一、闸先立起来：30 个站，两条腿各量各的**
+
+`vitals.mjs`（新立 · 常驻）：15 类页面 × 2 视图（1280x800 / 390x844，均 light）= 30 站。CLS 只收「页面自己待着」那一段：视口内、排除 `hadRecentInput`、按规范取「间隔 ≤1s、跨度 ≤5s」会话窗的最大和，闸 0.1；整页滚动途中的位移单列一行（紧邻输入的按规范本就不计），不混进 CLS。INP 用 event timing（`durationThreshold: 16`），每个 `interactionId` 取最长一条，拆成延迟/处理/呈现三段，闸 200ms；每一步交互打时间标记，报表能把每条 event 归到「主题切换」「命令面板开」这样的具体步骤 —— 只报「全站最慢 192ms」没有下手处。fail-closed 四条：不产 layout-shift 条目、不产 event 条目、观测器自己报错、数学页却一个 KaTeX face 都没到货，都进 `dead[]`；文档外壳认 header+main（404 模板过不了）。`VITALS_INJECT=shift|block|both` 注入真位移 / 420ms 阻塞点击处理器，用来证闸会开口。
+
+**二、第一笔位移：同周条在字体到货时上下跳 26px**
+
+day-06 @1280 首屏 CLS 0.127–0.131，三遍里复现一遍（字体到货时序决定，真实网络下只会更频繁）。逐帧定位：t=566ms 正文上跳、t=746ms 跳回。原因是 `WeekStrip` 的标签与 chip 行做 flex 兄弟：chip 宽度上限 `max-w-[14ch]` 的 `ch` 跟着字体走，Noto 子集分批到货时每个 chip 宽了约 9px，七个一起把整行推过换行边界，「标签+chip 同行」↔「标签独占一行」来回翻，下方正文跟着跳。修法不是钉死 chip 宽度（那会回到 §11.27 之前的假档问题），而是**标签让出那一行**：`span` 改 `block` 独占一行，chip 行 `mt-2` 拿满整条带宽 —— 边界不再被跨过。修后 chip 在所有字体到货阶段钉在 y=315，只剩宽度亚像素变化（143→129→152）与 1px 高度 oscillation（29↔30）；四遍复测 CLS 0.0009–0.0045。
+
+顺带证伪一个假设：骨架屏换真身会不会撑出位移？量下来不会进 CLS —— 替换发生在折叠线以下，CLS 只算视口内；滚动段单列的数据里它也只是「长高了多少」的 informational 行。假设记在这里，不占修复名额。
+
+**三、第一笔慢交互：day-10 的主题切换，呈现段 285ms**
+
+30 站首扫只有 day-10 主题切换越闸：232ms / 248ms（呈现段 227ms，处理段 1ms）。`theme-who.mjs`（新立 · 归因探针）把账算清：`startViewTransition` 被调 1 次；点击 288ms = 延迟 2.9 + 处理 0.3 + **呈现 284.8**；LoAF 里一帧 `styleLayout=175.2ms`、另一帧 `render≈170ms` —— View Transition 要在点击的呈现窗里给整页拍新旧两张快照，而 day-10 有 **9036 个节点（7529 个 KaTeX）**，快照绘制 ~170ms + 全篇重样式 ~175ms 全记在这次点击头上。
+
+两个候选修法都先量再决：
+
+| 候选 | 实测 | 判决 |
+| --- | --- | --- |
+| `content-visibility: auto` 跳过屏外重样式 | 第一版 `.prose > *` 只匹配 1 个包装子节点，288ms 原样（粒度错）；改 `.prose > * > *` 命中 140 块，点击降到 40ms（呈现 37.6） | 有效，但接着量深链：统一 `contain-intrinsic-size` 估算让锚点落偏 —— 标题 top=-2003px（scrollY 10368）对正确值 top=82（scrollY 8155）。块高实测中位 31 / p75 56 / 最大 1422px，没有一个估算值能同时对齐所有锚点。**否决** |
+| 去掉 View Transition，只走圆形揭示遮罩 | 按下立刻起 transform 动画；唯一一次全篇重样式发生在 `animationend` 的 `setTheme`，被不透明遮罩盖住 —— 慢的那段读者看不见，看见的那段不慢 | **采纳** |
+
+修后复测：`VT supported=true called=0`；点击不再产生 ≥16ms 的 event 条目（原 288ms）；day-10 两视图 INP 184 / 176ms，最慢一步换成「课内控件」，闸内。reduced-motion 下直接换主题（圆形揭示靠 `animationend` 收尾，媒体查询不会自动关掉它，这条分支必须显式留）。
+
+**四、动效闸顺手补了一处名实不符：R3 的关键帧侧原来是黑名单**
+
+规则写的是「只准 transform / opacity / color 系」，关键帧侧实现的却是「列出来的才禁」—— `letter-spacing` 写在 `@keyframes` 里一声不吭。改成真白名单，例外按**关键帧名**登记（`blurIn: ['filter']`，理由在案）；同一轮把骨架微光从 `background-position`（不进合成层，每帧重绘整条）改写成 `::after` 的 `translateX`，新增 `--skeleton-sweep` token，reduced-motion 下 `animation: none`。注入自证：往关键帧里塞 `letter-spacing`（原先静默）与 `width`，两条都被点名、`exit 1`；合规跑 152 条属性声明、0 违例。
+
+**闸门（Batch V）**
+
+- `vitals.mjs`（新立 · 常驻）：判据与 fail-closed 见上；`VITALS_ONLY` / `VITALS_VIEWS` / `VITALS_THROTTLE` 可缩样。MSYS 路径改写陷阱（§11.29 四）在本闸复现过一次：`VITALS_ONLY=/learn/...` 被改写成 Windows 绝对路径 → 过滤后 0 站 → 闸按「一站都没量成」`exit 1` —— fail-closed 接住了，跑时加 `MSYS_NO_PATHCONV=1`。
+- `theme-who.mjs`（新立 · 归因探针，非常驻）：VT 调用计数 + event 三段 + LoAF 分段 + 节点规模，`THEMEWHO_CV=1` 做 content-visibility 对照。
+- 改动清单：`components/learn/week-strip.tsx`（标签独占一行，注释留 26px 往返实测）、`components/theme-toggle.tsx`（删 VT 分支，注释留 285ms 归因与 CV 否决）、`app/globals.css`（骨架 `::after` transform 化 + `--skeleton-sweep`）、`scripts/ui-discipline.mjs`（R3 关键帧真白名单 + 按名例外）。
+- 收尾实测（修复后的新构建）：30 站全绿 —— 最差 CLS **0.0000**、最慢交互 **192ms**（day-10 @390 的课内控件，闸 200ms；主题切换已不再产生 ≥16ms 的 event 条目）。注入三向自证全部 `exit 1`：shift → CLS 0.1796–0.3056 并点名位移源；block → INP 448–576ms，LoAF 归因到注入的 `#document.onclick 420ms`；both → 8 条越线各归其源。合规样本 `exit 0`。
+
+### 11.31 简介里的星号、重复的标题，和两次被争用顶越线的闸（第 16 轮 · Batch W/X · 巡检收口）
+
+**一、视觉复拍抓出的两处真缺陷**
+
+第 15 轮闸全绿之后按 1440 明/暗 + 390 明复拍全站代表页（home/post/lesson/now/uses/subscribe/course），抓出两处闸看不见的地面：
+
+1. **lead 简介露 markdown 原符**。268 条 lead 里 74 条带 `**`、21 条带反引号、1 条带链接；正文走 MDX 会渲染，简介直接插值就把星号摆在页面上（day-10 导语的 `**数值稳定性**` 原样露出）。两个展示面契约不同：课时导语是独立段落，照正文语义渲染；课程索引行的 desc 坐在整行 `<Link>` 里，再嵌 `<a>` 是非法嵌套，只能取纯文本。新立 `components/inline-md.tsx`：`InlineMd` 渲染粗体/行内代码/链接（href 仅认 `/` 与 `http(s)` 开头，其余退纯文本），`plainInline` 取纯文本；导语挂 `lead-md`，globals.css 用 `:is(.prose, .lead-md)` 把链接/粗体/行内代码语汇借过去，不新造一套值。复拍确认：day-10 导语粗体无星号；day-36 的链接 href 是 `/learn/devtool/day-06`（站内有效），`.md` 字样只是作者自己的标签文本，与正文 MDX 渲染一致；索引行全纯文本。
+2. **/subscribe 一页两个「订阅更新」**。页面 masthead 已有 h1「订阅更新」+ 导语 + 「没有邮件列表」一节，「一键复制」里嵌的整张 SubscribeCard 又带同名 h2 与近乎重复的导语。给卡片加 `bare` prop：嵌入时摘标题与导语，只留地址行 + 复制钮 + 三源 chip；首页侧栏照旧整张（`aria-labelledby="subscribe-title"` 只在那里被引用）。顺带把卡片文案与 chip 补齐 JSON Feed 1.1（此前文案只提 RSS/Atom，页面与 feed.json 早已存在）。
+
+**二、3D 舞台的键盘契约第一次被真的走过**
+
+DESIGN.md 承诺「方向键旋转、+/- 缩放、焦点环与读屏说明」，但此前没有任何闸走过这条路径——flows4 里的 `ArrowLeft` 是 AI 实验台的 max_tokens 滑杆，不是舞台。新立 `stage-key.mjs`（常驻）：reduced-motion 关掉 autoRotate 让画布静止，按键后的像素差只能来自键盘；ArrowDown 默认滚页而 handler `preventDefault`，故 scrollY 不变证明 handler 真的接住。实测 6/6：tabindex=0 + aria-label 含操作说明、焦点落在舞台、ArrowDown scrollY 0→0、三下 ArrowLeft 像素差成立、两下 `+` 像素差成立、无 pageerror。
+
+**三、平台边界量化：Windows 的汉字字重只有两档**
+
+`sysweight.mjs`（新立 · informational）：在正文计算字体栈下以 deviceScaleFactor 2 逐档画汉字样张（400/500/600/650/700），同档对照必须像素一致否则 exit 1。实测 `500=400 · 650=600 · 700=600`：Microsoft YaHei 把 500 夹到 400、600/650/700 夹到 700 档，Windows 上汉字视觉字重只有两档；Apple 设备拿得到 SF Pro / PingFang 的真实中间档。这是平台边界不是缺陷，登记备查，不改声明（声明侧全可变字重的纪律照旧，见 §11.29）。
+
+**四、体验闸两次越线：争用顶出来的，不是代码回归**
+
+最终构建上 day-10 子集连跑两次 FAIL：320/344ms 与 360/336ms，都是呈现段主导（318/340/359/330ms）、处理段 0–3ms。逐层归因：
+
+| 假设 | 证据 | 判决 |
+| --- | --- | --- |
+| 残留浏览器争用 | 第一次 FAIL 与一条输出丢失、实则仍活着的巡检链（shots+sweep2）重叠；chrome 进程计数事后为 0 | 第一跑成立 |
+| 常驻进程吃 CPU | 孤儿 next dev（1GB  heap）、别项目 astro dev、serve-out  idle 采样 6s CPU 增量全 0 | 排除 |
+| 整机漂移 | 对照站 home 同闸 48/32ms PASS | 排除 |
+| Batch X 代码回归 | 同构建静机第三跑 160/152ms PASS，与 Batch X 前静机值 184/176ms 同带；全 30 站静机复跑 PASS | 排除 |
+
+结论：day-10（9033 节点、7529 KaTeX）课内控件的真实成本约 160ms，贴着 200ms 闸；CPU 争用把呈现段翻倍顶越线。闸与阈值不动——fail-closed 报「这次测量越线」是正确行为；争用源与复测带记在本节。纪律补一条：timing 闸开跑前确认无存活巡检浏览器（chrome 计数 0），且不在另一条浏览器链刚收尾时立刻跑。
+
+**闸门（Batch W/X）**
+
+- `sweep2.mjs`：43 页 × 5 视图组合共 215 检查，0 findings（最终构建）。
+- `stage-key.mjs`（新立 · 常驻）：6/6，见上。
+- `sysweight.mjs`（新立 · informational）：同档对照自证通过；夹档结果见上。
+- `vitals.mjs`：静机全 30 站 PASS —— 最差 CLS **0.0000**、最慢交互 **160ms**（day-10 双视图）；78 次带 interactionId 交互。两次争用越线见上表。
+- `fontwt.mjs`：PASS —— 系统栈 11322 字、2 页无自托管族；day-10 的 KaTeX_Math/Main 400/700 全覆盖且像素两两不同；声明侧 css2 0 族 + 自托管 12 族。
+- `npm run check`：typecheck / lint / emoji / ui-discipline / proxy / attack / audit:env 全绿；postbuild 审计 1179 文件通过（邮箱掩码、秘密 0 命中）。
+- 改动清单：`components/inline-md.tsx`（新）、`components/learn/lesson-view.tsx`（导语 InlineMd + lead-md）、`components/learn/course-overview.tsx`（desc plainInline）、`app/globals.css`（五处 `:is(.prose, .lead-md)` 扩展）、`components/subscribe-card.tsx`（JSON 文案/chip + bare）、`app/subscribe/page.tsx`（bare）。
+- _residual_：meta/OG description 仍带 lead 原符（`lib/lesson-page.ts` 属禁改树，登记在案）；pagefind snippet 因导语 HTML 变干净自动改善。
+
+### 11.32 博客感补全：署名、字数、许可、运行天数与系列内导航（第 17 轮 · Batch Y）
+
+**一、标杆对照与缺口盘点**
+
+参照优秀个人博客（阮一峰周刊等；draveness.me 已 301 到 draven.co，未追）对照本站盘点：prev/next、相关文章、作者卡、更新日期、评论、回顶、lightbox、目录/章节 bar、阅读进度、字号、代码复制、归档、标签/分类/系列、about/now/uses、搜索/命令面板、三 feed、sitemap、404、友链页、colophon 均已具备。真缺口五项：内容许可、标题下署名、字数、运行天数、系列内上下篇。刻意不做：/posts 年分组（归档已覆盖、现存 6 篇全在 2026、分页保留）、打印样式（与颜色令牌纪律冲突）、随机文章钮（6 篇体量价值低）。友链页 FRIENDS 仍空数组——朋友不能编造，留空待作者提供。
+
+**二、落地清单**
+
+1. **许可**：问答定案 CC BY-NC-SA 4.0。新 `components/post-license.tsx`：文末一行（CC 图标 + deed.zh-hans 链接，`rel="license noopener noreferrer"`），`data-pagefind-ignore` 让样板文字不进搜索 snippet；jsonLd 增 `license` 字段；/terms 新增「6. 内容许可」（`id="license"`，交叉引用 §1 学习引用与 §2 商用须许可），附则顺延为 7；页脚新增「许可」链接。
+2. **byline**：标题下 28px 圆头像 + 署名（复用 AvatarImage，加载失败退图标），署名不等读完才见作者卡。
+3. **字数**：元信息行「约 N 字」——content 剥代码块/行内代码/图片/链接 URL/markdown 符号/空白后计数；hello-world 实测 468 字。
+4. **运行天数**：页脚 © 行「自 2026.07.13 起 · 第 N 天」。Footer 是 `'use client'` 不能引 fs 系 lib/posts，由 layout 传 `since`（最早文章日期）；RunningDays 客户端算天数（静态导出会把烘焙数字冻住），SSR 只渲「自 … 起」避免 hydration mismatch。实测第 121 天与探针同公式期望一致。
+5. **系列内上下篇**：系列块 ol 下发丝线隔开的双栏「系列上一篇/下一篇」（getPostsBySeries 按 seriesOrder 序）；单篇系列不出块，首/末篇只出一方向 + 空占位。实测 Vibe Coding 两篇互指正确。
+
+**三、目检复拍抓出的存量缺陷：blockquote 双引号**
+
+Tailwind Typography 插件默认给 `.prose blockquote` 首末段加 `open-quote/close-quote`：hello-world 正文自带一对直引号，视觉叠成双引号；课程 blockquote 多是提示框（非引用）却被凭空加引号。`content/**` 属禁改树，故在 globals.css 覆盖 `.prose blockquote p:first-of-type::before, .prose blockquote p:last-of-type::after { content: none }`——引号与否由内容自己负责。`bq.mjs` 实测伪元素 content 为 none，复拍单引号正确。
+
+**四、探针坑两枚**
+
+- batchy 首跑在页脚许可链接超时：`trailingSlash:true` 把 `href="/terms#license"` 渲成 `/blog/terms/#license`（锚点前插斜杠），`href*="terms#license"` 失配；改 `href*="#license"`。
+- shot-license 首版 `locator.scrollIntoViewIfNeeded` 撞 「Element is not attached」——handle 赶上水合期一次性 remount；改 `page.evaluate` 现查 `document.querySelector` 再滚，不持旧 handle。该 remount 是 PageTransition 存量行为，vitals CLS 0.0000 证明无可测位移，非新缺陷。
+
+**闸门（Batch Y）**
+
+- `batchy.mjs`（新立 · 常驻）：18/18 —— 字数/byline/许可行/deed 链接与 rel/jsonLd license/单篇系列不出块/运行天数同公式期望/页脚许可链接/暗色继承字色/390 无横溢/系列双向指向/terms 许可章与附则 7/锚点落位 top=96px/无 pageerror。
+- `bq.mjs`（新立 · 常驻）：blockquote 首末段伪元素 content none。
+- `sweep2.mjs`：43 页 × 5 视图共 215 检查，0 findings（build #5）。
+- `vitals.mjs`：静机全 30 站 PASS —— 最差 CLS **0.0000**、最慢交互 **160ms**（day-10 双视图，与 §11.31 同带）；77 次带 interactionId 交互。
+- `npm run check` 全绿；postbuild 审计 1179 文件通过（邮箱掩码、秘密 0 命中）。
+- 改动清单：`components/post-license.tsx`（新）、`components/running-days.tsx`（新）、`app/posts/[slug]/page.tsx`（byline/字数/许可/系列导航/jsonLd license）、`components/footer.tsx`（since prop + 运行天数 + 许可链接）、`app/layout.tsx`（since prop）、`app/terms/page.tsx`（§6 内容许可）、`app/globals.css`（blockquote 引号覆盖）。
+- _residual_：FRIENDS 空数组留空待作者；meta/OG lead 原符仍登记在 §11.31。
+

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { SITE, ABOUT, SOCIAL_LINKS, EMAIL_OBFUSCATED, basePathUrl } from '@/lib/constants'
 import { CurrentYear } from '@/components/ui/current-year'
+import { RunningDays } from '@/components/running-days'
 import { SITE_SECTIONS } from '@/components/site-sections'
 import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 import { IconBrandGithub, IconMail, IconRss } from '@tabler/icons-react'
@@ -32,7 +33,7 @@ const social = [
 /* 第 5 轮换血：页脚整块深蓝（are.na 档案 brand-dark #00075f 对撞白身）。
    文字、发丝线、胶囊边框全走 --footer-* 令牌；下划线生长动画在深蓝上改白色
    （.footer-links 上下文见 globals.css）。 */
-export function Footer() {
+export function Footer({ since = '' }: { since?: string }) {
   return (
     <footer
       className="relative z-10 mt-auto"
@@ -108,6 +109,7 @@ export function Footer() {
         >
           <p className="meta" style={{ color: 'var(--footer-muted)' }}>
             &copy; <CurrentYear /> {SITE.author.name} · 基于 Next.js 构建
+            {since && <> · <RunningDays since={since} /></>}
           </p>
           <div className="flex items-center gap-5">
             <Link
@@ -121,6 +123,12 @@ export function Footer() {
               className="link-underline pressable meta inline-flex min-h-6 items-center transition-colors no-underline cursor-pointer"
             >
               隐私
+            </Link>
+            <Link
+              href="/terms#license"
+              className="link-underline pressable meta inline-flex min-h-6 items-center transition-colors no-underline cursor-pointer"
+            >
+              许可
             </Link>
             <a
               href={basePathUrl('/rss.xml')}

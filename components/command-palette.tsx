@@ -14,7 +14,7 @@ import { useTheme } from 'next-themes'
 import { useLenis } from '@/components/ui/lenis-provider'
 import {
   IconArrowBigUpLine,
-  IconAward,
+  IconBookmark,
   IconCornerDownLeft,
   IconSearch,
   IconSparkles,
@@ -31,8 +31,6 @@ import {
   IconLink,
 } from '@tabler/icons-react'
 import { NAV_LINKS, SITE } from '@/lib/constants'
-import { useToast } from '@/components/ui/toast'
-import { ACHIEVEMENTS, readUnlockedAchievements } from '@/lib/achievements'
 
 export interface PalettePost {
   slug: string
@@ -124,7 +122,6 @@ export function PaletteProvider({
 
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const toast = useToast()
   const lenis = useLenis()
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -214,6 +211,15 @@ export function PaletteProvider({
         run: () => go('/search'),
       },
       {
+        id: 'action-bookmarks',
+        group: '操作',
+        label: '收藏夹',
+        hint: '本机阅读清单',
+        keywords: 'bookmark 收藏 书签 reading list 阅读清单',
+        icon: <IconBookmark size={15} strokeWidth={1.75} />,
+        run: () => go('/bookmarks'),
+      },
+      {
         id: 'action-theme',
         group: '操作',
         label: nextTheme === 'dark' ? '切换到暗色' : '切换到亮色',
@@ -226,26 +232,6 @@ export function PaletteProvider({
         run: () => {
           setTheme(nextTheme)
           setOpen(false)
-        },
-      },
-      {
-        id: 'action-achievements',
-        group: '操作',
-        label: '我的阅读成就',
-        hint: '已解锁的徽章',
-        keywords: 'achievement badge 成就 徽章',
-        icon: <IconAward size={15} strokeWidth={1.75} />,
-        run: () => {
-          const earned = readUnlockedAchievements()
-          setOpen(false)
-          toast?.({
-            label: '成就',
-            title: earned.length ? `已解锁 ${earned.length} / ${Object.keys(ACHIEVEMENTS).length} 枚` : '还没有解锁任何徽章',
-            description: earned.length
-              ? earned.map((id) => ACHIEVEMENTS[id].title).join(' · ')
-              : '把一篇文章读到底就会有了',
-            tone: 'achievement',
-          })
         },
       },
     ]
@@ -297,7 +283,7 @@ export function PaletteProvider({
     }))
 
     return [...actions, ...nav, ...articles, ...learn]
-  }, [go, lessons, posts, setTheme, theme, toast])
+  }, [go, lessons, posts, setTheme, theme])
 
   const results = useMemo(() => {
     const q = query.trim()
@@ -474,5 +460,4 @@ export function PaletteProvider({
   )
 }
 
-/* Achievement labels live in lib/achievements so the article-page tracker and
-   this summary can never disagree about what is unlocked. */
+
