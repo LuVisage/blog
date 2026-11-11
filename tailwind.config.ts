@@ -5,8 +5,9 @@ import typography from '@tailwindcss/typography'
  * Tailwind 只承担字体族、圆角与「动效工具类落到站内档位」这三件事，其余视觉语言全部
  * 住在 app/globals.css 的 DNA token 层（口径见 SPEC_LEDGER §1）。
  *
- * 第 5 轮换血（灰阶系统语言）：标题/展示走 Space Grotesk 700（--font-serif 别名
- * 指向同一展示栈，组件里的 font-serif 字样随之落为 Space Grotesk + Noto Sans SC）；
+ * 第 17 轮（§11.33/§11.34）回炉：serif 工具类不再别名到黑体展示栈。它的用处全是
+ * 标题与站名（font-serif + font-bold），因此指向 --font-title（拉丁 Georgia + 汉字黑体），
+ * 与正文的 --font-serif（拉丁 Georgia + 汉字宋体）分工：标题黑体、正文宋体。
  * borderRadius 整组收敛到 3px 微圆角档（方向参考 are.na radius-sm 3px）。
  * 存量组件里的 rounded-lg / xl / 2xl 因此随 token 一起落到 3px，不必逐个改写。
  *
@@ -27,7 +28,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Helvetica Neue"', '"PingFang SC"', '"Microsoft YaHei"', 'system-ui', 'sans-serif'],
-        serif: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Helvetica Neue"', '"PingFang SC"', '"Microsoft YaHei"', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-title)'],
         mono: ['ui-monospace', '"SFMono-Regular"', '"JetBrains Mono"', 'Menlo', 'monospace'],
       },
       borderRadius: {

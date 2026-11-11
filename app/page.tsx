@@ -44,19 +44,26 @@ export default function HomePage() {
     <div className="editorial">
       <header className="editorial__masthead">
         <div className="editorial__masthead-inner">
-          <div className="eyebrow">AI · Agent · LLM · 个人志</div>
-          <h1 className="editorial__title mt-4">写在 AI 时代的开发笔记</h1>
-          <p className="editorial__intro">
-            关于大模型、Agent 与工程实践的一手记录。不是转述文档，而是把跑通的代码、
-            踩过的坑和取舍理由一并写下来；写得慢一点，但每篇都经得起追问。
-          </p>
-          <nav className="editorial__nav" aria-label="站内入口">
-            <Link href="/posts">文章</Link>
-            <Link href="/learn">教程</Link>
-            <Link href="/archive">归档</Link>
-            <Link href="/about">关于</Link>
-            <Link href="/search">搜索</Link>
-          </nav>
+          <div>
+            <div className="eyebrow">AI · Agent · LLM · 个人志</div>
+            <h1 className="editorial__title mt-4">写在 AI 时代的开发笔记</h1>
+            <p className="editorial__intro">
+              关于大模型、Agent 与工程实践的一手记录。不是转述文档，而是把跑通的代码、
+              踩过的坑和取舍理由一并写下来；写得慢一点，但每篇都经得起追问。
+            </p>
+            <nav className="editorial__nav" aria-label="站内入口">
+              <Link href="/posts">文章</Link>
+              <Link href="/learn">教程</Link>
+              <Link href="/archive">归档</Link>
+              <Link href="/about">关于</Link>
+              <Link href="/search">搜索</Link>
+            </nav>
+          </div>
+          <dl className="editorial__stats" aria-label="出版数据">
+            <div><dt>文章</dt><dd>{allPosts.length}</dd></div>
+            <div><dt>课次</dt><dd>{lessons}</dd></div>
+            <div><dt>标签</dt><dd>{tags.length}</dd></div>
+          </dl>
         </div>
       </header>
 
@@ -94,11 +101,6 @@ export default function HomePage() {
               AI 探索者 &amp; Agent 开发者。关注大模型应用、Agent 架构与工程实践，
               也记录把技术讲清楚的过程。
             </p>
-            <dl className="side-stats">
-              <div><dt>文章</dt><dd>{allPosts.length}</dd></div>
-              <div><dt>课次</dt><dd>{lessons}</dd></div>
-              <div><dt>标签</dt><dd>{tags.length}</dd></div>
-            </dl>
           </section>
 
           <section className="side-block">

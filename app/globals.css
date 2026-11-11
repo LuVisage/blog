@@ -481,7 +481,7 @@
 @layer components {
   /* Masthead scale */
   .display {
-    font-family: var(--font-serif);
+    font-family: var(--font-title);
     font-size: clamp(var(--text-h1), 7vw, var(--text-display));
     font-weight: 700;
     line-height: var(--leading-tight);
@@ -499,7 +499,7 @@
   }
 
   .heading-1 {
-    font-family: var(--font-serif);
+    font-family: var(--font-title);
     font-size: clamp(var(--text-h2), 5vw, var(--text-h1));
     font-weight: 700;
     line-height: var(--leading-snug);
@@ -509,7 +509,7 @@
   }
 
   .heading-2 {
-    font-family: var(--font-serif);
+    font-family: var(--font-title);
     font-size: var(--text-h2);
     font-weight: 700;
     line-height: var(--leading-snug);
@@ -518,7 +518,7 @@
   }
 
   .heading-3 {
-    font-family: var(--font-serif);
+    font-family: var(--font-title);
     font-size: var(--text-h3);
     font-weight: 600;
     line-height: 1.3;
@@ -552,7 +552,7 @@
 
 /* Section head: eyebrow + serif title, rule underneath */
 .section-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-title);
   font-size: var(--text-h3);
   font-weight: 700;
   letter-spacing: var(--tracking-heading);
@@ -727,7 +727,7 @@
 
 .prose h1, .prose h2, .prose h3, .prose h4 {
   color: var(--ink);
-  font-family: var(--font-serif);
+  font-family: var(--font-title);
   font-weight: 700;
   letter-spacing: var(--tracking-heading);
   /* 锚点让位由 html 的 scroll-padding-top（§L281）统一负责。
@@ -1605,7 +1605,9 @@ figure[data-rehype-pretty-code-figure]:hover {
    桌面单行省略是 are.na 台账的读法；窄屏照搬会把标题吃掉大半：
    390px 下标题列只有 194–230px，而 /learn 的课名要 500–870px 才放得下，
    实测最坏只剩 27% ——「前端与应用部署平台教程（…」这种读法等于没有导航。
-   所以 <640px 放开换行、封顶 3 行，≥640px 回到单行省略。 */
+   第 17 轮换衬线标题后这条纪律失效了：Georgia 粗体比原黑体宽，单行省略开始把
+   「…从 Claude Code 到 DeepSeek H…」这类标题切在词中，而索引页最显眼的元素
+   正是标题本身。改成 ≥640px 封顶 2 行 —— 短标题仍占一行，长标题读全。 */
 .row-title {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -1615,11 +1617,7 @@ figure[data-rehype-pretty-code-figure]:hover {
 }
 @media (min-width: 640px) {
   .row-title {
-    display: block;
-    -webkit-line-clamp: unset;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    -webkit-line-clamp: 2;
   }
 }
 
@@ -3547,3 +3545,80 @@ a.author-card__link:focus-visible { color: var(--accent-text); }
   .side-list a, .side-links a { transition: none; }
   .model3d__poster { transition: none; }
 }
+
+/* ── 第 17 轮回炉：中文报纸 / 印刷杂志（台账 §11.33） ─────────────────────
+   线框期的病：系统黑体标题没有印刷嗓音、刊头右半空荡、全页没有色彩锚点。
+   这里补嗓音（宋体标题/宋体正文/楷体引语）、刊头双细线与出版数据栏、
+   实墨页脚。色号只落在令牌定义里；字体全走本机族，不新增下载。 */
+:root {
+  --font-serif: Georgia, 'Songti SC', 'SimSun', serif;
+  /* 标题另起一族：拉丁仍是 Georgia，汉字换成黑体。理由是实测而不是口味——
+     宋体没有真粗体，700 由系统合成，竖笔比 Georgia 700 细一大截，同一句标题里
+     「Coding Agent」与「横向测评」会读成两种字号（第 17 轮目检 /posts 索引）。
+     中文报刊的传统分工本来就是标题黑体、正文宋体，这一改既对齐重量也回到传统。 */
+  --font-title: Georgia, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-kai: 'KaiTi', 'Kaiti SC', 'STKaiti', Georgia, serif;
+  --text-display: 56px;
+  --text-h1: 36px;
+  --text-h2: 26px;
+  --text-h3: 21px;
+  /* 正文 18px：attr-z4 的拉丁方实测推翻了「大字号更贵」的直觉 —— 同一个字号切换步骤，
+     18px 六次全部落在 176–280ms，17px 六次全部落在 312–432ms，零重叠。
+     上一版把它记成「18px 把 INP 推过闸」是被位次污染造出的假信号（每轮第一个样本撞上占用）。
+     宋体在屏幕上偏淡，字号是唯一不牺牲嗓音的补偿（正文色已是 #2b2926，对比 ~13:1，颜色侧无余量）。 */
+  --text-prose: 18px;
+}
+:root:not(.dark) {
+  --footer-bg: #23211e;
+  --footer-ink: #faf9f7;
+  --footer-muted: #c9c4bb;
+  --footer-line: rgba(250, 249, 247, 0.18);
+  --footer-chip-line: rgba(250, 249, 247, 0.3);
+  --footer-chip-hover: rgba(250, 249, 247, 0.08);
+}
+
+/* 刊头双细线：粗墨线 + 隔 2px 的发丝线，报纸 masthead 的边界 */
+.apple-nav { border-bottom: 2px solid var(--ink); }
+.apple-nav.is-scrolled { border-bottom-color: var(--ink); }
+.apple-nav::after { content: ''; display: block; height: 1px; margin-top: 2px; background: var(--line); }
+
+/* 标题嗓音：宋体加粗、字号放大；汉字承受不了 -0.045em 的字距 */
+.display, .heading-1, .editorial__title { font-family: var(--font-title); font-weight: 700; letter-spacing: -0.012em; }
+.editorial__title { font-size: clamp(34px, 5vw, var(--text-display)); line-height: 1.22; }
+.editorial__intro { font-family: var(--font-serif); }
+
+/* 刊头出版数据栏：填右半空荡，统计从侧栏上移（不重复出现） */
+.editorial__masthead-inner { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 48px; align-items: end; }
+.editorial__stats { display: grid; gap: 14px; padding-bottom: 6px; }
+.editorial__stats > div { display: grid; gap: 2px; }
+.editorial__stats dt { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; color: var(--muted); }
+.editorial__stats dd { font-family: var(--font-serif); font-size: 34px; font-weight: 700; line-height: 1; color: var(--ink); }
+@media (max-width: 767px) {
+  .editorial__masthead-inner { grid-template-columns: 1fr; gap: 24px; align-items: start; }
+  .editorial__stats { grid-template-columns: repeat(3, auto); justify-content: start; gap: 28px; }
+  .editorial__stats dd { font-size: 26px; }
+}
+
+/* 正文嗓音：宋体正文 + 首字下沉；引语换楷体 */
+.prose, .lead-md { font-family: var(--font-serif); }
+.prose { font-size: var(--text-prose); }
+.prose.is-sm { font-size: calc(var(--text-prose) - 1px); }
+.prose.is-md { font-size: var(--text-prose); }
+.prose.is-lg { font-size: calc(var(--text-prose) + 2px); }
+/* first-of-type：不少文章以 h2 开篇，first-child 会让下沉首字永远不触发；
+   MDX 外壳在 .prose 里套单层 div（prose-reveal 的 blockChildren 同源），两种落点都接 */
+.prose > p:first-of-type::first-letter,
+.prose > div > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.1em;
+  line-height: 0.85;
+  padding: 0.06em 0.14em 0 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+.prose blockquote { font-family: var(--font-kai); font-size: calc(var(--prose-quote) + 1px); letter-spacing: 0.01em; }
+
+/* 章节 folio：粗墨线压顶，章节名与索引标题换宋体加粗 */
+.editorial__section-head { border-top: 2px solid var(--ink); padding-top: 10px; }
+.editorial__section-head h2, .side-block h2 { font-family: var(--font-title); font-weight: 700; }
+.editorial__item-title { font-family: var(--font-title); font-weight: 700; }

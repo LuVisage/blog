@@ -143,7 +143,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
               </div>
             </header>
 
-            <BlurReveal className="display mt-5" style={{ fontSize: 'clamp(28px, 4vw, 40px)', lineHeight: 1.3 }}>
+            <BlurReveal className="display mt-5" style={{ fontSize: 'clamp(32px, 4.6vw, 52px)', lineHeight: 1.3 }}>
               {post.title}
             </BlurReveal>
 

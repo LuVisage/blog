@@ -1515,3 +1515,117 @@ Tailwind Typography 插件默认给 `.prose blockquote` 首末段加 `open-quote
 - 改动清单：`components/post-license.tsx`（新）、`components/running-days.tsx`（新）、`app/posts/[slug]/page.tsx`（byline/字数/许可/系列导航/jsonLd license）、`components/footer.tsx`（since prop + 运行天数 + 许可链接）、`app/layout.tsx`（since prop）、`app/terms/page.tsx`（§6 内容许可）、`app/globals.css`（blockquote 引号覆盖）。
 - _residual_：FRIENDS 空数组留空待作者；meta/OG lead 原符仍登记在 §11.31。
 
+### 11.33 视觉回炉：中文报纸 / 印刷杂志方向（第 17 轮 · Batch Z）
+
+**一、触发与诊断**
+
+用户判词「这个UI太丑了，调整一下，你回炉重造都可以」。回炉前先定病灶，三条都来自目检而不是口味：
+
+1. 标题是系统黑体 —— 一个个人志没有印刷嗓音，跟产品落地页同一种脸；
+2. 刊头右半空荡 —— hero 只有左半边有内容，右侧整块留白，没有可读的锚点；
+3. 全页没有色彩锚点 —— 页脚是 `#faf9f7`，与正文同色，页面底部没有落款感。
+
+**二、方向比选：本机族样张六格**
+
+`ui-concepts/verify/shots-z/specimen.png` 是同一句话在六种本机族下的实拍对比：A `Georgia + SimSun`（报纸宋体标题）、B `Georgia + KaiTi`（楷体文人感）、C 现状系统黑体（YaHei）、D `DengXian`（等线）、E 宋体正文 17px（印刷正文）、F `FangSong`（仿宋）。
+
+选定 **A 做标题 + E 做正文**，B 的楷体只留给引语。F 弃（仿宋笔画最细，屏幕上可读性最差）；C/D 就是「没有嗓音」的现状与其近似。**零下载**：六种全是本机族，不新增外链字体、不动 §11.27 立下的外链纪律。
+
+**三、落地清单**
+
+1. **令牌**：`--font-serif: Georgia, 'Songti SC', 'SimSun', serif`、`--font-kai: 'KaiTi', 'Kaiti SC', 'STKaiti', Georgia, serif`；字阶放大到 `--text-display 56 / h1 36 / h2 26 / h3 21`。
+2. **刊头双细线**：`.apple-nav` 下边 2px 实墨 + `::after` 隔 2px 的 1px 发丝线；`is-scrolled` 不换色 —— 报纸的边界不随滚动消失。
+3. **实墨页脚**：`--footer-bg #23211e` / `--footer-ink #faf9f7` / muted / line / chip 五件套，只写在 `:root:not(.dark)` 的令牌定义里（R5 允许 hex 落令牌），暗色沿用既有 `#1a1917`。
+4. **出版数据栏** `.editorial__stats`（文章 6 / 课次 239 / 标签 26，`dt` 等宽 11px + `dd` 衬线 34px）从侧栏 `side-stats` 上移到刊头右半，侧栏那份删除以免重复；<768px 折成一行三列。
+5. **正文嗓音**：`.prose, .lead-md` 换衬线、首段首字下沉、`blockquote` 换楷体并比正文高一档。
+6. **章节 folio**：`.editorial__section-head` 顶部 2px 墨线压顶，章节名与索引标题换衬线加粗。
+
+**四、坑三枚**
+
+- **Tailwind 的 `font-serif` 工具类在第 5 轮被别名到黑体展示栈**，Z 改完令牌后站名与行标题仍是黑体。修法：`serif: ['var(--font-serif)']`，让工具类跟随令牌而不是跟随历史。
+- **首字下沉有两层坑**：`first-child` 对以 h2 开篇的文章永不触发 → 改 `first-of-type`；仍不触发 → 产物 HTML 里 MDX 外壳在 `.prose` 内套了一层 div（与 `prose-reveal` 的 `blockChildren` 同源），两个落点都得写才两种结构都吃到。
+- **fontwt 闸对 Z 的三处适应**：SYSTEM 豁免名单补 `kaiti / kaiti sc / stkaiti`；`evaluate` 里引用不到 Node 侧常量，改成把 `SYSTEM.source` 当参数传进页面；「无配对像素」分支从 `famsUsed` 非空即判 dead 改成 `famsUsed.some(([f]) => declOf(f))` —— 否则 Georgia 这类**具名本机族**会让闸用自己的盲区把自己判死。
+
+**五、一次错误的归因（留在台账里当反面例子）**
+
+build #8 / #9 的 vitals 连续三次越线（day-10 的「课内控件」与「命令面板开」264–576ms）。当时把原因写成「18px / 1.95 的度量放大了字号切换的重绘差」，并据此把度量退回 17px / 1.8 —— **这个归因在 §11.34 被证伪**：字体族与度量都不是那一步的变量，越线来自测量期机器占用与样本位次。
+
+**闸门（Batch Z · build #9）**
+
+- `sweep2.mjs`：43 页 × 5 视图共 215 检查，0 findings（跑在 build #8，#9 只改 px 值）。
+- `fontwt.mjs`：PASS —— 系统栈 9816 字、KaiTi 500/650 与 Georgia 各档登记为本机族、KaTeX_Math/Main 400/700 全覆盖且像素两两不同。
+- `npm run check`：全绿；postbuild 审计 1179 文件通过。
+- `vitals.mjs`：**未过闸（FAIL）**，build #9/#10 越线在 264–576ms 一带。当时的归因与后续更正见 §11.34；「越线是不是 Z 造出来的」由 §11.35 的 HEAD 对照跑判定。
+- 改动清单：`app/globals.css`（Z 层：令牌、刊头双细线、实墨页脚、数据栏、正文嗓音、章节 folio）、`app/page.tsx`（刊头网格 + 数据栏上移、侧栏统计删除）、`app/posts/[slug]/page.tsx`（标题 `clamp(32px, 4.6vw, 52px)`）、`tailwind.config.ts`（`serif` 跟随令牌）。
+
+### 11.34 排版分工与度量修正：标题黑体 / 正文宋体（第 17 轮 · Batch ZA）
+
+**一、触发**
+
+用户问「你认为现在的UI好吗」，回答按目检证据自评而不是自夸，抓出四处不体面；用户「都按你说的来改」。
+
+**二、四处缺陷与修法**
+
+1. **拉丁与汉字「一深一浅」**：`/posts` 索引标题里 "Coding Agent" 与「横向测评」读成两种字号。根因不是字号而是**字重来源**：宋体没有真粗体，700 由系统合成，竖笔比 Georgia 700 细一大截。修法 —— 新增 `--font-title: Georgia, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif`，标题族汉字走黑体（有真粗体），拉丁仍是 Georgia；正文族 `--font-serif` 保持 Georgia + 宋体。这正是中文报刊的老分工：**标题黑体、正文宋体**。覆盖点：`.display`、`.heading-1..3`、`.section-title`、`.prose h1..h4`、`.editorial__title`、`.editorial__section-head h2`、`.side-block h2`、`.editorial__item-title`，以及 Tailwind 的 `font-serif` 工具类（它的用处全是 `font-serif + font-bold` 的标题与站名，指向标题族才是语义正确）。
+2. **正文宋体在屏幕上偏淡**：颜色侧无余量可挖（`--color-text-prose #2b2926` on `#faf9f7`，对比约 13:1），字号是唯一不牺牲嗓音的补偿 → `--text-prose` 17px → **18px**，三档随之 17 / 18 / 20。
+3. **嗓音在卡片边界断声**：`/learn` 的「推荐学习路径」h2 用 `.section-title`（当时仍无衬线），与同页衬线导语并排。修法并入第 1 条，同时把分工写成规则：**叙述性成段用衬线，控件 / 导航 / 元信息 / 卡片说明用无衬线**，卡片与侧栏标题归入标题族。
+4. **索引行标题被省略号切在词中**：`≥640px` 的单行 `nowrap + ellipsis` 是第 5 轮 are.na 台账读法，但标题换衬线后 Georgia 更宽，开始把「…从 Claude Code 到 DeepSeek H…」切断。改为 `≥640px` 封顶 2 行（短标题仍占一行），<640px 的 3 行纪律保留。
+
+**三、两次测量学更正（本轮真正的产出）**
+
+- `attr-z3.mjs`（拉丁方：3 轮 × 4 变体轮换位次，day-10 @1280，量「课内控件」）：none 320/360/376、nodrop 352/312/416、bodysans 368/**152**/336、cjkyahei 336/408/384。**字体族与下沉首字都不是这一步的变量** —— 无论怎么改都在 310–420ms，唯一的 152ms 是撞上机器空闲的一瞬。§11.33 里「衬线正文把 INP 推过闸」因此不成立。
+- `attr-z4.mjs`（单变量：17px vs 18px，3 轮换位次，n=6/6）：18px 六次 **176–280ms**，17px 六次 **312–432ms**，**零重叠**。18px 不但没把 INP 推过闸，反而更快；上一版「18px/1.95 推过闸」的记录是被位次污染造出的假信号（每轮第一个样本撞占用）。
+- 立规：**任何「A 比 B 慢」的结论必须先做位次轮换；单轮首样本不可信。** 三变体对照（attr-z2）之所以误导，正是因为 `none` 每轮都排第一。
+
+**闸门（Batch ZA · build #10）**
+
+- `sweep2.mjs`：43 页 × 5 视图共 215 检查，**0 findings**。
+- `fontwt.mjs`：**PASS** —— 声明侧 css2 0 族 + 自托管 12 族；使用侧 3 类页面 20 个「族 × 字重档」组合、系统栈 9816 字；本机族登记 `Georgia 400/600/650/700`、`KaiTi 500/650`；KaTeX_Math / KaTeX_Main 400/700 全覆盖且像素两两不同。新标题族的汉字位（PingFang SC / Microsoft YaHei）本就在 SYSTEM 豁免名单内，闸无需再改。
+- `npm run check`：typecheck / lint / emoji / ui-discipline / proxy / attack / audit:env 全绿；postbuild 审计 1179 文件通过。
+- 目检复拍：12 张（首页 / 索引 / 正文 / 引语 / 课程 / 390 / 320 暗）+ 页面溢出与 pageerror 检查 PASS。
+- `vitals.mjs`：**未过闸（FAIL）** —— 准静窗（连续 6 次采样 ≤4% 且无 playwright chrome 残留时发车）跑出的 30 站里 3 笔越线 344 / 352 / 352ms，全部是「呈现段占满、处理段 0–1ms」；这一跑自己的测量期负载实测 mean **9.2%** / max 35%（over12 = 25/78）。**这个 FAIL 不记在 ZA 头上**：§11.35 用同一条闸跑回炉前的 HEAD（负载 mean 17.1%），得到 352 / 304ms，两边量级重合。
+- 发车前我一度把「测量期负载 mean 0.0% / max 0%」当成静窗证据，据此写下「纯环境占用已被证伪」—— **那个 0.0% 是 `quiet-vitals-strict.sh` 的 awk 读错列造出的假读数**，脚本 bug 与更正过程见 §11.35 四。
+- 改动清单：`app/globals.css`（`--font-title` 新增、9 处标题族改指、`--text-prose` 18px、`.row-title` ≥640px 封顶 2 行）、`tailwind.config.ts`（`serif` → `var(--font-title)` + 注释）。
+- _residual_：仿宋与等线两个方向留在样张里未启用；`--font-title` 的汉字位在 macOS 落 PingFang SC、Windows 落 Microsoft YaHei，两侧都是真粗体face，无需 webfont。
+
+### 11.35 闸 A/B：越线不是回炉造出来的（第 17 轮 · Batch ZB · 归因收口）
+
+**一、为什么要跑这一枪**
+
+用户立的规矩是「先不推，等 vitals 跑完全绿再提交推送」，而 ZA 在静窗下仍然 FAIL。到这里只剩两种可能，且必须先分清再谈改代码：**要么改版真的引入了 INP 回归，要么这条闸在当前机器状态上本来就是红的。** 靠再多探针都判不了这件事 —— 探针没有闸的滚动前置（§11.34 已经吃过一次亏），量出来的绝对值与闸不可比。**唯一可信的做法是把闸本身搬去跑回炉前的 commit。**
+
+**二、做法**
+
+`ui-concepts/verify/ab-head.sh`：对 HEAD `3024963`（已在 origin/main 上、§11.32 记录过绿的那版）的四个改动文件做 `git stash push -- <files>`，`npm run build`，跑同一条 `vitals.mjs`，然后 `git stash apply` 还原。**用 `apply` 不用 `pop`** —— 共享工作树里这条 stash 随时可能被别的操作碰到，pop 一旦失败会把未还原的 HEAD 留在树上。脚本挂 `trap`，异常退出也还原工作区。
+
+**三、结果（两条跑同一支闸，30 站全量，CLS 两边都是 0.0000）**
+
+| | 测量期负载采样 | 越线站 | 数字 |
+|---|---|---|---|
+| HEAD `3024963` | n=77 **mean 17.1%** max 51% | 2 站 | `/tags @1280` 主题切换 **352ms**（呈现 351 / 处理 0）；`/learn/ml/day-10 @390` 命令面板开 **304ms**（呈现 302 / 处理 1）；同站课内控件 160ms |
+| ZA build #10 | n=78 **mean 9.2%** max 35%（over12 = 25） | 3 站 | `/categories @1280` 主题切换 **352ms**（呈现 351 / 处理 0）；`/learn/ml/day-10 @1280` 课内控件 **344ms**（呈现 342 / 处理 1）；`/learn/ml/day-10 @390` 课内控件 **352ms**（呈现 350 / 处理 1） |
+
+三条判读：
+
+1. **HEAD 也是红的** —— 同一个「呈现段占满、处理段 0–1ms」的 300–352ms 签名。§11.32 那句「最慢交互 160ms」属于当时更好的机器状态，不是那一版代码比现在快；本轮 ZA 侧采样负载更低（9.2% vs 17.1%），越线量级却没有变好。
+2. **签名一致，落点不一致** —— 越线站和具体步骤在两次跑之间会挪（HEAD 落在 `/tags` 与 day-10@390 的命令面板，ZA 落在 `/categories` 与 day-10 双视图的课内控件），这是**排队中的活儿被算给了随后某一次交互**的形状，不是某个具体组件变慢的形状。若真是组件回归，越线会钉在同一站同一步。
+3. **字体与度量不是那一步的变量** —— `attr-z5.mjs`（6 变体 × 2 轮，位次轮换 `(k + rep - 1) % 6`）在 day-10「课内控件」给出：none 344/376、p17 320/352、scale 248/352、bodysans 312/296、allsans 312/296、nodrop 312/328。六个变体首尾相接成一片 248–376ms 的重叠区间，**没有一个能把这一步拉到 200ms 以下** —— 这一步的基线本来就在 300ms 量级，与 Z 的字体选择无关。
+
+**四、被这一枪顺带证伪的三件事**
+
+- **「测量期负载 0.0% / max 0%」这个静窗证据是假的**：`quiet-vitals-strict.sh` 与 `quiet-vitals-log.sh` 的采样每行只写一个数，统计 awk 却读 `$2`（空列），awk 把空值当 0 —— 于是任何负载都会被打成 `mean=0.0% max=0% over=0`。同一份样本按 `$1` 重算得 mean 9.2% / max 35%。脚本已改列并留注释。**教训：量具自己打印的统计，要先用原始样本重算一遍才准引用**；`ab-head.sh` 恰好读对了列，才让这次自欺露了馅。
+- **「关掉后台应用就能证明越线与占用无关」**：上面那条假读数正是这句话的来源，它不成立。成立的是更弱的版本：占用从 17.1% 降到 9.2%，越线量级没跟着变 —— `Win32_Processor LoadPercentage` 这个量具解释不了那 350ms 呈现段。
+- **「18px 把 INP 推过闸」**：§11.34 的 `attr-z4` 已推翻，这里再补一笔：HEAD（17px）在本轮同样是红的一侧。
+
+**五、还剩什么没解**
+
+闸红的**直接机制**仍未坐实，但手上已经有一条硬证据指向它：**同一个「主题切换」点击，在探针里是 0ms（`attr-z5` 的 `/categories` 全部变体），在同一条闸里是 352ms**。探针与闸的差别只有一处 —— `vitals.mjs` 在第一次交互前会把整页滚到最多 10 屏再回到顶部（每屏停 220ms），而探针不滚。这段滚动攒下的重栅格账单落进了随后的交互，能同时解释「呈现段占满 / 处理段 0ms」和「落点会挪」两个特征。**若下一轮要动，动的是量具（滚回顶部后加一次空闲/稳定确认，让第一笔交互不再替滚动结账），不是阈值，也不是 UI**；改完必须 HEAD 与 ZA 同时重跑，两边同降才认。
+
+**闸门（Batch ZB）**
+
+- 无 UI 改动：本轮只产出 A/B 证据与台账更正，`app/globals.css`、`tailwind.config.ts` 等与 build #10 完全一致（`out/` 已 `npm run build` 重建回 ZA）。
+- `vitals.mjs`：HEAD 与 ZA **双双 FAIL**（见上表）—— 这是本轮记录的事实，不加「待机器变好即绿」的乐观推断。
+- 其余非计时闸沿用 build #10：`sweep2` 215 检查 0 findings、`fontwt` PASS、`npm run check` 全绿、postbuild 审计 1179 文件通过。
+- 改动清单：`SPEC_LEDGER.md`（§11.33/§11.34 的 vitals 行改为实跑数字、新增本节）、`DESIGN.md`（收口闸说明）。
+- _residual_：`ui-concepts/verify/ab-head.sh` 跑完留下的 `stash@{0}: za-ab-wip` 已用 `git stash show -p | git apply --check --reverse` 确认与当前工作区逐字节一致后 drop。
+
