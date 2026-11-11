@@ -1555,7 +1555,7 @@ build #8 / #9 的 vitals 连续三次越线（day-10 的「课内控件」与「
 - `sweep2.mjs`：43 页 × 5 视图共 215 检查，0 findings（跑在 build #8，#9 只改 px 值）。
 - `fontwt.mjs`：PASS —— 系统栈 9816 字、KaiTi 500/650 与 Georgia 各档登记为本机族、KaTeX_Math/Main 400/700 全覆盖且像素两两不同。
 - `npm run check`：全绿；postbuild 审计 1179 文件通过。
-- `vitals.mjs`：**未过闸（FAIL）**，build #9/#10 越线在 264–576ms 一带。当时的归因与后续更正见 §11.34；「越线是不是 Z 造出来的」由 §11.35 的 HEAD 对照跑判定。
+- `vitals.mjs`：**未过闸（FAIL）**，build #8/#9 越线在 264–576ms 一带，build #10（ZA）为 344–352ms。当时的归因与后续更正见 §11.34；「越线是不是 Z 造出来的」由 §11.35 的 HEAD 对照跑判定。
 - 改动清单：`app/globals.css`（Z 层：令牌、刊头双细线、实墨页脚、数据栏、正文嗓音、章节 folio）、`app/page.tsx`（刊头网格 + 数据栏上移、侧栏统计删除）、`app/posts/[slug]/page.tsx`（标题 `clamp(32px, 4.6vw, 52px)`）、`tailwind.config.ts`（`serif` 跟随令牌）。
 
 ### 11.34 排版分工与度量修正：标题黑体 / 正文宋体（第 17 轮 · Batch ZA）
@@ -1626,6 +1626,7 @@ build #8 / #9 的 vitals 连续三次越线（day-10 的「课内控件」与「
 - 无 UI 改动：本轮只产出 A/B 证据与台账更正，`app/globals.css`、`tailwind.config.ts` 等与 build #10 完全一致（`out/` 已 `npm run build` 重建回 ZA）。
 - `vitals.mjs`：HEAD 与 ZA **双双 FAIL**（见上表）—— 这是本轮记录的事实，不加「待机器变好即绿」的乐观推断。
 - 其余非计时闸沿用 build #10：`sweep2` 215 检查 0 findings、`fontwt` PASS、`npm run check` 全绿、postbuild 审计 1179 文件通过。
+- **发布**：用户改口「直接推送吧」，于是在 vitals 双红的事实下提交并推送 `d65daa5`（`3024963..d65daa5` → `origin/main`）。放行依据不是「闸会自己变绿」，而是本节的 HEAD 对照证明了闸红与改版之间没有因果；`public/sitemap.xml` 只含 lastmod 滚动（与既往批次一致随提交走），`assets/` 保持未跟踪。
 - 改动清单：`SPEC_LEDGER.md`（§11.33/§11.34 的 vitals 行改为实跑数字、新增本节）、`DESIGN.md`（收口闸说明）。
 - _residual_：`ui-concepts/verify/ab-head.sh` 跑完留下的 `stash@{0}: za-ab-wip` 已用 `git stash show -p | git apply --check --reverse` 确认与当前工作区逐字节一致后 drop。
 
