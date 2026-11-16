@@ -117,8 +117,7 @@ export function AnimatedContent({
         detachFocusReveal()
         // 上面那次 set 可能把刚聚焦的一格抬出视口（/learn/ml/day-10/ 的复制钮实测
         // 定在 y=-170 达 3.6s）。只在它真的不在视口里时重新滚进来 —— 无条件补一次
-        // 等量 scrollBy 是错的：真按 Tab 走全站，34 格被这条补滚推出视口（Lenis 在
-        // 飞的时候原生滚动会被它接管，补的量和落点都对不上）。
+        // 等量 scrollBy 是错的：真按 Tab 走全站，34 格被这条补滚推出视口。
         if (t) {
           const r = t.getBoundingClientRect()
           if (r.top < 0 || r.bottom > window.innerHeight) {

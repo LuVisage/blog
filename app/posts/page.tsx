@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { SITE } from '@/lib/constants'
 import { getAllPosts, getPaginatedPosts } from '@/lib/posts'
-import { PostList } from '@/components/post-card'
+import { PostList } from '@/components/post-list'
 import { PageMasthead } from '@/components/page-masthead'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import { IndexRail } from '@/components/index-rail'
@@ -31,7 +31,7 @@ export default function PostsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-16 items-start">
         <AnimatedContent direction="up" className="min-w-0">
-          <PostList posts={posts} emptyHref={`${SITE.repo}/new/main/content/posts/`} />
+          <PostList posts={posts} />
           <Pagination current={1} total={totalPages} />
         </AnimatedContent>
 

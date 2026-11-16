@@ -22,6 +22,8 @@ const config = [
       '.playwright-mcp/**',
       '.codebuddy/**',
       '.next.bak.*/**',
+      // 临时 distDir（.next-r19 等）与备份目录一样是构建产物，不该进 lint。
+      '.next-*/**',
       'out.bak.*/**',
       'public/sw.js',
       'next-env.d.ts',

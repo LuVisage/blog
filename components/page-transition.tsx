@@ -48,9 +48,11 @@ function useRouteFocusHandoff() {
 }
 
 /**
- * Route-change choreography: the new page rises in while an accent hairline
- * sweeps across the top. The sweep is mounted at body level because `main`
- * opens its own stacking context and would trap it under the header.
+ * 换页编排（第 20 轮回归）：新页轻微升起，同时顶边掠过一道强调色细线。
+ *
+ * 第 19 轮把扫光线删成「只剩微升」，结果换页几乎无感——站点像静态文档翻页。
+ * 这次两层不再抢同一帧：内容 400ms 微升，扫光 500ms 走完并在尾段淡出，
+ * 三条都只动 opacity / transform。reduced-motion 由 useRouteChange 统一跳过。
  */
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const content = useRef<HTMLDivElement>(null)
@@ -75,8 +77,9 @@ export function PageSweep() {
   useRouteChange(() => {
     sweep.current?.animate(
       [
-        { opacity: 1, transform: 'scaleX(0)' },
-        { opacity: 1, transform: 'scaleX(1)', offset: 0.55 },
+        { opacity: 0, transform: 'scaleX(0)' },
+        { opacity: 1, transform: 'scaleX(0.45)', offset: 0.12 },
+        { opacity: 1, transform: 'scaleX(1)', offset: 0.62 },
         { opacity: 0, transform: 'scaleX(1)' },
       ],
       { duration: 500, easing: EASE }

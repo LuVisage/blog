@@ -5,11 +5,11 @@ import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { Analytics } from '@/components/analytics'
 import { BackToTop } from '@/components/back-to-top'
-import { LenisProvider } from '@/components/ui/lenis-provider'
 import { GSAPProvider } from '@/components/gsap-provider'
 import { ToastProvider } from '@/components/ui/toast'
 import { PaletteProvider } from '@/components/command-palette'
 import { PageTransition, PageSweep } from '@/components/page-transition'
+import { GlowRows } from '@/components/ui/interaction'
 import { getAllPosts } from '@/lib/posts'
 import { COURSE_IDS, getAllLessons, getReferencePages } from '@/lib/curriculum'
 import 'katex/dist/katex.min.css'
@@ -137,9 +137,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <ToastProvider>
           <GSAPProvider>
-          <LenisProvider>
           <PaletteProvider posts={palettePosts} lessons={paletteLessons}>
           <PageSweep />
+          <GlowRows />
           <Header />
           {/* §2.1 容器 1200px；§1 区块留白按 96px 档展开。
               tabIndex=-1 是让「跳到主要内容」真的能落脚：不可聚焦的目标只会改 hash，
@@ -151,7 +151,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <BackToTop />
           <Analytics />
           </PaletteProvider>
-          </LenisProvider>
           </GSAPProvider>
           </ToastProvider>
         </ThemeProvider>

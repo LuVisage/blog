@@ -6,8 +6,11 @@ export const LICENSE_NAME = 'CC BY-NC-SA 4.0'
 /**
  * 文末许可声明：作者选定的 CC BY-NC-SA 4.0（第 16 轮问答定案）。
  * 样板文字不进搜索索引（data-pagefind-ignore），否则每篇 snippet 都带一段许可套话。
+ *
+ * 第 19 轮补上「修订」出口：技术博客的内容会被读者抓错字、跑不通的命令和过期 API，
+ * 给一条直到源文件的路比放一排社交分享有用（overreacted 文末的源码链接同一个意思）。
  */
-export function PostLicense() {
+export function PostLicense({ editHref }: { editHref?: string }) {
   return (
     <p
       className="meta flex items-start gap-2 mb-10 pt-4"
@@ -26,6 +29,19 @@ export function PostLicense() {
           {LICENSE_NAME}
         </a>{' '}
         许可：转载请注明出处与原文链接，非商业性使用，相同方式共享。
+        {editHref && (
+          <>
+            {' · '}
+            <a
+              href={editHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link-underline"
+            >
+              在 GitHub 上修订本文
+            </a>
+          </>
+        )}
       </span>
     </p>
   )

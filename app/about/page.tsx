@@ -4,6 +4,7 @@ import { SITE, ABOUT, SOCIAL_LINKS, EMAIL_OBFUSCATED } from '@/lib/constants'
 import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 import { AvatarImage } from '@/components/avatar-image'
 import { PageMasthead } from '@/components/page-masthead'
+import { ProjectsSection, FriendsSection, NowSection } from '@/components/about-sections'
 import { AnimatedContent } from '@/components/ui/animated-content'
 import {
   IconBrandGithub, IconMail, IconArrowRight,
@@ -26,6 +27,13 @@ export const metadata: Metadata = {
   },
 }
 
+/** 项目 / 近况 / 友链三节从独立路由并进来，锚点要在刊头下就看得见。 */
+const JUMPS = [
+  { href: '#projects', label: '项目' },
+  { href: '#now', label: '近况' },
+  { href: '#friends', label: '友链' },
+]
+
 export default function AboutPage() {
   return (
     <div>
@@ -35,6 +43,23 @@ export default function AboutPage() {
         lead={ABOUT.title}
         counter={`${ABOUT.focusAreas.length} 个方向 · ${ABOUT.skills.length} 项技术`}
       />
+
+      <nav
+        aria-label="本页分节"
+        className="flex flex-wrap items-center gap-x-7 gap-y-2 pb-4 mb-14"
+        style={{ borderBottom: '1px solid var(--line)' }}
+      >
+        <span className="eyebrow">本页</span>
+        {JUMPS.map((jump) => (
+          <a
+            key={jump.href}
+            href={jump.href}
+            className="meta tint-body transition-colors hover:text-[var(--accent-text)]"
+          >
+            {jump.label}
+          </a>
+        ))}
+      </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-12 lg:gap-16">
         {/* ── Column ── */}
@@ -95,10 +120,22 @@ export default function AboutPage() {
                   </span>
                 ))}
               </div>
+              <Link href="/uses" className="btn-ghost text-sm mt-6">
+                本站自己用什么搭的
+                <IconArrowRight size={14} strokeWidth={2} />
+              </Link>
             </section>
           </AnimatedContent>
 
-          <AnimatedContent direction="up" delay={0.18}>
+          <AnimatedContent direction="up" className="mb-16">
+            <ProjectsSection />
+          </AnimatedContent>
+
+          <AnimatedContent direction="up" className="mb-16">
+            <NowSection />
+          </AnimatedContent>
+
+          <AnimatedContent direction="up" className="mb-16">
             <section>
               <div className="eyebrow mb-2">年表</div>
               <h2 className="section-title mb-2">时间线</h2>
@@ -118,6 +155,10 @@ export default function AboutPage() {
                 ))}
               </div>
             </section>
+          </AnimatedContent>
+
+          <AnimatedContent direction="up">
+            <FriendsSection />
           </AnimatedContent>
         </div>
 

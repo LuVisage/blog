@@ -73,15 +73,24 @@
   --line: var(--color-border-subtle);
   --line-strong: var(--color-border-default);
   --line-faint: rgba(0, 0, 0, 0.08);
+  /* 滚动条拇指不能用 --line-strong：它是画布上的发丝线，压在同一块画布上
+     亮色 1.48:1、暗色 1.60:1，够不到 WCAG 1.4.11 的 3:1（scrollbar-contrast.mjs 量，
+     把拇指注入回 --line-strong 时闸开口）。换 --faint 后亮 5.29:1、暗 6.73:1。
+     轨道透明，所以拇指要同时压住轨道背后那层画布。 */
+  --scrollbar-thumb: var(--faint);
+  --scrollbar-track: transparent;
   --accent: var(--color-primary);
   --accent-text: var(--color-primary);
   --accent-dim: var(--color-primary-subtle);
   --accent-soft: var(--color-primary-subtle);
   --accent-line: rgba(61, 70, 194, 0.35);
-  --accent-glow: var(--color-primary-subtle);
   /* 旧「金色高光」角色随换血废除并并入主强调色（SPEC_LEDGER §10）。 */
   --gold: var(--color-primary);
-  --on-accent: #ffffff;
+  /* 强调面上的墨必须跟着模式翻，不能钉死白色：暗色强调色是浅陶土 #e0755f，
+     白字压上去只有 3.05:1（悬停 #ef8e79 更差，2.38:1），够不到 AA 的 4.5。
+     --color-text-inverse 亮 #ffffff / 暗 #141311，正是这个语义，改后暗色 6.08 / 7.79，
+     亮色两档一字不变。六处强调实底控件共用这一枚，别在各自规则里另写字色。 */
+  --on-accent: var(--color-text-inverse);
   --success: var(--color-success);
   --danger: var(--color-danger);
 
@@ -164,7 +173,6 @@
   --duration-fast: 200ms;
   --duration-base: 300ms;
   --duration-slow: 400ms;
-  --marquee-duration: 40s;
 
   /* ── 布局（容器沿用现有 1200px；are.na 档案 container 1310px 未采纳，
      理由：博客以正文阅读为主，登记 SPEC_LEDGER §11） ── */
@@ -332,15 +340,35 @@
 
   a { color: inherit; text-decoration: none; }
 
-  ::-webkit-scrollbar { width: 9px; height: 9px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb {
-    background: var(--line-strong);
-    border-radius: var(--radius-xs);
-    border: 3px solid transparent;
-    background-clip: content-box;
+  /* 滚动条走标准属性，legacy 伪元素只留给不支持的浏览器 —— 两套同时生效时
+     Chrome 会走标准渲染路径，伪元素那 9px 悄悄失效。
+     scrollbar-width 必须显式写 thin：标准路径下 auto 是 15px，比原来的 9px 宽出
+     6px，整站栏宽与 320px 断点的几何全跟着动。
+
+     两个属性的继承行为不一样，别当成一对：Chrome 140 实测（空白页只写 html 也一样）
+     scrollbar-color 继承、**scrollbar-width 不继承** —— body 与内层 overflow:scroll
+     容器的 computed 仍是 auto、占位 15px，而根是 thin 的 10px。只写 html 的话，
+     代码块与长公式段落里冒出来的是比页面滚动条更粗的一根。所以 width 用 * 逐元素铺，
+     兜住现在与将来的所有内层滚动容器；特异性 (0,0,0) 低于任何类，站内那枚
+     [scrollbar-width:none] 工具类照旧压过它。color 靠继承就够，不必跟着铺。 */
+  html {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
-  ::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+  * {
+    scrollbar-width: thin;
+  }
+
+  @supports not (scrollbar-color: auto) {
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+    ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: var(--radius-xs);
+      border: 3px solid transparent;
+      background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+  }
 }
 
 /* ==============================================
@@ -690,17 +718,6 @@
   .nav-row { color: var(--muted); }
   .nav-row:hover { color: var(--ink); }
   .nav-row[aria-current='page'] { color: var(--ink); }
-
-  /* 实心强调小按钮（歌单加载钮）：跟 .btn-primary 共用「悬停加深一档」的语汇，
-     但不接管尺寸 —— 几何仍由调用方的 utility 决定。按下缩放交给 .pressable。 */
-  .btn-accent { background: var(--color-primary); color: var(--on-accent); }
-  .btn-accent:hover { background: var(--color-primary-hover); }
-
-  /* 歌单行：静止 body → 悬停加深并铺次级底；正在播的那行走强调色（aria-current 表达）。
-     [aria-current] 写在 :hover 之后，同级靠后者胜出，悬停播放中那行不会掉回普通态。 */
-  .song-row { color: var(--body); }
-  .song-row:hover { color: var(--ink); background: var(--surface-2); }
-  .song-row[aria-current='true'] { color: var(--accent-text); background: var(--accent-soft); font-weight: 500; }
 }
 
 /* ==============================================
@@ -921,14 +938,21 @@
    GFM 表格同一套语汇（那两处早就这么处理了）。
    overflow-y 写 clip 而不是留空：auto 会连带出一根纵向滚动条 —— 实测 320px 上
    505 个公式段落的 scrollHeight 比 clientHeight 多 2~6px（KaTeX 零高 vlist 撑的），
-   每段都会挂条；clip 不滚动，而公式矩形越出段落盒的数量实测为 0，不裁墨。 */
-.prose p:has(.katex),
-.prose li:has(.katex),
-.prose dd:has(.katex),
-.prose td:has(.katex),
-.prose h3:has(.katex),
-.prose h4:has(.katex),
-.prose blockquote:has(.katex) {
+   每段都会挂条；公式矩形越出段落盒的数量实测为 0，不裁墨。
+   注意 computed 值不是 clip 而是 hidden：CSS Overflow 规定一轴是滚动值（这里的 auto）、
+   另一轴是 clip 时，clip 计算成 hidden（mathclass.mjs 活体实测三页全是 hidden）。
+   结果一样不出纵向滚动条，但它确实成了滚动容器 —— 写 clip 只是表达「不打算滚」的意图。
+   选择器用构建期打上的 has-math（rehypeMathBlocks）而不是 :has(.katex)：后者要在
+   后代变化时向上失效，day-10 的 7404 个 KaTeX 后代让一次字号切换触发 ~45 次重样式 /
+   5–6 次重排；换类之后 ~13 次 / 1 次，重样式 131→101ms、INP 355→323ms。
+   特异性同为 (0,2,1)，命中集合与 computed overflow-x 逐个比对过，是等价改写。 */
+.prose p.has-math,
+.prose li.has-math,
+.prose dd.has-math,
+.prose td.has-math,
+.prose h3.has-math,
+.prose h4.has-math,
+.prose blockquote.has-math {
   overflow-x: auto;
   overflow-y: clip;
 }
@@ -1070,22 +1094,7 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
 
 /* ==============================================
    9. Utilities
-   §8.3：卡片 hover 用 scale(1.05) + 200ms ease，而不是位移或投影。
    ============================================== */
-/* 卡片悬停（§11.5 交互增强）：1px 弱 scale 升级为 4px 上浮 + 唯一阴影浮现 + indigo 发丝线。
-   封面缩放仍由 .media-zoom 独立承担，文字不参与缩放。 */
-.hover-zoom {
-  /* 投影不插值：box-shadow 是逐帧重绘的属性，跟 4px 抬起一起瞬时出现就够，
-     缓动它只会让卡片「先浮起来再变厚」。 */
-  transition: transform var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease),
-    background-color var(--duration-fast) var(--ease);
-}
-.hover-zoom:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-pop);
-  border-color: var(--accent-line);
-}
 
 .accent-dot {
   width: 7px;
@@ -1144,21 +1153,10 @@ figure[data-rehype-pretty-code-figure] pre { background: transparent !important;
 
 /* ==============================================
    9c. Page transition
-   components/page-transition.tsx runs the animation
-   with the Web Animations API, so no keyframes here.
-   渐变改为纯强调色 1px 实线（§7 否定性规律：不用渐变）。
+   components/page-transition.tsx 只用 Web Animations API 做换页微升，
+   这里不需要关键帧。第 19 轮删掉顶部扫光线（.page-sweep）：
+   它与换页微升抢同一帧，且不传达任何内容信息。
    ============================================== */
-.page-sweep {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  z-index: 60;
-  pointer-events: none;
-  transform-origin: left center;
-  background: var(--color-primary);
-}
 
 /* ==============================================
    9d. Loading skeleton
@@ -1281,49 +1279,11 @@ footer :focus-visible { outline-color: var(--footer-ink); }
 .focus-line { transition: border-color var(--duration-fast) var(--ease); }
 .focus-line:focus-within { border-color: var(--color-primary); }
 
-/* 封面容器：加载前先铺一层平静的浅底（不用渐变与阴影），图片加载完自然覆盖。
-   img 用 object-fit 撑满，悬停缩放由 .media-zoom 负责。 */
-.media-frame {
-  position: relative;
-  overflow: hidden;
-  background: var(--surface-2);
-}
-.media-frame img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
 
-/* ==============================================
-   9f. Marquee — 单行内容带
-   DESIGN_DNA §11.3 的关键帧清单里有 `marquee`，§11.2 也实测到
-   `.logo_marquee:hover { animation-play-state: paused }`，
-   所以这条语汇是文档内的：只动 transform，悬停暂停；键盘聚焦除了停，还要
-   把偏移收回来，焦点环才落在看得见的位置（见下面的 :focus-within）。
-   边缘用 mask 做淡出（功能性的遮罩，不是装饰性渐变）。
-   ============================================== */
-.marquee {
-  overflow: hidden;
-  padding-block: var(--space-16);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent);
-  mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent);
-}
-.marquee__track {
-  display: flex;
-  align-items: center;
-  gap: var(--space-24);
-  width: max-content;
-  animation: marquee var(--marquee-duration) linear infinite;
-}
-.marquee__group {
-  display: flex;
-  align-items: center;
-  gap: var(--space-24);
-  flex-shrink: 0;
-}
+
+
+
+
 /* 悬停只暂停 —— 鼠标用户看得见它在动，停下就够读。
    键盘聚焦不能只暂停：暂停是把轨道钉在当前的负偏移上，焦点环于是画在
    overflow 裁掉的那块区域里，浏览器也滚不回去（负偏移在滚动原点之外，
@@ -1331,31 +1291,14 @@ footer :focus-visible { outline-color: var(--footer-ink); }
    负偏移消失；被裁掉的尾部仍在 scrollWidth 里，而 overflow:hidden 的盒子
    可编程滚动，聚焦时浏览器能把那枚胶囊滚进可视带 —— 不出现滚动条，
    也不改变这一行的视觉高度。scroll-padding 把焦点元素停在 48px 淡出区之外。 */
-.marquee:hover .marquee__track { animation-play-state: paused; }
-.marquee:focus-within .marquee__track { animation: none; }
-.marquee:focus-within { scroll-padding-inline: 48px; }
 
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
+
+
+
+
 
 /* 减少动态效果：静止、去掉遮罩、允许换行阅读全量内容 */
-@media (prefers-reduced-motion: reduce) {
-  .marquee {
-    -webkit-mask-image: none;
-    mask-image: none;
-    overflow: visible;
-  }
-  .marquee__track { animation: none; }
-  /* width 给成 100% 而不是 auto：.marquee__group 带着 flex-shrink:0，
-     auto 宽度的它会直接取 max-content（16 枚胶囊 = 1494px），于是这里写的
-     flex-wrap: wrap 永远不触发 —— 换行读全量的意图落空，还把文档撑到 1510px，
-     整页可以横向拖动。100% 让它退回容器宽，胶囊才真的换得下去。 */
-  .marquee__track,
-  .marquee__group { flex-wrap: wrap; width: 100%; }
-  .marquee__group[aria-hidden='true'] { display: none; }
-}
+
 
 /* 分级入场：索引台账、归档条目、卡片网格。
    单条 400ms、步进 40ms、最多 12 项（总窗口 440ms，落在 §11.1 的 500ms 档内），只播一次。
@@ -1375,16 +1318,8 @@ footer :focus-visible { outline-color: var(--footer-ink); }
 .stagger > *:nth-child(11) { animation-delay: 400ms; }
 .stagger > *:nth-child(12) { animation-delay: 440ms; }
 
-/* 封面图与头像：进场淡入 + 悬停缩放。
-   scale(1.05) 是 §8.3 的实测配方（作用在图片上）；淡入属 [文档外] 签名动效，
-   依据见 SPEC_LEDGER §1.8.4（只动 opacity，不触发布局）。 */
-.media-zoom {
-  animation: mediaFade var(--duration-slow) var(--ease-out) both;
-  transition: transform var(--duration-fast) var(--ease);
-}
-a:hover > .media-zoom,
-.group:hover .media-zoom { transform: scale(1.05); }
-
+/* 头像进场淡入。属 [文档外] 签名动效，依据见 SPEC_LEDGER §1.8.4
+   （只动 opacity，不触发布局）。封面卡下线后只剩 .media-fade 用这条关键帧。 */
 @keyframes mediaFade {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -1393,7 +1328,7 @@ a:hover > .media-zoom,
 /* 真实 <img> 的加载渐显（头像这类）。原先是 `opacity:0` 等 JS 的 onLoad 加 `.is-loaded`
    点亮 —— 但 `.media-fade` 这个类名是 React 烘进 HTML 的，关掉 JS 就永远停在透明：
    头像占着位置、alt 还在，一个人也看不见；图片加载失败同样是透明的洞（onError 换图标
-   也要 JS）。改成和 .media-zoom 一样的一次性关键帧：静态样式就是可见，动画只是装饰，
+   也要 JS）。改成一次性关键帧：静态样式就是可见，动画只是装饰，
    无 JS、加载失败、reduced-motion 三种情况拿到的都是正常显示的图。 */
 .media-fade {
   animation: mediaFade var(--duration-slow) var(--ease-out) backwards;
@@ -1401,7 +1336,6 @@ a:hover > .media-zoom,
 
 @media (prefers-reduced-motion: reduce) {
   .stagger > * { animation: none; }
-  .media-zoom { animation: none; }
 }
 
 /* ==============================================
@@ -1535,21 +1469,11 @@ a:hover > .media-zoom,
    11.5 交互增强（第 5 轮追加 · 组件融合自设计，登记 SPEC_LEDGER §11.5）
    ============================================== */
 
-/* ── 标题逐字符入场（SplitReveal）：字符上移 + 淡入，交错步进。
-    纯 CSS animation，SSR 安全；全局 reduced-motion 守卫自动关闭。 ── */
-.split-reveal { display: inline-flex; flex-wrap: wrap; }
-.sr-char {
-  display: inline-block;
-  animation: charUp var(--duration-slow) var(--ease-out) backwards;
-  animation-delay: var(--d, 0ms);
-}
-@keyframes charUp {
-  from { opacity: 0; transform: translateY(0.95em); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* 第 19 轮：SplitReveal / .sr-char / @keyframes charUp 整组下线 —— 组件零引用，
+   逐字符入场也没有任何一处还在用。 */
 
 /* ── 标题模糊聚焦入场（BlurReveal）──
-   和 .sr-char 同一套做法：初态只活在 keyframes 的 from 里，元素本身的静态样式永远是
+   初态只活在 keyframes 的 from 里，元素本身的静态样式永远是
    「清晰」。于是关掉 JS / hydration 没跑起来 / 脚本被扩展拦掉，看到的都是最终态，
    不会像先前那样把 h1 画在 opacity:0 上（台账 §11.18 五）。
    也不用 JS 先接管再放开：那条路必然先画清晰、再闪回模糊（首帧与 hydration 之间
@@ -1561,24 +1485,6 @@ a:hover > .media-zoom,
   from { opacity: 0; filter: blur(8px); transform: translateY(10px); }
   to   { opacity: 1; filter: blur(0); transform: translateY(0); }
 }
-
-/* ── 全局光标光晕（AuraCursor）：极淡 indigo 径向渐变，transform-only。
-    组件侧已按 pointer:fine + reduced-motion 控制启用。 ── */
-.aura-cursor {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 520px;
-  height: 520px;
-  border-radius: var(--radius-full);
-  pointer-events: none;
-  z-index: 2;
-  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 68%);
-  opacity: 0;
-  transition: opacity var(--duration-slow) var(--ease);
-  will-change: transform;
-}
-.aura-cursor.is-on { opacity: 1; }
 
 /* ── 代码块 hover 反馈：灰面边框 → indigo 发丝线；
     复制成功时 1s 边框闪烁（code-flash 由 code-block-enhancer 触发）。 ── */
@@ -1625,61 +1531,16 @@ figure[data-rehype-pretty-code-figure]:hover {
    11.6 组件融合交互（第 5 轮追加 · React Bits / Aceternity 形态，自设计登记 §11.6）
    ============================================== */
 
-/* ── Lenis 平滑滚动基础样式（lenis 官方建议子集） ── */
-html.lenis,
-html.lenis body { height: auto; }
-.lenis.lenis-smooth { scroll-behavior: auto !important; }
-.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
-.lenis.lenis-stopped { overflow: hidden; }
 
-/* ── 自定义光标（CustomCursor）：indigo 小点 + 缓动圆环，悬停可交互元素时环放大 ── */
-.custom-cursor-dot,
-.custom-cursor-ring {
-  position: fixed;
-  left: 0;
-  top: 0;
-  pointer-events: none;
-  z-index: 120;
-  will-change: transform;
-}
-.custom-cursor-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--color-primary);
-}
-.custom-cursor-ring {
-  width: 14px;
-  height: 14px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-primary);
-  opacity: 0.5;
-  /* 尺寸不动，放大由 JS 把 scale() 拼进 transform：这里若 transition transform，
-     会和每帧重写打架，环就永远拖在光标后面。 */
-  transition: border-color var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease);
-}
-.custom-cursor-ring.is-hover {
-  border-color: var(--accent-line);
-  opacity: 0.85;
-}
 
-/* ── 聚光卡片（SpotlightCard）：光标处 indigo 极淡光斑（--mx/--my 驱动） ── */
-.spotlight-card { position: relative; }
-.spotlight-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), var(--accent-glow), transparent 72%);
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease);
-  pointer-events: none;
-  z-index: 0;
-}
-.spotlight-card:hover::before { opacity: 1; }
+
+
+
+
+
+
+
+
 
 /* ── 索引行封面预览（row-cover）：封面缩略图钉在序号栏里，与序号交叉换位 ──
    旧形态是 138×92 的跟手浮图（`--mx` 驱动，`translate(calc(var(--mx)+16px))`）。
@@ -1760,15 +1621,6 @@ html.lenis body { height: auto; }
   line-height: 1em;
 }
 
-/* ── 封面鼠标视差（media-parallax）：封面随卡片内光标位置微移（--dx/--dy，
-    与聚光 --mx/--my 同源计算；reduced-motion 全局守卫自动停过渡） ── */
-.media-parallax {
-  position: absolute;
-  inset: 0;
-  transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0);
-  transition: transform var(--duration-fast) var(--ease-out);
-  will-change: transform;
-}
 
 /* ==============================================
    11.11 阅读面定位层（第 7 轮 · ScrollSpy 比例尺 + 章节翻牌，自设计登记 §11.11）
@@ -1951,14 +1803,12 @@ html.lenis body { height: auto; }
      正解是把这些一次性入场整个取消：终态就是元素的静态样式，没什么可等的。
      只列「动画终点 == 静态样式」的那些；.animate-fade-out 的终点是 opacity:0，
      它属于退场，取消会把该消失的东西留在屏上，所以继续交给上面的时长清零。
-     与 §10 里 .stagger > * / .media-zoom 的既有做法一致（台账 §11.18 五）。 */
+     与 §10 里 .stagger > * 的既有做法一致（台账 §11.18 五）。 */
   .animate-scale-in,
   .animate-fade-up,
   .animate-slide-down,
   .stagger > *,
-  .media-zoom,
   .media-fade,
-  .sr-char,
   .blur-reveal,
   .flip-reel,
   .chapter-flip > span,
@@ -2023,7 +1873,6 @@ html.lenis body { height: auto; }
   --accent-dim: var(--color-primary-subtle);
   --accent-soft: var(--color-primary-subtle);
   --accent-line: rgba(0, 113, 227, 0.35);
-  --accent-glow: var(--color-primary-subtle);
   --line-faint: rgba(0, 0, 0, 0.06);
   --heat-0: rgba(0, 113, 227, 0.1);
   --heat-1: rgba(0, 113, 227, 0.35);
@@ -2720,7 +2569,6 @@ footer :focus-visible { outline-color: var(--accent-text); }
   --hero-gradient: none;
   --panel-gradient: none;
   --accent-line: rgba(180, 68, 47, 0.3);
-  --accent-glow: var(--color-primary-subtle);
   --line-faint: rgba(35, 33, 30, 0.06);
   --heat-0: rgba(180, 68, 47, 0.1);
   --heat-1: rgba(180, 68, 47, 0.35);
@@ -2902,22 +2750,8 @@ footer :focus-visible { outline-color: var(--accent-text); }
   line-height: 1.7;
   color: var(--muted);
 }
-.editorial__nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 22px;
-  margin-top: 28px;
-  font-size: 14px;
-}
-.editorial__nav a {
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  color: var(--body);
-  cursor: pointer;
-  transition: color var(--duration-fast) var(--ease);
-}
-.editorial__nav a:hover { color: var(--accent-text); }
+/* 第 19 轮：刊头第二套导航下线，这条规则连同组件一起删除。
+   吸顶主导航已经常驻，五项链接全是它的子集。 */
 .editorial__rule { border-top: 1px solid var(--line-strong); }
 .editorial__section { padding: 44px 0 8px; }
 .editorial__section-head {
@@ -3063,44 +2897,15 @@ footer :focus-visible { outline-color: var(--accent-text); }
 [data-spotlight='row']:hover .issue-badge,
 [data-spotlight='row']:focus-visible .issue-badge { opacity: 0; }
 
-/* 可交互 3D 模型：画布铺在 poster 之上，模型就绪后 poster 淡出。
-   无 JS / 无 WebGL / 模型缺失时 poster 一直可见，容器不会塌成空白。 */
-.model3d {
-  position: relative;
-  width: 100%;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--surface-2);
-}
-.model3d__stage { position: absolute; inset: 0; }
-.model3d__stage canvas { display: block; width: 100%; height: 100%; }
-.model3d__poster {
-  display: block;
-  width: 100%;
-  height: clamp(220px, 30vw, 320px);
-  object-fit: cover;
-  object-position: center 46%;
-  pointer-events: none;
-  transition: opacity var(--duration-slow) var(--ease);
-}
-.model3d__poster--hidden { opacity: 0; }
-.model3d__hint {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--overlay);
-  color: var(--muted);
-  font-size: 12px;
-  pointer-events: none;
-}
-.model3d__hint-touch { display: none; }
-@media (pointer: coarse) {
-  .model3d__hint-desktop { display: none; }
-  .model3d__hint-touch { display: inline; }
-}
+
+
+
+
+
+
+
+
+
 
 /* ============================================================================
    第 8 轮 · 分栏编排（参考布局型博客的实测网格）
@@ -3239,14 +3044,9 @@ footer :focus-visible { outline-color: var(--accent-text); }
 /* 筛选结果页没有侧栏，把文章行的行长收回可读范围 */
 .page-list-narrow { max-width: 760px; }
 
-/* 3D 舞台可键盘聚焦：方向键旋转、加减号缩放 */
-.model3d__stage:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
-}
-@media (max-width: 640px) {
-  .model3d__poster { height: 190px; }
-}
+
+
+
 @media (max-width: 900px) {
   /* 再兜一次单列，防止后续追加的规则把主栏压窄 */
   .editorial__grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
@@ -3529,11 +3329,11 @@ a.author-card__link:focus-visible { color: var(--accent-text); }
   }
 }
 
-/* 打印：只留正文，去掉导航、侧栏、3D、按钮与所有 JS 控件 */
+/* 打印：只留正文，去掉导航、侧栏、图版、按钮与所有 JS 控件 */
 @media print {
-  header, footer, .editorial__side, .editorial__figure, .model3d, .chapter-bar,
+  header, footer, .editorial__side, .editorial__figure, .chapter-bar,
   .toc, .index-rail, .back-to-top, .btn-primary, .btn-secondary, .btn-ghost,
-  .apple-filters, .apple-pagination, .model3d__hint, [data-js-only] { display: none !important; }
+  .apple-filters, .apple-pagination, [data-js-only] { display: none !important; }
   #main-content { max-width: none !important; padding: 0 !important; }
   .editorial__grid { display: block !important; }
   .slash-page, .prose { max-width: none; }
@@ -3541,9 +3341,8 @@ a.author-card__link:focus-visible { color: var(--accent-text); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .editorial__nav a, .editorial__item-title, .editorial__tags a, .editorial__links a { transition: none; }
+  .editorial__item-title, .editorial__tags a, .editorial__links a { transition: none; }
   .side-list a, .side-links a { transition: none; }
-  .model3d__poster { transition: none; }
 }
 
 /* ── 第 17 轮回炉：中文报纸 / 印刷杂志（台账 §11.33） ─────────────────────
@@ -3622,3 +3421,596 @@ a.author-card__link:focus-visible { color: var(--accent-text); }
 .editorial__section-head { border-top: 2px solid var(--ink); padding-top: 10px; }
 .editorial__section-head h2, .side-block h2 { font-family: var(--font-title); font-weight: 700; }
 .editorial__item-title { font-family: var(--font-title); font-weight: 700; }
+
+/* ── 课程图版（取代 three.js 模型）：直角墨线 + 双细线框，只让颜色动 ── */
+.course-plate { margin: 0; }
+.course-plate__svg { display: block; width: 100%; height: auto; }
+.course-plate__list { display: none; }
+
+.course-plate__frame { fill: none; stroke: var(--ink); stroke-width: 2; }
+.course-plate__frame-inner { fill: none; stroke: var(--line-strong); stroke-width: 1; }
+.course-plate__rule { stroke: var(--line-strong); stroke-width: 1; }
+.course-plate__caption {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  fill: var(--muted);
+}
+.course-plate__foot {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  fill: var(--muted);
+}
+.course-plate__wires path {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+.course-plate__box {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  transition: stroke var(--duration-fast) var(--ease), fill var(--duration-fast) var(--ease);
+}
+.course-plate__name {
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--ink);
+  transition: fill var(--duration-fast) var(--ease);
+}
+.course-plate__meta,
+.course-plate__note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--muted);
+}
+.course-plate__node { cursor: pointer; }
+.course-plate__node:hover .course-plate__box,
+.course-plate__node:focus-visible .course-plate__box {
+  stroke: var(--accent-text);
+  fill: var(--surface-2);
+}
+.course-plate__node:hover .course-plate__name,
+.course-plate__node:focus-visible .course-plate__name { fill: var(--accent-text); }
+.course-plate__node:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+
+.course-plate__core-box { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
+.course-plate__core-inner { fill: none; stroke: var(--line-strong); stroke-width: 1; }
+.course-plate__core-name {
+  font-family: var(--font-title);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  fill: var(--ink);
+}
+.course-plate__core-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+/* 窄屏不缩放 SVG（缩到 360px 宽时 15px 字只剩 7px），换一份可读清单 */
+@media (max-width: 639px) {
+  .course-plate__svg { display: none; }
+  .course-plate__list {
+    display: block;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 2px solid var(--ink);
+  }
+  .course-plate__list li { border-bottom: 1px solid var(--line); }
+  .course-plate__list a {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 2px;
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease);
+  }
+  .course-plate__list-name {
+    font-family: var(--font-title);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .course-plate__list-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .course-plate__list a:hover .course-plate__list-name,
+  .course-plate__list a:focus-visible .course-plate__list-name { color: var(--accent-text); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .course-plate__box,
+  .course-plate__name,
+  .course-plate__list a { transition: none; }
+}
+
+/* ============================================================================
+   第 19 轮 · 章节永久链接 / 外链标识 / 目标落点
+   ----------------------------------------------------------------------------
+   参考 overreacted：每个章节标题本身就是一条 hash 链接，读者能直接把「读到哪」
+   发给别人。本站原有目录能跳转却不写地址栏，等于有定位没链接。这里在服务端给
+   h2/h3 追加一枚空的 <a>，井号由 ::before 生成 —— textContent 不含它，目录扫描器
+   读到的章节名仍旧干净；关掉 JS 时它也是一条真链接。
+   ============================================================================ */
+.heading-anchor {
+  display: inline-block;
+  margin-left: 0.45em;
+  font-family: var(--font-mono);
+  font-size: 0.62em;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: 0.12em;
+  color: var(--faint);
+  text-decoration: none !important;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+}
+.heading-anchor::before { content: '#'; }
+
+/* 悬停与键盘都揭示；触屏没有 hover，常驻可见，否则这枚链接永远找不到。 */
+.prose :is(h2, h3):hover > .heading-anchor,
+.prose :is(h2, h3):focus-within > .heading-anchor,
+.heading-anchor:focus-visible,
+.prose :is(h2, h3):target > .heading-anchor { opacity: 1; }
+.heading-anchor:hover,
+.prose :is(h2, h3):target > .heading-anchor { color: var(--accent-text); }
+.heading-anchor:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* 从分享链接 / 目录落进某一节时给一次短暂的落点提示，只动 background-color。 */
+.prose :is(h2, h3):target { animation: targetFlash 1200ms var(--ease-out); }
+@keyframes targetFlash {
+  from { background-color: var(--accent-soft); }
+  to   { background-color: transparent; }
+}
+
+/* 站内链接与站外链接在正文里长得一样，读者只能点开才知道会离开本站。
+   箭头走 CSS 生成内容：不进 textContent、不进 Pagefind 索引、不改变 DOM。 */
+:is(.prose, .lead-md) a[target='_blank']::after {
+  content: '\2197';
+  display: inline-block;
+  margin-left: 0.12em;
+  font-family: var(--font-sans);
+  font-size: 0.78em;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+@media (hover: none) {
+  .heading-anchor { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prose :is(h2, h3):target { animation: none; }
+  .heading-anchor { transition: none; }
+}
+
+@media print {
+  .heading-anchor { display: none !important; }
+}
+
+/* ============================================================================
+   第 20 轮 · 质感回炉（唯一现行的视觉增强层，后置覆盖前 19 轮）
+   ----------------------------------------------------------------------------
+   第 19 轮把站点削成一条竖线：没有图、没有色块、没有滚动反馈，换页几乎无感。
+   这一层把「可看见的层次」和「可感觉到的反馈」补回来，但仍守住三条底线：
+   颜色/渐变/模糊全部住在令牌里；动效只碰 transform / opacity / color 系；
+   所有装饰在无 JS、reduced-motion、打印三种情况下都不影响正文可读。
+   ============================================================================ */
+:root {
+  /* 跟手柔光、扫光、进度条的强度与配色只在这里定义，组件一律 var() 引用 */
+  --row-glow: radial-gradient(320px circle at var(--glow-x, 50%) var(--glow-y, 50%), var(--accent-soft), transparent 72%);
+  --page-sweep-line: linear-gradient(90deg, transparent 0%, var(--accent) 22%, var(--color-primary-hover) 78%, transparent 100%);
+  --progress-fill: linear-gradient(90deg, var(--accent) 0%, var(--color-primary-hover) 100%);
+}
+
+/* ── 页顶阅读进度 + 换页扫光 ─────────────────────────────────────────────── */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 61;
+  pointer-events: none;
+  background: var(--line);
+}
+.reading-progress__fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: var(--progress-fill);
+  will-change: transform;
+}
+
+/* 滚动驱动进度（modern-web-guidance · ui-atoms/scroll-progress-indicator）。
+   原来只有 JS：use-toc-spy 把比例量化到 1% 再写行内 transform，长文上等于每
+   ~100px 跳一格，3px 的线看着是一段段蹦的。改成时间轴直接绑根滚动位置后，
+   进度与手指 1:1，且这一路不再经过 React。
+   animation-timeline 必须写在简写之后：简写会把它重置回 auto。
+   不支持的浏览器落回组件里的行内 transform —— CSS 动画在层叠里压过行内样式，
+   两者共存即自动择优，不需要 JS 嗅探支持度。
+   reduced-motion 下动画整段不生效，行内 transform 接管：位置反馈还在，
+   只是回到 1% 的粒度（换取滚动期间封顶 100 次提交，不逐帧重渲染）。 */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reading-progress__fill {
+      animation: reading-progress-grow auto linear;
+      animation-timeline: scroll(root block);
+    }
+  }
+}
+
+@keyframes reading-progress-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.page-sweep {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 60;
+  pointer-events: none;
+  transform-origin: left center;
+  background: var(--page-sweep-line);
+}
+
+/* ── 跟手柔光：只作用在标了 data-glow 的行 / 卡片 ───────────────────────── */
+[data-glow] { position: relative; isolation: isolate; }
+[data-glow]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--row-glow);
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease);
+}
+[data-glow]:hover::before,
+[data-glow]:focus-within::before { opacity: 1; }
+[data-glow] > * { position: relative; z-index: 1; }
+
+/* ── 刊头：签名色带 / 眉标 / 编号入口带 / 翻板数据栏 ─────────────────────── */
+.editorial__masthead { position: relative; }
+.editorial__signature {
+  height: 6px;
+  margin-bottom: 30px;
+  background: var(--accent);
+}
+.editorial__eyebrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.editorial__eyebrow-mark { display: inline-block; width: 20px; height: 2px; background: var(--accent); }
+.editorial__eyebrow-sep { color: var(--faint); }
+
+.editorial__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.editorial__quick-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  color: var(--body);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+}
+.editorial__quick-item:hover,
+.editorial__quick-item:focus-visible {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background-color: var(--surface-2);
+  transform: translateY(-2px);
+}
+.editorial__quick-no { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--faint); }
+.editorial__quick-arrow {
+  color: var(--accent-text);
+  opacity: 0;
+  transform: translate(-4px, 4px);
+  transition: opacity var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+}
+.editorial__quick-item:hover .editorial__quick-arrow,
+.editorial__quick-item:focus-visible .editorial__quick-arrow { opacity: 1; transform: translate(0, 0); }
+
+.editorial__stats-pane { min-width: 260px; }
+.editorial__stats-label { margin-bottom: 16px; color: var(--accent-text); }
+.editorial__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.editorial__stats .flip-digits { font-size: 32px; }
+.editorial__stats .eyebrow { font-size: 11px; }
+.editorial__stats-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.editorial__stats-foot time { color: var(--ink); }
+
+/* ── 图版装裱：标题栏 + 面层 + 图注，不再是一张裸 SVG ───────────────────── */
+.editorial__figure {
+  margin: 32px 0 0;
+  padding-bottom: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.editorial__figure-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.editorial__figure-head .eyebrow { color: var(--muted); }
+.editorial__figure-head a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+.editorial__figure-mark { display: inline-block; width: 8px; height: 8px; background: var(--accent); }
+.editorial__figure-plate { padding: 14px 16px 0; }
+.editorial__figure figcaption { padding: 0 16px; }
+.section-mark { display: inline-block; width: 10px; height: 10px; margin-right: 10px; background: var(--accent); }
+.editorial__section-head h2 { display: flex; align-items: center; }
+
+/* ── 复合文章行：题图 + 编号 + 元信息 + 标题 + 摘要 + 箭头 ──────────────── */
+.feature-row__link {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr) 24px;
+  align-items: start;
+  gap: 22px;
+  border-radius: var(--radius-sm);
+  transition: transform var(--duration-base) var(--ease);
+}
+.feature-row__link:hover,
+.feature-row__link:focus-visible { transform: translateX(4px); }
+.feature-row__thumb {
+  position: relative;
+  display: block;
+  width: 132px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.feature-row__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+.feature-row__link:hover .feature-row__thumb img,
+.feature-row__link:focus-visible .feature-row__thumb img { transform: scale(1.08); }
+.feature-row__no {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 6px;
+  background: var(--ink);
+  color: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.feature-row__body { display: block; min-width: 0; }
+.feature-row .editorial__item-title {
+  transition: color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+}
+.feature-row__link:hover .editorial__item-title,
+.feature-row__link:focus-visible .editorial__item-title { transform: translateX(2px); }
+.feature-row__arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 26px;
+  color: var(--accent-text);
+  opacity: 0;
+  transform: translate(-6px, 6px);
+  transition: opacity var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+}
+.feature-row__link:hover .feature-row__arrow,
+.feature-row__link:focus-visible .feature-row__arrow { opacity: 1; transform: translate(0, 0); }
+.editorial__item .editorial__tags { padding-left: 154px; }
+
+/* ── 侧栏：编号 / 头像 / 精选序号 / 标签云 ─────────────────────────────── */
+.side-block { position: relative; }
+.side-block::before {
+  content: attr(data-index);
+  position: absolute;
+  top: 20px;
+  right: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+}
+.side-block:first-child::before { top: 4px; }
+.side-about { display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; }
+.side-about__avatar {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+.side-about > p { margin-top: 0; }
+.side-list li { position: relative; padding-left: 26px; }
+.side-list__no {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+}
+.side-tagcloud { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.side-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  color: var(--body);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+}
+.side-tag span { font-family: var(--font-mono); font-size: 10px; color: var(--faint); }
+.side-tag:hover,
+.side-tag:focus-visible {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+  transform: translateY(-2px);
+}
+
+/* ── 文章页：题图框 / 分享工具条 / 上下篇 / 章节色标 ─────────────────────── */
+.post-cover { margin: 0 0 32px; }
+.post-cover__no {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--accent-text);
+}
+.post-cover__frame {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  transition: border-color var(--duration-fast) var(--ease);
+}
+.post-cover:hover .post-cover__frame { border-color: var(--accent); }
+.post-cover__frame img { transition: transform var(--duration-slow) var(--ease-out); }
+.post-cover:hover .post-cover__frame img { transform: scale(1.02); }
+.post-cover figcaption { margin-top: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.prose h2::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 10px;
+  background: var(--accent);
+  vertical-align: 0.16em;
+}
+.share-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.share-tools__label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+.share-tools__row { display: flex; flex-wrap: wrap; gap: 6px; }
+.share-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background-color: transparent;
+  font-size: 12px;
+  color: var(--body);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+}
+.share-tool:hover,
+.share-tool:focus-visible {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+  transform: translateY(-1px);
+}
+.share-tool.is-copied { color: var(--accent-text); border-color: var(--accent); }
+.post-nav__item {
+  position: relative;
+  transition: background-color var(--duration-fast) var(--ease), transform var(--duration-base) var(--ease);
+}
+.post-nav__item:hover { background-color: var(--surface-2); transform: translateY(-2px); }
+.post-nav__date { font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
+
+/* 吸顶导航滚动后压一层玻璃，让内容从底下滚过去时边界更清楚 */
+.apple-nav.is-scrolled {
+  backdrop-filter: var(--glass-blur);
+  background-color: var(--color-overlay);
+}
+
+/* ── 断点：分栏坍缩与行的收缩 ───────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .editorial__masthead-inner { grid-template-columns: 1fr; gap: 28px; align-items: start; }
+  .editorial__stats-pane { min-width: 0; }
+}
+@media (max-width: 640px) {
+  .editorial__signature { height: 4px; margin-bottom: 22px; }
+  .editorial__quick { gap: 6px; margin-top: 22px; }
+  .editorial__quick-item { padding: 0 10px; font-size: 12px; }
+  .editorial__stats .flip-digits { font-size: 28px; }
+  .feature-row__link { grid-template-columns: 84px minmax(0, 1fr) 18px; gap: 14px; }
+  .feature-row__thumb { width: 84px; }
+  .editorial__item .editorial__tags { padding-left: 0; }
+  .editorial__figure-head { padding: 10px 12px; }
+  .editorial__figure-plate { padding: 10px 12px 0; }
+  .editorial__figure figcaption { padding: 0 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-glow]::before,
+  .page-sweep { display: none; }
+  .feature-row__link,
+  .feature-row__thumb img,
+  .feature-row__arrow,
+  .editorial__quick-item,
+  .editorial__quick-arrow,
+  .side-tag,
+  .share-tool,
+  .post-cover__frame img,
+  .post-nav__item,
+  .reading-progress__fill { transition: none; }
+}
+
+@media print {
+  .reading-progress,
+  .page-sweep,
+  [data-glow]::before,
+  .editorial__signature { display: none !important; }
+}

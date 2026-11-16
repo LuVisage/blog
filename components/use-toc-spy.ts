@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useSyncExternalStore } from 'react'
-import { useLenis } from '@/components/ui/lenis-provider'
 
 export interface TocItem {
   id: string
@@ -155,21 +154,32 @@ export function useTocIndex(): { current: number; total: number } {
 }
 
 /**
- * 目录跳转：有 Lenis 时走平滑惯性，否则回退原生。
+ * 目录跳转走原生平滑滚动（html 的 scroll-behavior 已是 smooth）。
  * 让位 sticky 头部不在这里算——html 的 scroll-padding-top 已负责，
- * Lenis 与 scrollIntoView 都会读它；再叠一个 offset 就会多空出一截。
+ * scrollIntoView 会读它；再叠一个 offset 就会多空出一截。
  */
 export function useTocJump() {
-  const lenis = useLenis()
-
-  return useCallback(
-    (id: string) => {
-      const el = document.getElementById(id)
-      if (!el) return
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      if (lenis && !reduce) lenis.scrollTo(el, { duration: 1.0 })
-      else el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
-    },
-    [lenis]
-  )
+  return useCallback((id: string) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    // 第 19 轮：目录原来是 preventDefault + scrollIntoView，跳完地址栏一动不动，
+    // 读者既没法把「读到哪一节」复制给别人，刷新也会回到页首。replaceState 只改
+    // fragment、不新增历史项，连点十次目录也不会把返回键堵死；保留 history.state
+    // 是为了不抹掉 App Router 存在那里的路由记录。
+    try {
+      window.history.replaceState(window.history.state, '', `#${id}`)
+    } catch {
+      // 少数内嵌环境禁止改 history：跳转本身照常生效。
+    }
+    // 点完目录，窄屏面板会整块卸载，焦点原本掉回 BODY：读屏不播报落点，
+    // 键盘用户下一跳 Tab 又从页头翻起。把焦点交给目标标题，下一跳就从这一节继续。
+    // tabindex=-1 只让它可以被程序聚焦，不进 Tab 序列；失焦即摘掉，不留痕。
+    if (!el.hasAttribute('tabindex')) {
+      el.setAttribute('tabindex', '-1')
+      el.addEventListener('blur', () => el.removeAttribute('tabindex'), { once: true })
+    }
+    el.focus({ preventScroll: true })
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  }, [])
 }

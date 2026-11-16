@@ -140,9 +140,80 @@ masthead 重复的标题与导语。3D 舞台键盘契约第一次实测（`stag
 的点击——同一交互在探针里 0ms、在闸里 352ms。**下一步要动的是量具，不是阈值，
 也不是 UI。**
 
+**冗余审计与减法（第 18 轮 · 台账 §11.36）**：对上 6 篇文章 + 268 篇课次的内容量，
+全站做了一次「这件东西挣不挣得到它的位置」的盘点，结论是减而不是加。重料下线：
+首页那件 three.js 可旋转模型（733KB GLB + 约 360KB 运行时）换成服务端渲染的 SVG
+编排图版，表达的是同一句话「5 门课、239 课次围着 LLM 核心」，零 JS、零额外请求；
+`three` / `@types/three` / `lenis` 三个依赖从 package.json 摘掉。封面卡整套退场：
+`FeatureCard` / `GridCard` / `PostCard` 删除，`post-card.tsx` 收敛成服务端组件
+`post-list.tsx`（只留一直在用的 `IndexRow`），文末「相关文章」从三张封面卡改成
+台账行——文章尽头原来压着许可行、上下篇、系列块、三张卡、作者卡、评论卡，滚到底
+是四张卡片而不是下一篇。随之 `.hover-zoom` / `.media-frame` / `.media-parallax` /
+`.media-zoom` / `.spotlight-card` / `.aura-cursor` 与 `--accent-glow` 一并下线，
+纪律闸里给死选择器留的两条渐变豁免也摘掉（`@keyframes mediaFade` 保留，头像还在用）。
+导航减法：`SITE_SECTIONS` 13 → 7 项，项目 / 友链 / 近况三节并进 `/about`，唯一真源
+落在 `components/about-sections.tsx`；三个旧路由保留为深链页、canonical 指向
+`/about/` 并从 sitemap 摘除，旧链接与站外引用不 404。事实口径同步更正：隐私页
+§3 原把 localStorage 写成 Cookie，改为逐项列出五个真实存储键；首页图注补上
+239 课次之外另有 29 篇参考页；条款页 `security.txt` 的裸根 href 补上 basePath。
+
 保留的基建（v5 起，不随换肤推倒）：`prefers-reduced-motion`、无 JS 兜底、
 焦点环、44px 触摸靶、`aria-current` / `aria-pressed`、命令面板、主题切换、
 `scripts/ui-discipline.mjs` 的令牌化纪律闸。
+
+## 第 19 轮：对照优秀博客做减法与补齐（2026-11-13）
+
+复核的参照：overreacted（首页即文章列表、文首零分享行、每个章节标题本身就是
+hash 链接、文末只留一条源码链接）、Maggie Appleton（刊头全宽、内容按重要度分栏）、
+Josh W. Comeau（正文优先、控件不抢首屏），加上本文件 v7 已量过的 6 站与 v8 的 4 站。
+共同点是**阅读面不被装饰打断、导航只留一套、每个控件都得挣到它的位置**；本站
+第 18 轮之后剩下的冗余正好都落在反面。
+
+**砍掉**：`ui/split-reveal`（零引用，连同 `.sr-char` / `@keyframes charUp` 一起）；
+`ui/prose-reveal`（正文按滚动分批淡入——文字在 JS 与滚动到位前不可见，Ctrl+F、
+页内查找与打印拿到的是一份被藏起来的文档，每篇文章还要注册一批 ScrollTrigger）；
+`ui/reading-progress`（页顶 2px 固定条与桌面目录 ReadRule、窄屏 ChapterBar 的百分比
+是同一份数据，一页两个进度计）；`PageSweep`（换页时与内容微升抢同一帧的装饰扫光）；
+社交分享排（X / 微博两枚 chip 与「分享」标签，文首只剩一枚「复制链接」）；
+首页刊头第二套导航（五项全是吸顶主导航的子集，整站导航从四套收到三套）。
+
+**补上**：章节永久链接（`mdx-components.tsx` 服务端给 h2/h3 追加一枚空 `<a>`，
+井号走 `::before` 生成以免污染目录扫描器读到的章节名；`:target` 用 `background-color`
+闪一次落点）；目录跳转写回 URL fragment（`useTocJump` 用 `replaceState`，不新增历史项，
+刷新与复制链接都能定位）；文末「在 GitHub 上修订本文」直达源文件；正文外链的
+CSS 箭头标识。
+
+**交互收敛**：新动效只碰 `opacity` / `color` / `background-color`，时长与缓动全走令牌；
+触屏没有 hover，章节锚点常驻可见；reduced-motion 下取消落点闪烁与锚点过渡；
+打印时隐藏锚点。事实口径同步更正：`/uses` 不再宣称已下线的 Three.js（`USES` 属数据层，
+按「`lib/**` 不改」的约束在视图侧过滤掉已不存在的依赖，页面宣称的「可在 package.json
+核对」因此仍然成立）、README / HOW_TO_POST 里已下线组件的描述全部改掉。
+
+## 第 20 轮：质感回炉（第 19 轮的方向纠正）
+
+第 19 轮被用户判定为「太简洁、UI 效果不好、交互效果不好」——把「优秀博客都克制」
+误读成了「越少越好」，删掉了读者唯一能感觉到的那些反馈。回看仓库里
+`ui-concepts/verify/CT-home-light.png` 的亮色稿（字标、图标入口、带缩略图的数据栏）
+与 `W4-hover.png` 的跟手高亮，确认要补回的是**视觉锚点与可感知的反馈**，
+而不是回到第 18 轮那种 3D / 玻璃 / 阴影堆料。
+
+**视觉**：刊头加 6px 签名色带、mono 眉标、编号快捷入口带、翻板数字数据栏与最近更新；
+课程图版装裱成带标题栏的图版；首页文章行从纯文字改成「题图 + 编号 + 元信息 + 标题 +
+摘要 + 箭头」的复合行；侧栏补编号、头像、精选序号与热门标签云；文章页题图加编号框与图注，
+章节标题加强调色小方块，上下篇补日期。骨架仍是 1200px 中轴 + 760/320 分栏。
+
+**交互**：恢复页顶 3px 阅读进度线与换页扫光（内容 400ms 微升、扫光 500ms 走完，
+不再抢同一帧）；刊头轻视差只动 transform、封顶 40px；`GlowRows` 用一份
+document 级委托 + rAF 节流写 `--glow-x/y`，柔光走 `--row-glow` 令牌，
+触屏与 reduced-motion 不注册；行 hover 复合反馈（位移 / 题图放大 / 箭头滑入 /
+标题位移 / 边框与底色）；`ProseReveal` 回归为**轻版**——只挑首屏之下的
+figure / pre / blockquote / table / h2 / h3，初态 opacity 0.62、位移 10px，
+段落文字一概不碰，Ctrl+F、打印、无 JS 拿到的仍是完整文档。
+
+**纪律**：三条新增渐变（柔光 / 扫光 / 进度条）的强度与配色全在 `:root` 令牌里；
+玻璃模糊只引用 `--glass-blur`；过渡属性只有 transform / opacity / color 系；
+时长缓动走 `--duration-*` / `--ease-*`；reduced-motion 显式取消柔光与扫光；
+打印隐藏全部装饰层。第 19 轮补的章节锚点、hash 回写、焦点交接、源码修订入口全部保留。
 
 > 历史（v5.1）：唯一事实来源为 `C:\Users\lusha\Desktop\UI_skill\design-dna\22-anthropic\DESIGN_DNA.md`（Anthropic 设计 DNA 逆向工程，14 章）。
 > 本文件是该 DNA 在本站的落地规范：值取自文档原文，文档未覆盖处全部标注 `[推断]`。
@@ -334,7 +405,7 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 | 内容入场 | 400ms | `--ease-out` | `transform: translateY` + `opacity` |
 | 大位移与图片渐显 | 400–500ms | `--ease-out` | `transform` / `opacity` |
 
-基元（`app/globals.css` §9e）：`.pressable`、`.link-underline`、`.indicator-bar`（含 `.indicator-bar--lead`）、`.stagger`、`.media-zoom`、`.media-fade`、`.field-rule`。
+基元（`app/globals.css` §9e）：`.pressable`、`.link-underline`、`.indicator-bar`（含 `.indicator-bar--lead`）、`.stagger`、`.media-fade`、`.field-rule`。
 
 ### 5.2 文档外签名动效（用户授权，逐条留档）
 
@@ -345,6 +416,39 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 | 列表分级入场 | 步进 40ms、单条 400ms、总窗口 ≤500ms | §9.1 只给区块顺序，未给入场编排 |
 
 > 这三项在 `SPEC_LEDGER.md` §1.8.4 与 `README.md` 的假设清单里各有一条依据；审计脚本不会把它们报成「无解释的自创值」。
+
+### 5.3 滚动驱动与滚动条（第 21 轮增补 · 台账 §11.38–§11.41）
+
+**阅读进度线走滚动驱动动画。** `.reading-progress__fill` 在 `@supports (animation-timeline: scroll())` + `prefers-reduced-motion: no-preference` 里挂 `animation: reading-progress-grow auto linear`，时间轴 `scroll(root block)` 必须写在简写**之后**（简写会把它重置回 `auto`）。进度与手指 1:1，不经 React。组件里的行内 `transform: scaleX(progress)` 保留作降级：CSS 动画在层叠里压过行内样式，支持时自动被盖掉、不支持时接管，不需要 JS 嗅探。
+
+- **`linear` 在这里不是「缓动选错了」**：时间轴就是滚动位置本身，任何 ease 都会让进度滞后或超前于手指。纪律闸按选择器点名放行（`EXCEPT.ease['.reading-progress__fill'] = ['linear']`），并自证「每条例外都真被命中过」——没人命中的例外是死条文，会悄悄放宽闸的射程。
+- 不用 `scroll-timeline-polyfill`（指南明确 DO NOT，且本站零新依赖）。
+- 行内值仍量化到 1%：它同时喂 `aria-valuenow`，量化把滚动期间的重渲染封顶在 100 次。reduced-motion 下回到这条量化路，位置反馈还在。
+- **两条路已在活体分开量过**（`reading-progress.mjs`，day-10 实测滚动范围 14131px）：支持档 computed `animation-timeline: scroll(root)`，每 35px 一步 scaleX 增量恒为 0.0025、12/12 步都在动、值不落在 1% 网格上；关掉 animation 的降级档与 reduced-motion 档都是 3/12 步动、每步 0.01、值全在网格上。三档 `role=progressbar` 都在、都真滚到底且 `aria-valuenow=100`。
+- 量这条闸有两个坑：**步长要从实测滚动范围推**（取 range/400 ≈ 0.25%，才细于 1% 量化），写死像素值会让两条路看起来一样连续；**站点开了 `scroll-behavior: smooth`**，采样前必须归一成 `auto` 并用 `behavior:'instant'` 跳转，否则量到的是滚动动画的半路位置（第一版因此误报「滚到底只有 75%」，而 reduced-motion 档反而正常 —— 那个反差就是线索）。
+
+**滚动条用标准属性，拇指对比度是量出来的。** `html { scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track) }` + `* { scrollbar-width: thin }`，令牌落在 `:root` 别名层：`--scrollbar-thumb: var(--faint)`、`--scrollbar-track: transparent`。
+
+- 拇指**不能**用 `--line-strong`：它是画布上的发丝线，压在同一块画布上亮色 1.48:1、暗色 1.60:1，够不到 WCAG 1.4.11 的 3:1。换 `--faint` 后亮 **5.29:1**、暗 **6.73:1**（`scrollbar-contrast.mjs` 纯数学闸，注入回 `--line-strong` 时闸开口）。
+- 轨道透明，所以拇指要同时压住轨道背后那层画布 —— 只比轨道是不够的。
+- **两个属性的继承行为不一样，别当成一对。** Chrome 140 实测（空白页只写 `html` 也一样）：`scrollbar-color` 继承，`scrollbar-width` **不继承** —— body 与内层 `overflow:scroll` 容器的 computed 仍是 `auto`、占位 15px，而根是 thin 的 10px。只写 `html` 的话，代码块与长公式段落里冒出来的是比页面滚动条更粗的一根。所以 width 用 `*` 逐元素铺（特异性 0,0,0，`toc.tsx` 那枚 `[scrollbar-width:none]` 工具类照旧压过它），color 靠继承就够。
+- 旧 `::-webkit-scrollbar` 配方整段包在 `@supports not (scrollbar-color: auto)` 里，只作降级。
+- **量几何必须让滚动条真的占位。** Playwright 默认给 chromium 加 `--hide-scrollbars`，不摘掉它，`auto/thin/none` 三档 `clientWidth` 全等于视口宽，几何闸是空转的。摘掉后实测 auto 占 15px、thin 占 10px、none 0px，thin 让可用宽度 **+5px**（1280→1270 / 390→380 / 320→310），横向溢出 0、生效断点不漂移。全站 25 条路由 × 3 视图 × 明暗 = **150/150 组通过**。这也意味着**此前所有浏览器几何闸都是在比真实桌面 Chrome 宽 15px 的视口里量的**，窄屏结论要在这个环境下复核。
+- **`*` 是通用选择器，所以铺之前先量了代价。** day-10 本来就在 INP 红线上，同构建配对 A/B（4 轮 × 2 变体 × 2 轮，位次轮换，16 行全自证通过）显示：**重样式次数 6、重排次数 1 在两档全部 16 行里完全一致**，通用选择器没增加失效或布局趟数；INP 两轮都是出厂态不比摘掉规则贵。第一轮重样式低约 8ms，但第二轮在安静轮次里两档交错分不开，所以只说「量不出代价」，不说「省了多少」。
+
+**强调面上的墨必须跟着模式翻。** `--on-accent: var(--color-text-inverse)`（亮 `#ffffff` / 暗 `#141311`），不再钉死白色。强调色本身在两档是不同明暗的陶土（亮 `#b4442f` 深 / 暗 `#e0755f` 浅），字色若不跟着翻，暗色就是白压浅陶土 **3.05:1**，够不到 AA 的 4.5。改后暗色 **6.08:1**、亮色两档一字未变（5.51 / 7.83）。
+
+- 选 `--color-text-inverse` 不是随便找个深色：它的语义就是「反色面上的墨」，且此前全仓声明了 6 次却从未被消费。改这一枚即兜住全部消费者，**零新增写死色**；`components/**` 与 `app/**` 里 `text-white` / `color:#fff` 零命中，没有绕过令牌的漏网。
+- **「写了 `color: var(--on-accent)`」不等于「最终生效」。** `.btn-primary` 在 `@layer components` 里写了 on-accent，但两条**未分层**规则把它改写成 `background: var(--ink); color: var(--canvas)` —— 未分层压过分层，与特异性无关。只扫声明就会把它算进覆盖，拿强调色那一档去替一个刷墨色的按钮背书。声明闸因此加了后置覆盖检测（宁可少声称覆盖，也不放假绿），渲染闸只量真刷强调色的三处控件，并自证「量到的底色 == `--color-primary`」。
+- **悬停档要单独量，但别声称量到了不存在的东西。** `contrast.mjs` 是报告探针，不 hover、也没有 exit 逻辑（印 624 条低于 AA 仍退出 0，`rc=0` 不构成通过）。新开的 `accent-render.mjs` 对三处控件做 hover 前后对照，实测 **6 行全部「悬停未换底」**：真渲染出来的缺陷只有静止态。更差的 2.38:1 悬停档只存在于 `.btn-accent:hover`，而 `.btn-accent` 在 tsx 里零使用者（歌单播放器已下线），是死 CSS —— 所以那一档属**潜在契约修复**，不是已渲染缺陷修复。`.btn-accent` 与同遗留的 `.song-row` 已在 ZC 收口时下线（台账 §11.36 收口补记），悬停基准仍由声明侧闸显式保留。
+- 两道闸都有注入自证：`ACCENT_INJECT=1` 把 `--on-accent` 钉回 `#ffffff`，声明闸 rc=1 并精确咬出 3.05 与 2.38，与浏览器调查探针量到的 3.05 是同一个数。
+- Shiki 三条亮色语法色（3.26 / 4.27 / 4.49）仍是已知边界：要动就得写死新色，越过令牌纪律。**不声称全站 AA 全绿。**
+
+**含公式块的选择器改用构建期打标。** `.prose p.has-math` 等七条取代原来的 `:has(.katex)`，类由 `components/mdx-content.tsx` 的零依赖 rehype 插件 `rehypeMathBlocks` 在构建期打。`:has()` 要在后代变化时向上失效，day-10 的 7404 个 KaTeX 后代让一次字号切换触发 ~45 次重样式 / 5 次重排；换类后 ~15 次 / 1 次，INP 368→323ms。特异性同为 (0,2,1)，声明一字未动。等价由 `mathclass.mjs` 对全部 92 个含公式页逐元素比对守住（2750 个命中块，漏标/多标一个就 FAIL）。
+
+- 遍历必须穿过非 element 节点：MDX 的 `<details>` 在 hast 里是 `mdxJsxFlowElement`，按 `type === 'element'` 过滤会跳过整棵子树 —— 第一版就这么漏了 229 个块。
+- `overflow-y: clip` 与 `overflow-x: auto` 同用时**计算值是 `hidden`**（CSS Overflow 规定），不是 clip。结果一样不出纵向滚动条，但它确实成了滚动容器。
+- containment（`contain: layout style paint`）在同一页实测**无效**：两轮 INP 与基线持平、重排反而更差。它治局部变化，治不了全局字号切换。
 
 ## 6. Components
 
@@ -360,10 +464,8 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 | `.link-underline` | 单行链接 | hover / focus-visible 下划线 `scaleX(0→1)` | `--color-primary` |
 | `.indicator-bar`（含 `--lead`） | 导航 / 目录 / 面板选中项 | 当前项 `scaleY(0→1)`（300ms） | `--color-primary` |
 | `.stagger` | 列表容器 | 子项按 `nth-child` 步进 40ms 入场（单条 400ms） | `--duration-slow` |
-| `.media-zoom` | 封面图 | 悬停 `scale(1.05)` + 进场淡入 | `--duration-fast` / `--duration-slow` |
 | `.media-fade` | 头像等真实图片 | `.is-loaded` 时 `opacity 0→1` | `--duration-slow` |
 | `.field-rule` | 下划线式输入行 | `:focus-within` 线色转强调色、光标同色 | `--color-primary` |
-| `.hover-zoom` | 卡片本体 | hover `scale(1.005)` + 边框 `--line-strong` | `--duration-fast` |
 | `[data-spotlight='row']` | 台账行提示 | hover 出现左侧 2px 强调色指示线 | `--color-primary` |
 | `.prose` | 阅读面 | 链接下划线转实并抬升偏移、引用块 2px 强调色左线、表格发丝线 | `--measure` |
 
@@ -392,9 +494,9 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 - **断点**：`896px` 为设计断点（§6.1）；`640 / 768 / 1024 / 1280` 沿用 Tailwind 既有断点（1280 起文章 / 课时页的侧栏目录展开）
 - **收拢策略**：896px 以下导航收进抽屉（300ms 滑入）；索引台账由网格降为单列；文章页侧栏目录折叠为可展开块
 - **触控目标**：控件高 40px；行内控件用 `padding` 扩到 24px 下限；不因动效收紧命中区
-- **内容带**：窄屏同样单行平移（周期固定）；系统开启减少动态效果时改为换行读完
 - **阅读面**：正文窄栏（`--measure` 38em）在窄屏自然收缩为满宽
-- **图片**：封面 `object-fit: cover`，容器固定高度（首屏 190 / 280px、网格卡 112 / 128px）
+- **图片**：封面 `object-fit: cover`；文章索引行的封面预览钉在序号栏（`row-cover`），不跟手
+- **课程体系图版**：≥640px 用 SVG 编排图，<640px 换成同一份数据的 HTML 清单（SVG 缩到 360px 宽时字号会掉到 7px，那不是可读的图）
 
 ## 9. Agent Prompt Guide
 
@@ -404,7 +506,8 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 - 衬线标题（Newsreader + Noto Serif SC）／无衬线正文（Inter + Noto Sans SC）／等宽元信息（JetBrains Mono）
 - 圆角只有 `3 / 24 / 50%` 三档；**0 阴影**；层级一律用 1px 发丝线与留白表达
 - 动效只动 `transform / opacity / color`；时长 `200/300/400/500ms`（循环类 `800/1200ms`）；缓动 `ease` 或 `cubic-bezier(.16, 1, .3, 1)`
-- 可点元素必须三态齐全（hover / focus-visible / active），并优先复用基元：`.pressable`、`.link-underline`、`.indicator-bar`、`.stagger`、`.marquee`、`.media-frame`、`.field-rule`
+- 可点元素必须三态齐全（hover / focus-visible / active），并优先复用基元：`.pressable`、`.link-underline`、`.indicator-bar`、`.stagger`、`.media-fade`、`.field-rule`、`[data-spotlight='row']`
+- 列表一律用台账行（`Ledger` / `LedgerRow`），不用封面卡：全站索引、相关文章、项目、标签都是同一种行语汇
 - 禁项：渐变、毛玻璃、发光、投影、第二强调色、emoji（`npm run check:emoji` 守卫）
 
 ## 10. 出处与校验
@@ -416,3 +519,12 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 | 机器比对报告（自创值 / 未落地 token / 间距 / 状态） | `AUDIT.md` |
 | 本轮改动台账（文档依据 → 缺口 → 落地） | `DESIGN-DNA-UPGRADE.md` |
 | 交付与运行说明 | `README.md` |
+
+### Modern Web Guidance
+
+依据仓库：[GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance)（配套源仓库 modern-web-guidance-src）。209 篇指南索引存于 `ui-concepts/mwg-guides.txt`；以下四篇于 2026-11-16 经 raw.githubusercontent.com 逐字取回并落地，其余篇目未应用、不声称覆盖。引文为原文逐字摘录。
+
+- **`performance/identify-inp-causes`**（Batch ZE，台账 §11.36）——「Use `script.forcedStyleAndLayoutDuration` on `PerformanceScriptTiming` for synchronous forced style and layout work inside scripts.」本机 Playwright Chromium 140 的 LoAF 不暴露 `styleDuration` / `layoutDuration` 分量，`vitals.mjs:144-172` 按指南该条落回合并值，风格/几何拆分改由 CDP 累计计数差承担；`attr-ze.mjs:77` 用同一字段归因强制重排脚本。指南的拆分判据（「high style duration points to expensive CSS selector matching … high layout duration points to expensive geometry calculations」）是 ZF 三侧归因的口径来源。
+- **`visual-design/customize-scrollbar-color-and-thickness`**（Batch ZE + ZG，台账 §11.38 / §11.41）——「Choose a thumb color with a contrast ratio of at least 3:1 against the track color … (WCAG 1.4.11 Non-text Contrast).」落地为 `globals.css:350-361`：`html` 上 `scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track)` + `@supports not (scrollbar-color: auto)` 的 WebKit 回退，拇指对比度由 `scrollbar-contrast.mjs` 闸守卫（含注入自证）。指南未提及的一点由 ZG 实测补上：Chrome 140 上 `scrollbar-color` 继承而 `scrollbar-width` **不继承**，故 `*{scrollbar-width:thin}` 显式铺开，几何闸量具同步修正。
+- **`ui-atoms/scroll-progress-indicator`**（Batch ZE，台账 §11.39）——「**DO** use the correct declaration order: When using the `animation` shorthand property, declare `animation-timeline` *after* it to prevent the shorthand from resetting the timeline.」落地为 `globals.css:3657-3669`：`@supports (animation-timeline: scroll())` 内 `animation: reading-progress-grow auto linear` 后置 `animation-timeline: scroll(root block)`，keyframes 只动 `scaleX(0→1)`；按指南「DO respect user preferences」整段包在 `prefers-reduced-motion: no-preference` 里，不支持/减动态时落回组件行内 transform（1% 粒度），位置反馈不丢。
+- **`ui-behaviors/motion`**（动效纪律的独立佐证，非新改动）——「Prefer to animate `opacity` and `transform` … to ensure animations stay on the compositor thread.」与「Keep non-motion transitions (such as `color` or `background-color` changes on links and buttons) enabled; only dampen or disable spatial movement, scaling, rotation, or persistent animations.」本站「只动 transform/opacity/color」与 `globals.css:4007-4020` 的减动态块（只掐空间位移类 transition，color 过渡保留）先于该指南存在，此处记为口径吻合的交叉验证；阅读进度的 no-preference  opting-in 写法亦与指南「Opt in to motion」一节一致。

@@ -8,6 +8,16 @@ interface SocialShareProps {
   url: string
 }
 
+/**
+ * 文首工具条（第 20 轮回归）：分享到 X / 微博 + 复制本文链接。
+ *
+ * 第 19 轮砍成孤零零一枚按钮之后，标题下方那一整块显得空。这一版把三枚控件
+ * 收回成紧凑的图标胶囊组（不再是三张大 chip），配一枚 eyebrow 标签，
+ * 视觉上是一组「工具」而不是一排营销按钮。
+ *
+ * 复制按钮的全部价值就是那一下点击，无 JS 时由 [data-js-only] 整块摘除。
+ * 复制失败不再谎报成功。
+ */
 export function SocialShare({ title, url }: SocialShareProps) {
   const [copied, setCopied] = useState(false)
 
@@ -16,7 +26,7 @@ export function SocialShare({ title, url }: SocialShareProps) {
 
   const shareLinks = [
     {
-      name: 'Twitter / X',
+      name: 'X',
       href: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`,
       icon: <IconBrandX size={14} strokeWidth={1.5} />,
     },
@@ -30,58 +40,56 @@ export function SocialShare({ title, url }: SocialShareProps) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     } catch {
       const input = document.createElement('input')
       input.value = url
       document.body.appendChild(input)
       input.select()
-      document.execCommand('copy')
+      const ok = document.execCommand('copy')
       document.body.removeChild(input)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      if (!ok) return
     }
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 2000)
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="caption flex items-center gap-1 mr-1">
-        <IconShare size={14} strokeWidth={1.5} style={{ color: 'var(--muted)' }} />
-        分享
+    <div className="share-tools">
+      <span className="eyebrow share-tools__label">
+        <IconShare size={13} strokeWidth={1.5} /> 分享
       </span>
 
-      {shareLinks.map((link) => (
-        <a
-          key={link.name}
-          href={link.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="chip tint-ink px-3 py-1.5 text-xs font-medium"
-          title={`分享到 ${link.name}`}
-        >
-          {link.icon}
-          {link.name}
-        </a>
-      ))}
+      <div className="share-tools__row">
+        {shareLinks.map((link) => (
+          <a
+            key={link.name}
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="share-tool"
+            title={`分享到 ${link.name}`}
+            aria-label={`分享到 ${link.name}`}
+          >
+            {link.icon}
+            <span>{link.name}</span>
+          </a>
+        ))}
 
-      <button
-        onClick={handleCopy}
-        data-js-only
-        className={`chip px-3 py-1.5 text-xs font-medium ${copied ? 'chip-ok' : 'tint-ink'}`}
-      >
-        {copied ? (
-          <>
-            <IconCheck size={14} strokeWidth={2} />
-            已复制
-          </>
-        ) : (
-          <>
-            <IconCopy size={14} strokeWidth={1.5} />
-            复制链接
-          </>
-        )}
-      </button>
+        <button
+          onClick={handleCopy}
+          data-js-only
+          className={`share-tool${copied ? ' is-copied' : ''}`}
+          aria-label={copied ? '链接已复制' : '复制本文链接'}
+          title={copied ? '链接已复制' : '复制本文链接'}
+        >
+          {copied ? <IconCheck size={14} strokeWidth={2} /> : <IconCopy size={14} strokeWidth={1.5} />}
+          <span>{copied ? '已复制' : '复制链接'}</span>
+        </button>
+      </div>
+
+      <p className="sr-only" role="status" aria-live="polite">
+        {copied ? '本文链接已复制' : ''}
+      </p>
     </div>
   )
 }

@@ -76,7 +76,7 @@ export default function CategoriesPage() {
             <EmptyState
               icon={<IconFolder size={30} strokeWidth={1.25} />}
               title="还没有分类"
-              description="在文章 frontmatter 中添加 category 字段"
+              description="文章发出后，栏目会在这里汇总"
             />
           )}
 

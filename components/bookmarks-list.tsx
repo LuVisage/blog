@@ -57,9 +57,16 @@ export function BookmarksList({ posts }: { posts: PostMeta[] }) {
 
   if (status === 'loading') {
     return (
-      <p className="body-sm" style={{ color: 'var(--muted)' }}>
-        收藏夹保存在当前浏览器里，读取它需要启用 JavaScript；这份清单不会上传到任何服务器。
-      </p>
+      <>
+        <p className="body-sm" data-js-only style={{ color: 'var(--muted)' }}>
+          正在读取本机收藏…
+        </p>
+        <noscript>
+          <p className="body-sm" style={{ color: 'var(--muted)' }}>
+            收藏夹保存在当前浏览器里，读取它需要启用 JavaScript；这份清单不会上传到任何服务器。
+          </p>
+        </noscript>
+      </>
     )
   }
 

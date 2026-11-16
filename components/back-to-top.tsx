@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { IconArrowUp } from '@tabler/icons-react'
-import { useLenis } from '@/components/ui/lenis-provider'
 
 export function BackToTop() {
   const [visible, setVisible] = useState(false)
-  const lenis = useLenis()
 
   useEffect(() => {
     const handleScroll = () => setVisible(window.scrollY > 400)
@@ -16,9 +14,7 @@ export function BackToTop() {
   }, [])
 
   const handleClick = () => {
-    // §11.6/§11.7：平滑滚动体系内用 Lenis 回顶，避免与原生 smooth 竞争
-    if (lenis) lenis.scrollTo(0, { duration: 1.2 })
-    else window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (

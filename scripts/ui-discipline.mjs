@@ -29,12 +29,15 @@ const ROOT = join(import.meta.dirname, '..')
 const REPORT = process.argv.includes('--report')
 const EXT = /\.(tsx|ts|css)$/
 const SKIP = new Set(['node_modules', '.next', 'out', '.git', 'content', 'proxy', 'scripts'])
+// A/B 对照目录（out.bak.r19、.next.bak.r19 *）是构建产物，不是源文件；
+// 把它们扫进闸里只会让「改版前的旧包」替现在的源码背锅。
+const SKIP_BACKUP = /^(out|\.next)(\.bak|$)/
 
 const files = []
 const walk = (dir) => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.isDirectory()) {
-      if (SKIP.has(e.name) || e.name.startsWith('.')) continue
+      if (SKIP.has(e.name) || SKIP_BACKUP.test(e.name) || e.name.startsWith('.')) continue
       walk(join(dir, e.name))
     } else if (EXT.test(e.name)) files.push(join(dir, e.name))
   }
@@ -71,11 +74,6 @@ const stripComments = (src, isCss) => {
 
 const ALLOW_MS = new Set([0, 200, 300, 400, 500, 800, 1200])
 const ALLOW_S = new Set([0, 0.2, 0.3, 0.4, 0.5, 0.8, 1.2])
-// 滚动惯性 / 滚动到位时长不是「界面过渡」：Lenis 的 wheel 惯性、目录跳转、回到顶部
-// 共用这根轴，档位却由手感决定，硬塞进 200/300/… 会污染那条白名单。
-// 因此按文件点名放行，名单外仍是秒轴严格档位。
-const SCROLL_FILES = new Set(['components/ui/lenis-provider.tsx', 'components/use-toc-spy.ts', 'components/back-to-top.tsx'])
-const SCROLL_S = new Set([0.8, 1, 1.1, 1.2])
 const ALLOW_EASE = new Set(['var(--ease)', 'var(--ease-out)', 'ease', 'cubic-bezier(0.16, 1, 0.3, 1)', 'cubic-bezier(0.16,1,0.3,1)'])
 const LOOP_EASE = new Set(['linear'])
 const ALLOW_PROP = new Set([
@@ -106,18 +104,27 @@ const TW_OK_EASE = new Set(['ease-out']) // config 里已把 out 定义成 --eas
 // 按「哪条规则」点名而不是按行号：行号会因为上面多写一行注释而漂移，
 // 把放行悄悄落到隔壁规则上 —— 那正是 §11.24 三 说的「闸自己失效还报绿」。
 const EXCEPT = {
-  // 渐变在这里表达的是进度或光斑，色标两端全是令牌，没有引入新色
+  // 渐变在这里表达的是进度，色标两端全是令牌，没有引入新色
   gradient: {
     '.range-control::-webkit-slider-runnable-track': '滑块已填充段：--color-primary 到 --range-fill 为止',
-    '.aura-cursor': '§11.6 登记的既有形态（氛围光晕），色标走 --accent-glow',
-    '.spotlight-card::before': '§11.6 登记的既有形态（卡面聚光），色标走 --accent-glow',
   },
   // 关键帧里允许表外的属性，按关键帧名点名（名字比行号稳定）。
   keyframeProp: {
     blurIn: ['filter'], // BlurReveal 聚焦入场（台账 §11.18 五）：filter 在 Chrome/Firefox 走合成层，不触发布局；初态只活在 from，静态永远清晰
   },
+  // 滚动驱动动画的 linear 不是「缓动选错了」：时间轴就是滚动位置本身，进度必须与
+  // 手指 1:1，任何 ease 都会让进度条滞后或超前于滚动。指南 ui-behaviors/
+  // scroll-progress-indicator 的处方原话就是 `animation: grow-progress auto linear`。
+  // 按选择器点名、只放行 linear —— 同一个选择器上写 ease-in 照样拦。
+  ease: {
+    '.reading-progress__fill': ['linear'],
+  },
   hexSkipDirs: ['lib', 'content'],
 }
+
+// 例外必须真被用到。一条没人命中的例外不是中性的：它悄悄把闸的射程放宽了，
+// 而报表照旧全绿（§11.24 三 同族）。选择器改名、关键帧删掉之后，例外就成了死条文。
+const usedExcept = new Set()
 
 const bad = []
 const seen = { dur: 0, ease: 0, prop: 0, ban: 0, hex: 0, kf: 0, tw: 0 }
@@ -158,7 +165,9 @@ for (const f of files) {
         }
         continue
       }
-      if (/prefers-reduced-motion/.test(L) || /@keyframes/.test(L)) {
+      // 只豁免 reduce 段。原来写 /prefers-reduced-motion/，把 no-preference 也当成豁免 ——
+      // 而「动效只在 no-preference 里生效」正是站内与指南推荐的写法，等于整段动效不受检。
+      if (/prefers-reduced-motion:\s*reduce/.test(L) || /@keyframes/.test(L)) {
         mode = /@keyframes/.test(L) ? 'kf' : 'reduce'
         if (mode === 'kf') kfName = (L.match(/@keyframes\s+([\w-]+)/) || [])[1] || ''
         start = i
@@ -199,7 +208,7 @@ for (const f of files) {
       chunks.push({ name: m[1], value: m[2].replace(/\s+/g, ' ').trim(), line: src.slice(0, m.index).split('\n').length - 1 })
   }
   // JSX 里的 style 字符串同样要查：值被引号包住，上面那条正则取不到，
-  // 这里补一遍。少了它，header 与 magnetic 那两处 transition 就是检查盲区。
+  // 这里补一遍。少了它，header 那处 transition 就是检查盲区。
   {
     const re = /\b(transition|animation)\s*:\s*['"]([^'"]+)['"]/g
     let m
@@ -235,11 +244,13 @@ for (const f of files) {
     for (const e of easeParts(value)) {
       seen.ease++
       if (reduce) continue
+      const excepted = (EXCEPT.ease[sel] || []).includes(e)
+      if (excepted) usedExcept.add(`ease ${sel} ${e}`)
       if (LOOP_EASE.has(e) || /^steps\(/.test(e)) {
-        if (!infinite) mark('R2 缓动', where, `${e} 用在非 infinite 的动效上`, '一次性动效走 --ease / --ease-out')
+        if (!infinite && !excepted) mark('R2 缓动', where, `${e} 用在非 infinite 的动效上`, '一次性动效走 --ease / --ease-out')
         continue
       }
-      if (!ALLOW_EASE.has(e)) mark('R2 缓动', where, `${c.name}: ${e}`, '只准 var(--ease) / var(--ease-out) / cubic-bezier(0.16, 1, 0.3, 1)')
+      if (!ALLOW_EASE.has(e) && !excepted) mark('R2 缓动', where, `${c.name}: ${e}`, '只准 var(--ease) / var(--ease-out) / cubic-bezier(0.16, 1, 0.3, 1)')
     }
 
     // ── R3 可动画属性（transition 侧）────────────────────────────────────
@@ -284,8 +295,7 @@ for (const f of files) {
       if (n >= 100) {
         if (!ALLOW_MS.has(n)) mark('R1 时长', where, `duration: ${n}（毫秒轴）不在档位`, 'WAAPI 只准 200/300/400/500/800/1200')
       } else {
-        const scroll = SCROLL_FILES.has(r) && SCROLL_S.has(n)
-        if (!scroll && !ALLOW_S.has(n)) mark('R1 时长', where, `duration: ${n}（秒轴）不在档位`, 'GSAP / 滚动只准 0.2/0.3/0.4/0.5/0.8/1.2')
+        if (!ALLOW_S.has(n)) mark('R1 时长', where, `duration: ${n}（秒轴）不在档位`, 'GSAP 只准 0.2/0.3/0.4/0.5/0.8/1.2')
       }
     }
     // easing 写成裸标识符（站内的 EASE 常量）时值看不见，只校验字面字符串
@@ -307,7 +317,7 @@ for (const f of files) {
         seen.prop++
         if (reduce) continue
         if (ALLOW_PROP.has(p)) continue
-        if ((EXCEPT.keyframeProp[kfNameOf(i)] || []).includes(p)) continue
+        if ((EXCEPT.keyframeProp[kfNameOf(i)] || []).includes(p)) { usedExcept.add(`keyframeProp ${kfNameOf(i)} ${p}`); continue }
         mark('R3 可动画属性', where, `@keyframes ${kfNameOf(i)} 里动画化了 ${p}`, '只准 transform / opacity / color 系；确有需要按关键帧名加进 EXCEPT.keyframeProp 并写理由')
       }
     }
@@ -321,7 +331,8 @@ for (const f of files) {
     for (const m of L.matchAll(/\b(linear-gradient|radial-gradient|conic-gradient)\s*\(/g)) {
       seen.ban++
       const sel = selOf(i)
-      if (tokenLine || /mask-image/.test(L) || EXCEPT.gradient[sel]) continue
+      if (tokenLine || /mask-image/.test(L)) continue
+      if (EXCEPT.gradient[sel]) { usedExcept.add(`gradient ${sel}`); continue }
       mark('R4 语汇', where, `${m[1]}()（在 ${sel || '未知选择器'} 里）`, '渐变只准定义在 --gradient-* / --hero-* 令牌里，组件用 var() 引用')
     }
     for (const m of L.matchAll(/(?:-webkit-)?backdrop-filter\s*:\s*([^;{}]+)/g)) {
@@ -403,6 +414,16 @@ for (const [k, label] of [
   if (!seen[k]) selfcheck.push(`${label}一条都没看到 —— 这条规则的匹配写法和代码已经脱节，它现在等于不存在`)
 }
 if (keyframeNames.size < 10) selfcheck.push(`只认出 ${keyframeNames.size} 个 @keyframes —— 关键帧存在性检查等于不存在`)
+// 例外自证：每条点名例外都必须真被命中过。没命中说明选择器/关键帧已改名或删掉，
+// 那条放行成了死条文 —— 它不再豁免任何东西，却让人以为豁免还在，下次照着写就踩空。
+const expectedExcept = [
+  ...Object.keys(EXCEPT.gradient).map((s) => `gradient ${s}`),
+  ...Object.entries(EXCEPT.keyframeProp).flatMap(([k, ps]) => ps.map((p) => `keyframeProp ${k} ${p}`)),
+  ...Object.entries(EXCEPT.ease).flatMap(([s, es]) => es.map((e) => `ease ${s} ${e}`)),
+]
+for (const k of expectedExcept) {
+  if (!usedExcept.has(k)) selfcheck.push(`例外「${k}」一次都没命中 —— 点名对象已改名或删除，这条放行是死条文`)
+}
 
 const byRule = new Map()
 for (const b of bad) {

@@ -131,31 +131,24 @@ cover: /images/my-cover.jpg
 
 ---
 
-## 3D 模型（博客的知识图谱）
+## 课程图版（首页）
 
-首页刊头是一件真正可交互的 3D 模型，不是通用摆件：**中心较大的球体是 LLM 核心，
-外围 5 个节点对应本站的 5 门课程**（agent / backend / csp / devtool / ml），
-金属连杆表示学习路径。图注里的门数与课次数都从 `COURSE_IDS` 和
-`getCurriculumStats()` 现算，所以模型与博客内容是数据层绑定的，不是装饰文案。
+首页主栏的图版是一张**服务端渲染的 SVG**（`components/course-plate.tsx`）：
+中心是 LLM 核心，外围 5 个节点对应本站的 5 门课程（agent / backend / csp /
+devtool / ml），每个节点都是一条真正可点的课程链接。门数、课次数与参考页数都从
+`COURSE_IDS`、`getCurriculumStats()`、`getReferencePages()` 现算，与内容绑定。
 
-由 `components/model-viewer-3d.tsx` 用 Three.js 渲染：可拖拽旋转、滚轮缩放、
-自动缓慢旋转（`prefers-reduced-motion` 下关闭）；加载前显示 poster，
-无 JS / 无 WebGL / 模型缺失时都保持 poster，不会出现空白。
+第 18 轮把原先那件 Three.js 可交互模型（733KB GLB + 约 360KB 运行时）换成了它：
+零 JS、零额外请求、无 JS 与 reduced-motion 下表现一致。窄屏（<640px）不缩放 SVG，
+改渲染同一份数据的 HTML 清单——缩到 360px 时 15px 字只剩 7px，那不是可读的图。
 
 | 文件 | 用途 |
 |------|------|
-| `public/models/agent-network-web.glb` | 网页加载的轻量版（减面 + WebP 纹理 + meshopt 编码） |
-| `public/images/3d/agent-network-poster-alpha.webp` | 加载前 / 兜底用的海报图（舞台四周已抠成透明，暗色模式不再出现白边） |
-| `public/images/3d/cover-*.webp` | 文章封面图池：同一件 LLM/Agent 模型的三个 WebGL 渲染角度，与首页可交互模型一致 |
-| `public/images/3d/og-3d.jpg` | 社交分享图 |
-| `assets/3d/agent-network-original.glb` | 原始高精度模型（**不在 public，不打进静态产物**） |
-| `assets/3d/agent-network-original-obj.zip` | 原始 OBJ + 材质 + 贴图，供 Blender 二次编辑 |
+| `public/images/3d/cover-*.webp` | 文章封面图池：同一件 LLM/Agent 静物渲染的三个角度，纯静态文件 |
+| `public/images/3d/og-3d.jpg` | 社交分享图（SVG 与 WebP 在部分平台不被抓取，故留一份 JPEG） |
 
-换模型：把新 glb 放到 `public/models/`，改 `app/page.tsx` 里 `ModelViewer3D` 的 `src` 即可。
-若要重新压缩，用 `npx @gltf-transform/cli@4 optimize in.glb out.glb --simplify true
---simplify-ratio 0.18 --texture-compress webp --texture-size 1024`；生成的产物带
-`EXT_meshopt_compression`，查看器已挂 `MeshoptDecoder`，CSP 也放行了 `wasm-unsafe-eval`
-与 `blob:` 纹理加载。
+改课程门数或课次统计不用碰这份组件：改 `content/curriculum/` 下的 MDX 即可，
+图版与图注会跟着变。
 
 ---
 
@@ -173,5 +166,11 @@ cover: /images/my-cover.jpg
 
 另有 `<link rel="me">` 身份声明与全站 `@media print` 打印样式（打印时只留正文）。
 
-本轮移除：阅读成就 / Konami 彩蛋、自定义光标（Aura / Custom）、只写 localStorage 的
-假「喜欢」按钮。**AI 热榜保留**；LLM Playground 与课程实验台属于课程正文，也保留。
+已下线且不打算恢复：阅读成就 / Konami 彩蛋、磁吸按钮、跑马灯、AI 热榜、
+Lenis 平滑滚动、Three.js 可交互模型、背景音乐播放器、整段正文的滚动淡入、
+聚光卡片与封面视差（旧版会把文字压在光斑和阴影里）。
+
+第 20 轮回归并重做的是这些「轻版」：页顶阅读进度线、换页扫光、刊头视差、
+翻板数字、跟手柔光（只有一层令牌化渐变，不压文字）、非文字块的滚动入场。
+收藏夹、命令面板、代码块复制、图片灯箱、章节目录、课程实验台与 LLM Playground
+一直在。

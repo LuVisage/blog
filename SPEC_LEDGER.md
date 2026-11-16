@@ -1630,3 +1630,559 @@ build #8 / #9 的 vitals 连续三次越线（day-10 的「课内控件」与「
 - 改动清单：`SPEC_LEDGER.md`（§11.33/§11.34 的 vitals 行改为实跑数字、新增本节）、`DESIGN.md`（收口闸说明）。
 - _residual_：`ui-concepts/verify/ab-head.sh` 跑完留下的 `stash@{0}: za-ab-wip` 已用 `git stash show -p | git apply --check --reverse` 确认与当前工作区逐字节一致后 drop。
 
+### 11.36 第 18–20 轮：审计减法 → 过度减法 → 质感回炉（Batch ZC · 含 lib/ 锁的合规解法）
+
+**一、三轮的方向变化，以及为什么必须记在一起**
+
+这三轮不是三个独立批次，是一条判断被推翻再修正的完整链条。分开记会让后人只看到结论、看不到「结论曾经错过」，于是下一次照样错。
+
+- **第 18 轮（审计驱动的减法）**：对上 6 篇文章 + 268 篇课次的内容量，逐件问「这东西挣不挣得到它的位置」。结论是减。重料下线：首页 three.js 可旋转模型（733KB GLB + 约 360KB 运行时）换成服务端渲染的 SVG 课程图版，表达同一句话「5 门课、239 课次围着 LLM 核心」，零 JS、零额外请求；`three` / `@types/three` / `lenis` 从 `package.json` 摘掉（本轮核对：三个键命中 0）。封面卡整套退场，`post-card.tsx` 收敛成服务端组件 `post-list.tsx`；文末「相关文章」从三张封面卡改成台账行 —— 文章尽头原来压着许可行、上下篇、系列块、三张卡、作者卡、评论卡，滚到底是四张卡片而不是下一篇。随之 `.hover-zoom` / `.media-frame` / `.media-parallax` / `.media-zoom` / `.spotlight-card` / `.aura-cursor` 与 `--accent-glow` 一并下线，纪律闸里给死选择器留的两条渐变豁免也摘掉。导航 `SITE_SECTIONS` 13 → 7 项（本轮核对：`href:` 命中 7），项目 / 友链 / 近况并进 `/about`，唯一真源落在新增的 `components/about-sections.tsx`；三个旧路由保留为深链页、canonical 指向 `/about/` 并从 sitemap 摘除，旧链接与站外引用不 404。
+- **第 19 轮（把减法推过头）**：参照 overreacted / Maggie Appleton / Josh W. Comeau，把「优秀博客都克制」读成了「越少越好」。砍掉 `ui/split-reveal`、`ui/prose-reveal`、`ui/reading-progress`、`PageSweep`、社交分享排、刊头第二套导航；补上章节永久链接、目录跳转 `replaceState` 写回 fragment、文末「在 GitHub 上修订本文」、正文外链箭头。**用户判定：「太简洁、UI 效果不好、交互效果不好。」** 删掉的恰好是读者唯一能感觉到的那些反馈 —— 2px 进度条与目录百分比确实是同一份数据，但「语义重复」不等于「体验重复」，那条线是滚动时眼前唯一在动的东西。
+- **第 20 轮（质感回炉，不是堆料回潮）**：回看仓库里 `ui-concepts/verify/CT-home-light.png` 与 `W4-hover.png`，确认要补的是**视觉锚点与可感知的反馈**，不是回到 3D / 玻璃 / 阴影。刊头 6px 签名色带 + mono 眉标 + 编号快捷入口带 + 翻板数据栏；课程图版装裱成带标题栏的图版（`components/course-plate.tsx`）；首页文章行改成「题图 + 编号 + 元信息 + 标题 + 摘要 + 箭头」复合行；恢复页顶 **3px** 阅读进度线与换页扫光（内容 400ms 微升、扫光 500ms 走完，不再抢同一帧）；`GlowRows` 一份 document 级委托 + rAF 节流写 `--glow-x/y`（`components/ui/interaction.tsx`）；`ProseReveal` 回归为**轻版**：只挑首屏之下的 figure / pre / blockquote / table / h2 / h3，初态 opacity 0.62、位移 10px，**段落文字一概不碰** —— 第 19 轮砍它的理由（Ctrl+F / 打印 / 无 JS 拿到被藏起来的文档）因此不再成立。三条新增渐变（`--row-glow` / `--page-sweep-line` / `--progress-fill`）的强度与配色全在 `:root` 令牌里，组件只 `var()` 引用。
+
+**二、刻意保留的几件，以及保留的理由**
+
+减法批次最容易顺手多删。以下几件是**判过之后决定留**的，不是漏网：
+
+- 系列上下篇导航：课次页的「上一课 / 下一课」是学习路径，不是装饰冗余。
+- 隐私页与条款页各自独立：两者法律语义不同，合并会让「我同意的是哪一份」失去指向。
+- `@keyframes mediaFade`：封面卡退场后它仍被头像用着，删了就是永不播放的动画（纪律闸 R6 会拦）。
+- **`content-visibility` 否决**：`components/theme-toggle.tsx` 里留着实测证据 —— day-10 有 9036 个节点（7529 个 KaTeX），主题切换点击呈现段 285ms（快照绘制 ~170 + 重样式 ~175，`theme-who.mjs`）；圆形揭示相反，按下立刻起动画，唯一一次重样式发生在遮罩铺满之后、被不透明遮罩盖住。`content-visibility` 能把重样式降到 38ms，**但深链锚点会落偏 2003px**，已否决。后续任何「上 containment 降重排」的提案都必须先回答这个 2003px，不能当它没发生过。
+
+**三、lib/ 锁：一次违规与它的合规解法**
+
+用户第 4 条决定锁死数据层：`lib/**`（除 `lib/accents.ts`）、`content/**`、`proxy/**` 不得修改。本轮曾在三处越界（`lib/bookmarks.ts`、`lib/constants.ts`、`lib/covers.ts`），发现后**全部还原到 HEAD**，原始 diff 留档在 `ui-concepts/zc-lib-edits.patch`（3318 字节）以便复核，功能改在视图层实现：
+
+- `/uses` 不再宣称已下线的 Three.js：`app/uses/page.tsx:15` 用 `const retired = ['Three.js']` 在视图侧过滤，`USES` 数据本身不动。页面宣称的「可在 package.json 核对」因此仍然成立。
+- 收藏按钮的写后读竞态：`components/bookmark-button.tsx` 改成先读后写、值未变则不落盘，不改 `lib/bookmarks.ts` 的存储契约。
+
+本轮核对：`git status --short lib/ content/ proxy/` 输出为空，三个目录干净。
+
+**四、事实口径同步更正（减法会连带让文案说谎）**
+
+- 隐私页 §3 原把 localStorage 写成 Cookie，改为逐项列出五个真实存储键。
+- 首页图注补上「239 课次之外另有 29 篇参考页」。
+- 条款页 `security.txt` 的裸根 href 补上 basePath —— 站点挂在 `/blog` 下，裸根 href 在导出产物里是死链。
+- README / HOW_TO_POST 里已下线组件的描述全部改掉。
+
+**闸门（Batch ZC）**
+
+- 规模：`git diff --stat HEAD -- app components scripts package.json` = **47 文件 · +1241 / −1787**（净减 546 行）。删除 9 个组件文件与 3 个 3D 资产；新增 4 个组件文件。
+- `lib/` / `content/` / `proxy/` 零改动（见上）。
+- 非计时闸全绿：`npm run check`（含 `scripts/ui-discipline.mjs`）、`sweep2`、`fontwt`、`batchy`、`zc-verify`、`contrast`；postbuild 审计通过。
+- _residual_：`assets/`（47MB）保持未跟踪；`out/` 不提交。计时闸的归因见 §11.37 与 §11.40，本轮不在 vitals 双红的事实上宣称「体验已达标」。
+
+**收口补记（2026-11-16）：歌单遗留死 CSS 下线**
+
+第 13 任务下线歌单播放器时只摘了组件，`globals.css` 里 `.btn-accent`（含 `:hover`）与 `.song-row`（含 `:hover` / `[aria-current='true']`）两块规则留了下来。§11.43 四把 `.btn-accent` 的死代码身份登记给本批处置，本次一并核对：两者在 `app/**` / `components/**` / 脚本里**零使用者**（`.song-row` 同样零命中，属同一遗留），删除两块共 10 行。它们引用的 `--accent-text` / `--accent-soft` 被全站 36 个文件消费，**令牌保留**。删后重建 rc=0、`npm run check` rc=0 零告警；`accent-contrast` 自适应认出 4 处消费者（原 5 处减去 `.btn-accent`），rc=0 / 注入 rc=1 不变；`accent-render` rc=0（6 处渲染态）；`zc-verify` rc=0。至此 ZC 的「死代码与重料下线」与「导航减法与 /about 合并」两笔都有落地记录与复验，收口。
+
+### 11.37 量具四修：静窗不可达、MSYS 改写路径、LoAF 分量不存在、脚本过滤藏掉强制布局（Batch ZD/ZE）
+
+§11.35 五留的处方是「动量具，不动阈值，不动 UI」。这一节记的是真去动量具时撞出来的四个坑 —— **四个都属于「量具自己失效却还在出数」那一族**，与 §11.24 三 同源。
+
+**一、绝对静窗在这台机器上不可达，于是把「判定」与「归因」分开**
+
+`quiet-vitals-strict.sh` 要求 load ≤4% 连续 6 采样。实测 8 分钟一次静窗都没出现：用户自己的常驻应用（Doubao / msedgewebview2 / thunder / Weixin / Feishu / WorkBuddyAI / ChatGPT）持续占 9–12%（采样 9/12/4/12/10/9%），**这些进程一律不许动**。
+
+关键区分：**闸的判定**（INP 是否 ≤200ms）是绝对判定，机器一吵噪声直接加进读数，必须静机；**归因 A/B**（同一份构建上摘掉滚动前置会不会降）是配对比较，只要各变体条件可比即可。因此 `ab-settle.sh` 改为：① 仍不许有 playwright chrome 在跑（那是真污染源）；② 每变体前后各记一次负载写进日志；③ 4 轮 × 3 变体、位次按 `(rep-1)%3` 轮换；④ 汇总把负载与读数并排印。**`quiet-vitals-strict.sh` 与所有阈值一个字没改。**
+
+**二、Git Bash 把路由环境值改写成了 Windows 路径 —— 12 轮全量了 0 站**
+
+`VITALS_ONLY=/learn/ml/day-10/ node vitals.mjs` 到 node 手里变成 `D:/Artificial_Intelligence/Git/learn/ml/day-10/`（MSYS 路径改写）。过滤后一站不剩，第一次 A/B 的 12 轮全部输出「量了 0 站」。**闸的自证在这里救了一次**：它没有把 0 站报成 PASS，而是 FAIL「一站都没量成 / 一个带 interactionId 的 event 都没收到」。
+
+两处修：① `vitals.mjs` 加快失败 —— `VITALS_ONLY` 过滤后为空就立刻印出**原值**与可选站列表，并提示盘符是 MSYS 改写所致，不再拖到跑完才收场；② 绕法 `MSYS_NO_PATHCONV=1`。
+
+**这个开关本身又是第二个坑**：全局 `export MSYS_NO_PATHCONV=1` 会连 `curl -o /dev/null` 一起停止改写，curl 写不出文件返回 **23**，脚本的服务器预检于是误判「static server not responding」（实测带开关 rc=23、不带 rc=0，而服务器 14ms 正常响应 200）。所以开关**只挂在 node 那一条命令上**，不全局导出。
+
+**三、指南写的 LoAF 分量字段，在这台浏览器上根本不存在**
+
+按 `performance/identify-inp-causes` 升级量具去读 `styleDuration` / `layoutDuration` / `forcedStyleDuration` / `forcedLayoutDuration`，结果一帧都没暴露。不猜，新开 `loaf-raw.mjs` 把 entry 自有属性**与原型链上每个 getter** 全读一遍（IDL 属性挂在原型上，`Object.keys(e)` 一个都看不到 —— 那正是「字段不存在」与「我没读到」分不清的地方）：
+
+- 浏览器 **140.0.7339.16**；`styleDuration` / `layoutDuration` **0/4 帧有这个字段**，`pausedDuration` 同样不存在。
+- 存在的是 `styleAndLayoutStart`、`renderStart`、`blockingDuration`、`firstUIEventTimestamp`（4/4 帧）。
+- `scripts[]` 的字段表里只有合并的 **`forcedStyleAndLayoutDuration`**，没有分开的两个。
+
+指南第 103–105 行正是为这种浏览器写了降级处方：用 `script.forcedStyleAndLayoutDuration` 与 `(startTime + duration) - styleAndLayoutStart` 的合并值。原实现虽然印了「未暴露」，**汇总行却把取不到分量的帧算进「风格 0ms / 几何 0ms」** —— 那等于宣布这一侧不花钱，是假绿。已改为分量帧与合并帧**分开累加、分开标注**，连合并值都取不到的帧单独计数。
+
+**四、`duration > 5` 的脚本过滤，把最贵的那一条藏了起来**
+
+day-10 那一帧的原始解剖（`loaf-raw.mjs`，单位 ms）：
+
+| 字段 | 值 | 含义 |
+|---|---|---|
+| startTime / duration | 8046.6 / 354.2 | 帧跨度 |
+| renderStart | 8398.4 | 渲染段 = **2.4** |
+| styleAndLayoutStart | 8400.6 | 渲染更新里的风格+几何 = **0.2** |
+| blockingDuration | **304.018** | = 354.2 − 50，说明整帧就是**一个**长任务 |
+| scripts | **[]** | 空数组 |
+
+304ms 既不在 JS 也不在渲染里 —— 四个数互相矛盾。原因有两层：① LoAF 的 `styleAndLayoutStart` 只覆盖**渲染更新**那一段，任务里同步强制的风格/布局不在其中；② `ScriptDuration` 只算 V8 执行，强制布局另计，所以那条脚本的 `duration` 只有几毫秒，**被 `>5ms` 过滤掉了**，报表于是写「无 >5ms 脚本」。过滤条件已补上 `forcedStyleAndLayoutDuration > 5`（以及分量版），并在 scripts 为空却阻塞 >50ms 时明写「这段时间浏览器没归给任何 JS」，不再一笔带过。
+
+**五、本机真能分开风格/几何的量具：CDP 累计计数差**
+
+LoAF 给不了分量，但 `Performance.getMetrics` 给得了：`RecalcStyleDuration` / `LayoutDuration` / `ScriptDuration` / `TaskDuration` / `TaskOtherDuration`（单位秒，×1000）与 `RecalcStyleCount` / `LayoutCount`。按**步**取前后差值，与 LoAF 的**帧**口径并排印、互相校验，不合成一个数。
+
+day-10「课内控件」（= 字号分段按钮，改的是全局 `.prose` 字号）单变体冒烟实测：
+
+| 视图 | INP | 延迟 / 处理 / 呈现 | 重样式 | 重排 | JS | 其它任务 | 任务合计 |
+|---|---|---|---|---|---|---|---|
+| 1280×800 | 360ms | 2 / 3 / **355** | **129ms（5 次）** | **191ms（1 次）** | **5ms** | 47ms | 398ms |
+| 390×844 | 368ms | 3 / 1 / **364** | **131ms（5 次）** | **198ms（1 次）** | **4ms** | 44ms | 393ms |
+
+**判读：这一步的 JS 几乎免费（4–5ms），320ms 全在渲染侧 —— 重排 191ms（约 60%）+ 重样式 129ms（约 40%）。** §11.35 猜的「呈现段占满、处理段 0–1ms」签名到此坐实了机制：不是某个组件的处理器慢，是在 9036 节点（7529 个 KaTeX）的页面上改全局字号，触发整篇重样式 + 一次大重排。两种病都在，且药不同（指南：风格侧高 → 收窄选择器；几何侧高 → 批量读后写 / 简化 DOM / containment）。**滚动欠账占多少，由 §11.40 的位次轮换 A/B 回答；在 A/B 出结果前不动 UI。**
+
+**闸门（Batch ZD/ZE 量具侧）**
+
+- 改动只在 `ui-concepts/verify/`（探针目录，不在仓库内）：`vitals.mjs`、`ab-settle.sh`、新增 `loaf-raw.mjs`。阈值 `VITALS_INP_BAR=200` / `VITALS_CLS_BAR=0.1` / `VITALS_JUMP_BAR=150` 未改。
+- 自证：0 站快失败、`MSYS_NO_PATHCONV` 的 curl 副作用、LoAF 字段存在性表、脚本过滤前后对照，四项都有原始输出留档（`ab-settle-r*-s*.log`、`loaf-raw.mjs`  stdout）。
+- _residual_：`quiet-vitals-strict.sh` 的绝对静窗在本机仍不可达；绝对判定要等机器安静，或改在 CI 的干净 runner 上跑。这一点不掩盖。
+
+### 11.38 滚动条标准化 + 拇指对比度首次量化（Batch ZE · WCAG 1.4.11）
+
+判据来自 `visual-design/customize-scrollbar-color-and-thickness`：「Choose a thumb color with a contrast ratio of at least 3:1 against the track color, and against the container's background where the track may be transparent」。
+
+**一、缺陷（此前从未量过）**
+
+原来只有 `::-webkit-scrollbar` 一套（9px，拇指 `--line-strong`）。两个问题：① **Firefox 拿不到任何滚动条样式**，标准属性一个都没写；② 拇指是画布上的发丝线色，压在同一块画布上对比度远低于 3:1 —— 读者看不出自己滚到了哪。
+
+**二、修法**
+
+- 标准属性写在 `html`：`scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track)`。**`scrollbar-width: thin` 后来改铺在 `*` 上** —— 当时以为两者都可继承、一处声明覆盖全站所有内层滚动容器，实测只有 color 继承，见第六小节第 3 条。
+- 令牌落在 `:root` 兼容别名层：`--scrollbar-thumb: var(--faint)`、`--scrollbar-track: transparent`。
+- legacy 伪元素整段包进 `@supports not (scrollbar-color: auto)` —— 两套同时生效时 Chrome 走标准渲染路径，伪元素那 9px 会悄悄失效，所以必须互斥而不是并存。
+- `scrollbar-width` **必须显式写 `thin`**：标准路径下 `auto` 是 15px，比原来的 9px 宽出 6px，整站栏宽与 320px 断点的几何全跟着动。
+
+**三、新增闸 `ui-concepts/verify/scrollbar-contrast.mjs`（纯算术，不开浏览器）**
+
+为什么单开一道而不塞进 `contrast.mjs`：那一道靠浏览器取 computed style 量「渲染出来的文字 × 背后实色」，而**滚动条拇指不是 DOM 节点**，取不到 rect 也取不到它实际画在什么底色上。这里量声明侧：thumb / track 解析成实色后，拇指压在画布上的比值。纯算术因此可以和计时闸并行跑。
+
+它自己带两条自证：三个令牌任一解析不到实色 → FAIL（不许把「没量到」算成通过）；`SCROLLBAR_INJECT=1` 把拇指换回 `--line-strong`，闸必须开口。
+
+**四、闸自己先错了一次，值得记**
+
+第一版 `SCOPES` 把 `:root` 标成「只亮色」，于是暗色 map 里连 `--faint` 这类别名都查不到，报「解析不到实色」。真实层叠是：**`html` 同时匹配 `:root` 与 `.dark`，暗色 = `:root` 的全部声明 + `.dark` 的覆盖**，不是另一套独立声明；别名层从来没被 `.dark` 重定义过，它在两档都活着。已改正，并补一条自证：**亮暗画布必须解析成不同的实色**，否则说明层叠模型塌成了一套、暗色那一档量的其实是亮色 —— 那种绿是假的。（站内每一对都是 `:root` 在前、`.dark` 在后，同特异性靠源码顺序覆盖，已逐对核对。）
+
+**五、实测**
+
+| | 拇指 | 底色（轨道透明→画布） | 比值 | 判定 |
+|---|---|---|---|---|
+| 亮色（修后） | `#6f6b65` | `#ffffff` | **5.29:1** | PASS |
+| 暗色（修后） | `#a19b91` | `#141311` | **6.73:1** | PASS |
+| 亮色（注入旧拇指） | `#d8d4cd` | `#ffffff` | **1.48:1** | FAIL |
+| 暗色（注入旧拇指） | `#3d3833` | `#141311` | **1.60:1** | FAIL |
+
+正常跑 rc=0、注入跑 rc=1，闸既量得到也咬得动。缺陷与修复都由闸确认，不是手算。
+
+**闸门（Batch ZE 滚动条）**
+
+- 改动：`app/globals.css`（别名层两个令牌 + `html` 的 `scrollbar-color` + `*` 的 `scrollbar-width: thin` + `@supports not` 包裹 legacy）；新增 `ui-concepts/verify/scrollbar-contrast.mjs` 与 `ui-concepts/verify/scrollbar-geometry.mjs`。
+- 构建产物已核对：`out/_next/static/css/*.css` 里 `scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track)`、`scrollbar-width:thin`、`@supports not (scrollbar-color:auto)` 三条都在。
+- _residual_：~~`scrollbar-width: thin` 带来的栏宽变化尚未量~~ → **已量，见下面第六小节**；量的过程里挖出一个真缺陷（`scrollbar-width` 不继承）和一个量具环境错误（Playwright 默认 `--hide-scrollbars`），都已修。
+
+**六、几何差实测：量具先空转，然后挖出「width 不继承」这个真缺陷（residual 收口 · Batch ZG）**
+
+新增 `ui-concepts/verify/scrollbar-geometry.mjs`：3 视图（1280x800 / 390x844 / 320x700）× 明暗 × 4 页 = 24 组，同一页面里注入 `html { scrollbar-width: auto|thin|none !important }` 做单变量对照，量 `clientWidth`、整页横向溢出、最宽出界元素、以及 `[360,390,640,768,1024,1280]` 里哪些断点生效。
+
+**1）第一轮是空转的，而且差点被当成结论。** 24 组全部 `auto=thin=none=视口宽`、delta 全 0。看起来像「thin 没有几何差」，实际是**这个 Chromium 的滚动条根本不占位**。先怀疑叠加式滚动条，试了 `--disable-features=OverlayScrollbar / FluentOverlayScrollbar / FluentScrollbar / WindowsScrollingPersonality`（单个与四个一起关）—— **全部无效，连内层 `overflow:scroll` 的 div 都占位 0px**。真正的原因是 **Playwright 默认给 chromium 加了 `--hide-scrollbars`**，用 `ignoreDefaultArgs: ['--hide-scrollbars']` 摘掉才量得到。
+
+这件事的影响超出本节：**此前所有浏览器几何闸都是在滚动条不占位的环境下跑的**，等于视口比真实桌面 Chrome 宽 15px。320px 窄屏闸实际量的是 320px 可用宽，真实桌面是 305px（auto）/ 310px（thin）。所以窄屏结论必须在这个环境下复核（见下面第 4 条）。
+
+**2）摘掉之后量到的真实差**（24/24 组 auto 都占位 15px，环境自证打进报表）：
+
+| 视图 | auto 占位 | thin 占位 | none 占位 | thin 相对 auto 的可用宽度增量 | 横向溢出 auto/thin/none | 断点漂移 |
+|---|---|---|---|---|---|---|
+| 1280px | 15px（client 1265） | 10px（client 1270） | 0px（1280） | **+5px** | 0/0/0 | 无 |
+| 390px | 15px（375） | 10px（380） | 0px（390） | **+5px** | 0/0/0 | 无 |
+| 320px | 15px（305） | 10px（310） | 0px（320） | **+5px** | 0/0/0 | 无 |
+
+明暗两档一致。所以本节原先那句「标准路径 thin ≈8px vs 旧 9px」也是估的：**实测 thin = 10px、auto = 15px**，thin 比 auto 窄 5px、比旧 legacy 的 9px 宽 1px。方向是「可用宽度只增不减」，不会把布局挤过断点。
+
+**3）真缺陷：`scrollbar-color` 继承，`scrollbar-width` 不继承。** 顺手量内层容器时发现：`html { scrollbar-width: thin }` 下，body 与新建的 `overflow:scroll` div 的 computed 仍是 `auto`、占位 **15px**，而根是 10px。在**空白页只写这一条规则**复现，排除了站内 CSS 干扰；同一次测量里 `scrollbar-color` 却老老实实继承到了 body 与 div。
+
+后果：拇指对比度修复覆盖到了内层容器（color 继承），但「thin」没有 —— **代码块与长公式段落里冒出来的是比页面滚动条更粗的一根（15px vs 10px）**。而本节原文写的是「两者都可继承，一处声明覆盖全站所有内层滚动容器」，那句话是错的。
+
+修法：`html` 只留 `scrollbar-color`，`scrollbar-width: thin` 改铺在 `*` 上。特异性 (0,0,0) 低于任何类，`components/toc.tsx:8` 那枚 `[scrollbar-width:none]`（目录隐藏滚动条但保留滚动能力）照旧压过它 —— 闸里专门加了这条守卫。
+
+闸在**修之前**先开口：`FAIL 48 条` = 24 组 ×（「width 没到内层容器（根 thin / 内层 auto）」+「内层占位 15px，不是 thin 的 10px」），而横向溢出/断点/负增量/color 继承四类**零失败**。修后重建复量：**PASS**，24/24 内层 computed `thin`、占位 10px（= 同一 div 显式写 thin 的参照值），color 继承 24/24 真，6 个有目录的页面里 `ul` 计算值仍是 `none`。
+
+参照物取「同一个 div 显式写 thin 时的占位」而不是硬编码 10px，这样判据不依赖环境的滚动条宽度。
+
+**4）另一处量具错误：delta 的减法方向写反了。** 第一版 `delta = auto.client - thin.client` 却打印成「thin 比 auto 宽」，并且 `delta < 0` 判 FAIL。滚动条不占位时全 0，这个反号被掩盖了；一旦摘掉 `--hide-scrollbars`，thin 让可用宽度变大就会算出负数、报出**假 FAIL**。已改成 `thin.client - auto.client`。
+
+**5）全站复核（滚动条可见环境下）：150/150 组通过。** 既然真实桌面视口比过去量的窄 15px，把 `SBG_ROUTES` 铺到 25 条路由（首页、3 篇文章、分类/标签/系列索引、/learn 索引与 6 个课次、glossary、/about、/friends、/search、/archive、/privacy、/terms、/404.html）× 3 视图 × 明暗 = **150 组**。结果：`auto` 占位 144/144 + 6/6 全为 15px，`thin` 相对 `auto` 的可用宽度增量在三个视图上都是 **+5px**，**横向溢出全 0、生效断点零漂移、内层容器 computed 全是 thin/10px、color 继承全真**。
+
+第一次全量跑报 `FAIL 6 条`，全部是 `D:/Artificial_Intelligence/Git/ @… HTTP 404` —— **MSYS 把 `/404.html` 这个环境变量值转成了 Windows 路径**，不是站点缺陷。用 `MSYS_NO_PATHCONV=1` 只包住那一条 node 命令补跑，6/6 PASS。（这个变量不能全局 export，会让 `curl -o /dev/null` 变成 rc=23。）闸把 404 判 FAIL 而不是静默跳过，这次正是它把量具问题顶出来的。
+
+所以本节现在可以宣称：**在滚动条真占位的桌面环境下，全站 25 条路由 × 3 视图 × 明暗没有因为 `scrollbar-width: thin` 出现横向溢出或断点漂移。** 仍不宣称的是移动端真机滚动条行为（本探针是桌面 Chromium，`narrow-overflow.mjs` 那条走 `isMobile:true` 的移动仿真，移动浏览器本来就是叠加式滚动条）。
+
+### 11.39 阅读进度改滚动驱动 + 纪律闸的 no-preference 盲区与例外自证（Batch ZE）
+
+判据来自 `ui-behaviors/scroll-progress-indicator`（Baseline since 2026-10-27：Chrome 115 / Firefox 159 / Safari 26）。
+
+**一、缺陷：进度条是一段段蹦的**
+
+`use-toc-spy.ts:60` 把比例量化到 1%（`Math.round(ratio*100)/100`）再写行内 transform。量化本身是对的 —— 它把滚动期间的 React 提交封顶在 100 次。但在 day-10 这种长课次页上（**实测滚动范围 14131px**，1% ≈ 141px），**3px 的线每滚 141px 才跳一格**，读者看到的是台阶而不是进度。
+
+**二、修法（CSS 优先，行内值自动降级）**
+
+```css
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reading-progress__fill {
+      animation: reading-progress-grow auto linear;
+      animation-timeline: scroll(root block);   /* 必须在简写之后：简写会把它重置回 auto */
+    }
+  }
+}
+@keyframes reading-progress-grow { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+```
+
+- 时间轴直接绑根滚动位置，进度与手指 1:1，**这一路不再经过 React**。
+- 组件里的行内 `transform: scaleX(progress)` **保留作降级**：CSS 动画在层叠里压过行内样式，支持时自动被盖掉、不支持时接管，不需要 JS 嗅探支持度。
+- `role="progressbar"` 与 `aria-valuenow` 仍由量化后的 JS 喂 —— 指南说纯装饰指示器可以 `aria-hidden`，但本站这条是真进度语义，保留比隐藏好。
+- reduced-motion 下整段动画不生效，行内值接管：位置反馈还在，只是回到 1% 粒度（换取不逐帧重渲染）。
+- **不用 `scroll-timeline-polyfill`**（指南明确 DO NOT，且本站零新依赖）。
+
+**三、顺带挖出纪律闸的一个真盲区**
+
+`scripts/ui-discipline.mjs` 的 `reduceRanges` 用 `/prefers-reduced-motion/` 匹配豁免段 —— **把 `no-preference` 也当成了豁免**。而「动效只在 `no-preference` 里生效」正是站内与指南推荐的写法，等于整段动效不受 R1/R2/R3 检查。已收窄为 `/prefers-reduced-motion:\s*reduce/`。这个盲区不是本轮新引入的，是本轮要往 `no-preference` 里写动效时才照出来的。
+
+**四、R2 例外：按选择器点名，只放行 linear**
+
+`linear` 原规则只准用在 `infinite` 上。滚动驱动的 `linear` 不是「缓动选错了」：时间轴就是滚动位置本身，任何 ease 都会让进度条滞后或超前于手指。新增 `EXCEPT.ease = { '.reading-progress__fill': ['linear'] }` 并写明理由 —— 与既有 `keyframeProp` 同形（名字比行号稳定，行号会因上面多一行注释而漂移，把放行悄悄落到隔壁规则上）。
+
+**五、例外自证：没人命中的例外是死条文**
+
+新增 R7 同族检查：`EXCEPT.gradient` / `EXCEPT.keyframeProp` / `EXCEPT.ease` 里每一条点名例外都必须真被命中过，否则 FAIL。理由：选择器改名或关键帧删掉之后，那条例外不再豁免任何东西，却让人以为豁免还在 —— 它悄悄把闸的射程放宽了，而报表照旧全绿。
+
+**六、三向注入自证（跑完即删探针）**
+
+| 注入 | 期望 | 实测 |
+|---|---|---|
+| 甲：`linear` 用在**没有例外**的选择器上 | 拦 | `FAIL R2 缓动 · linear 用在非 infinite 的动效上 ×1` |
+| 乙：在**受例外**的 `.reading-progress__fill` 上写 `ease-in` | 拦（例外只放行 linear） | `FAIL R2 缓动 · animation: ease-in ×1` |
+| 丙：加一条点名对象不存在的例外 | 自证开口 | `FAIL 这道闸自己没跑成：例外「ease .no-such-selector-ever linear」一次都没命中` |
+| 撤掉探针 | 恢复绿 | `PASS` · 137 文件 · 20 个 @keyframes · 违规 0 |
+
+**闸门（Batch ZE 进度条）**
+
+- 改动：`app/globals.css`（`@supports` + `@keyframes`）、`components/ui/reading-progress.tsx`（注释说明两条路的分工）、`scripts/ui-discipline.mjs`（reduce 收窄 + `EXCEPT.ease` + 例外自证）。
+- 源级纪律闸 PASS，三向注入全部按预期开口，探针文件已删（`git status` 无残留）。
+- _residual_：~~尚未在浏览器里实测滚动驱动那条路真的生效~~ → **已实测，见下面第七小节**（`ui-concepts/verify/reading-progress.mjs`，PASS）。
+
+**七、活体实测：两条路真的分开了（residual 收口）**
+
+新增 `ui-concepts/verify/reading-progress.mjs`，同一份构建、三档对照，只读 + 运行时注入：
+
+| 档 | 干预 | computed timeline | animation | 12 个细步里非零 | 最大单步 | 值全在 1% 网格上 | 滚到底 aria-valuenow |
+|---|---|---|---|---|---|---|---|
+| 甲 支持档 | 不动 | `scroll(root)` | `reading-progress-grow/auto` | **12/12** | **0.0025** | **false** | **100** |
+| 乙 降级档 | `animation: none !important` | `auto` | `none/0s` | 3/12 | 0.01 | true | 100 |
+| 丙 reduced-motion | `reducedMotion: 'reduce'` | `auto` | `none/1e-05s` | 3/12 | 0.01 | true | 100 |
+
+甲档 scaleX 序列 `0.39997 0.40245 0.40492 … 0.42969`，**每一步增量都恰好 0.0025**（= 35px / 14131px），这就是「与手指 1:1」的直接证据；乙/丙档序列 `0.4 0.4 0.4 0.41 0.41 0.41 0.41 0.42 …`，每 4 步跳一格 0.01，是 1% 量化的指纹。三档 `role=progressbar` 都在，都真滚到底（`y=14131/14131`）、`scaleX=1`、`aria-valuenow=100`。
+
+**闸自己先错了两次，都不是产品缺陷，记下来免得下次再踩：**
+
+1. **步长写死 25px 并假设页高 ~10000px。** 判据「步长必须细于 1% 量化」是对的，但 1% 到底多少 px 必须现场量。改成从实测范围推：`step = max(2, round(range/400))` ≈ 0.25%，于是量化路每 4 步动一次（3/12）、CSS 路每步动（12/12），两条路可分辨。另加一条不依赖步长的直接判据：**乙/丙档的每个值都必须落在 0.01 的整数倍上**。
+2. **采样踩在平滑滚动上。** 站点开了 `scroll-behavior: smooth`，`window.scrollTo` 异步飞行，140ms 采样窗口里位置还在动；滚到底只等 400ms 也没飞完。第一版因此量到「甲档滚到底 aria-valuenow=75、乙档 74」，而 reduced-motion 档（平滑被全局守卫关掉）反而正常到 100 —— **那个反差本身就是诊断线索**。修法：三档一律注入 `html { scroll-behavior: auto !important }` 归一量具（被测的是进度映射，不是滚动缓动），跳转用 `behavior:'instant'`，到底判据改成「`scrollY` 连续两次相同且等于可达最大值」而不是固定等待，并把 `y/max` 打进报表；到不了底就判这一行不算数，而不是判进度条坏了。
+
+第一版还有一处假 FAIL：「乙档 12 步都在动，不像 1% 量化」—— 实际那 12 个值全是 0.01 的整数倍，量化得好好的，只是 25px 步长比当时误估的 1% 更粗。修好量具后这条自然消失。
+
+### 11.40 位次轮换 A/B：滚动欠账假说被证伪，那 320ms 是这一步固有的（Batch ZD）
+
+§11.35 五留的处方是「动量具，不动阈值，不动 UI」；§11.37 把量具修好之后，这一节回答「修好的量具能不能把红闸变绿」。答案是**不能**，而且这个「不能」是有证据的，不是猜的。
+
+**一、口径：配对 A/B 不是静机判定**
+
+绝对判定（INP ≤ 200ms）需要一台安静机器；配对比较只需要**两边条件可比**。所以这一跑用位次轮换 + 重复 + 逐变体记录负载，而不是等一个本机达不到的静窗。**阈值一个字没改**（`VITALS_INP_BAR=200` / `CLS_BAR=0.1` / `JUMP_BAR=150`）。
+
+- 站点：`/learn/ml/day-10/`（全站最重的一页，9062 个元素）
+- 4 轮 × 3 变体 × 2 视图（1280x800:light、390x844:light）= 24 次测量
+- 位次按 `(rep-1)%3` 轮换，避免「先跑的变体总是占便宜/吃亏」
+- 变体：`s0` 旧闸（滚一遍 + 固定 400ms）／`s1` 滚一遍 + 空闲确认／`s2` 摘掉滚动前置 + 空闲确认
+- 脚本 `ab-settle.sh`，原始行 `ab-settle-rows.tsv`，逐跑日志 `ab-settle-r{1..4}-s{0,1,2}.log`
+
+**二、逐轮原始行**（INP / 重样式 / 重排 / JS 各取两视图更差者；重样式与重排来自 CDP 计数差，不是 LoAF）
+
+| rep | 变体 | INP | 重样式 | 重排 | JS | load 前 | load 后 |
+|---|---|---|---|---|---|---|---|
+| 1 | s0 | 392 | 133 | 212 | 5 | 17 | 31 |
+| 1 | s1 | 336 | 121 | 179 | 4 | 25 | 8 |
+| 1 | s2 | 336 | 115 | 181 | 7 | 7 | 17 |
+| 2 | s0 | 400 | 139 | 207 | 4 | 3 | 5 |
+| 2 | s1 | 352 | 131 | 179 | 7 | 15 | 23 |
+| 2 | s2 | 424 | 149 | 231 | 7 | 20 | 3 |
+| 3 | s0 | 376 | 129 | 201 | 10 | 2 | 9 |
+| 3 | s1 | 352 | 125 | 191 | 7 | 0 | 2 |
+| 3 | s2 | 336 | 114 | 183 | 4 | 2 | 11 |
+| 4 | s0 | 344 | 130 | 178 | 6 | 6 | 30 |
+| 4 | s1 | 360 | 127 | 192 | 10 | 29 | 26 |
+| 4 | s2 | 352 | 109 | 196 | 4 | 28 | 22 |
+
+**三、按变体汇总：均值（最小–最大）**
+
+| 变体 | INP | 重样式 | 重排 | JS | load 前/后 |
+|---|---|---|---|---|---|
+| s0 旧闸 | **378**（344–400） | 133（129–139） | 200（178–212） | 6（4–10） | 7/19 |
+| s1 滚 + 空闲确认 | **350**（336–360） | 126（121–131） | 185（179–192） | 7（4–10） | 17/15 |
+| s2 摘滚动 + 空闲确认 | **362**（336–424） | 122（109–149） | 198（181–231） | 6（4–7） | 14/13 |
+
+**四、判读：三条结论，每条都有反证**
+
+1. **「滚动欠账」被证伪。** §11.35 猜的是「闸先滚一遍，滚动期间的样式/布局欠账被算进下一次点击」。若成立，摘掉滚动前置（s2）应当显著降 INP。实测 s2 = 362 vs s0 = 378，**只降 16ms，且 s2 出了全场最差的单笔 424ms**；重排 198 vs 200，几乎没动。三个变体的重样式都钉在 ~125ms、重排 ~195ms。**那 ~320ms 是这一步固有的渲染成本，不是量具造出来的。**
+2. **负载解释也被排除。** s0 的测量期负载最低（前 7 / 后 19），INP 反而最高（378）；s1 负载最高（前 17）却最慢得最少。若红闸是机器吵出来的，次序应当相反。
+3. **空闲确认（s1）值得留，但救不了红闸。** 它把均值从 378 降到 350，并把离散从 56ms 收到 24ms（336–360）—— 量具更稳、口径更诚实（量的是结算完的页面）。代价是每站多等 ~380ms（s1 每站等待 mean 780–789ms / max 1051ms，s0 固定 400ms，触顶 0 站）。**`vitals.mjs:51` 的默认已经是 `SETTLE=1`，所以这个决定不需要再改代码**；`VITALS_SETTLE=0` 保留为单变量对照的退路。
+
+**五、一个不许放过的异形**
+
+rep2 s2 @390 给出 INP **152ms**，重样式 **50ms / 16 次**、重排 85ms / 1 次 —— 与其余各笔的「5 次重样式」形状完全不同（16 次小的 vs 5 次大的）。同一轮同一变体 @1280 却是全场最差的 424ms。
+
+先排掉一个候选解释：`font-size-control.tsx` 默认 `medium`、按钮次序 `['small','medium','large']`，所以闸的 `.seg-btn` `.first()` 命中的是「小」，**每一次点击都是真的改字号**，不存在「点了已选中项所以便宜」。已用探针核对闸的靶子确实是 `button.seg-btn「小」 组=阅读字号`。
+
+剩下的可能是断点相关：390 下首个 `.seg-btn` 是否仍是同一枚、或点击落在了不同的结算时点。**这一笔不当成「达标证据」引用** —— 它是 24 笔里的 1 笔，且形状异常，归因未定。第二枪探针（§11.41）改为显式点「阅读字号」组里 `aria-pressed="false"` 的那一枚，把这个不确定性从口径里去掉。
+
+**六、这一节不许推出的结论**
+
+- 不许说「体验已达标」：24 笔里 23 笔越线，唯一那笔 152ms 形状异常且归因未定。
+- 不许说「红闸是环境吵」：负载次序反了。
+- 不许说「回炉造出了回归」：§11.35 的 HEAD 对照已经否掉，这一节进一步把成本定位到渲染侧固有开销。
+- 阈值没动，`quiet-vitals-strict.sh` 没动。下一枪直接验渲染侧的三个杠杆（选择器 / containment / 继承），见 §11.41。
+
+### 11.41 渲染成本三侧归因：选择器改写上线，containment 证伪，冻结数学字号不划算（Batch ZF）
+
+§11.40 把成本定位到渲染侧固有开销。这一节回答「那 ~320ms 具体是谁的钱，哪一笔能省」。工具 `ui-concepts/verify/attr-ze.mjs`：**同一份构建、运行时干预**，不重建，因此没有「两个包不一样」的混淆。
+
+**一、先把底数量清楚（探针实测，1280x800）**
+
+| 量 | 值 |
+|---|---|
+| 全页元素 | 9062 |
+| `.katex` 根（公式条数） | 125 |
+| **`.katex` 后代节点** | **7404（占全页 82%）** |
+| `.katex-display` | **0** —— 全是行内公式，父元素 P / LI / TD / STRONG |
+| 改字号实际改动 | `.prose` 18px→17px，`.katex` 21.78px→20.57px（KaTeX 是 1.21em，跟着继承走） |
+
+两条直接后果：①「给 `.katex-display` 上 contain」在本站**无靶**，containment 只能打在含公式的块上；② 改一次字号要重新级联 7404 个节点。
+
+**二、六个变体与自证**
+
+| 变体 | 干预 | 自证条件（不成立判 INVALID 并排除出汇总） |
+|---|---|---|
+| v0 | 基线 | 字号必须真的变了 |
+| v1 | `:has(.katex)` **等价改写**成 `.has-math`（运行时打标 + 改 `selectorText`，声明一字不动） | 改写 ≥1 条、残留 0 条、打标 >0 个、**90 个命中元素的 computed `overflow-x` 逐个比对无变化** |
+| v2 | 含公式块注入 `contain: layout style paint` | 命中 >0 个、computed `contain` 含 layout/content |
+| v3 | v1 + v2 | 同上两条 |
+| v4 | `.katex` 的 `font-size` 钉成绝对 px（解耦继承） | 点击后 `.katex` computed 字号必须不变 |
+| v5 | v1 + v4 | 同上两条 |
+
+**v1 为什么是「等价」而不是「删规则」**：删掉那条规则会连带撤掉 `overflow-x:auto`，长公式重新把整页撑出横向滚动 —— 那就同时动了两个变量，量出来的差不能归给选择器。等价改写只换匹配机制。特异性前提：`:has()` 取参数里最高的特异性，`.prose p:has(.katex)` 与 `.prose p.has-math` **同为 (0,2,1)**，层叠次序不变。
+
+**三、两轮结果（各 3 轮位次轮换，单视图 1280x800:light）**
+
+第一轮 5 变体 15 行、第二轮 6 变体 18 行，**两轮合计 33 行，INVALID 0 行**。
+
+| 变体 | INP 均值（范围） | 重样式 | 重排 | JS | 其它任务 | 任务合计 |
+|---|---|---|---|---|---|---|
+| v0 基线 | 355（312–392）→ **368**（328–392） | 131 → 142 | 191 → 194 | 14 → 12 | 108 → 107 | 455 → 467 |
+| v1 选择器改写 | 323（280–344）→ **323**（256–376） | 101 → 102 | 184 → 180 | 8 → 7 | 67 → 54 | 369 → 352 |
+| v2 containment | 360（336–376）→ **368**（344–392） | 142 → 128 | 185 → 203 | 12 → 12 | 105 → 101 | 458 → 457 |
+| v3 = v1+v2 | 352（336–368）→ **320**（288–336） | 118 → 100 | 196 → 182 | 8 → 7 | 49 → 59 | 379 → 358 |
+| v4 字号解耦 | 256（256–256）→ **219**（168–256） | 137 → 113 | 91 → 85 | 12 → 12 | 108 → 107 | 360 → 328 |
+| v5 = v1+v4 | — → **216**（200–224） | — → 102 | — → 78 | — → 5 | — → 69 | — → 263 |
+
+（箭头前为第一轮、后为第二轮；v5 第二轮才加。）
+
+**次数比时间更能说明机制**（第二轮逐行）：
+
+| 变体 | 重样式次数 | 重排次数 |
+|---|---|---|
+| v0 | 45 / 44 / 45 | 5 / 5 / 5 |
+| v1 | **12 / 19 / 15** | **1 / 1 / 1** |
+| v2 | 47 / 43 / 44 | 5 / 4 / 5 |
+| v3 | 14 / 13 / 20 | 1 / 1 / 1 |
+| v4 | 43 / 46 / 51 | 5 / 7 / 4 |
+| v5 | **11 / 11 / 15** | **1 / 1 / 1** |
+
+**四、三条结论**
+
+1. **风格侧的钱在 `:has()` 的失效风暴。** v1 把 ~45 次重样式压成 ~15 次、5 次重排压成 1 次，重样式 142→102ms、其它任务 107→54ms、INP 368→323ms。两轮均值完全一致（323 / 323），机制清楚、无设计代价。**上线。**
+2. **containment 被证伪。** v2 两轮 INP 360 / 368，与基线 355 / 368 持平甚至略负；重排 185→203 反而更差。v3（v1+v2）两轮 352 / 320，都不优于 v1 单用（323 / 323）。指南的 containment 处方针对的是**局部**变化，而改全局字号是全局变化，块级 containment 拦不住它。**不上线。**
+3. **几何侧的钱在 KaTeX 跟着字号重排，但省这笔钱不划算。** v4 把重排 194→85ms（砍半）而次数不变，INP 368→219；v5 再叠加 v1，INP 216、任务合计 467→263。**但 v5 的范围是 200–224，均值 216 仍在 200 的闸外。** 代价是「数学不再随阅读字号缩放」—— 在一个 92 页含公式的 ML 课程站上，这是实打实的可读性退步。**付了设计代价还买不到绿闸，所以不上线。** v4/v5 只作为归因证据留档。
+
+**五、落地改动（v1）**
+
+- `components/mdx-content.tsx`：新增零依赖 rehype 插件 `rehypeMathBlocks`，挂在 `rehypeKatex` 之后。手写递归（不引 `unist-util-visit`），把「后代里有 `.katex`」向上传播，给 p/li/dd/td/h3/h4/blockquote 打 `has-math`。与 `:has()` 同为后代语义（`.katex` 藏在 `<strong>` 里也算）。
+- `app/globals.css:941`：七个 `:has(.katex)` 选择器换成 `.has-math`，声明（`overflow-x:auto; overflow-y:clip`）一字未动，原注释里 486px 横滚 / 505 个公式段落 / `clip` 不裁墨的实测依据全部保留。
+- 未动 `content/**`、`lib/**`、`proxy/**`（用户决定 4 的锁）。`h3` 在 `mdx-components.tsx:62` 有自定义渲染器，但它 `{...props}` 透传，`className` 不会丢。
+- 新增 `ui-concepts/verify/mathclass.mjs` **等价闸**：① 对 `out/` 里**全部 92 个含 KaTeX 的页**用 DOMParser 逐元素比对 `el.matches(旧 :has 选择器组) === el.classList.contains('has-math')`，漏标/多标一个就 FAIL；② 抽 3 页在 **320px** 活体验 computed `overflow-x=auto` / `overflow-y=hidden`（写的是 `clip`，计算值见下面第六小节第 2 条）/ 整页横向溢出 0，并确认样式表里已无 `:has(.katex)`。漏标一个块，那个块的长公式就会把整页撑出横滚 —— 正是当初加这条规则要治的病，所以这道闸必须覆盖全站而不是只看 day-10。
+
+**六、等价闸当场抓出的两个真缺陷（第一版插件是不合格的）**
+
+第一次重建后跑闸，**FAIL 12 条**。两个都不是闸的毛病：
+
+1. **漏标 229 个块（多标 0）。** day-10 漏 6 个、day-07 漏 5 个、day-08/09 各漏 7 个……活体数出来 day-10 只有 84 个 `has-math`，而运行期 `:has(.katex)` 命中 90 个。逐个查父链，**漏标的全部落在 `<details>` 里**（`p < details < div < div.prose`）。原因：MDX 里的 JSX 块在 hast 里是 `mdxJsxFlowElement`，`type !== 'element'`，而插件第一版用 `if (k.type !== 'element') continue` 过滤子节点 —— 把整棵 JSX 子树跳过了，里面的公式永远传不上来。修法：遍历穿过所有节点类型，只在**打标判定**时要求 `type === 'element'`。修后重建，**92 页 / 13747 个候选块 / 2750 个命中，漏标 0、多标 0**，day-10 活体 90 个，与运行期命中数一致。
+   —— 这就是为什么等价闸必须覆盖全站而不是只看 day-10：漏标一个块，那个块的长公式就把整页撑出横滚，正是当初加这条规则要治的病。只看一页会漏掉 223 个。
+2. **`overflow-y: clip` 的 computed 值其实是 `hidden`，原注释把机制写错了。** 活体三页全是 `hidden`。CSS Overflow 规定：一轴是滚动值（这里 `overflow-x: auto`）、另一轴是 `clip` 时，`clip` 计算成 `hidden`。结果一样不出纵向滚动条（原意图达成），但它**确实成了滚动容器**，与注释里「clip 不滚动」的说法不符。这是**改动之前就存在的文档缺陷**，不是本轮引入的回归。已把计算值规则写进 `globals.css` 注释，闸的期望值也从 `clip` 改成 `hidden` 并注明理由。
+
+**七、注入自证：这道闸两层都咬得动（`MATHCLASS_INJECT=1`）**
+
+只证明「正常跑 PASS」不够 —— 一道不会开口的闸等于没有闸。两条注入分别打两层：
+
+| 注入 | 打哪一层 | 期望 | 实测 |
+|---|---|---|---|
+| 甲：把第一个抽样页 HTML 里的 `has-math` 改成 `no-such-class-injected` | 逐元素等价层 | 漏标 → FAIL | `漏标 1 · 多标 0`，点名 `/learn/backend/week-5-plan/`，并打出该块公式原文 `a⋅b∥a∥∥b∥\frac{a \cdot b}{\|a\|\|b\|}∥a∥` |
+| 乙：在 day-10 注入 `.prose .has-math { overflow-x: visible !important }` | 320px 活体层 | 横滚出口被撤 → FAIL | `overflow-x 不是 auto（实测 visible）` **且** `overflow-y 计算值不是 hidden（实测 clip）` |
+
+合计 **FAIL 4 条**，两层都开口。乙档还顺手把 CSS Overflow 那条规则**反向**证了一次：`overflow-x` 一旦不再是滚动值，`overflow-y` 的 `clip` 就计算回 `clip` 而不再是 `hidden` —— 与第六小节第 2 条正向实测互为对照。
+
+正常跑（无注入）：92 页 / 13747 个候选块 / 旧选择器命中 2750 个 / **漏标 0 · 多标 0**，活体三页 `overflow-x=auto`、`overflow-y=hidden`、整页横溢 0px、CSS 用类 true / 仍含 `:has(.katex)` false。
+
+一处量具提醒：`node … | tail` 之后的 `$?` 是 **tail** 的退出码，不是 node 的。注入跑打出的 `inject_rc=0` 因此没有意义，判定要看 FAIL 文本本身（或去掉管道重跑取 rc）。
+
+**八、残留与不许推出的结论**
+
+- **day-10 的字号切换在 v1 之后仍是 ~323ms，闸仍红。** 不许说「体验已达标」。剩下的 ~180ms 重排是 7404 个 KaTeX 节点跟着字号重排的固有成本，唯一能砍半的杠杆（v4）已按上面第 3 条否决。
+- 探针的绝对值与闸的绝对值**口径不同**：探针显式点「阅读字号」组里 `aria-pressed="false"` 的那一枚并在点击前强制结账，闸走 `.seg-btn` `.first()` 且前面还有别的步骤。已核对两者靶子是同一枚（`button.seg-btn「小」 组=阅读字号`），但重样式次数不同（探针 ~45、闸 ~5），**所以只引用探针的变体间差值，不把探针绝对值当闸的读数**。
+- LoAF 的 `scripts` 归因在这一页**报不出 culprit**：18 行全部是「相交长帧里没有 >5ms 的脚本条目」。这与 §11.37 的发现一致 —— 强制布局的时间不计入 V8 的 `ScriptDuration`，而此浏览器的 LoAF 脚本条目也没把它归到任何函数上。归因只能靠 CDP 计数差 + 单变量干预，不能靠读脚本名。
+- 阈值、`quiet-vitals-strict.sh`、`vitals.mjs` 的判定逻辑均未改。
+- **2026-11-16 又试了一次绝对判定：`quiet-vitals-strict.sh` 等满 ~8min（150 次采样）仍未拿到静窗，输出 `no strict quiet window within ~8min - vitals not run`，vitals 一次都没跑。** 所以本节之后仍然没有任何新的绝对读数，day-10 的红不是「已修好」也不是「已量到更差」，是**没量成**。Batch ZG 新铺 `*{scrollbar-width:thin}` 之后要回答「有没有更贵」，只能走同构建配对 A/B（`ab-star.mjs`，见 §11.42），那是归因不是判定。
+
+**九、受影响回归电池（ZF / ZG 落地后补跑，2026-11-16）**
+
+| 闸 | rc | 读数 |
+| --- | --- | --- |
+| `zc-verify` | 0 | 「全部通过」：`/tags` 25/31 行直接写出篇名；首页 eager JS **29 个脚本 / 651.7KB**；首页无 Lenis 实例；首页不再引用 GLB / 3D 海报 |
+| `narrow-overflow` | 0 | 320px **0 页**横向溢出、360px **0 页** |
+| `sweep2` | 0 | 43 页 / 215 项检查 / `findings: []` |
+| `fontwt` | 0 | PASS：站内每个真实用到的「族 × 字重档」都有脸覆盖；day-10 的 KaTeX_Math / KaTeX_Main 400↔700 像素复核两两不同 |
+| `batchy` | 0 | 全 PASS：系列首篇只有「下一篇」、末篇只有「上一篇」且指向正确；terms 有 `id=license` 章、附则顺延为 7、页脚许可锚点落位 `h2#license top=96px`；全程无页面级 JS 错误 |
+| `contrast` | 0 | **这个 0 不构成通过** —— 该探针没有 exit 逻辑，印了「低于 WCAG AA 的可见文字 624 处」仍退出 0。分类与真缺陷处置见 §11.43 |
+
+前五项是真判定。第六项此前被误算进「6 道闸全 rc=0」，§11.43 一更正了这个口径。
+
+### 11.42 配对 A/B：新铺的 `*{scrollbar-width:thin}` 没有把 day-10 推得更贵（Batch ZG）
+
+§11.38 六把 `scrollbar-width: thin` 从 `html` 改铺到 `*`。`*` 是通用选择器，而 day-10 本来就在 INP 红线上，所以必须回答「这条改动有没有让它更贵」。静窗不可达（§11.41 八），按 §11.40 定的口径走**同构建配对 A/B**：只需条件可比，不需静机；阈值一个字没改，本节也不宣称任何「达标」。
+
+**一、设计（`ui-concepts/verify/ab-star.mjs`）**
+
+同一份构建、运行时干预、不重建，因此没有「两个包不一样」的混淆。单视图 1280x800:light，4 轮 × 2 变体，位次按 `(rep-1)%2` 轮换，每行记录干预前后 CPU 负载。
+
+| 变体 | 干预 |
+|---|---|
+| s0 出厂态 | 不动（`*{scrollbar-width:thin}` 活着） |
+| s1 | 把那条 `*` 规则的 `selectorText` 改成 `.no-such-element-ever-zg`（摘掉它的匹配成本），**同时注入 `html{scrollbar-width:thin!important}` 把根的几何补回来** |
+
+补根这一步是必需的：不补的话根会从 10px 变 15px、可用宽度差 5px，那就同时在动两个变量。
+
+自证（不成立判 INVALID 并排除，不许把「没干预成」当成「干预没用」）：s0 要求 `*` 规则存在、根 computed thin、内层探针 computed thin；s1 要求那条规则已摘净（剩 0 条）、**根 computed 仍是 thin 且根占位与干预前逐像素相同**、内层探针 computed 变回 auto 且占位等于 auto 参照值。两档都在点击前强制一次样式/布局结账，抹平「干预自己顺手 flush 过」的口径差；干预后用 LoAF 计数确认 500ms 无新长帧才算静（与 `attr-ze.mjs` 同形）。
+
+**二、两轮结果（16 行全部自证通过，0 行 INVALID）**
+
+| 轮 | 变体 | n | INP 均值（区间） | 重样式 ms（区间） | 重样式次数 | 重排 ms（区间） | 重排次数 | 任务合计 |
+|---|---|---|---|---|---|---|---|---|
+| 一 | s0 | 4 | **338**（320–352） | 116（113–118） | **6** | 182（171–199） | **1** | 370 |
+| 一 | s1 | 4 | 366（352–376） | 124（122–126） | **6** | 196（191–204） | **1** | 397 |
+| 二 | s0 | 4 | **344**（328–352） | 120（113–126） | **6** | 183（176–187） | **1** | 383 |
+| 二 | s1 | 4 | 410（336–480） | 144（116–172） | **6** | 221（183–254） | **1** | 458 |
+
+**三、结论分三条，强度不一样，不许混着说**
+
+1. **最硬的一条：重样式次数 6、重排次数 1，在全部 16 行里两档完全一致。** 通用选择器没有增加失效趟数或布局趟数。这条不依赖负载、不依赖均值，是计数。
+2. **方向一致：两轮 s0 都不比 s1 贵。** 第一轮重样式区间不重叠（113–118 vs 122–126），出厂态低约 8ms。
+3. **第二轮没有干净复现那个 8ms 差，不许把它当成可复现的收益。** rep1–2 机器负载剧烈波动（s0 有一轮 20→48%），s1 的 464/480 两个高值都落在那两轮，把均值抬到 410；rep3–4 安静下来后 s0 = 352/328、s1 = 336/360，**互相交错、分不开**。所以正确说法是「量不出代价」，不是「省了 8ms」，更不是「省了 66ms」。
+
+**四、几何混淆已排除，但排除它的证据不是那个计数**
+
+探针本来要数「站内真渲染出滚动条的内层容器」，用来判断 s1 的 15px 内层滚动条会不会改变布局、把几何差混进选择器成本。第一版用 `offsetWidth - clientWidth` 直接相减，**把边框算成了滚动条**，报出「10 个真滚动容器」（全是 `td`/`table` 的 1–2px 边框）。扣掉边框后剩 5 个 `td.has-math`，占位 `y1` —— 而**这 1px 在 thin 与 auto 两档下完全相同**（各 20 次采样全是 `x0/y1`）。滚动条宽度从 10px 变 15px 而占位不动，说明它根本不是滚动条，是 `offsetHeight`/`clientHeight` 取整的 1px 伪影。
+
+结论：**day-10 没有内层滚动条真在占位**，两档几何相同，几何混淆这条路排除。这个 1px 伪影本身没再去修 —— 结论不依赖它，依赖的是「占位不随 width 变化」这个对照。
+
+**五、残留**
+
+- s1 除了摘规则还多注入了一张样式表，所以即便第一轮那 8ms 是真的，也不能干净地全归给通用选择器。要彻底隔离得改构建做双包 A/B，本轮没做，因为要回答的问题（「出厂态有没有更贵」）已经答完。
+- 本节是归因不是判定。day-10 的绝对 INP 仍然没有新的静窗读数，红线状态未变（§11.41 八）。
+- 探针绝对值不与闸的绝对值互引（§11.41 八的口径纪律）：本节 s0 的 338/344 与 `attr-ze.mjs` 的 v0 368、与闸的读数都不同口径，只在本节内部做变体间比较。
+
+### 11.43 暗色强调面字色 3.05:1：一枚不随模式翻的令牌，与「写了 ≠ 生效」的扫描陷阱（Batch ZH）
+
+**一、线索来自一道退出 0 却印了 624 条失败的探针**
+
+回归电池里 `contrast` 打印「低于 WCAG AA 的可见文字 624 处（实色底 624 · 压在图片上 0）」却 `rc=0`。查 `ui-concepts/verify/contrast.mjs` 全 131 行：**没有任何 `process.exit` / FAIL / PASS / 豁免逻辑**（grep `exit|FAIL|PASS|allow|SKIP|豁免|阈值|BAR` 零命中）。它是**报告探针不是闸**，`rc=0` 只表示「跑完了」。所以「6 道闸全 rc=0」这句话里，contrast 那一道从来就不构成通过 —— 此前把它算进绿是口径错误，本节更正。
+
+624 条按 `view+sel+fg+bg` 去重后只剩 **4 个唯一组合**（Shiki 的 `span.` 类名为空，全站代码 token 全塌成几行）。读日志时不能把「624 处」当成 624 个不同缺陷：
+
+| 模式 | 选择器 | 字色 × 底色 | 比值 | 需 | 归类 |
+| --- | --- | --- | --- | --- | --- |
+| dark | `a.skip-to-content` | `#ffffff` × `rgb(224,117,95)` | **3.05** | 4.5 | 真缺陷，本节修 |
+| light | `span.`（Shiki） | `rgb(227,98,9)` × `rgb(247,247,247)` | 3.26 | 4.5 | 已知边界 |
+| light | `span.`（Shiki） | `rgb(215,58,73)` × 同上 | 4.27 | 4.5 | 已知边界 |
+| light | `span.`（Shiki） | `rgb(106,115,125)` × 同上 | 4.49 | 4.5 | 已知边界 |
+
+后三条是 Batch F 已判过的取舍（本节 line 696 原文：「剩下 4 个去重后的案例全是 Shiki `github-light`/`github-dark-dimmed` 的语法着色（要动就得写死新色，越界，留作已知边界）」）。**但 Batch F 那 4 条全是 Shiki，没有跳转链接这一条** —— 它是第 17 轮视觉回炉把暗色强调色换成陶土 `#e0755f` 之后新出现的，不是旧边界。
+
+**二、根因：`--on-accent` 钉死白色，强调色却随模式翻了明暗**
+
+`globals.css:89` 原为 `--on-accent: #ffffff`，只在 `:root` 定义一次，暗色块从未覆盖它。而暗色 `--color-primary` 是 `#e0755f`（浅陶土），亮色是 `#b4442f`（深陶土）。白字压深陶土 5.51:1 过，压浅陶土 3.05:1 不过。**令牌对里只有一枚跟着模式走，另一枚没跟** —— 这不是某一处控件写错了字色，是契约本身缺了一档。
+
+纯算术核对（不靠手算，node 现算）：
+
+| 模式 | 底 | 改前 `#ffffff` | 改后 `--color-text-inverse` |
+| --- | --- | --- | --- |
+| 亮 | `--color-primary` `#b4442f` | 5.51 | 5.51（`#ffffff`，一字不变） |
+| 亮 | `--color-primary-hover` `#8f3423` | 7.83 | 7.83（一字不变） |
+| 暗 | `--color-primary` `#e0755f` | **3.05** | **6.08**（`#141311`） |
+| 暗 | `--color-primary-hover` `#ef8e79` | **2.38** | **7.79** |
+
+修法一行：`--on-accent: var(--color-text-inverse)`。选这枚令牌的理由不是「随便找个深色」：`--color-text-inverse` 亮 `#ffffff` / 暗 `#141311`，语义就是「反色面上的墨」，且**全仓源码声明了 6 次却从未被消费**（`var(--color-text-inverse)` 在 app/components/lib/scripts 零命中）—— 是个正好为该用途准备着的死令牌。**零新增写死色**，符合令牌纪律；亮色两档完全不动，所以这不是全站换色，只补暗色缺的那一档。
+
+顺手核过有没有绕过令牌的漏网：`components/**` 与 `app/**` 里 `text-white` / `text-[#fff` / `color:#fff` / `color:white` **零命中**，`--on-accent` 也只有这一处定义。所以改一枚即兜住全部消费者，不需要逐处补字色。
+
+**三、扫描陷阱：「写了 `color: var(--on-accent)`」不等于「最终生效」**
+
+新闸第一版从源码认出 6 处消费者，其中 `.btn-primary` 赫然在列。渲染侧一量就露馅：`/learn/` 上那枚「进入课程」按钮静止底是 `#23211e`（墨）、悬停 `#56534e`，**根本不是强调色**。查源码：`.btn-primary` 在 `@layer components`（`globals.css:611`）里确实写了 `background: var(--color-primary); color: var(--on-accent)`，但 `globals.css:2369` 与 `:2711` 两条**未分层**规则把它改写成 `background: var(--ink); color: var(--canvas)`。未分层压过分层，与特异性无关 —— 它最终不是消费者。
+
+只读声明就会把它算进覆盖，然后拿「强调色那一档过了」去替一个刷墨色的按钮背书。这是**假绿的另一种形状**：不是没量，是量了 A 却声称覆盖了 B。
+
+两闸都据此改口径：
+- 声明侧加保守覆盖检测：同选择器文本、源码后置、且重写了 `color` → 剔出覆盖清单并明说「交渲染侧量」。保守方向是**少声称覆盖**：若后置那条其实藏在更低优先级的层里、前面那条仍生效，这里会误剔，而误剔只是把这一处推给渲染侧，不会放假绿。改后认出 **5 处最终生效**（`::selection` / `.skip-to-content` / `.btn-accent` / `.apple-pagination__item[aria-current='page']` / `.apple-filter[aria-pressed='true']`），另 1 处（`.btn-primary`）明示被改写。
+- 渲染侧不再拿 `.btn-primary` 当强调面样本，改量三处**真刷强调色**的控件，并自证「量到的底色 == 该档 `--color-primary`」，不等就判这一行不算数。
+
+**四、必须如实说的一条：悬停真换底 0 处**
+
+渲染侧对三处控件都做了 hover 前后对照，结果 **6 行全部「悬停未换底」**（亮暗 × 三处，底色 hover 前后一模一样）。也就是说：
+
+- **真渲染出来的缺陷只有静止态 3.05**（跳转链接 / 分页当前页 / 搜索筛选按下态）。
+- 第二节表里那条更差的 **2.38:1 悬停档，当前没有任何活控件能走到** —— 它只存在于 `.btn-accent:hover`，而 `.btn-accent` 在 `components/**` 与 `app/**` 里**零使用者**（歌单播放器已在第 13 任务下线，`globals.css:722` 的注释还写着「歌单加载钮」）。它是死 CSS。
+
+所以本节的悬停修复是**潜在契约修复，不是已渲染缺陷修复**，不得写成「修好了悬停态的对比度」。`.btn-accent` 的死代码身份登记在此，留给 Batch ZC（死代码下线）处置，本节不顺手删 —— 本轮要答的问题（暗色强调面字色够不够）已经答完，删规则是另一件事。
+
+**五、两道新闸（都有 exit 逻辑，都做了注入自证）**
+
+| 闸 | 量什么 | 自证 | 结果 |
+| --- | --- | --- | --- |
+| `ui-concepts/verify/accent-contrast.mjs` | 声明侧令牌契约：`--on-accent` × {`--color-primary`, `--color-primary-hover`} × 亮暗 | 亮暗强调色必须解析成**不同**实色（相同则层叠塌成一套、暗色量的是亮色）；任一令牌解析不到 → 判没量成；`ACCENT_INJECT=1` 把 `--on-accent` 钉回 `#ffffff` | 正常 **rc=0**，4 对全过；注入 **rc=1**，精确咬出暗色 3.05 与 2.38 |
+| `ui-concepts/verify/accent-render.mjs` | 渲染侧 computed color × 合成底色，三处真实强调面 × 亮暗，含 hover 前后对照 | 底色必须 == `--color-primary`；hover 若换底必须 == `--color-primary-hover` 并额外量一档，**没换底就明说「不声称覆盖悬停档」**；主题未生效跳过并计数；控件没渲染出来判没量成 | **rc=0**，6 处渲染态全过（亮 5.51 / 暗 6.08），悬停真换底 0 处 |
+
+注入咬出的 3.05 与浏览器调查探针量到的 3.05 **是同一个数**——声明侧算术与渲染侧读数互相印证，不是两套各说各话。
+
+写探针时踩的两个量具坑，登记以免重犯：
+- `page.evaluate(fn)` 会把 fn **序列化进页面**，闭包里的 Node 侧 helper 一律取不到（第一版 `ReferenceError: parse is not defined`）。合成/解析函数必须内联在 fn 体内。
+- READ 返回 hex 串而外层 `parse` 只认 `rgb()`，`lum(null)` 直接崩。改成两种写法都认、解析不到返回 `null` 由调用方判「没量成」——**不许崩，也不许把 null 当 0 混过闸**。
+
+**六、落地后回归（2026-11-16）**
+
+- `npm run build` **rc=0**；`npm run check` **rc=0**，全段零告警（typecheck / lint / check:emoji / check:ui / test:proxy / test:attack / audit:env）。Batch F 时期唯一的 `command-palette.tsx` lenis 告警已随 ZC 下线消失。
+- 全站对比度调查：**624 → 596 处**，暗色 `a.skip-to-content` 那一行**消失**，去重后只剩 3 条 Shiki 亮色语法色（3.26 / 4.27 / 4.49），即 Batch F 判过的已知边界。减少的 28 处就是跳转链接在各页暗色下的实例。
+- 两道新闸：声明侧 rc=0（4 对全过）/ 注入 rc=1（咬出 3.05 与 2.38）；渲染侧 rc=0（6 处渲染态，亮 5.51 / 暗 6.08）。
+- **视觉复核（截图存 `ui-concepts/verify/shots-zh/`）**：暗色跳转链接聚焦后是左上角陶土胶囊 + **墨字**「跳到主要内容」，焦点环在；暗色分页当前页「1」是墨字陶土方块，与描边的「2」和箭头区分清楚 —— 观感是「选中态」，不是改坏。亮色分页 computed 仍 `rgb(255,255,255) on rgb(180,68,47)`，与改前逐字相同。
+- 截图时踩的量具坑：`shot.mjs --eval` 的包装是 `return (expr)`，传箭头函数会被**返回**而不调用（打印 `undefined` 即线索，第一版截图里跳转链接根本没露出来）。要传 IIFE `(() => {...})()`。
+- **整套回归电池重跑（9 道，全 rc=0，日志 `ui-concepts/verify/reg-zh-*.log`）**：`zc-verify` 全部通过（首页 eager JS 29 脚本 / 651.7KB，无 Lenis、无 GLB）；`narrow-overflow` 320/360 两档 0 页横向溢出；`sweep2` 43 页 / 215 检查 / findings []；`fontwt` PASS（每个真实用到的族×字重档都有脸覆盖）；`batchy` 全 PASS（含 `h2#license top=96px`、全程无页面级 JS 错误）；`scrollbar-contrast` 亮 5.29 / 暗 6.73（闸 3:1）；`reading-progress` 两条路都成立（CSS 时间轴连续、关动画后行内值接管、aria-valuenow 到底 100）；`mathclass` 92 页 / 2750 块逐元素等价、漏标 0 多标 0；`scrollbar-geometry` thin 不挤出横向滚动、可用宽度只增不减。计时闸不在本电池内 —— day-10 绝对 INP 仍无静窗读数，红线状态未变（§11.41 八），不宣称达标。
+
+**七、残留**
+
+- Shiki 三条亮色语法色仍是已知边界（Batch F 原判不变）：要动就得写死新色，越过令牌纪律。本节不声称全站 AA 全绿。
+- `contrast.mjs` 仍是没有 exit 逻辑的报告探针。本节没有给它加闸逻辑（那会改变它「全站普查」的用途），而是**另开两道有判定的闸**覆盖强调面这一类。读它的输出时必须记住 `rc=0` 不等于通过。
+- 暗色 `--color-success` / `--color-warning` / `--color-danger` 未在暗色块重定义，仍沿用亮色值。本轮调查探针没在这三枚上报出失败，所以**没有证据说它们有问题，也没有证据说它们没问题** —— 未量，不列入本节结论。
+

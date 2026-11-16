@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SITE } from '@/lib/constants'
 import { getAllCategories, getPostsByCategory } from '@/lib/posts'
-import { PostList } from '@/components/post-card'
+import { PostList } from '@/components/post-list'
 import { PageMasthead } from '@/components/page-masthead'
 import { IconArrowLeft } from '@tabler/icons-react'
 

@@ -32,7 +32,14 @@ export function BookmarkButton({ slug }: { slug: string }) {
   }, [slug])
 
   const toggle = useCallback(() => {
-    setSaved(toggleBookmark(slug))
+    const next = toggleBookmark(slug)
+    // 写入可能在挂载后失效（存储被清空、配额满、策略变严）。返回值只是「打算写成什么」，
+    // 回读一次本机存储确认真的落盘，否则退回禁用态，不留一个刷新后就消失的「已收藏」。
+    if (isBookmarked(slug) !== next) {
+      setAvailable(false)
+      return
+    }
+    setSaved(next)
   }, [slug])
 
   if (!mounted) {

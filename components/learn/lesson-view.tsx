@@ -65,7 +65,6 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
   return (
     <div className="py-10 sm:py-14">
       <ReadingProgress />
-
       {/* Top rail */}
       <div
         className="flex items-center justify-between gap-4 py-2.5"

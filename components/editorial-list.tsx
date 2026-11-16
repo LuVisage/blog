@@ -2,50 +2,79 @@ import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { PostMeta } from '@/lib/posts'
+import { coverFor } from '@/lib/covers'
+import { IconArrowUpRight } from '@tabler/icons-react'
 
 /**
- * 编辑式文章列表：日期 → 标题 → 一句话摘要 → 标签，靠发丝线分行。
- * 参照 Jim Nielsen / overreacted / Lee Robinson 的首页范式——没有卡片、缩略图、
- * 序号和悬停光效，标题 hover 变强调色是唯一的交互反馈。
+ * 编辑式文章行（第 20 轮复合版）。
+ *
+ * 第 19 轮之后这里是一串纯文字：日期 → 标题 → 摘要 → 标签，整页没有一张图、
+ * 没有一个色块，读者第一眼找不到落点。这一版把「编号 + 题图 + 元信息 + 标题 +
+ * 摘要 + 箭头」装进同一行，题图直接复用 lib/covers.ts 的封面池（同一份数据，
+ * 零写作成本），整行仍是唯一一个 <Link>，标签行留在外面各自可点。
+ *
+ * `data-glow` 交给 GlowRows 做跟手柔光；所有 hover 反馈都在 CSS 里，
+ * 只用 transform / opacity / color 系属性。
  */
 export function EditorialList({ posts, compact = false }: { posts: PostMeta[]; compact?: boolean }) {
   if (!posts.length) return null
 
   return (
     <ol className="editorial__list">
-      {posts.map((post) => (
-        <li key={post.slug} className={`editorial__item${compact ? ' editorial__item--compact' : ''}`}>
-          <Link href={`/posts/${post.slug}`} className="editorial__item-link">
-            <div className="editorial__meta">
-              <time dateTime={post.date}>
-                {format(parseISO(post.date), 'yyyy.MM.dd', { locale: zhCN })}
-              </time>
-              <span aria-hidden="true">·</span>
-              {post.category && (
-                <>
-                  <span>{post.category}</span>
+      {posts.map((post, i) => {
+        const cover = coverFor(post)
+        return (
+          <li
+            key={post.slug}
+            className={`editorial__item feature-row${compact ? ' editorial__item--compact' : ''}`}
+          >
+            <Link
+              href={`/posts/${post.slug}`}
+              className="editorial__item-link feature-row__link"
+              data-glow
+            >
+              <span className="feature-row__thumb" aria-hidden="true">
+                <img src={cover.url} alt="" loading="lazy" decoding="async" />
+                <span className="feature-row__no">{String(i + 1).padStart(2, '0')}</span>
+              </span>
+
+              <span className="feature-row__body">
+                <span className="editorial__meta">
+                  <time dateTime={post.date}>
+                    {format(parseISO(post.date), 'yyyy.MM.dd', { locale: zhCN })}
+                  </time>
                   <span aria-hidden="true">·</span>
-                </>
-              )}
-              <span>{post.readingTime} 分钟</span>
-            </div>
+                  {post.category && (
+                    <>
+                      <span>{post.category}</span>
+                      <span aria-hidden="true">·</span>
+                    </>
+                  )}
+                  <span>{post.readingTime} 分钟</span>
+                </span>
 
-            <h3 className="editorial__item-title">{post.title}</h3>
+                <h3 className="editorial__item-title">{post.title}</h3>
 
-            {!compact && post.description && (
-              <p className="editorial__item-desc">{post.description}</p>
+                {!compact && post.description && (
+                  <p className="editorial__item-desc">{post.description}</p>
+                )}
+              </span>
+
+              <span className="feature-row__arrow" aria-hidden="true">
+                <IconArrowUpRight size={18} strokeWidth={1.75} />
+              </span>
+            </Link>
+
+            {!compact && post.tags.length > 0 && (
+              <div className="editorial__tags">
+                {post.tags.slice(0, 3).map((tag) => (
+                  <Link key={tag} href={`/tags/${tag}`}>#{tag}</Link>
+                ))}
+              </div>
             )}
-          </Link>
-
-          {!compact && post.tags.length > 0 && (
-            <div className="editorial__tags">
-              {post.tags.slice(0, 3).map((tag) => (
-                <Link key={tag} href={`/tags/${tag}`}>#{tag}</Link>
-              ))}
-            </div>
-          )}
-        </li>
-      ))}
+          </li>
+        )
+      })}
     </ol>
   )
 }

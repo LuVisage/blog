@@ -49,7 +49,6 @@ export function TocList({ maxHeight, onNavigate }: TocListProps) {
   return (
     <ul
       ref={listRef}
-      data-lenis-prevent
       className={`relative flex-1 min-h-0 overflow-y-auto pr-1 ${SCROLLBAR_HIDDEN}`}
       style={maxHeight ? { maxHeight } : undefined}
     >

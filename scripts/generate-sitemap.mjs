@@ -14,6 +14,8 @@ const curriculumDir = join(__dirname, '..', 'content', 'curriculum')
 const publicDir = join(__dirname, '..', 'public')
 
 // Static pages (without trailing dynamic segments)
+// /projects、/friends、/now 已并入 /about 的分节，canonical 指向那里，
+// 路由本身留着接旧链接，但不该再进 sitemap 跟 /about 抢同一份内容。
 const staticPages = [
   { path: '/', priority: '1.0', changefreq: 'daily' },
   { path: '/posts/', priority: '0.9', changefreq: 'daily' },
@@ -23,10 +25,7 @@ const staticPages = [
   { path: '/series/', priority: '0.5', changefreq: 'weekly' },
   { path: '/search/', priority: '0.3', changefreq: 'monthly' },
   { path: '/about/', priority: '0.4', changefreq: 'monthly' },
-  { path: '/projects/', priority: '0.4', changefreq: 'monthly' },
-  { path: '/friends/', priority: '0.3', changefreq: 'monthly' },
   { path: '/privacy/', priority: '0.1', changefreq: 'yearly' },
-  { path: '/now/', priority: '0.4', changefreq: 'monthly' },
   { path: '/uses/', priority: '0.3', changefreq: 'yearly' },
   { path: '/subscribe/', priority: '0.4', changefreq: 'yearly' },
 ]

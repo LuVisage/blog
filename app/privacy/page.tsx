@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         eyebrow="条款 — Privacy"
         title="隐私政策"
         lead="这个站点会记录什么、不会记录什么。"
-        counter="更新于 2025.07.14"
+        counter="更新于 2026.11.13"
       />
 
       <AnimatedContent direction="up" delay={0.06}>
@@ -35,12 +35,26 @@ export default function PrivacyPage() {
             当你在本博客发表评论时，你的 GitHub 用户名、头像和评论内容将公开展示在文章页面。请勿在评论中分享敏感个人信息。
           </p>
 
-          <h2>3. Cookies</h2>
-          <p>本博客使用以下 Cookie：</p>
+          <h2>3. 本机存储与 Cookie</h2>
+          <p>
+            本站自己不设置 Cookie，也没有加载访问统计。下面这些偏好写在浏览器的 localStorage 里，
+            只留在你这台设备上，不会随请求发回服务器：
+          </p>
           <ul>
-            <li><strong>主题偏好</strong>：存储你对亮色/暗色主题的选择（localStorage），不会发送到服务器。</li>
-            <li><strong>Giscus</strong>：评论系统可能设置必要的 Cookie，用于 GitHub 身份验证。</li>
+            <li><strong>主题偏好</strong>（<code>theme</code>）：亮色 / 暗色的选择。</li>
+            <li><strong>正文字号</strong>（<code>blog-font-size</code>）：文章页的字号档位。</li>
+            <li><strong>收藏夹</strong>（<code>baron-bookmarks</code>）：收藏文章的 slug 列表，换个浏览器就看不到。</li>
+            <li><strong>课程进度</strong>（<code>learn.课程名.progress.v1</code>）：课次里勾掉的自测题与自查清单。</li>
+            <li>
+              <strong>接口设置</strong>（<code>learn.agent.llm.v1</code>）：实验台里你自己填的服务地址、模型与 API Key。
+              Key 只存在本机；真正发起调用时，它随请求头发往你自己填的转发服务与模型厂商，本站不经手、不记录。
+            </li>
           </ul>
+          <p>
+            在浏览器里清除本站的站点数据，就能一并抹掉以上偏好。第三方 Cookie 只可能来自评论区：
+            <strong>Giscus</strong> 以 iframe 嵌入 giscus.app，登录 GitHub 时由它设置身份验证所需的 Cookie，
+            详见 GitHub 隐私政策。
+          </p>
 
           <h2>4. 外部链接</h2>
           <p>

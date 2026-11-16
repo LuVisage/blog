@@ -16,9 +16,9 @@ import { AvatarImage } from '@/components/avatar-image'
 import { PostLicense, LICENSE_URL } from '@/components/post-license'
 import { RelatedPosts } from '@/components/related-posts'
 import { FontSizeControl } from '@/components/font-size-control'
+import { BlurReveal } from '@/components/ui/blur-reveal'
 import { ReadingProgress } from '@/components/ui/reading-progress'
 import { ProseReveal } from '@/components/ui/prose-reveal'
-import { BlurReveal } from '@/components/ui/blur-reveal'
 import { CodeBlockEnhancer } from '@/components/code-block-enhancer'
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import Link from 'next/link'
@@ -107,18 +107,23 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           {/* Article header — 元信息行（stagger）→ 标题（Blur 聚焦入场 §11.10）→ 摘要/系列/标签（stagger） */}
           <div className="pt-10 sm:pt-14 pb-8">
-            {/* 作者指定的真实封面才有这张大图；卡片上的生成式 SVG 只做列表装饰，不铺进正文 */}
-            <div className="mb-10 overflow-hidden" style={{ borderRadius: 'var(--radius-md)' }}>
-              <img
-                src={cover.url}
-                alt={cover.alt}
-                loading="eager"
-                decoding="async"
-                data-zoomable
-                className="block w-full"
-                style={{ aspectRatio: '2.2 / 1', objectFit: 'cover' }}
-              />
-            </div>
+            {/* 题图：装裱成带编号与图注的图版，而不是一张裸图浮在标题上方。
+                点击放大仍由 ImageLightbox 的 data-zoomable 接管。 */}
+            <figure className="post-cover">
+              <span className="post-cover__no" aria-hidden="true">FIG. 01</span>
+              <div className="post-cover__frame">
+                <img
+                  src={cover.url}
+                  alt={cover.alt}
+                  loading="eager"
+                  decoding="async"
+                  data-zoomable
+                  className="block w-full"
+                  style={{ aspectRatio: '2.2 / 1', objectFit: 'cover' }}
+                />
+              </div>
+              <figcaption>{cover.alt} · 点击放大</figcaption>
+            </figure>
             <header className="stagger">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 eyebrow">
                 {post.category && (
@@ -191,20 +196,21 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           {/* Article content — no card, text sits on the canvas */}
           {/* 行长由 .prose 的 --measure（38em，对应中文 34-40 全角）决定，这里不再覆盖。
-              ProseReveal 让正文按段落随滚动分批渐入（[文档外] 签名动效，见 SPEC_LEDGER §1.8.4）。 */}
+              轻版滚动入场只作用于图 / 代码块 / 引语 / 表格 / 章节标题，
+              段落文字始终完整可读（Ctrl+F、打印、无 JS 都不受影响）。 */}
           <ProseReveal className="prose mx-0 mb-6">
             <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
           </ProseReveal>
 
-          <PostLicense />
+          <PostLicense editHref={`${SITE.repo}/edit/main/content/posts/${slug}.mdx`} />
 
           {/* Prev / next — ledger row, not cards */}
-          <nav className="grid grid-cols-1 sm:grid-cols-2 mb-12">
+          <nav className="post-nav grid grid-cols-1 sm:grid-cols-2 mb-12">
             {prev ? (
               <Link
                 href={`/posts/${prev.slug}`}
                 data-spotlight="row"
-                className="group flex flex-col gap-2 py-5 sm:pr-8 sm:border-r border-t-[color:var(--line-strong)] border-b-[color:var(--line)] sm:border-r-[color:var(--line)]"
+                className="post-nav__item group flex flex-col gap-2 py-5 sm:pr-8 sm:border-r border-t-[color:var(--line-strong)] border-b-[color:var(--line)] sm:border-r-[color:var(--line)]"
               >
                 <span className="caption flex items-center gap-1.5">
                   <IconChevronLeft size={13} strokeWidth={2} /> 上一篇
@@ -212,6 +218,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                 <span className="heading-3 row-title transition-colors group-hover:text-[var(--accent-text)]">
                   {prev.title}
                 </span>
+                <span className="post-nav__date">{format(parseISO(prev.date), 'yyyy.MM.dd', { locale: zhCN })}</span>
               </Link>
             ) : (
               <div />
@@ -219,7 +226,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
             <Link
               href={next ? `/posts/${next.slug}` : '/posts'}
               data-spotlight="row"
-              className="group flex flex-col items-end gap-2 py-5 text-right sm:pl-8 border-t-[color:var(--line-strong)] border-b-[color:var(--line)]"
+              className="post-nav__item group flex flex-col items-end gap-2 py-5 text-right sm:pl-8 border-t-[color:var(--line-strong)] border-b-[color:var(--line)]"
             >
               <span className="caption flex items-center gap-1.5">
                 {next ? '下一篇' : '返回列表'} <IconChevronRight size={13} strokeWidth={2} />
@@ -227,6 +234,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
               <span className="heading-3 max-w-full row-title transition-colors group-hover:text-[var(--accent-text)]">
                 {next ? next.title : '查看更多文章'}
               </span>
+              {next && <span className="post-nav__date">{format(parseISO(next.date), 'yyyy.MM.dd', { locale: zhCN })}</span>}
             </Link>
           </nav>
 

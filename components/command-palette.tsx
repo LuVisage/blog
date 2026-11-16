@@ -11,7 +11,6 @@ import {
 } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { useLenis } from '@/components/ui/lenis-provider'
 import {
   IconArrowBigUpLine,
   IconBookmark,
@@ -122,7 +121,6 @@ export function PaletteProvider({
 
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const lenis = useLenis()
 
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -158,8 +156,6 @@ export function PaletteProvider({
     restoreFocus.current = document.activeElement as HTMLElement | null
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    // §11.6：Lenis 平滑滚动存在时同步停/启，避免命令面板打开后页面仍可滚
-    lenis?.stop()
     // Esc 挂在 window 上而不是面板的 onKeyDown 上：Chromium 会把可滚动的结果区当成
     // 一个 Tab 站点，焦点一旦走到它外面，绑在浮层内的处理器再也收不到这个键 ——
     // 遮罩还在、body 仍是 overflow:hidden，页面就锁死了。
@@ -175,7 +171,6 @@ export function PaletteProvider({
       cancelAnimationFrame(raf)
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = previousOverflow
-      lenis?.start()
       restoreFocus.current?.focus?.()
     }
   }, [open])

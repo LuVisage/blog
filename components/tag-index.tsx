@@ -39,6 +39,7 @@ export function TagIndex({ posts, tags }: Props) {
                   ordinal={i + 1}
                   href={`/tags/${tag}`}
                   title={tag}
+                  desc={count <= 2 ? posts.filter((p) => p.tags.includes(tag)).map((p) => p.title).join(' · ') : undefined}
                   meta={`${count} 篇`}
                   ratio={count / max}
                 />
@@ -52,7 +53,7 @@ export function TagIndex({ posts, tags }: Props) {
         <EmptyState
           icon={<IconTag size={30} strokeWidth={1.25} />}
           title="还没有标签"
-          description="在文章 frontmatter 的 tags 里写下第一个主题"
+          description="文章发出后，主题线索会在这里汇总"
         />
       )}
     </div>
