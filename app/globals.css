@@ -785,6 +785,20 @@
 
 .prose p { margin: var(--space-16) 0; }
 
+/* 长文断行孤行控制（modern-web-guidance · visual-design/typography）：
+   「Use `text-wrap: pretty` for long-form body text (paragraphs, blockquotes, etc.)」；
+   同篇禁止挂在 * 上（断行有成本），故只点名段落/列表项与两处导语。
+   标题侧维持 balance（三处落点均无外框，符合该指南对 balance 的限制）。 */
+@supports (text-wrap: pretty) {
+  .prose p,
+  .prose li,
+  .editorial__intro,
+  .lead-md { text-wrap: pretty; }
+}
+/* 章节标题属 headline-like：balance 均衡断行（指南同篇；落点无外框） */
+.prose h2,
+.prose h3 { text-wrap: balance; }
+
 .prose small { font-size: var(--text-sm); line-height: var(--leading-body); color: var(--muted); }
 
 /* lead-md：课时导语坐在 .prose 之外，借同一套链接/粗体/行内代码语汇
@@ -1817,6 +1831,19 @@ figure[data-rehype-pretty-code-figure]:hover {
     animation: none !important;
   }
   html { scroll-behavior: auto; }
+  /* MWG ui-behaviors/motion：「Keep non-motion transitions (such as `color` or
+     `background-color` changes on links and buttons) enabled; only dampen or
+     disable spatial movement, scaling, rotation, or persistent animations.」
+     上面的通用清零会把颜色反馈一起掐掉（reduce 档悬停变成硬切），故在交互面
+     恢复 color 系过渡：悬停仍有 200ms 渐变，空间位移保持归零。
+     !important 是为了压过本文件后段对这些元素点名的 transition:none ——
+     那些规则的本意是掐空间动效，不该连颜色反馈一起带走。 */
+  a, button, .pressable, .link-underline {
+    transition: color var(--duration-fast) var(--ease),
+                background-color var(--duration-fast) var(--ease),
+                border-color var(--duration-fast) var(--ease),
+                text-decoration-color var(--duration-fast) var(--ease) !important;
+  }
 }
 
 /* ============================================================================
@@ -3647,6 +3674,29 @@ a.author-card__link:focus-visible { color: var(--accent-text); }
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
 }
+
+/* 跨文档视图过渡（Batch ZJ）：静态导出是 MPA，旧页快照与新页由浏览器原生
+   伪元素树交接，全程零 JS。处方来源 modern-web-guidance ·
+   ui-behaviors/directional-navigation-transitions：只动 transform/opacity、
+   非线性缓动、reduced-motion 归零（归零规则在本文件末尾的 reduce 主块）。
+   方向性滑动是 SPA startViewTransition(types) 的语汇；MPA 侧取同源交叉淡入
+   加新页 8px 抬起，翻页感与刊物嗓音一致。不支持 @view-transition 的浏览器
+   照旧直接导航，无需嗅探。 */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root) {
+  animation: vt-out var(--duration-fast) var(--ease) both;
+}
+::view-transition-new(root) {
+  animation: vt-in var(--duration-base) var(--ease-out) both;
+}
+@keyframes vt-out {
+  to { opacity: 0; }
+}
+@keyframes vt-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
 .page-sweep {
   position: fixed;
   top: 0;
@@ -4083,6 +4133,10 @@ a.author-card__link:focus-visible { color: var(--accent-text); }
   .share-tool,
   .post-nav__item,
   .reading-progress__fill { transition: none; }
+  /* 视图过渡的伪元素树不吃通用选择器，reduce 档要逐条点名归零（含 UA 的 group 动画） */
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none !important; }
 }
 
 @media print {

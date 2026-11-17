@@ -2234,3 +2234,39 @@ hover 反馈：plate 大字 color 转 `--accent-text`、外框 border-color 转 
 - `ImageLightbox` 保留：文章页当前没有可放大位图，但组件是委托监听，未来 content 出现图片时仍接管，不算死控件。
 - 计时闸不在本轮电池内：day-10 绝对 INP 仍无静窗读数，红线状态未变（§11.41 八）。
 
+### 11.45 现代性打磨：跨文档视图过渡 + 长文断行 + reduce 档颜色反馈恢复（Batch ZJ）
+
+**一、盘点与取舍（每条都有实测或原文依据）**
+
+- 跨文档视图过渡：**取**。静态导出是 MPA，硬导航（刷新/地址栏/站外返回）此前是硬切；`@view-transition` 零 JS 接管交接。
+- `text-wrap: pretty / balance`：**取**（MWG visual-design/typography 逐字处方）。
+- CJK `text-autospace` / `text-spacing-trim`：**不取**。content 全库 `[一-鿿][A-Za-z0-9]` 相邻无空格计数 **0**（作者已手工加空格），引入即 no-op。
+- Next `experimental.viewTransition`：**不启用**。config-shared.d.ts 注明依赖 React `unstable_ViewTransition`（react PR 31975）；本机 React 19.0 实测 `'unstable_ViewTransition' in require('react') === false`，启用即运行时错误。实现只存在于 next 的 experimental runtime bundle，默认 bundle 无 `startViewTransition`。
+- 方向性滑动（`startViewTransition(types)` + `:active-view-transition-type()`）：**不取**。那是 SPA 语汇，本站无调用点；MPA 侧交叉淡入 + 新页 8px 抬起更贴刊物嗓音。
+- 正文链接下划线改伪元素生长：**不取**。行内链接跨行时 `::after` 只落在最后一个行盒，多行链接会画出一条错位的线；既有静态 2px 下划线 + `text-decoration-color` 过渡才是多行安全解。
+
+**二、落地（全在 globals.css，零 JS 零新色）**
+
+- `3685-3699`：`@view-transition { navigation: auto; }`；`::view-transition-old(root)` = vt-out 200ms `--ease`（opacity→0）；`::view-transition-new(root)` = vt-in 300ms `--ease-out`（opacity 0→1 + translateY(8px)→0）。
+- reduce 主块 `1841-1846` 前置段：`::view-transition-group/old/new(root) { animation: none !important; }` —— 伪元素树不吃通用选择器，必须逐条点名（含 UA 的 group 动画）。
+- `792-800`：`@supports (text-wrap: pretty)` 内只点名 `.prose p / .prose li / .editorial__intro / .lead-md`（指南禁挂 `*`）；`.prose h2/h3` 补 balance。既有三处 balance（h1/.heading-1/.editorial__title）核对均无外框，符合指南对 balance 的限制。
+- `1834-1846`：reduce 档对 `a, button, .pressable, .link-underline` 恢复 color/background-color/border-color/text-decoration-color 四系 200ms 过渡（`!important` 压过后段点名的 `transition:none`）。**这是一处真差距的修复**：原通用清零把颜色反馈一起掐掉，与 MWG ui-behaviors/motion「Keep non-motion transitions … enabled」不符；DESIGN §10 旧 bullet 曾误称「color 过渡保留」，本轮一并更正。
+
+**三、量具两修（FAIL 先怀疑量具，判据未放宽）**
+
+1. 首版 `vt.mjs` 用 Link 点击量 VT → `pagereveal=no` FAIL。根因不在实现：App Router 软导航不换文档，跨文档过渡本就不该触发。改 `location.href` 硬导航实测，软导航另断言落位且零 pageerror。
+2. 二版用「reduce 中途帧与落定帧逐字节相同」作无残影代理 → 颜色恢复后 FAIL。根因：中途帧差异是导航链接水合后字色的 200ms 渐变（指南有意保留的非空间反馈），不是 VT 残影。改量 `viewTransition.finished` 耗时：默认档 312ms（交叉淡入真播放）、reduce 档 12ms（立即交接）；逐字节比较降级为登记项。
+
+**四、验证（2026-11-17）**
+
+- `npm run build` / `npm run check` rc=0 零告警；纪律闸原样接受新关键帧与伪元素规则（只动 opacity/transform、时长缓动全令牌）。
+- `vt.mjs` PASS：默认档 `pagereveal=yes`、finished=312ms、中途帧目检为真交叉残影（`shots-zj/vt-default-mid.png`：旧索引行半透明叠在新刊头下）；reduce 档 finished=12ms、`a` 计算过渡四系 0.2s 且不含 transform；软导航零 pageerror；pretty `supports=true`、`.prose p/li=pretty`、`.prose h2=balance`。
+- 对比度普查不重跑：本轮零色值改动（颜色恢复只改过渡时长，不改起止色），596 基线不变。fontwt / scrollbar / accent 三闸不重跑：字族字重、滚动条、强调面均无改动。
+- 回归电池 5 闸全绿（日志 `ui-concepts/verify/reg-zj-<gate>.log`）：zc-verify 全部通过（无 Lenis、无 GLB）；narrow-overflow 320/360 两档各 0 页横向溢出；sweep2 43 页 / 215 检查 / findings []；batchy 全 PASS（h2#license top=96px、全程无页面级 JS 错误）；mathclass 92 页 / 2750 命中块逐元素等价、320px 活体 overflow-x=auto。第一遍电池因 reduce 颜色恢复晚于其开跑而被主动停掉，最终 build 上整套重跑——不让旧 build 的读数入账。
+- 计时闸不在本轮电池内：day-10 绝对 INP 红线状态未变（§11.41 八）。
+
+**五、残留**
+
+- 跨文档过渡覆盖边界＝硬导航；软导航保留既有入场序列（blurIn/fadeUp stagger），不与 VT 叠双层动画。边界已写入 DESIGN §10 与组件注释，不声称全站导航都有过渡。
+- ZI 残留（`lib/covers.ts` 锁定死代码、`og-default.svg` 零引用、ImageLightbox 保留）不变。
+
