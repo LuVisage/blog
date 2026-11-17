@@ -9,9 +9,7 @@ import { InlineMd } from '@/components/inline-md'
 import { CodeBlockEnhancer } from '@/components/code-block-enhancer'
 import { TableOfContents } from '@/components/toc'
 import { ChapterBar } from '@/components/chapter-bar'
-import { FontSizeControl } from '@/components/font-size-control'
 import { ReadingProgress } from '@/components/ui/reading-progress'
-import { ProseReveal } from '@/components/ui/prose-reveal'
 import { Quiz } from '@/components/learn/quiz'
 import { Checklist } from '@/components/learn/checklist'
 import { GotchaTable } from '@/components/learn/gotcha-table'
@@ -77,7 +75,6 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
           <IconArrowLeft size={13} strokeWidth={2} />
           教程目录
         </Link>
-        <FontSizeControl />
       </div>
 
       <WeekStrip
@@ -155,11 +152,11 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
 
           {/* 行长交给 .prose 的 --measure（无层样式，本来就赢过 Tailwind 工具类），
               原来这里的 max-w-[68ch] 是条从没生效的死类。 */}
-          <ProseReveal className="prose mx-0 mb-14">
+          <div className="prose mx-0 mb-14">
             <CodeBlockEnhancer>
               <MDXContent source={lesson.content} components={components} />
             </CodeBlockEnhancer>
-          </ProseReveal>
+          </div>
 
           {/* tabIndex=-1：上面那条「本课 N 个可动手实验台」是页内跳转，可聚焦的落点
               才会真的把焦点交过来；否则只改 hash，焦点留在 BODY，下一跳 Tab 回页头。 */}
@@ -176,7 +173,6 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
               {prev ? (
                 <Link
                   href={lessonHref(course, prev.slug)}
-                  data-spotlight="row"
                   className="group flex flex-col gap-2 py-5 sm:pr-8 sm:border-r border-t-[color:var(--line-strong)] border-b-[color:var(--line)] sm:border-r-[color:var(--line)]"
                 >
                   <span className="eyebrow inline-flex items-center gap-1.5">
@@ -193,7 +189,6 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
               {next && (
                 <Link
                   href={lessonHref(course, next.slug)}
-                  data-spotlight="row"
                   className="group flex flex-col gap-2 py-5 sm:pl-8 sm:text-right border-t-[color:var(--line-strong)] border-b-[color:var(--line)]"
                 >
                   <span className="eyebrow inline-flex sm:flex-row-reverse items-center gap-1.5">

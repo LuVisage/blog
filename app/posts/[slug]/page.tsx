@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { SITE, siteUrl } from '@/lib/constants'
-import { TypographicCover } from '@/components/typographic-cover'
 import { getAllPosts, getPostBySlug, getAdjacentPosts, getPostsBySeries } from '@/lib/posts'
 import { MDXContent } from '@/components/mdx-content'
 import { TagBadge } from '@/components/tag-badge'
@@ -10,15 +9,10 @@ import { TableOfContents } from '@/components/toc'
 import { ChapterBar } from '@/components/chapter-bar'
 import { SocialShare } from '@/components/social-share'
 import { BookmarkButton } from '@/components/bookmark-button'
-import { ImageLightbox } from '@/components/image-lightbox'
-import { AuthorCard } from '@/components/author-card'
 import { AvatarImage } from '@/components/avatar-image'
 import { PostLicense, LICENSE_URL } from '@/components/post-license'
 import { RelatedPosts } from '@/components/related-posts'
-import { FontSizeControl } from '@/components/font-size-control'
-import { BlurReveal } from '@/components/ui/blur-reveal'
 import { ReadingProgress } from '@/components/ui/reading-progress'
-import { ProseReveal } from '@/components/ui/prose-reveal'
 import { CodeBlockEnhancer } from '@/components/code-block-enhancer'
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import Link from 'next/link'
@@ -87,7 +81,6 @@ export default async function PostPage({ params }: { params: PageParams }) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ReadingProgress />
-      <ImageLightbox />
 
       <div className="xl:flex xl:gap-16">
         <article className="flex-1 min-w-0">
@@ -101,21 +94,11 @@ export default async function PostPage({ params }: { params: PageParams }) {
             <Link href="/posts" className="eyebrow inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors">
               ← 文章目录
             </Link>
-            <FontSizeControl />
           </div>
 
-          {/* Article header — 元信息行（stagger）→ 标题（Blur 聚焦入场 §11.10）→ 摘要/系列/标签（stagger） */}
+          {/* Article header — 元信息行 → 标题 → 署名 → 摘要/系列/标签 */}
           <div className="pt-10 sm:pt-14 pb-8">
-            {/* 题图：排字图版（标题首字 + 刊头语汇），装裱成带编号与图注的图版。
-                ZI 起不再用 AI 封面，也没有可放大的位图，data-zoomable 随之撤掉。 */}
-            <figure className="post-cover">
-              <span className="post-cover__no" aria-hidden="true">FIG. 01</span>
-              <div className="post-cover__frame">
-                <TypographicCover post={post} variant="plate" />
-              </div>
-              <figcaption>排字图版 · 由标题生成，无摄影素材</figcaption>
-            </figure>
-            <header className="stagger">
+            <header>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 eyebrow">
                 {post.category && (
                   <Link
@@ -139,9 +122,9 @@ export default async function PostPage({ params }: { params: PageParams }) {
               </div>
             </header>
 
-            <BlurReveal className="display mt-5" style={{ fontSize: 'clamp(32px, 4.6vw, 52px)', lineHeight: 1.3 }}>
+            <h1 className="display mt-5" style={{ fontSize: 'clamp(32px, 4.6vw, 52px)', lineHeight: 1.3 }}>
               {post.title}
-            </BlurReveal>
+            </h1>
 
             {/* byline：博客的署名在标题下就出现，不等读完才见作者卡 */}
             <div className="mt-5 flex items-center gap-2.5">
@@ -154,7 +137,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
               <span className="body-sm" style={{ color: 'var(--ink)' }}>{SITE.author.name}</span>
             </div>
 
-            <header className="stagger mt-0">
+            <header className="mt-0">
               {post.description && (
                 <p className="body-md mt-6 max-w-2xl" style={{ color: 'var(--muted)' }}>
                   {post.description}
@@ -179,7 +162,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                 {post.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
                 <div className="flex flex-wrap items-center gap-3 ml-auto">
                   <BookmarkButton slug={post.slug} />
-                  <SocialShare title={post.title} url={postUrl} />
+                  <SocialShare url={postUrl} />
                 </div>
               </div>
             </header>
@@ -189,9 +172,9 @@ export default async function PostPage({ params }: { params: PageParams }) {
           {/* 行长由 .prose 的 --measure（38em，对应中文 34-40 全角）决定，这里不再覆盖。
               轻版滚动入场只作用于图 / 代码块 / 引语 / 表格 / 章节标题，
               段落文字始终完整可读（Ctrl+F、打印、无 JS 都不受影响）。 */}
-          <ProseReveal className="prose mx-0 mb-6">
+          <div className="prose mx-0 mb-6">
             <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
-          </ProseReveal>
+          </div>
 
           <PostLicense editHref={`${SITE.repo}/edit/main/content/posts/${slug}.mdx`} />
 
@@ -200,7 +183,6 @@ export default async function PostPage({ params }: { params: PageParams }) {
             {prev ? (
               <Link
                 href={`/posts/${prev.slug}`}
-                data-spotlight="row"
                 className="post-nav__item group flex flex-col gap-2 py-5 sm:pr-8 sm:border-r border-t-[color:var(--line-strong)] border-b-[color:var(--line)] sm:border-r-[color:var(--line)]"
               >
                 <span className="caption flex items-center gap-1.5">
@@ -216,7 +198,6 @@ export default async function PostPage({ params }: { params: PageParams }) {
             )}
             <Link
               href={next ? `/posts/${next.slug}` : '/posts'}
-              data-spotlight="row"
               className="post-nav__item group flex flex-col items-end gap-2 py-5 text-right sm:pl-8 border-t-[color:var(--line-strong)] border-b-[color:var(--line)]"
             >
               <span className="caption flex items-center gap-1.5">
@@ -292,7 +273,6 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           <RelatedPosts currentSlug={slug} />
 
-          <AuthorCard />
 
           <section className="mt-10 surface p-5 sm:p-7">
             <GiscusComments />

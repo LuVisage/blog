@@ -6,7 +6,6 @@ import { COURSES, getCurriculumStats, type CourseId } from '@/lib/curriculum'
 import { PageMasthead } from '@/components/page-masthead'
 import { LedgerRow, Ledger } from '@/components/ledger-row'
 import { IndexRail } from '@/components/index-rail'
-import { AnimatedContent } from '@/components/ui/animated-content'
 import { EmptyState } from '@/components/ui/empty-state'
 import { IconFolder, IconArrowUpRight } from '@tabler/icons-react'
 
@@ -55,7 +54,7 @@ export default function CategoriesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-16 items-start">
         <div className="min-w-0">
           {categories.length > 0 ? (
-            <AnimatedContent direction="up">
+            <div>
               <div>
                 <div className="eyebrow mb-5">索引</div>
                 <Ledger>
@@ -71,7 +70,7 @@ export default function CategoriesPage() {
                   ))}
                 </Ledger>
               </div>
-            </AnimatedContent>
+            </div>
           ) : (
             <EmptyState
               icon={<IconFolder size={30} strokeWidth={1.25} />}
@@ -82,7 +81,7 @@ export default function CategoriesPage() {
 
           {/* ── 系列：同一主题下的连续思考（真实数据：getAllSeries） ── */}
           {series.length > 0 && (
-            <AnimatedContent direction="up" delay={0.05}>
+            <div>
               <section className="mt-16 pt-8" style={{ borderTop: '1px solid var(--line)' }}>
                 <div className="eyebrow mb-4">系列 · Series</div>
                 <div className="flex flex-wrap gap-2">
@@ -98,11 +97,11 @@ export default function CategoriesPage() {
                   ))}
                 </div>
               </section>
-            </AnimatedContent>
+            </div>
           )}
 
           {/* ── 课程：/learn 五门体系（真实数据：COURSES + getCurriculumStats） ── */}
-          <AnimatedContent direction="up" delay={0.1}>
+          <div>
             <section className="mt-16 pt-8" style={{ borderTop: '1px solid var(--line)' }}>
               <div className="flex items-end justify-between gap-4 mb-4">
                 <div>
@@ -126,7 +125,7 @@ export default function CategoriesPage() {
                 ))}
               </Ledger>
             </section>
-          </AnimatedContent>
+          </div>
         </div>
 
         <IndexRail hide={['categories', 'series']} />

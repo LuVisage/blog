@@ -66,9 +66,8 @@ export function PostsCalendar({ posts }: Props) {
 
   const postDates = useMemo(() => new Set(datePostsMap.keys()), [datePostsMap])
 
-  // 浮层挂到 body：这块外面套着 AnimatedContent，入场跑完 GSAP 会留下一个
-  // identity transform，它照样建立 containing block —— fixed 于是按祖先坐标算，
-  // 实测格子在 488、浮层落在 829，鼠标那一下什么都看不见。
+  // 浮层挂到 body：任何祖先的 transform / overflow 都会给 fixed 建立 containing block
+  // 或把它裁掉（ZK 删掉入场层后实测过格子与浮层错位 341px），挂 body 一劳永逸。
   useLayoutEffect(() => {
     const el = tipRef.current
     if (!el || !tip) return

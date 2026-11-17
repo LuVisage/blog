@@ -47,9 +47,8 @@ export function ChapterBar() {
           {String(Math.max(1, current)).padStart(2, '0')}/{String(total).padStart(2, '0')}
         </span>
 
-        <div className="chapter-flip min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
           <span
-            key={active?.id ?? 'none'}
             className="block truncate text-sm"
             style={{ color: 'var(--ink)', fontWeight: 600 }}
           >

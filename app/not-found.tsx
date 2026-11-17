@@ -38,7 +38,6 @@ export default function NotFound() {
             <Link
               key={link.href}
               href={link.href}
-              data-spotlight="row"
               className="group flex items-baseline gap-4 py-3.5 rule"
             >
               <span className="meta tabular-nums transition-colors group-hover:text-[var(--accent-text)]">

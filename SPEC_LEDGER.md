@@ -2248,9 +2248,9 @@ hover 反馈：plate 大字 color 转 `--accent-text`、外框 border-color 转 
 **二、落地（全在 globals.css，零 JS 零新色）**
 
 - `3685-3699`：`@view-transition { navigation: auto; }`；`::view-transition-old(root)` = vt-out 200ms `--ease`（opacity→0）；`::view-transition-new(root)` = vt-in 300ms `--ease-out`（opacity 0→1 + translateY(8px)→0）。
-- reduce 主块 `1841-1846` 前置段：`::view-transition-group/old/new(root) { animation: none !important; }` —— 伪元素树不吃通用选择器，必须逐条点名（含 UA 的 group 动画）。
+- reduce 主块前置段（`a, button, .pressable, .link-underline` 颜色恢复那一块）：`::view-transition-group/old/new(root) { animation: none !important; }` —— 伪元素树不吃通用选择器，必须逐条点名（含 UA 的 group 动画）。**更正（ZK）**：VT 归零实际住在文件末尾那个 reduce 块（与 `.side-tag / .share-tool / .post-nav__item / .reading-progress__fill` 的 `transition:none` 同块），不在颜色恢复块里；原文引用的 `1841-1846` 指的是颜色恢复段，属误引。ZK 后行号整体漂移，一律改按选择器点名。
 - `792-800`：`@supports (text-wrap: pretty)` 内只点名 `.prose p / .prose li / .editorial__intro / .lead-md`（指南禁挂 `*`）；`.prose h2/h3` 补 balance。既有三处 balance（h1/.heading-1/.editorial__title）核对均无外框，符合指南对 balance 的限制。
-- `1834-1846`：reduce 档对 `a, button, .pressable, .link-underline` 恢复 color/background-color/border-color/text-decoration-color 四系 200ms 过渡（`!important` 压过后段点名的 `transition:none`）。**这是一处真差距的修复**：原通用清零把颜色反馈一起掐掉，与 MWG ui-behaviors/motion「Keep non-motion transitions … enabled」不符；DESIGN §10 旧 bullet 曾误称「color 过渡保留」，本轮一并更正。
+- reduce 档颜色恢复块（`a, button, .pressable, .link-underline`，原文行号 `1834-1846`，ZK 后按选择器点名）：恢复 color/background-color/border-color/text-decoration-color 四系 200ms 过渡（`!important` 压过后段点名的 `transition:none`）。**这是一处真差距的修复**：原通用清零把颜色反馈一起掐掉，与 MWG ui-behaviors/motion「Keep non-motion transitions … enabled」不符；DESIGN §10 旧 bullet 曾误称「color 过渡保留」，本轮一并更正。
 
 **三、量具两修（FAIL 先怀疑量具，判据未放宽）**
 
@@ -2269,4 +2269,99 @@ hover 反馈：plate 大字 color 转 `--accent-text`、外框 border-color 转 
 
 - 跨文档过渡覆盖边界＝硬导航；软导航保留既有入场序列（blurIn/fadeUp stagger），不与 VT 叠双层动画。边界已写入 DESIGN §10 与组件注释，不声称全站导航都有过渡。
 - ZI 残留（`lib/covers.ts` 锁定死代码、`og-default.svg` 零引用、ImageLightbox 保留）不变。
+
+### 11.46 简洁风减法：13 个组件与全部装饰动效下线（Batch ZK）
+
+**一、指令与判据**
+
+用户原话：「不行还得优化，这个效果不好，删掉没有必要的组件，只走简洁风」——推翻第 19/20 轮
+「丰富度」方向。判据换成两条：① 这个组件说的话页面别处是否已经说过（重复即删）；
+② 这个动效是状态反馈还是入场装饰（装饰即删）。**功能与可访问性契约不随「简洁」砍**：
+Batch Y 立的 byline / 字数 / 许可 / 运行天数 / 系列导航、PageTransition 的焦点交接、
+搜索的可发现性全部保留。
+
+- 删（13 个文件）：`typographic-cover`（与标题重复）、`image-lightbox`（正文图本就原尺寸可读）、
+  `font-size-control`（与浏览器缩放重复）、`author-card`（byline 已署名）、`course-plate`
+  （`/learn` 有完整编排）、`command-palette` + `palette-trigger`（与页头导航重复）、
+  `gsap-provider`（无消费者）、`ui/stats-tile`（翻板装饰）、`ui/animated-content` /
+  `ui/prose-reveal` / `ui/blur-reveal`（把文字按在透明态等 JS/滚动）、`ui/interaction`（死包装）。
+- 删的动效：stagger、blurIn、chapter-flip/chapterIn、reelRoll、PageSweep 与换页微升、
+  `[data-glow]`、`[data-spotlight]`、row-shift/row-cover/row-tick、首页视差、caret（本就死）。
+- 留（功能与状态反馈）：阅读进度线、跨文档 VT、targetFlash、scaleIn/fadeUp/slideDown/fadeOut、
+  media-fade、skeleton-sweep、tick-pop/tick-note、chapter-panel/panelUp、codeFlash、read-rule、
+  link-underline、导航指示器、搜索页（页头新增入口）、TOC、ChapterBar、BookmarkButton、
+  单枚复制链接、PostLicense、系列导航、RelatedPosts、GiscusComments、PostsCalendar、
+  SubscribeCard、BackToTop、主题切换、PageTransition 焦点交接。
+
+**二、落地**
+
+- CSS 两遍按选择器手术 + 18 处定点收尾：`globals.css` 4147 → 2974 行（`wc -l`：减法 −1179，
+  标题 lining 补 +6）。
+  工具在仓外 `ui-concepts/verify/zk-css.mjs`（`--pass2` 切第二遍死族）与 `zk-manual.mjs`
+  （18 条精确替换，CRLF 感知，任一 old 串不唯一即拒写）。格式保全：逐条记录 lead/tail 空白、
+  选择器跨度感知重建 header；`diff -w -B` 对第二遍备份仅 96 行纯格式差异 → 语义等价。
+- 死令牌撤：`--row-glow` / `--page-sweep-line` / `--band-*`（四主题）/ `--hero-gradient` /
+  `--panel-gradient` / `--shadow-hero`；`--progress-fill` 保留（进度线在用）。
+- `--pagefind-ui-*` 看似孤儿，实由 Pagefind 自带 UI CSS 消费 → **保留**。孤儿扫描必须排除
+  `.next.bak.r20b` / `out.bak.r20` 两个备份构建目录，否则假阴性（本轮踩过）。
+- `lib/` 锁未破：`NAV_LINKS` 在锁定的 `lib/constants.ts`，搜索入口改在 `components/header.tsx`
+  视图层加一枚 `/search` 链接。
+- `gsap` 依赖留在 `package.json` 但零引用（tree-shaken）；摘依赖属风险动作，待用户确认。
+  `zc-verify` weight 段新增断言「首页 eager JS 无 `ScrollTrigger|gsap.core|_gsap` 标记」钉住此事。
+- 文档同步：README 功能清单与技术栈（GSAP 不再列为在用技术）；HOW_TO_POST 封面节改
+  「自定义分享图」（`cover` 只喂 OG，缺省 `public/og-default.png`）、「课程图版」节改
+  「首页刊头与站点事实」（含 `popular: true` 决定精选）、下线清单补第 21 轮；DESIGN 第 21 轮
+  与 §5.2 / §6 表。历史轮次原文不改写。
+- 标题数字补一处真缺陷：Georgia 默认旧式数字，展示字号下「40 天」读成「4o 天」。实测
+  `font-variant-numeric: lining-nums` 在该栈真生效（h1 注入后目检数字变 lining），遂给标题族
+  （`.display / .heading-1..3 / .section-title / .prose h1..h4 / .editorial__title /
+  .editorial__section-head h2 / .side-block h2 / .editorial__item-title / .font-serif`）统一翻
+  lining；正文保留旧式数字（报刊正文传统）。零新色、零动效。
+
+**三、闸的改题与退役（主体被用户指令删掉，不是放宽判据）**
+
+1. `zc-verify` 一段（`--only=plate` 名保留）：CoursePlate 没了 → 改题为等强度首页闸：
+   1280/390/320 × 明暗六档，计量行文本 `/\d+ 篇文章/`、字号 ≥11px、字色 ≠ 正文色、
+   5 条 `.feature-row__link`、href 前缀 `/blog/posts/`、标题 ≥15px、16 个死选择器一个不许
+   出现、横向溢出 ≤0、侧栏 5 块、零控制台错误；再点第一行 → 落 `/blog/posts/<slug>/`
+   且 h1 + prose >200 字。
+2. `sweep2`：翻板塌陷检查退役；`.stagger` 从「视口内不可见」豁免摘掉（主体已删，留豁免
+   等于给死灰复燃留门）。
+3. `noscript`：滚筒 `--digit` 与 sr-only 真值比对一段退役；可见性判据原样保留。
+4. 纪律闸：`EXCEPT.keyframeProp` 的 `blurIn:filter` 例外撤销（R7 自证要求每条例外都被命中，
+   主体没了还留例外会 FAIL）；R1 的 stagger 宽限撤销。`@keyframes` 22 → 18。
+5. 不跑的探针：`batchn.mjs` / palette-nav / palette-trap / flip-probe —— 主体（命令面板、
+   翻板、like-btn）已删，跑它们只会量到不存在的东西。
+
+**四、验证（2026-11-17，最终 build 含 lining 补丁）**
+
+- `npm run build` / `npm run check` rc=0（`build-zk2.log` / `check-zk2.log`）；纪律闸
+  「扫了 125 个源文件 · 18 个 @keyframes … 违规 0 处 · 0 类 PASS」。
+- 减法落地后第一遍电池 6 闸全绿（`reg-zk-*.log`）；第二波 7 探针 rc=0 且日志零 FAIL
+  （`reg-zk-<probe>.log`）：vt 默认档 finished=311ms / reduce 档 8ms、软导航 pagereveal=no
+  符合 MPA 边界、pretty 双确认；rmotion3 十四页透明窗口全 0ms；copybtn 三枚复制钮聚焦后
+  可见可点（焦点环 solid 2px）；reading-progress 甲档 CSS 时间轴连续、乙/丙档行内 1% 网格
+  接管、三档 `role=progressbar` 与 `aria-valuenow=100`；deadctl 十四页 0 具死控件；
+  noscript-img 二十页 0 个透明的洞；search-kbd Tab 轨迹 输入框→清空→筛选 chips、
+  live 播报「共 83 条结果」。
+- lining 补丁后**整套重建重跑** 7 闸（`reg-zk2-*.log`，含 fontwt）全绿：zc-verify 全部通过
+  （首页 eager JS 18 脚本 / 468.4KB，无 Lenis / GLB / GSAP；六档计量行 13px 次要色、主栏 5 行、
+  点穿到文章页）；narrow-overflow 320/360 各 0 页；sweep2 43 页 / 215 检查 / findings []；
+  batchy 全 PASS（h2#license top=96px、全程零页面级 JS 错误）；mathclass 92 页 / 2750 命中块
+  逐元素等价；noscript 20 页 0 不达标；fontwt PASS（lining 只换数字字形，不改字重档像素差）。
+- 截图目检 `shots-zk/` 17 张：首页 / 索引 / 文章 × 1440/390 × 明暗 + 文末 + lining 注入对照。
+  确认「40」不再读成「4o」、正文旧式数字保留、版式无回归。
+- 红线不变：day-10 绝对 INP（静窗不可达，§11.37/§11.41）、Shiki 3 行亮色对比度（Batch F
+  边界）。本轮零色值改动 → 对比度普查不重跑，596 基线不变。**不声称全站 AA 全绿、不声称
+  INP 绿**；计时闸不在本轮电池内。
+
+**五、残留**
+
+- `gsap` 依赖未摘（零引用、tree-shaken；摘依赖属风险动作，待用户确认）；`lib/covers.ts`
+  仍是锁定死代码；`og-default.svg` 零引用。
+- `editorial-list` 的 `span.feature-row__body` 内含 h3/p（phrasing 嵌套不合规、渲染正常）——
+  刻意不动以免电池中途重建，登记为下一轮候选。
+- 索引标题 3 行 clamp 下末行单字（「己」）是密度取舍：`-webkit-line-clamp` 与 `text-wrap`
+  互斥，不为一字破 clamp。
+- ZJ 边界不变：跨文档 VT 只覆盖硬导航。
 

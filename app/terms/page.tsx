@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { SITE, EMAIL_OBFUSCATED, basePathUrl } from '@/lib/constants'
 import { ObfuscatedEmail } from '@/components/obfuscated-email'
 import { PageMasthead } from '@/components/page-masthead'
-import { AnimatedContent } from '@/components/ui/animated-content'
 
 export const metadata: Metadata = {
   title: '君子协定 · 使用规范',
@@ -19,7 +18,7 @@ export default function TermsPage() {
         counter="更新于 2026.09.16"
       />
 
-      <AnimatedContent direction="up" delay={0.06}>
+      <div>
         <div className="prose">
           <h2>1. 允许的访问</h2>
           <p>本站全部内容（文章、课程、RSS/Atom）默认公开，欢迎以下访问方式：</p>
@@ -139,7 +138,7 @@ export default function TermsPage() {
             本协定即站长的使用意愿声明；机器可读部分（robots.txt、security.txt）与页面如有出入，以本页为准。协定更新后本页日期会同步。
           </p>
         </div>
-      </AnimatedContent>
+      </div>
     </div>
   )
 }

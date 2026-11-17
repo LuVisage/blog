@@ -5,7 +5,6 @@ import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 import { AvatarImage } from '@/components/avatar-image'
 import { PageMasthead } from '@/components/page-masthead'
 import { ProjectsSection, FriendsSection, NowSection } from '@/components/about-sections'
-import { AnimatedContent } from '@/components/ui/animated-content'
 import {
   IconBrandGithub, IconMail, IconArrowRight,
   IconRobot, IconBrain, IconTools, IconPencil, IconCode,
@@ -64,7 +63,7 @@ export default function AboutPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-12 lg:gap-16">
         {/* ── Column ── */}
         <div className="min-w-0">
-          <AnimatedContent direction="up">
+          <div>
             <section className="mb-16">
               <div className="eyebrow mb-2">自述</div>
               <h2 className="section-title mb-6">写作与探索</h2>
@@ -77,9 +76,9 @@ export default function AboutPage() {
                 </p>
               </div>
             </section>
-          </AnimatedContent>
+          </div>
 
-          <AnimatedContent direction="up" delay={0.06}>
+          <div>
             <section className="mb-16">
               <div className="eyebrow mb-2">方向</div>
               <h2 className="section-title mb-6">主要关注</h2>
@@ -107,9 +106,9 @@ export default function AboutPage() {
                 ))}
               </ul>
             </section>
-          </AnimatedContent>
+          </div>
 
-          <AnimatedContent direction="up" delay={0.12}>
+          <div>
             <section className="mb-16">
               <div className="eyebrow mb-2">工具</div>
               <h2 className="section-title mb-6">技术栈</h2>
@@ -125,17 +124,17 @@ export default function AboutPage() {
                 <IconArrowRight size={14} strokeWidth={2} />
               </Link>
             </section>
-          </AnimatedContent>
+          </div>
 
-          <AnimatedContent direction="up" className="mb-16">
+          <div className="mb-16">
             <ProjectsSection />
-          </AnimatedContent>
+          </div>
 
-          <AnimatedContent direction="up" className="mb-16">
+          <div className="mb-16">
             <NowSection />
-          </AnimatedContent>
+          </div>
 
-          <AnimatedContent direction="up" className="mb-16">
+          <div className="mb-16">
             <section>
               <div className="eyebrow mb-2">年表</div>
               <h2 className="section-title mb-2">时间线</h2>
@@ -155,15 +154,15 @@ export default function AboutPage() {
                 ))}
               </div>
             </section>
-          </AnimatedContent>
+          </div>
 
-          <AnimatedContent direction="up">
+          <div>
             <FriendsSection />
-          </AnimatedContent>
+          </div>
         </div>
 
         {/* ── Aside ── */}
-        <AnimatedContent direction="up" delay={0.1}>
+        <div>
           <aside className="lg:sticky lg:top-28">
             <div
               className="w-full aspect-square overflow-hidden mb-5"
@@ -210,7 +209,7 @@ export default function AboutPage() {
               </Link>
             </div>
           </aside>
-        </AnimatedContent>
+        </div>
       </div>
     </div>
   )

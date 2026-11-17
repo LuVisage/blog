@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NAV_LINKS, SITE } from '@/lib/constants'
 import { ThemeToggle } from './theme-toggle'
-import { PaletteTrigger } from './palette-trigger'
+import { IconSearch } from '@tabler/icons-react'
 import { useRef, useState, useEffect } from 'react'
 
 /**
@@ -124,7 +124,16 @@ export function Header() {
 
           {/* Actions */}
           <div className="flex items-center gap-1.5">
-            <PaletteTrigger />
+            <Link
+              href="/search"
+              className="pressable surface surface-hover flex items-center gap-2 h-10 px-3 no-underline"
+              style={{ borderRadius: 'var(--radius-xs)', color: 'var(--muted)' }}
+              aria-label="搜索"
+              title="搜索"
+            >
+              <IconSearch size={15} strokeWidth={1.75} />
+              <span className="text-sm hidden sm:inline">搜索</span>
+            </Link>
             <ThemeToggle />
             <button
               ref={menuButtonRef}

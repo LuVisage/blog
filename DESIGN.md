@@ -215,6 +215,52 @@ figure / pre / blockquote / table / h2 / h3，初态 opacity 0.62、位移 10px�
 时长缓动走 `--duration-*` / `--ease-*`；reduced-motion 显式取消柔光与扫光；
 打印隐藏全部装饰层。第 19 轮补的章节锚点、hash 回写、焦点交接、源码修订入口全部保留。
 
+## 第 21 轮：简洁风减法（ZK，2026-11-17）
+
+第 20 轮被用户判定「不行还得优化，这个效果不好，删掉没有必要的组件，只走简洁风」。
+方向再次纠正，但这次不是回到第 19 轮那种「越少越好」：**保留一切有信息量的状态反馈，
+删掉入场 / 滚动 / 装饰动效与重复组件**。判据是「这个动效或组件告诉读者什么」——
+答不上来的就下线。
+
+**删掉的组件（13 个文件）**：`typographic-cover`（排字图版封面，与标题文字重复）、
+`image-lightbox`（文章已无位图可放大）、`font-size-control`（字号三档，浏览器自带缩放）、
+`author-card`（与文首 byline 重复）、`course-plate`（首页课程图版，`/learn` 有完整版）、
+`command-palette` + `palette-trigger`（与 `/search` 页重复）、`gsap-provider`、
+`ui/stats-tile`（翻板数字）、`ui/animated-content`、`ui/prose-reveal`、`ui/blur-reveal`、
+`ui/interaction`（GlowRows / Parallax）。
+
+**删掉的动效**：分级入场 `stagger`、模糊聚焦 `blurIn`、章节名翻牌 `chapter-flip`、
+统计滚筒 `reelRoll`、换页扫光 `PageSweep` 与内容微升、跟手柔光 `data-glow`、
+聚光 `data-spotlight`、行位移 `row-shift` / `row-cover` / `row-tick`、首页轻视差。
+
+**保留的反馈**（都传达状态，不是装饰）：页顶阅读进度（滚动驱动）、跨文档视图过渡（ZJ）、
+`:target` 落点闪烁、弹层 / 吐司 / 菜单的 `scaleIn` / `fadeUp` / `slideDown` / `fadeOut`、
+头像 `media-fade`、骨架 `skeleton-sweep`、勾选 `tick-pop` / `tick-note`、章节面板 `panelUp`、
+代码复制 `codeFlash`、阅读比例尺 `read-rule`、链接下划线、导航指示条，以及
+`PageTransition` 的焦点交接（只保留 a11y 逻辑，动画删除）。
+
+**保留的功能**：搜索页（header 补一枚 `/search` 入口；`NAV_LINKS` 在锁定的
+`lib/constants.ts` 里，不动）、目录、ChapterBar、收藏、复制链接（分享排只剩这一枚）、
+PostLicense、系列导航、RelatedPosts、Giscus、写作日历、订阅卡、回到顶部、主题切换。
+Batch Y 闸断言的 byline / 字数 / 许可 / 运行天数 / 系列导航全部保留。
+
+**三个主要页面的形状**：首页刊头只剩 eyebrow + 标题 + 导语 + 一行 mono 计量
+（`.editorial__meta-line`），主栏 5 行纯文字文章行，侧栏五个功能块；文章页去掉
+图版 / 灯箱 / 字号控件 / 作者卡，标题直接是 `display` h1；索引行去掉迷你字牌 / 箭头 /
+聚光，只剩序号 + 标题 + 摘要 + 分类 + 日期。
+
+**CSS 与纪律**：`globals.css` 4147 → 2974 行（`wc -l`：减法 −1179，标题 lining 补 +6；
+两遍按选择器的手术 + 定点收尾，格式与缩进保全）；死族、死关键帧（`blurIn` / `reelRoll` / `chapterIn` / `caret`）、
+死令牌（`--row-glow` / `--page-sweep-line` / `--band-*` / `--hero-gradient` /
+`--panel-gradient` / `--shadow-hero`）一并撤。纪律闸 `EXCEPT.keyframeProp` 的
+`blurIn: filter` 例外撤销——主体没了还留着例外，等于悄悄放宽闸的射程。
+`gsap` 依赖留在 `package.json` 但零引用（tree-shaken，首页 eager JS 无 GSAP，
+`zc-verify` weight 段新增断言）；移除依赖属风险动作，待用户确认。
+`--pagefind-ui-*` 令牌看似无消费者，实际由 Pagefind 自带 UI 读取，**保留**。
+**标题数字**：Georgia 默认旧式数字，展示字号下「40 天」读成「4o 天」；先活体注入确认
+`lining-nums` 在该字体栈真生效，再给标题族（含 `font-serif` 工具类）统一翻 lining，
+正文保留旧式数字（报刊正文传统）。
+
 > 历史（v5.1）：唯一事实来源为 `C:\Users\lusha\Desktop\UI_skill\design-dna\22-anthropic\DESIGN_DNA.md`（Anthropic 设计 DNA 逆向工程，14 章）。
 > 本文件是该 DNA 在本站的落地规范：值取自文档原文，文档未覆盖处全部标注 `[推断]`。
 > 逐条来源、冲突裁决与缺口清单见 `SPEC_LEDGER.md`；机器比对结果见 `AUDIT.md`。
@@ -416,6 +462,7 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 | 列表分级入场 | 步进 40ms、单条 400ms、总窗口 ≤500ms | §9.1 只给区块顺序，未给入场编排 |
 
 > 这三项在 `SPEC_LEDGER.md` §1.8.4 与 `README.md` 的假设清单里各有一条依据；审计脚本不会把它们报成「无解释的自创值」。
+> **第 21 轮（ZK）起三项全部下线**：视差与分级入场随组件删除，封面渐显只剩头像 `media-fade`。本表留作历史依据。
 
 ### 5.3 滚动驱动与滚动条（第 21 轮增补 · 台账 §11.38–§11.41）
 
@@ -463,14 +510,17 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 | `.pressable` | 通用按下态 | active `scale(.98)`（200ms） | `--duration-fast` |
 | `.link-underline` | 单行链接 | hover / focus-visible 下划线 `scaleX(0→1)` | `--color-primary` |
 | `.indicator-bar`（含 `--lead`） | 导航 / 目录 / 面板选中项 | 当前项 `scaleY(0→1)`（300ms） | `--color-primary` |
-| `.stagger` | 列表容器 | 子项按 `nth-child` 步进 40ms 入场（单条 400ms） | `--duration-slow` |
 | `.media-fade` | 头像等真实图片 | `.is-loaded` 时 `opacity 0→1` | `--duration-slow` |
 | `.field-rule` | 下划线式输入行 | `:focus-within` 线色转强调色、光标同色 | `--color-primary` |
-| `[data-spotlight='row']` | 台账行提示 | hover 出现左侧 2px 强调色指示线 | `--color-primary` |
-| `.typo-cover`（`--plate / --thumb / --mini`） | 排字图版封面 | plate hover 大字转 `--accent-text`、外框转 `--accent`；thumb hover `scale(1.08)`；减动态掐空间反馈 | `--surface-2`, `--line-strong`, `--font-serif`, `--font-mono` |
+| `.feature-row__link` | 首页文章行 | 单栏文字，hover / focus-visible 只换标题色 | `--accent-text`, `--duration-fast` |
+| `.editorial__meta-line` | 刊头计量行 | mono 小字、次要色，`time` 用墨色 | `--font-mono`, `--text-caption`, `--muted` |
 | `.prose` | 阅读面 | 链接下划线转实并抬升偏移、引用块 2px 强调色左线、表格发丝线 | `--measure` |
 
-**封面是排字图版，不是素材（Batch ZI）。** 三张 AI 渲染封面与 OG 静物全部下线：它们与文章内容无关，读者从图上读不到任何关于这篇文章的信息。替代物是 `components/typographic-cover.tsx` —— 标题首字作大字锚点、mono 刊头元信息、发丝线，版式由 slug 的 FNV-1a 哈希三选一（左字 / 右字 / 居中刊头），服务端渲染、零 JS、零位图、零新增色。三个尺寸对应三个消费点：文章页 FIG.01 图版（2.2:1）、首页复合行缩略（4:3）、索引行序号栏迷你字牌。图版与标题文字重复，整块 `aria-hidden`；文章页图注如实写「排字图版 · 由标题生成，无摄影素材」。OG 分享图由 `ui-concepts/verify/og-card.mjs` 把一份同款字体栈与令牌色值的 HTML 刊头截图成 1200×630 PNG —— 是排字渲染，不是生成式素材。`lib/covers.ts` 被用户第 4 条决定锁在 lib/ 内，消费点改调新组件后它不再被引用，身份登记为锁定死代码（台账 §11.44）。
+**封面已整体下线（Batch ZK， superseding ZI）。** ZI 把三张 AI 渲染封面换成排字图版
+（`typographic-cover`），ZK 进一步把排字图版也删了：它与标题文字重复，读者从图上
+读不到任何新信息。文章页、首页行、索引行现在都是纯文字。OG 分享图仍是
+`ui-concepts/verify/og-card.mjs` 的排字渲染（1200×630 PNG，同款字体栈与令牌色值），
+不是生成式素材。`lib/covers.ts` 依旧是锁定死代码（台账 §11.44）。
 
 聚焦环：`2px solid var(--color-primary)` + `offset 2px`（§3.1 的 `--color-focus-ring` 用于按钮与滑块的柔化环）。
 

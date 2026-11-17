@@ -3,7 +3,6 @@ import { SITE } from '@/lib/constants'
 import { getAllPosts, getPaginatedPosts } from '@/lib/posts'
 import { PostList } from '@/components/post-list'
 import { PageMasthead } from '@/components/page-masthead'
-import { AnimatedContent } from '@/components/ui/animated-content'
 import { IndexRail } from '@/components/index-rail'
 import { Pagination } from '@/components/pagination'
 
@@ -30,10 +29,10 @@ export default function PostsPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-16 items-start">
-        <AnimatedContent direction="up" className="min-w-0">
+        <div className="min-w-0">
           <PostList posts={posts} />
           <Pagination current={1} total={totalPages} />
-        </AnimatedContent>
+        </div>
 
         {/* 直接做 grid item：lg:sticky 要靠 items-start 的网格行高才有可滑动的余量，
             再包一层 div 会把吸顶范围压成内容高度（§11.12）。 */}

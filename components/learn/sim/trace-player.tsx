@@ -192,7 +192,6 @@ function LangSmithTrace() {
           return (
             <div
               key={`${span.name}-${index}`}
-              data-spotlight="row"
               className="py-2 pr-3"
               style={{
                 paddingLeft: 12 + span.depth * 22,

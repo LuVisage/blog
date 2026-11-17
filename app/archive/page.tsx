@@ -3,8 +3,6 @@ import { SITE } from '@/lib/constants'
 import { getArchiveTree, getAllPosts } from '@/lib/posts'
 import { PostsCalendar } from '@/components/posts-calendar'
 import { PageMasthead } from '@/components/page-masthead'
-import { AnimatedContent } from '@/components/ui/animated-content'
-import { StatsTile, StatsTileRow } from '@/components/ui/stats-tile'
 import { EmptyState } from '@/components/ui/empty-state'
 import Link from 'next/link'
 import { IconArchive, IconPencil } from '@tabler/icons-react'
@@ -39,32 +37,24 @@ export default function ArchivePage() {
         counter={`${totalPosts} 篇 · ${archive.length} 个年份`}
       />
 
-      <AnimatedContent direction="up">
-        <div className="mb-16">
-          <div className="eyebrow mb-5">总览</div>
-          <StatsTileRow>
-            <StatsTile value={totalPosts} label="文章总数" />
-            <StatsTile value={postsThisYear} label={`${currentYear} 年`} />
-            <StatsTile value={archive.length} label="写作年份" />
-            <StatsTile value={activeMonths} label="活跃月份" />
-          </StatsTileRow>
-        </div>
-      </AnimatedContent>
+      <p className="editorial__meta-line mb-16">
+        文章总数 {totalPosts} · {currentYear} 年 {postsThisYear} · 写作年份 {archive.length} · 活跃月份 {activeMonths}
+      </p>
 
-      <AnimatedContent direction="up" delay={0.06}>
+      <div>
         <section className="mb-16">
           <div className="eyebrow mb-2">分布</div>
           <h2 className="section-title mb-6">写作日历</h2>
           <PostsCalendar posts={allPosts} />
         </section>
-      </AnimatedContent>
+      </div>
 
       {archive.length > 0 ? (
         <div className="space-y-16">
           {archive.map(({ year, months }, yearIdx) => {
             const yearCount = months.reduce((sum, m) => sum + m.posts.length, 0)
             return (
-              <AnimatedContent key={year} direction="up" delay={yearIdx * 0.04}>
+              <div key={year}>
                 <section>
                   <div
                     className="flex items-end justify-between gap-4 pb-3 mb-2"
@@ -92,7 +82,7 @@ export default function ArchivePage() {
                       {/* 月份标签跟随整月滚动：md 以上网格项默认 stretch，盒子撑满该月行高，
                           所以 sticky 的可行范围正好是这一个月（§11.12）。 */}
                       <div className="eyebrow pt-5 md:sticky md:top-[90px]">{MONTH_NAMES[month - 1]}</div>
-                      <div className="stagger">
+                      <div>
                         {posts.map((post) => (
                           <Link
                             key={post.slug}
@@ -119,7 +109,7 @@ export default function ArchivePage() {
                     </div>
                   ))}
                 </section>
-              </AnimatedContent>
+              </div>
             )
           })}
         </div>

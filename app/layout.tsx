@@ -5,13 +5,9 @@ import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { Analytics } from '@/components/analytics'
 import { BackToTop } from '@/components/back-to-top'
-import { GSAPProvider } from '@/components/gsap-provider'
 import { ToastProvider } from '@/components/ui/toast'
-import { PaletteProvider } from '@/components/command-palette'
-import { PageTransition, PageSweep } from '@/components/page-transition'
-import { GlowRows } from '@/components/ui/interaction'
+import { PageTransition } from '@/components/page-transition'
 import { getAllPosts } from '@/lib/posts'
-import { COURSE_IDS, getAllLessons, getReferencePages } from '@/lib/curriculum'
 import 'katex/dist/katex.min.css'
 import './globals.css'
 
@@ -52,18 +48,6 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const allPosts = getAllPosts()
-  const palettePosts = allPosts.map((p) => ({
-    slug: p.slug,
-    title: p.title,
-    description: p.description,
-    tags: p.tags,
-    category: p.category,
-  }))
-
-  const paletteLessons = COURSE_IDS.flatMap((course) => [
-    ...getAllLessons(course),
-    ...getReferencePages(course),
-  ]).map((l) => ({ course: l.course, slug: l.slug, day: l.day, kind: l.kind, title: l.title }))
 
   return (
     <html lang="zh-CN" suppressHydrationWarning>
@@ -136,10 +120,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#main-content" className="skip-to-content">跳到主要内容</a>
         <ThemeProvider>
           <ToastProvider>
-          <GSAPProvider>
-          <PaletteProvider posts={palettePosts} lessons={paletteLessons}>
-          <PageSweep />
-          <GlowRows />
           <Header />
           {/* §2.1 容器 1200px；§1 区块留白按 96px 档展开。
               tabIndex=-1 是让「跳到主要内容」真的能落脚：不可聚焦的目标只会改 hash，
@@ -150,8 +130,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Footer since={allPosts[allPosts.length - 1]?.date ?? ''} />
           <BackToTop />
           <Analytics />
-          </PaletteProvider>
-          </GSAPProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

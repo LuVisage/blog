@@ -4,7 +4,6 @@ import { getAllSeries, getAllPosts } from '@/lib/posts'
 import { PageMasthead } from '@/components/page-masthead'
 import { LedgerRow, Ledger } from '@/components/ledger-row'
 import { IndexRail } from '@/components/index-rail'
-import { AnimatedContent } from '@/components/ui/animated-content'
 import { EmptyState } from '@/components/ui/empty-state'
 import { IconBooks } from '@tabler/icons-react'
 
@@ -39,7 +38,7 @@ export default function SeriesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-16 items-start">
         <div className="min-w-0">
           {series.length > 0 ? (
-            <AnimatedContent direction="up">
+            <div>
               <div>
                 <div className="eyebrow mb-5">索引</div>
                 <Ledger>
@@ -56,7 +55,7 @@ export default function SeriesPage() {
                   ))}
                 </Ledger>
               </div>
-            </AnimatedContent>
+            </div>
           ) : (
             <EmptyState
               icon={<IconBooks size={30} strokeWidth={1.25} />}

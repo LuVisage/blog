@@ -337,12 +337,11 @@ export function SearchPage({ starts }: { starts: Start[] }) {
             ))}
           </div>
 
-          <div className="stagger">
+          <div>
             {displayed.map((result, i) => (
               <Link
                 key={result.url}
                 href={routePath(result.url)}
-                data-spotlight="row"
                 className="pressable group grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-4 sm:gap-6 py-5 rule"
               >
                 <span className="meta tabular-nums transition-colors group-hover:text-[var(--accent-text)]">

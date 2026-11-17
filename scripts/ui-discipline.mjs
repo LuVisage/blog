@@ -109,9 +109,8 @@ const EXCEPT = {
     '.range-control::-webkit-slider-runnable-track': '滑块已填充段：--color-primary 到 --range-fill 为止',
   },
   // 关键帧里允许表外的属性，按关键帧名点名（名字比行号稳定）。
-  keyframeProp: {
-    blurIn: ['filter'], // BlurReveal 聚焦入场（台账 §11.18 五）：filter 在 Chrome/Firefox 走合成层，不触发布局；初态只活在 from，静态永远清晰
-  },
+  // ZK 删掉 BlurReveal 后 blurIn:filter 例外一并撤销：现无任何表外属性。
+  keyframeProp: {},
   // 滚动驱动动画的 linear 不是「缓动选错了」：时间轴就是滚动位置本身，进度必须与
   // 手指 1:1，任何 ease 都会让进度条滞后或超前于滚动。指南 ui-behaviors/
   // scroll-progress-indicator 的处方原话就是 `animation: grow-progress auto linear`。
@@ -180,7 +179,7 @@ for (const f of files) {
   const inKeyframes = (n) => kfRanges.some(([a, b]) => n >= a && n <= b)
   const kfNameOf = (n) => (kfRanges.find(([a, b]) => n >= a && n <= b) || [])[2] || ''
   // 这一行归属于哪条选择器。站内有一批单行规则
-  // （`.stagger > *:nth-child(2) { animation-delay: 40ms; }`），
+  // （`.editorial__rule { border-top: 1px solid var(--line-strong); }`），
   // 只往上找「以 { 结尾的行」会认不出这种写法，例外因此不生效。
   const selOf = (n) => {
     const here = lines[n].trim()
@@ -231,10 +230,9 @@ for (const f of files) {
       seen.dur++
       if (reduce) continue
       const n = Number(t[1])
-      // 步进延迟与 infinite 周期不属于「界面过渡时长」这根轴
-      const stagger = c.name === 'animation-delay' && /\.stagger\b/.test(sel)
+      // infinite 周期不属于「界面过渡时长」这根轴（.stagger 步进延迟已随 ZK 下线）
       const cycle = /\binfinite\b/.test(value)
-      if (stagger || cycle) continue
+      if (cycle) continue
       const okv = t[2] === 'ms' ? ALLOW_MS.has(n) : ALLOW_S.has(n)
       if (!okv) mark('R1 时长', where, `${c.name}: ${t[0]} 不在 200/300/400/500/800/1200 档`, '用 var(--duration-fast/base/slow)，或就近档位')
     }

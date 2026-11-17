@@ -80,8 +80,7 @@ export function LedgerRow({
 export function Ledger({ children }: { children: React.ReactNode }) {
   return (
     <div>
-      {/* 台账行分级入场：单条 400ms、步进 40ms（SPEC_LEDGER §1.8.3） */}
-      <div className="stagger">{children}</div>
+      <div>{children}</div>
       <div className="rule" />
     </div>
   )

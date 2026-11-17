@@ -25,7 +25,6 @@ export function GotchaTable({ rows }: GotchaTableProps) {
       {rows.map((row, i) => (
         <div
           key={i}
-          data-spotlight="row"
           className="rule py-4 grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1.2fr)] gap-2 md:gap-6"
         >
           <span className="text-sm font-medium" style={{ color: 'var(--ink)' }}>

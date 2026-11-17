@@ -66,7 +66,6 @@ export function TickList({ eyebrow, items, checked, onToggle, doneNote }: TickLi
                       onClick: () => onToggle(i, items.length),
                     }
                   : {})}
-                data-spotlight="row"
                 className={`group w-full text-left grid grid-cols-[26px_minmax(0,1fr)_auto] items-start gap-3 py-4${
                   live ? ' pressable cursor-pointer' : ''
                 }`}

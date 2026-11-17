@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { SITE, EMAIL_OBFUSCATED } from '@/lib/constants'
 import { ObfuscatedEmail } from '@/components/obfuscated-email'
 import { PageMasthead } from '@/components/page-masthead'
-import { AnimatedContent } from '@/components/ui/animated-content'
 
 export const metadata: Metadata = {
   title: '隐私政策',
@@ -19,7 +18,7 @@ export default function PrivacyPage() {
         counter="更新于 2026.11.13"
       />
 
-      <AnimatedContent direction="up" delay={0.06}>
+      <div>
         <div className="prose">
           <h2>1. 数据收集</h2>
           <p>
@@ -42,7 +41,6 @@ export default function PrivacyPage() {
           </p>
           <ul>
             <li><strong>主题偏好</strong>（<code>theme</code>）：亮色 / 暗色的选择。</li>
-            <li><strong>正文字号</strong>（<code>blog-font-size</code>）：文章页的字号档位。</li>
             <li><strong>收藏夹</strong>（<code>baron-bookmarks</code>）：收藏文章的 slug 列表，换个浏览器就看不到。</li>
             <li><strong>课程进度</strong>（<code>learn.课程名.progress.v1</code>）：课次里勾掉的自测题与自查清单。</li>
             <li>
@@ -72,7 +70,7 @@ export default function PrivacyPage() {
             <ObfuscatedEmail encoded={EMAIL_OBFUSCATED} className="underline underline-offset-2" />
           </p>
         </div>
-      </AnimatedContent>
+      </div>
     </div>
   )
 }

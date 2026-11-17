@@ -251,7 +251,6 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
           return (
             <li
               key={`${step.node}-${index}`}
-              data-spotlight="row"
               className="p-3.5"
               style={{
                 border: '1px solid ' + (active ? 'var(--accent-line)' : 'var(--line)'),
