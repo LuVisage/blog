@@ -2,16 +2,16 @@ import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { PostMeta } from '@/lib/posts'
-import { coverFor } from '@/lib/covers'
+import { TypographicCover } from '@/components/typographic-cover'
 import { IconArrowUpRight } from '@tabler/icons-react'
 
 /**
- * 编辑式文章行（第 20 轮复合版）。
+ * 编辑式文章行（第 20 轮复合版，ZI 换排字图版）。
  *
  * 第 19 轮之后这里是一串纯文字：日期 → 标题 → 摘要 → 标签，整页没有一张图、
  * 没有一个色块，读者第一眼找不到落点。这一版把「编号 + 题图 + 元信息 + 标题 +
- * 摘要 + 箭头」装进同一行，题图直接复用 lib/covers.ts 的封面池（同一份数据，
- * 零写作成本），整行仍是唯一一个 <Link>，标签行留在外面各自可点。
+ * 摘要 + 箭头」装进同一行。题图原是 lib/covers.ts 的 AI 封面池，ZI 起换成
+ * 排字图版（标题首字 + 刊头语汇），整行仍是唯一一个 <Link>，标签行留在外面各自可点。
  *
  * `data-glow` 交给 GlowRows 做跟手柔光；所有 hover 反馈都在 CSS 里，
  * 只用 transform / opacity / color 系属性。
@@ -22,7 +22,6 @@ export function EditorialList({ posts, compact = false }: { posts: PostMeta[]; c
   return (
     <ol className="editorial__list">
       {posts.map((post, i) => {
-        const cover = coverFor(post)
         return (
           <li
             key={post.slug}
@@ -34,7 +33,7 @@ export function EditorialList({ posts, compact = false }: { posts: PostMeta[]; c
               data-glow
             >
               <span className="feature-row__thumb" aria-hidden="true">
-                <img src={cover.url} alt="" loading="lazy" decoding="async" />
+                <TypographicCover post={post} variant="thumb" />
                 <span className="feature-row__no">{String(i + 1).padStart(2, '0')}</span>
               </span>
 

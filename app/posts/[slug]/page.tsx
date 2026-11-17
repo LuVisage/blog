@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { SITE, siteUrl } from '@/lib/constants'
-import { coverFor } from '@/lib/covers'
+import { TypographicCover } from '@/components/typographic-cover'
 import { getAllPosts, getPostBySlug, getAdjacentPosts, getPostsBySeries } from '@/lib/posts'
 import { MDXContent } from '@/components/mdx-content'
 import { TagBadge } from '@/components/tag-badge'
@@ -36,11 +36,11 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const post = getPostBySlug(slug)
   if (!post) return {}
   const url = siteUrl(`posts/${post.slug}`)
-  // 有自定义封面就让它当分享图；否则用 3D 渲染静物的 JPEG 版（SVG 在多数
-  // 社交平台不被抓取，WebP 兼容性也参差，所以单独留一份 JPEG）。
+  // 有自定义封面就让它当分享图；否则用刊头排字卡渲染出的 PNG（og-card.mjs
+  // 以站点同款字体栈与令牌截图生成，非 AI 素材；SVG 在多数社交平台不被抓取）。
   const ogImage = post.cover
     ? (/^https?:\/\//i.test(post.cover) ? post.cover : siteUrl(post.cover))
-    : siteUrl('images/3d/og-3d.jpg')
+    : siteUrl('og-default.png')
   return {
     title: post.title,
     description: post.description,
@@ -66,7 +66,6 @@ export default async function PostPage({ params }: { params: PageParams }) {
   const seriesNext = seriesIndex >= 0 && seriesIndex < seriesPosts.length - 1 ? seriesPosts[seriesIndex + 1] : null
   const date = parseISO(post.date)
   const postUrl = siteUrl(`posts/${post.slug}`)
-  const cover = coverFor(post)
   // 字数照中文博客惯例按字符计：去掉代码块/行内代码/图片/链接地址/ markdown 符号与空白
   const wordCount = post.content
     .replace(/```[\s\S]*?```/g, '')
@@ -107,22 +106,14 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           {/* Article header — 元信息行（stagger）→ 标题（Blur 聚焦入场 §11.10）→ 摘要/系列/标签（stagger） */}
           <div className="pt-10 sm:pt-14 pb-8">
-            {/* 题图：装裱成带编号与图注的图版，而不是一张裸图浮在标题上方。
-                点击放大仍由 ImageLightbox 的 data-zoomable 接管。 */}
+            {/* 题图：排字图版（标题首字 + 刊头语汇），装裱成带编号与图注的图版。
+                ZI 起不再用 AI 封面，也没有可放大的位图，data-zoomable 随之撤掉。 */}
             <figure className="post-cover">
               <span className="post-cover__no" aria-hidden="true">FIG. 01</span>
               <div className="post-cover__frame">
-                <img
-                  src={cover.url}
-                  alt={cover.alt}
-                  loading="eager"
-                  decoding="async"
-                  data-zoomable
-                  className="block w-full"
-                  style={{ aspectRatio: '2.2 / 1', objectFit: 'cover' }}
-                />
+                <TypographicCover post={post} variant="plate" />
               </div>
-              <figcaption>{cover.alt} · 点击放大</figcaption>
+              <figcaption>排字图版 · 由标题生成，无摄影素材</figcaption>
             </figure>
             <header className="stagger">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 eyebrow">

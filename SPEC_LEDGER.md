@@ -2186,3 +2186,51 @@ rep2 s2 @390 给出 INP **152ms**，重样式 **50ms / 16 次**、重排 85ms / 
 - `contrast.mjs` 仍是没有 exit 逻辑的报告探针。本节没有给它加闸逻辑（那会改变它「全站普查」的用途），而是**另开两道有判定的闸**覆盖强调面这一类。读它的输出时必须记住 `rc=0` 不等于通过。
 - 暗色 `--color-success` / `--color-warning` / `--color-danger` 未在暗色块重定义，仍沿用亮色值。本轮调查探针没在这三枚上报出失败，所以**没有证据说它们有问题，也没有证据说它们没问题** —— 未量，不列入本节结论。
 
+### 11.44 AI 生成图片全下线：封面改排字图版，OG 改排字渲染（Batch ZI）
+
+**一、盘点：哪些是 AI 素材，哪些不是**
+
+| 文件 | 身份 | 处置 |
+| --- | --- | --- |
+| `public/images/3d/cover-1/2/3.webp` | AI 渲染静物三角度，经 `lib/covers.ts` 池按 slug 哈希摊给全部文章 | 删除 |
+| `public/images/3d/og-3d.jpg` | 同一静物的 JPEG，layout 与文章页 OG/Twitter 兜底 | 删除，换 `og-default.png` |
+| `public/images/hero/hero-main.webp` | 全仓零引用的死资产（hero 早在 ZC 换成 CoursePlate SVG） | 删除 |
+| `public/avatar.jpg` | 作者自己的头像，非装饰素材 | 保留 |
+| about 页友链头像 | 外链真人头像，不是本站生成的 | 保留 |
+| `content/**` | 无 `cover:` frontmatter、无 markdown 图片（grep 零命中） | 不动（本就锁定） |
+
+判据不是「看起来像 AI」而是来源与用途：封面池注释自认是 3D 模型渲染角度图，与文章语义无关；头像与友链是真实人物素材。`assets/3d/`（47MB 未跟踪源料）是用户财产，不碰。
+
+**二、lib/ 锁下的视图层解法**
+
+`coverFor` 的三个消费点（`editorial-list.tsx` / `post-list.tsx` / `app/posts/[slug]/page.tsx`）改调新组件 `components/typographic-cover.tsx`；`lib/covers.ts` 一个字不动，从此零引用 —— 与 ZC 的 `lib/bookmarks.ts` 竞态修法是同一条合规路径。锁定文件里的死代码身份登记在此，不删。
+
+新组件沿用旧池的确定性（FNV-1a 哈希 slug），但哈希选的是**版式**而不是图片：左字 / 右字 / 居中刊头三选一；大字取标题首个汉字或字母数字（`coverGlyph`），无则「文」。三个变体：`plate`（文章页 FIG.01，2.2:1，大字 + mono 眉标 + 衬线标题两行截断 + 发丝线 + mono 脚标）、`thumb`（首页复合行 4:3，大字 + 右下 3px 强调色刻度，编号徽章沿用 `.feature-row__no`）、`mini`（索引行序号栏 44/56px 字牌，复用 `.row-cover` 定位）。服务端渲染、零 JS、零位图；颜色全走令牌（`--surface-2 / --ink / --muted / --line-strong / --color-primary`），**零新增写死色**。图版与标题重复，整块 `aria-hidden`；文章页图注从「…点击放大」改为「排字图版 · 由标题生成，无摄影素材」——位图没了，`data-zoomable` 随之撤掉，不再承诺一个不存在的放大交互。
+
+hover 反馈：plate 大字 color 转 `--accent-text`、外框 border-color 转 `--accent`（只动 color 系）；thumb 沿用 `scale(1.08)`（transform）；减动态块里 thumb 的空间反馈照掐。
+
+**三、OG：排字渲染的 PNG，不是生成式素材**
+
+`ui-concepts/verify/og-card.mjs` 用 Playwright 把一份 1200×630 的 HTML 刊头（站点同款系统字体栈、亮色令牌色值一一对应：画布 `#faf9f5` / 墨 `#141413` / 强调 `#b4442f` / 发丝线 `#e4e3df` / 次级字 `#56534e`）截图成 `public/og-default.png`。一次性资产生成，不进构建管线；脚本在仓库外，色值写死不受组件纪律约束（它是资产源，不是站点源码）。layout 与文章页兜底改指 `og-default.png`；`post.cover` frontmatter 分支保留（虽然当前无人使用）。成品目检：刊头 masthead + 陶土粗线 + 三栏主题，与站点嗓音一致。
+
+**四、顺带下线的死 CSS**
+
+- `.editorial__figure > img`：3D 静物时代刊头规则，首页早已是 CoursePlate SVG，整条删除（删时留过残尾 `background` 两行，当场清掉）。
+- 减动态块与 hover 块里的 `.feature-row__thumb img` / `.post-cover__frame img` 选择器改指 `.typo-cover`；`.row-cover` 的 `object-fit: cover`（img 专用）删除。
+
+**五、验证（2026-11-17）**
+
+- `npm run build` rc=0、`npm run check` rc=0 零告警。第一遍 build 曾 rc=1：我在改 OG 兜底时把正则 `/^https?:\/\//i` 少写一个转义斜杠成 `/^https?:\/i`，TS1161 未终止正则 —— 量具（typecheck）当场咬出，修后复跑全绿。
+- 对比度普查 **596 → 596**，去重后仍只有 3 条 Shiki 亮色边界；`typo-cover` 相关选择器**零命中** —— 新图版的 mono 元信息走 `--muted` 而非 `--faint`，就是为了让 10px 小字也够得到 4.5:1，不新增缺陷。
+- 产物核对：`out/` 全目录 grep `images/3d|hero-main` 零命中；`out/og-default.png` 在位。
+- 截图七张存 `ui-concepts/verify/shots-zi/`（首页首屏 / 首页复合行 / 索引页 / 文章页，亮暗两档），逐张目检：亮色图版是墨字陶土刻度、暗色是暖白字深底，迷你字牌与序号栏换位关系不变，观感是「刊物图版」而不是缺图占位。
+- 量具坑登记：`shot.mjs --url` 要**完整 URL**。MSYS 会把 `--url=/posts/` 改写成 `d:/Artificial_Intelligence/Git/posts/`（ERR_FILE_NOT_FOUND）；更阴的是 `--url=/` 被改写成 Git 根目录后 Chrome 渲染**目录_listing_** 也「成功」截图 —— 亮暗两张字节数完全相同（60035）就是线索。挂 `MSYS_NO_PATHCONV=1` 又会让 `/` 原样进 `page.goto` 报 invalid URL。正解是直接传 `http://127.0.0.1:8126/…`，不挂开关。
+- 回归电池 11 闸全绿（日志 `ui-concepts/verify/reg-zi-<gate>.log`）：zc-verify 全部通过（首页 eager JS 仍 29 脚本 / 651.7KB，图版零新增 JS）；narrow-overflow 320/360 两档各 0 页横向溢出；sweep2 43 页 / 215 检查 / findings []；fontwt PASS（本机族只登记不参与声明核对）；batchy 18 项 PASS（页脚第 128 天、h2#license top=96px、全程无页面级 JS 错误）；scrollbar-contrast 亮 5.29:1 / 暗 6.73:1（闸 3:1）；reading-progress 两条路 PASS；mathclass 92 页 / 13747 候选块 / 2750 命中、漏标 0 多标 0、320px 活体 overflow-x=auto；scrollbar-geometry thin 只增不减；accent-contrast 4 消费者 + accent-render 3 强调面亮暗均 4.5:1。计时闸不在本轮电池内（见六）。
+- 交互实测：文章页 hover `.post-cover` 后图版大字落 `rgb(180, 68, 47)`（`--accent-text`），页内位图只剩作者头像两张，`data-zoomable` 计数 0 —— 封面换色反馈与「无位图可放大」的现状一致。
+
+**六、残留**
+
+- `lib/covers.ts` 锁定死代码（见二）；`public/og-default.svg` 本就零引用，非 AI 素材，不在本轮处置范围。
+- `ImageLightbox` 保留：文章页当前没有可放大位图，但组件是委托监听，未来 content 出现图片时仍接管，不算死控件。
+- 计时闸不在本轮电池内：day-10 绝对 INP 仍无静窗读数，红线状态未变（§11.41 八）。
+

@@ -25,9 +25,9 @@ export const metadata: Metadata = {
   openGraph: {
     title: SITE.title, description: SITE.description, url: siteUrl(),
     siteName: SITE.title, locale: SITE.locale, type: 'website',
-    images: [{ url: siteUrl('images/3d/og-3d.jpg'), width: 1200, height: 630, alt: SITE.title }],
+    images: [{ url: siteUrl('og-default.png'), width: 1200, height: 630, alt: SITE.title }],
   },
-  twitter: { card: 'summary_large_image', title: SITE.title, description: SITE.description, images: [siteUrl('images/3d/og-3d.jpg')] },
+  twitter: { card: 'summary_large_image', title: SITE.title, description: SITE.description, images: [siteUrl('og-default.png')] },
   robots: { index: true, follow: true },
   icons: [{ url: basePathUrl('/favicon.svg'), type: 'image/svg+xml' }],
   manifest: basePathUrl('/manifest.webmanifest'),

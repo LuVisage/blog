@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { PostMeta } from '@/lib/posts'
 import { EmptyState } from '@/components/ui/empty-state'
-import { coverFor } from '@/lib/covers'
+import { TypographicCover } from '@/components/typographic-cover'
 import { IconFileText, IconArrowUpRight } from '@tabler/icons-react'
 
 /**
@@ -19,15 +19,15 @@ function shortDate(iso: string) {
 }
 
 function IndexRow({ post, ordinal }: { post: PostMeta; ordinal: number }) {
-  const cover = coverFor(post)
   return (
     <Link
       href={`/posts/${post.slug}`}
       data-spotlight="row"
       className="group grid grid-cols-[44px_minmax(0,1fr)_auto] items-baseline gap-3 sm:gap-6 py-6 rule transition-colors"
     >
-      {/* 封面预览钉在序号栏（globals.css §11.6 row-cover）：不再跟手，也就压不到正文 */}
-      <img src={cover.url} alt={cover.alt} loading="lazy" decoding="async" className="row-cover" />
+      {/* 封面预览钉在序号栏（globals.css §11.6 row-cover）：不再跟手，也就压不到正文。
+          ZI 起是排字图版（标题首字），不再是 AI 封面缩略图。 */}
+      <TypographicCover post={post} variant="mini" />
 
       {/* 第 5 轮换血：序号 → are.na 灰阶 mono 数字（无边框无胶囊），hover 让位给封面 */}
       <span className="issue-badge tabular-nums">{String(ordinal).padStart(2, '0')}</span>

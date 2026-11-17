@@ -467,7 +467,10 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 | `.media-fade` | 头像等真实图片 | `.is-loaded` 时 `opacity 0→1` | `--duration-slow` |
 | `.field-rule` | 下划线式输入行 | `:focus-within` 线色转强调色、光标同色 | `--color-primary` |
 | `[data-spotlight='row']` | 台账行提示 | hover 出现左侧 2px 强调色指示线 | `--color-primary` |
+| `.typo-cover`（`--plate / --thumb / --mini`） | 排字图版封面 | plate hover 大字转 `--accent-text`、外框转 `--accent`；thumb hover `scale(1.08)`；减动态掐空间反馈 | `--surface-2`, `--line-strong`, `--font-serif`, `--font-mono` |
 | `.prose` | 阅读面 | 链接下划线转实并抬升偏移、引用块 2px 强调色左线、表格发丝线 | `--measure` |
+
+**封面是排字图版，不是素材（Batch ZI）。** 三张 AI 渲染封面与 OG 静物全部下线：它们与文章内容无关，读者从图上读不到任何关于这篇文章的信息。替代物是 `components/typographic-cover.tsx` —— 标题首字作大字锚点、mono 刊头元信息、发丝线，版式由 slug 的 FNV-1a 哈希三选一（左字 / 右字 / 居中刊头），服务端渲染、零 JS、零位图、零新增色。三个尺寸对应三个消费点：文章页 FIG.01 图版（2.2:1）、首页复合行缩略（4:3）、索引行序号栏迷你字牌。图版与标题文字重复，整块 `aria-hidden`；文章页图注如实写「排字图版 · 由标题生成，无摄影素材」。OG 分享图由 `ui-concepts/verify/og-card.mjs` 把一份同款字体栈与令牌色值的 HTML 刊头截图成 1200×630 PNG —— 是排字渲染，不是生成式素材。`lib/covers.ts` 被用户第 4 条决定锁在 lib/ 内，消费点改调新组件后它不再被引用，身份登记为锁定死代码（台账 §11.44）。
 
 聚焦环：`2px solid var(--color-primary)` + `offset 2px`（§3.1 的 `--color-focus-ring` 用于按钮与滑块的柔化环）。
 

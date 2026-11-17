@@ -1557,7 +1557,6 @@ figure[data-rehype-pretty-code-figure]:hover {
   left: 0;
   width: 44px;
   height: 44px;
-  object-fit: cover;
   border-radius: var(--radius-xs);
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -2861,18 +2860,10 @@ footer :focus-visible { outline-color: var(--accent-text); }
   color: var(--ink);
 }
 
-/* 刊头配图：3D 渲染静物。博客不是落地页，所以它只是文字流里的一幅图，
-   不加阴影、不加渐变遮罩、不叠标题，靠一条等宽图注说明出处。 */
+/* 刊头配图：课程编排 SVG 图版（CoursePlate）。博客不是落地页，所以它只是
+   文字流里的一幅图，不加阴影、不加渐变遮罩、不叠标题，靠一条等宽图注说明出处。
+   3D 静物时代的 `> img` 规则已随 AI 封面下线（Batch ZI）。 */
 .editorial__figure { margin: 32px 0 0; }
-.editorial__figure > img {
-  display: block;
-  width: 100%;
-  height: clamp(220px, 30vw, 320px);
-  object-fit: cover;
-  object-position: center 46%;
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
-}
 .editorial__figure figcaption {
   margin-top: 10px;
   font-family: var(--font-mono);
@@ -2883,7 +2874,7 @@ footer :focus-visible { outline-color: var(--accent-text); }
 }
 .editorial__figure figcaption a { color: var(--accent-text); margin-left: 6px; }
 
-/* 3D 封面缩略图常态显示：原来是「hover 才淡入、盖住序号」的浮图，
+/* 排字封面缩略图常态显示：原来是「hover 才淡入、盖住序号」的浮图，
    等于大多数时候根本看不到配图。现在让它稳稳占住行首栏，序号让位。 */
 .row-cover {
   opacity: 1;
@@ -3813,15 +3804,13 @@ a.author-card__link:focus-visible { color: var(--accent-text); }
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
-.feature-row__thumb img {
-  display: block;
+.feature-row__thumb .typo-cover {
   width: 100%;
   height: 100%;
-  object-fit: cover;
   transition: transform var(--duration-slow) var(--ease-out);
 }
-.feature-row__link:hover .feature-row__thumb img,
-.feature-row__link:focus-visible .feature-row__thumb img { transform: scale(1.08); }
+.feature-row__link:hover .feature-row__thumb .typo-cover,
+.feature-row__link:focus-visible .feature-row__thumb .typo-cover { transform: scale(1.08); }
 .feature-row__no {
   position: absolute;
   top: 6px;
@@ -3925,9 +3914,98 @@ a.author-card__link:focus-visible { color: var(--accent-text); }
   transition: border-color var(--duration-fast) var(--ease);
 }
 .post-cover:hover .post-cover__frame { border-color: var(--accent); }
-.post-cover__frame img { transition: transform var(--duration-slow) var(--ease-out); }
-.post-cover:hover .post-cover__frame img { transform: scale(1.02); }
+.post-cover .typo-cover__glyph { transition: color var(--duration-fast) var(--ease); }
+.post-cover:hover .typo-cover__glyph { color: var(--accent-text); }
 .post-cover figcaption { margin-top: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+/* ── 排字图版（Batch ZI）：AI 封面下线后的题图语汇 ─────────────────────────
+   标题首字作大字锚点 + mono 刊头元信息 + 发丝线，版式由 slug 哈希三选一。
+   颜色全走令牌；图版与标题重复，组件整块 aria-hidden。 */
+.typo-cover {
+  display: flex;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--font-serif);
+}
+.typo-cover__glyph {
+  font-weight: 700;
+  line-height: 0.9;
+  color: var(--ink);
+  user-select: none;
+}
+.typo-cover--mini {
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+@media (min-width: 640px) {
+  .typo-cover--mini { font-size: 26px; }
+}
+.typo-cover--thumb {
+  position: relative;
+  align-items: center;
+  justify-content: center;
+}
+.typo-cover--thumb .typo-cover__glyph { font-size: 54px; }
+.typo-cover__tick {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 18px;
+  height: 3px;
+  background: var(--color-primary);
+}
+.typo-cover--plate {
+  aspect-ratio: 2.2 / 1;
+  align-items: center;
+  gap: clamp(24px, 4vw, 48px);
+  padding: clamp(20px, 4vw, 40px);
+}
+.typo-cover--plate .typo-cover__glyph { font-size: clamp(88px, 14vw, 150px); }
+.typo-cover--right { flex-direction: row-reverse; }
+.typo-cover--center {
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+.typo-cover--center .typo-cover__glyph { font-size: clamp(64px, 10vw, 104px); }
+.typo-cover__text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+.typo-cover--center .typo-cover__text { align-items: center; }
+.typo-cover__eyebrow,
+.typo-cover__foot {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.typo-cover__foot {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.typo-cover__title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-weight: 700;
+  font-size: clamp(18px, 2.6vw, 27px);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+.typo-cover__rule {
+  width: 100%;
+  height: 1px;
+  background: var(--line-strong);
+}
+.typo-cover--center .typo-cover__rule { width: 64px; }
 .prose h2::before {
   content: '';
   display: inline-block;
@@ -3997,13 +4075,12 @@ a.author-card__link:focus-visible { color: var(--accent-text); }
   [data-glow]::before,
   .page-sweep { display: none; }
   .feature-row__link,
-  .feature-row__thumb img,
+  .feature-row__thumb .typo-cover,
   .feature-row__arrow,
   .editorial__quick-item,
   .editorial__quick-arrow,
   .side-tag,
   .share-tool,
-  .post-cover__frame img,
   .post-nav__item,
   .reading-progress__fill { transition: none; }
 }
