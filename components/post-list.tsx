@@ -25,7 +25,7 @@ function IndexRow({ post, ordinal }: { post: PostMeta; ordinal: number }) {
       <div className="min-w-0">
         <h3
           className="row-title font-serif font-bold transition-colors group-hover:text-[var(--accent-text)] group-focus-visible:text-[var(--accent-text)] tint-ink"
-          style={{ fontSize: 20, lineHeight: 1.4, letterSpacing: '-0.01em' }}
+          style={{ fontSize: 21, lineHeight: 1.4, letterSpacing: '-0.015em' }}
         >
           {post.title}
         </h3>

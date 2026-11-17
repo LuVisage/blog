@@ -31,15 +31,17 @@ const config: Config = {
         serif: ['var(--font-title)'],
         mono: ['ui-monospace', '"SFMono-Regular"', '"JetBrains Mono"', 'Menlo', 'monospace'],
       },
+      // ZL 开本：整组方角。存量组件里的 rounded-lg / xl / 2xl 随 token 落到 0，
+      // 不必逐个改写；rounded-full 不在覆写里，头像仍是正圆。
       borderRadius: {
         none: '0',
-        sm: '8px',
-        DEFAULT: '12px',
-        md: '16px',
-        lg: '18px',
-        xl: '22px',
-        '2xl': '28px',
-        '3xl': '32px',
+        sm: '0',
+        DEFAULT: '0',
+        md: '0',
+        lg: '0',
+        xl: '0',
+        '2xl': '0',
+        '3xl': '0',
       },
       // 与 globals.css 的 --duration-fast/base/slow 同一套档位；不带 duration-* 的
       // transition-* 工具类因此落进 200ms 而不是 Tailwind 的 150ms。

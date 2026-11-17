@@ -218,13 +218,13 @@ function LangSmithTrace() {
                   {span.ms} ms
                 </span>
               </div>
-              <div className="mt-1.5 h-1 w-full" style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-pill)' }}>
+              <div className="mt-1.5 h-1 w-full" style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-xs)' }}>
                 <div
                   className="h-full"
                   style={{
                     width: `${Math.max(1, (span.ms / root.ms) * 100)}%`,
                     background: failed ? 'var(--danger)' : 'var(--accent)',
-                    borderRadius: 'var(--radius-pill)',
+                    borderRadius: 'var(--radius-xs)',
                   }}
                 />
               </div>

@@ -63,6 +63,7 @@ export default function HomePage() {
           <section className="editorial__section" aria-labelledby="latest-title">
             <div className="editorial__section-head">
               <h2 id="latest-title">最新</h2>
+              <span className="head-rule" aria-hidden="true" />
               <Link href="/posts">全部 {allPosts.length} 篇 →</Link>
             </div>
             <EditorialList posts={allPosts.slice(0, 5)} />

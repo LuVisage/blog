@@ -16,7 +16,7 @@ export function PageMasthead({ eyebrow, title, lead, counter, actions }: PageMas
     <header className="mb-16 sm:mb-20">
       <div
         className="flex items-center justify-between gap-4 py-2.5"
-        style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
+        style={{ borderTop: '2px solid var(--ink)', borderBottom: '1px solid var(--line)' }}
       >
         <span className="eyebrow">{eyebrow}</span>
         {counter && <span className="eyebrow eyebrow-accent">{counter}</span>}
@@ -25,7 +25,7 @@ export function PageMasthead({ eyebrow, title, lead, counter, actions }: PageMas
       <div className="pt-8 sm:pt-10 flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
         <div className="min-w-0">
           <h1 className="heading-1">{title}</h1>
-          {lead && <p className="body-lg mt-4 max-w-2xl">{lead}</p>}
+          {lead && <p className="editorial__intro">{lead}</p>}
         </div>
         {/* 不带 min-w-0 时这格顶不住收缩，卡片的 truncate 永不生效：320px 上把 288px 父栏撑到 335px。 */}
         {actions && <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">{actions}</div>}

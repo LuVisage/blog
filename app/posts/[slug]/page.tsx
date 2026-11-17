@@ -122,7 +122,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
               </div>
             </header>
 
-            <h1 className="display mt-5" style={{ fontSize: 'clamp(32px, 4.6vw, 52px)', lineHeight: 1.3 }}>
+            <h1 className="display mt-5" style={{ fontSize: 'clamp(32px, 4.8vw, 56px)', lineHeight: 1.22 }}>
               {post.title}
             </h1>
 
@@ -148,7 +148,7 @@ export default async function PostPage({ params }: { params: PageParams }) {
                 <Link
                   href={`/series/${post.series}`}
                   className="chip chip-body inline-flex mt-7 px-3 py-1.5 text-xs"
-                  style={{ borderRadius: 'var(--radius-pill)' }}
+                  style={{ borderRadius: 'var(--radius-xs)' }}
                 >
                   <span className="eyebrow">系列</span>
                   {post.series}

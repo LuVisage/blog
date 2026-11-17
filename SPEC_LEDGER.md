@@ -2366,3 +2366,72 @@ Batch Y 立的 byline / 字数 / 许可 / 运行天数 / 系列导航、PageTran
   互斥，不为一字破 clamp。
 - ZJ 边界不变：跨文档 VT 只覆盖硬导航。
 
+### 11.47 视觉层推倒重写：开本与栏线（Batch ZL）
+
+2026-11-17。用户裁定「你要不推倒重构」，经选项确认：**视觉层推倒**（`app/` 页面 +
+`components/` + `globals.css` 整体重写，`lib/` / `content/` / `proxy/` 与全部 14 闸不动）
+× **简洁风·新版面**（报纸嗓音保留——标题黑体 / 正文宋体 / 楷体引语——但版面、字阶、
+留白全部换新；令牌 / 动效 / 无渐变等约束照旧生效）。
+
+**一、契约冻结 → 单层重写**
+
+- 先以无头浏览器逐令牌实测明暗两套现行生效值，冻结为 `ui-concepts/verify/zl-tokens-light.json`
+  / `zl-tokens-dark.json`（各 142 键），作为重写的唯一色值 / 间距来源——重写不换肤色，
+  596 对比度基线与暗色强调面修复原样承继。
+- `app/globals.css` 从 2974 行七层历史覆写重写为 ~2000 行单层：§1 令牌（色值实测原样 +
+  别名走 `var()`）→ §2 基底 → §3 字阶 → … → §22 reduce 一处收口 → §23 print。历史覆写层
+  全部消解进单层，`SPEC_LEDGER.tokens.json` 同步从实测基线整册重写（58 色 / 字阶 11 档 /
+  圆角 [0, 9999] / 阴影 none / 断点 [520, 640, 896, 901, 1024]），撤掉滞留的第 5 轮
+  are.na/indigo 旧册。
+- 130 个类钩子与全部 JS 触碰类逐一携带；17 个 @keyframes、两处纪律例外（range 渐变轨 /
+  reading-progress linear）、reduce / print / VT / scroll-timeline / has-math / Shiki 双主题 /
+  首字下沉 / 楷体引语 / 主题圆形揭示全部原样承继。
+
+**二、新版面「开本与栏线」**
+
+- **字阶**：display 64 / h1 40 / h2 28 / h3 22 / h4 17 / lg 19 / body 16 / prose 18（INP 证据档
+  不动）/ sm 14 / code 14 / caption 13 / eyebrow 12（mono 0.14em）；行长 40.5em。
+- **形状**：圆角全 0 方角，`pill` 只留语义保留位、头像 50%；`tailwind.config.ts` borderRadius
+  同步归 0；4 处内联 `--radius-pill`（系列 chip + 3 处 sim 进度条）收口为 `--radius-xs`。
+- **刊头**：mono 眉题 → 黑体大题 → 宋体导语 → 出版数据栏（双细线夹持）→ 2px 墨 + 发丝双规线。
+- **栏线**：≥901px 侧栏通高左竖线 + 40px 缩进；≤900px 单栏摘线。
+- **挂码**：索引行 grid 44px（窄屏 32px）外沿栏挂 mono 页码，随悬停转朱砂。
+- **章节头**：2px 墨线压顶 + 黑体题 + 延伸发丝线 + 右端入口；朱砂方印统一节题 / 文内 h2。
+- **控件**：方角发丝线只换色——primary 墨底、secondary / 复制钮 hover 墨翻白、分页当前项与
+  筛选 pressed 墨底。零位移零阴影。
+
+**三、聚焦精修（一轮）**
+
+首屏密度是最大短板：刊头 pb 48→32、题 / 导语 mt 20→16、数据栏 mt 32→24（900px 折叠线内
+多容纳一条完整文章行）；侧栏 `padding-top: calc(48px + 12px)` 使侧栏首题头与主栏 folio 头
+光学对齐。折叠线截图前后对照确认。
+
+**四、证据（全部对最终构建）**
+
+- `npm run build` / `npm run check` rc=0；纪律闸「扫了 125 个源文件 · 17 个 @keyframes ·
+  时长 5 / 缓动 89 / 属性 122 / 语汇 4 / 颜色 84 / 动画引用 16 / 工具类 74 · 违规 0 处 · 0 类
+  PASS」，两处注册例外全命中。
+- 七闸全绿（`reg-zl-*.log`）：zc-verify 全部通过（首页 eager JS 18 脚本 / 468.4KB；/tags 31 行
+  25 带简介）；narrow-overflow 320/360 各 0 页；fontwt PASS；noscript 20 页 0 不达标；
+  mathclass 92 页 / 2750 块逐元素等价；batchy 附则 7 全 PASS（h2#license top=96px）；
+  sweep2 215 检查 findings []。
+- 新交互探针 `ui-concepts/verify/zl-interact.mjs` 28/28：首页悬停标题 + 挂码转
+  rgb(180,68,47) 且可还原、chip/btn 0px 圆角而头像 50%；主题两段揭示（120ms 罩在而 .dark
+  未落、900ms 落定 canvas rgb(20,19,17) 罩已摘、可翻回）；390 抽屉 7 链接 Esc 焦点归还汉堡；
+  订阅复制 label「已复制」+ 剪贴板真值以 rss.xml 收尾；收藏→清单→移除→空态焦点「去读文章」
+  闭环；代码复制 hover opacity 1 + aria「已复制」；搜索 Agent 4 命中；reduce 档 scroll auto +
+  时长 parseFloat ≤ 1e-5 + 悬停颜色反馈保留。
+- 探针四修均为量具错、产品零改动：主题断言改两段式（读 theme-toggle 源码证实 animationend
+  才 setTheme）；订阅复制选择器限定 `.editorial__subscribe-row`（原全局 `button[data-js-only]`
+  打到头部主题钮）；reduce 时长断言接受 0.01ms 通用清零的计算值 1e-05s。
+- 截图目检 `shots-zl/` 12 张：首页 / 索引 / 文章 / 关于 / 学习 / 标签 × 1440 明暗 + 390 明暗 +
+  折叠线对照。
+- 红线不变：day-10 绝对 INP（静窗不可达）、Shiki 3 行亮色对比度（Batch F 边界）。本轮零
+  色值改动 → 对比度普查不重跑。**不声称全站 AA 全绿、不声称 INP 绿**；计时闸不在本轮电池内。
+
+**五、残留**
+
+- `span.feature-row__body` 内含 h3/p 的 phrasing 嵌套不合规承继自 ZK，仍登记为候选。
+- `gsap` 依赖保留（用户确认）；`lib/covers.ts` 锁定死代码、`og-default.svg` 零引用不变。
+- DESIGN.md 增补 §3.1（现行字阶）与 §5.4（开本与栏线）；旧表保留作历史出处。
+

@@ -417,6 +417,31 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 
 **中文行长**：§12.1 的 65–75 拉丁字符按 CJK 双宽折算为 34–40 全角，实现为 `.prose { max-width: var(--measure) }`（38em）。
 
+### 3.1 字阶与嗓音现行基线（第 26 轮 ZL · 台账 §11.47）
+
+上表为出处外推值，保留作历史；**现行生效字阶**以 `app/globals.css` 单层令牌为准（ZL 重写，色值承第 17 轮实测基线）：
+
+| 档 | 值 | 用途 |
+|---|---|---|
+| display | 64px / 1.15 / 700 | 首页刊头（clamp(36px, 6vw, 64px)） |
+| h1 | 40px / 1.25 / 700 | 页面主标题（clamp(28px, 4.5vw, 40px)） |
+| h2 | 28px / 1.25 / 700 | 区块标题、文章小节 |
+| h3 | 22px / 1.35 / 600 | 行标题、子标题 |
+| h4 | 17px / 1.5 / 600 | 正文内最小标题 |
+| lg | 19px / 1.65–1.75 | 导语（宋体） |
+| body | 16px / 1.7 | UI 正文基准 |
+| prose | 18px / 1.85 | 长文阅读（attr-z4 INP 证据档，不动） |
+| reading-sm | 16px | 阅读字号「小」 |
+| sm | 14px | 控件、次要文字 |
+| code | 14px / 1.7 | 代码 |
+| caption | 13px / 1.5 | 说明文字 |
+| eyebrow | 12px / 0.14em / 500 | mono 小标 |
+
+- **嗓音分工**：标题族 `--font-title`（Georgia + PingFang/雅黑，真粗体不合成）、正文族 `--font-serif`（Georgia + Songti/SimSun）、引语 `--font-kai`（KaiTi 系）、元信息 `--font-mono`（系统等宽）。全本机族，零下载。
+- **数字字形**：标题族与 `.font-serif` 翻 `lining-nums`（Georgia 旧式数字在展示字号下「40」读成「4o」）；正文保留旧式数字。
+- **行长**：`--measure: 40.5em`（prose 18px 下 ≈ 729px）。
+- 字重档不变：400 / 500 / 600 / 650 / 700，`fontwt.mjs` 常驻闸守卫。
+
 ## 4. Spacing & Layout
 
 - 基准单位 **4px**（§5.1）
@@ -496,6 +521,20 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 - 遍历必须穿过非 element 节点：MDX 的 `<details>` 在 hast 里是 `mdxJsxFlowElement`，按 `type === 'element'` 过滤会跳过整棵子树 —— 第一版就这么漏了 229 个块。
 - `overflow-y: clip` 与 `overflow-x: auto` 同用时**计算值是 `hidden`**（CSS Overflow 规定），不是 clip。结果一样不出纵向滚动条，但它确实成了滚动容器。
 - containment（`contain: layout style paint`）在同一页实测**无效**：两轮 INP 与基线持平、重排反而更差。它治局部变化，治不了全局字号切换。
+
+### 5.4 开本与栏线（第 26 轮 ZL · 视觉层推倒重写 · 台账 §11.47）
+
+用户裁定「视觉层推倒 + 简洁风·新版面」：`app/globals.css` 从 2974 行七层历史覆写重写为单层令牌 + 一套新版面；`lib/` / `content/` / `proxy/` 与全部 DOM 契约不动。嗓音与色值不变，换的是**开本**：
+
+- **形状**：`--radius-xs…3xl` 全 `0`（方角），`pill 9999` 只留语义保留位、头像 `50%`；`tailwind.config.ts` borderRadius 同步归 0（`rounded-full` 不覆写）。存量 `rounded-lg/xl/2xl` 随令牌落方角，不逐个改写。
+- **刊头**：eyebrow mono → 黑体大题 → 宋体导语 → **出版数据栏**（`.editorial__meta-line` 夹在 1px line-strong 与 1px line 之间）→ `.editorial__rule` 双细线（2px 墨 + 隔 3px 发丝线）。
+- **栏线**：≥901px `.editorial__side` 通高 `border-left: 1px line-strong` + `padding-left: 40px`，主侧栏由竖线分开而非空白；侧栏 `padding-top: 60px` 使首块题头与主栏 folio 头光学对齐。≤900px 单栏、竖线摘除。
+- **挂码**：索引行 `display: grid` 44px 外沿栏（窄屏 32px）挂 mono 页码 `.editorial__folio`，与标题顶对齐、随悬停转朱砂；标签行坐第二行右栏。
+- **folio 章节头**：2px 墨线压顶 + 黑体题 + `.head-rule` 延伸发丝线 + 右端入口；`.section-title::before` 与 `.prose h2::before` 同用朱砂方印。
+- **控件反馈**：方角发丝线，只换色不位移——`btn-primary` 墨底纸字→hover 次墨；`btn-secondary` / `apple-copy-btn` →hover 墨色翻白；分页当前项与筛选 pressed 墨底；chip/capsule/side-tag/share-tool 换色 + 边框转朱砂。
+- **留白节奏**：刊头 pb 32、节 pt 48、索引行 26/28（compact 16/18）；首屏 900px 容两条完整文章行。
+- **承继不动**：17 个 @keyframes、两处纪律例外（range 渐变轨 / reading-progress linear）、reduce 一处收口（含颜色反馈保留与 VT 伪元素点名）、print、scrollbar、has-math 构建期打标、Shiki 双主题、首字下沉、楷体引语、主题圆形揭示、跨文档 VT。
+- **证据**：build/check rc=0；纪律闸 17 keyframes / 0 违规 / 例外全命中；七闸（zc-verify / narrow-overflow / fontwt / noscript / mathclass / batchy / sweep2）全绿；`zl-interact.mjs` 28/28（悬停换色、主题两段揭示、抽屉焦点归还、订阅剪贴板真值、收藏闭环、代码复制、搜索、reduce 颜色反馈）；截图目检明暗 × 1440/390。
 
 ## 6. Components
 

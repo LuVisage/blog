@@ -4,21 +4,23 @@ import { zhCN } from 'date-fns/locale'
 import type { PostMeta } from '@/lib/posts'
 
 /**
- * 编辑式文章行 · ZK 简洁风：日期 / 分类 / 时长 → 标题 → 摘要，整行一个 <Link>，
- * 标签行留在外面各自可点。题图、编号块、跟手柔光与箭头装饰全部下线，
- * hover 反馈只留标题换色（CSS）。
+ * 编辑式文章行 · ZL 开本：mono 页码挂在左栏外沿，日期 / 分类 / 时长 → 标题 → 摘要
+ * 坐在右栏，整行一个 <Link>，标签行留在外面各自可点。hover 只留标题与页码换色。
  */
 export function EditorialList({ posts, compact = false }: { posts: PostMeta[]; compact?: boolean }) {
   if (!posts.length) return null
 
   return (
     <ol className="editorial__list">
-      {posts.map((post) => {
+      {posts.map((post, i) => {
         return (
           <li
             key={post.slug}
             className={`editorial__item feature-row${compact ? ' editorial__item--compact' : ''}`}
           >
+            <span className="editorial__folio" aria-hidden="true">
+              {String(i + 1).padStart(2, '0')}
+            </span>
             <Link href={`/posts/${post.slug}`} className="editorial__item-link feature-row__link">
               <span className="feature-row__body">
                 <span className="editorial__meta">

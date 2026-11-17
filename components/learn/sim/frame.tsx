@@ -145,7 +145,7 @@ export function Pills({ items, active, onPick }: PillsProps) {
 export function ScoreBar({ ratio }: { ratio: number }) {
   const clamped = Math.max(0, Math.min(1, ratio))
   return (
-    <span className="block h-1 w-full overflow-hidden" style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-pill)' }}>
+    <span className="block h-1 w-full overflow-hidden" style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-xs)' }}>
       {/* 填充走 scaleX 而不是 width：§1.8.1 的属性白名单里没有布局属性。
           origin-left 让缩放从左上角起，视觉与 width 增长一致。 */}
       <span
