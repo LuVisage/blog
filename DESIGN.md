@@ -255,7 +255,7 @@ Batch Y 闸断言的 byline / 字数 / 许可 / 运行天数 / 系列导航全�
 `--panel-gradient` / `--shadow-hero`）一并撤。纪律闸 `EXCEPT.keyframeProp` 的
 `blurIn: filter` 例外撤销——主体没了还留着例外，等于悄悄放宽闸的射程。
 `gsap` 依赖留在 `package.json` 但零引用（tree-shaken，首页 eager JS 无 GSAP，
-`zc-verify` weight 段新增断言）；移除依赖属风险动作，待用户确认。
+`zc-verify` weight 段新增断言）；用户 2026-11-17 确认保留，不摘。
 `--pagefind-ui-*` 令牌看似无消费者，实际由 Pagefind 自带 UI 读取，**保留**。
 **标题数字**：Georgia 默认旧式数字，展示字号下「40 天」读成「4o 天」；先活体注入确认
 `lining-nums` 在该字体栈真生效，再给标题族（含 `font-serif` 工具类）统一翻 lining，

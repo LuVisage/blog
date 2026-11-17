@@ -2306,8 +2306,9 @@ Batch Y 立的 byline / 字数 / 许可 / 运行天数 / 系列导航、PageTran
   `.next.bak.r20b` / `out.bak.r20` 两个备份构建目录，否则假阴性（本轮踩过）。
 - `lib/` 锁未破：`NAV_LINKS` 在锁定的 `lib/constants.ts`，搜索入口改在 `components/header.tsx`
   视图层加一枚 `/search` 链接。
-- `gsap` 依赖留在 `package.json` 但零引用（tree-shaken）；摘依赖属风险动作，待用户确认。
-  `zc-verify` weight 段新增断言「首页 eager JS 无 `ScrollTrigger|gsap.core|_gsap` 标记」钉住此事。
+- `gsap` 依赖留在 `package.json` 但零引用（tree-shaken）；摘依赖属风险动作，**用户已确认保留**
+  （2026-11-17）。`zc-verify` weight 段新增断言「首页 eager JS 无 `ScrollTrigger|gsap.core|_gsap`
+  标记」钉住此事。
 - 文档同步：README 功能清单与技术栈（GSAP 不再列为在用技术）；HOW_TO_POST 封面节改
   「自定义分享图」（`cover` 只喂 OG，缺省 `public/og-default.png`）、「课程图版」节改
   「首页刊头与站点事实」（含 `popular: true` 决定精选）、下线清单补第 21 轮；DESIGN 第 21 轮
@@ -2357,7 +2358,7 @@ Batch Y 立的 byline / 字数 / 许可 / 运行天数 / 系列导航、PageTran
 
 **五、残留**
 
-- `gsap` 依赖未摘（零引用、tree-shaken；摘依赖属风险动作，待用户确认）；`lib/covers.ts`
+- `gsap` 依赖未摘（零引用、tree-shaken；用户 2026-11-17 确认保留）；`lib/covers.ts`
   仍是锁定死代码；`og-default.svg` 零引用。
 - `editorial-list` 的 `span.feature-row__body` 内含 h3/p（phrasing 嵌套不合规、渲染正常）——
   刻意不动以免电池中途重建，登记为下一轮候选。
