@@ -12,6 +12,7 @@ import { BookmarkButton } from '@/components/bookmark-button'
 import { AvatarImage } from '@/components/avatar-image'
 import { PostLicense, LICENSE_URL } from '@/components/post-license'
 import { RelatedPosts } from '@/components/related-posts'
+import { SubscribeCard } from '@/components/subscribe-card'
 import { ReadingProgress } from '@/components/ui/reading-progress'
 import { CodeBlockEnhancer } from '@/components/code-block-enhancer'
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
@@ -273,6 +274,11 @@ export default async function PostPage({ params }: { params: PageParams }) {
 
           <RelatedPosts currentSlug={slug} />
 
+          {/* 读完一篇是订阅意愿最高的时刻；移动端侧栏堆到首页四屏下，
+              文尾这条是移动端唯一顺路的订阅入口（ZM D3）。 */}
+          <section className="post-subscribe mt-10" aria-label="订阅更新">
+            <SubscribeCard />
+          </section>
 
           <section className="mt-10 surface p-5 sm:p-7">
             <GiscusComments />

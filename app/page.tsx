@@ -45,7 +45,7 @@ export default function HomePage() {
             踩过的坑和取舍理由一并写下来；写得慢一点，但每篇都经得起追问。
           </p>
           <p className="editorial__meta-line">
-            {allPosts.length} 篇文章 · {lessons} 课次 · {tags.length} 标签
+            {SITE.author.name} 主笔 · {allPosts.length} 篇文章 · {lessons} 课次 · {tags.length} 标签
             {latestDate && (
               <>
                 {' · 最近更新 '}
@@ -54,6 +54,7 @@ export default function HomePage() {
             )}
           </p>
         </div>
+        <span className="editorial__seal" aria-hidden="true">志</span>
       </header>
 
       <div className="editorial__rule" />
@@ -76,6 +77,7 @@ export default function HomePage() {
             <div className="side-about">
               <span className="side-about__avatar"><AvatarImage src={SITE.avatar} alt={SITE.author.name} /></span>
               <p>
+                <span className="side-about__name">{SITE.author.name}</span>
                 AI 探索者 &amp; Agent 开发者。关注大模型应用、Agent 架构与工程实践，
                 也记录把技术讲清楚的过程。
               </p>

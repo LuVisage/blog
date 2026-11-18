@@ -536,6 +536,18 @@ Anthropic 的界面近乎纯排版：层级不靠阴影与装饰，而靠 1px �
 - **承继不动**：17 个 @keyframes、两处纪律例外（range 渐变轨 / reading-progress linear）、reduce 一处收口（含颜色反馈保留与 VT 伪元素点名）、print、scrollbar、has-math 构建期打标、Shiki 双主题、首字下沉、楷体引语、主题圆形揭示、跨文档 VT。
 - **证据**：build/check rc=0；纪律闸 17 keyframes / 0 违规 / 例外全命中；七闸（zc-verify / narrow-overflow / fontwt / noscript / mathclass / batchy / sweep2）全绿；`zl-interact.mjs` 28/28（悬停换色、主题两段揭示、抽屉焦点归还、订阅剪贴板真值、收藏闭环、代码复制、搜索、reduce 颜色反馈）；截图目检明暗 × 1440/390。
 
+### 5.5 首屏的人与入口（第 27 轮 ZM · 对照缺陷 D1–D5 · 台账 §11.48）
+
+七站参照实测对照后补齐「首屏见人、入口可承诺」：
+
+- **方印锚点**：`.editorial__seal` 刊头右端朱砂方印「志」，72px / 楷体 40px（≤640px 48 / 26），`--color-primary` 底 `--on-accent` 字随模式翻；aria-hidden、不可选。刊头 flex 化（main flex:1 min-width:0），pb 24。
+- **主笔与署名**：计量行首格 `作者名 主笔`；侧栏关于本站 `.side-about__name`（title 族 15/700）首行立名。
+- **⌘K 契约**：header 全局 Meta/Ctrl+K——站外 push `/search`、站内聚焦搜索输入框（`startsWith` 兼容 trailingSlash）；header kbd / 输入行 kbd / masthead counter 三处文案随平台 ⌘K / Ctrl K。
+- **文末订阅**：`.post-subscribe` 复用 SubscribeCard，相关文章与评论之间；line-strong 顶线 + pt 22，h2 15/700 title 族。
+- **密度**：索引行 18/20、摘要单行 clamp、节 32/8、head pt 10、tags mt 10；首屏 900px 完整 2 起头 3（superseding §5.4 的行 26/28 与刊头 pb 32）。
+- **CSP**：style-src 增 `https://giscus.app`（client.js 往父文档注 default.css，不放行整条被拒）。
+- **证据**：见台账 §11.48（zm-interact 33/33、七闸、纪律 0 违规、明暗 × 1440/390 目检）。
+
 ## 6. Components
 
 | 组件 | 变体 | 状态 | 关键 token |

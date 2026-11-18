@@ -2435,3 +2435,60 @@ Batch Y 立的 byline / 字数 / 许可 / 运行天数 / 系列导航、PageTran
 - `gsap` 依赖保留（用户确认）；`lib/covers.ts` 锁定死代码、`og-default.svg` 零引用不变。
 - DESIGN.md 增补 §3.1（现行字阶）与 §5.4（开本与栏线）；旧表保留作历史出处。
 
+### 11.48 对照优秀博客的五个缺陷：把人与入口放进首屏（Batch ZM）
+
+2026-11-18。用户要求「在网上看看其他优秀的博客网站，再看看咱们的」。七个参照站
+（antfu、tw93、paco、rauchg、leerob、robinrendle、overreacted；emilkowalski 为组件文档站，
+剔除）逐一真实截图目检，与本站逐项对照得 D1–D7；用户裁定「D1–D5 都修」。D6（内容多样
+与更新频率）需解锁 `content/` / `lib/`，登记为方向项不动；D7 为台账红线，不变。
+
+**一、五缺陷与修法**
+
+- **D1 ⌘K 死承诺**：搜索页挂着 ⌘K 广告语但全站没有全局监听。`components/header.tsx`
+  加 window keydown（Meta/Ctrl+K，preventDefault）：非搜索页 `router.push('/search')`，
+  搜索页内聚焦 `input[aria-label="搜索全站内容"]`。文案三处随平台（header kbd / 输入行
+  kbd / masthead counter）：Win 显示 Ctrl K。
+- **D2 首屏没有人**：参照站全部首屏见作者（antfu 自述、leerob bio、overreacted by+头像）。
+  刊头计量行首格加 `SITE.author.name 主笔`（真实数据）；侧栏「关于本站」首行
+  `.side-about__name`（title 族 15/700）。
+- **D3 移动端文末无订阅入口**：`.post-subscribe` 复用 `SubscribeCard`，落在相关文章与
+  评论区之间（border-top line-strong + pt 22；h2 15/700 title 族）。
+- **D4 索引行扫描密度**：摘要改单行 clamp（clamp 与 text-wrap 互斥，注释留档）；几何收回
+  66px：section 48→32、head pt 12→10、刊头 pb 32→24、行 26/28→18/20、desc mt 8→6、
+  tags mt 12→10。行高 211→约 189px，row2 top 958→约 892；首屏 900px 由「完整 1 / 起头 2」
+  变「完整 2 / 起头 3」。断言不放宽，改产品几何。
+- **D5 首屏视觉锚弱**：刊头右端朱砂排字方印「志」`.editorial__seal`：72px 方 / 楷体 40px，
+  ≤640px 48px / 26px；`--color-primary` 底 `--on-accent` 字，随模式翻（亮
+  rgb(180,68,47)/白，暗 rgb(224,117,95)/rgb(20,19,17)）；aria-hidden、user-select:none。
+  刊头改 flex（main flex:1 min-width:0）。零新色值。
+
+**二、验证抓出的两个真缺陷（产品侧）**
+
+- **trailingSlash 焦点分支**：`trailingSlash:true` 下 `usePathname` 返回 `/search/`，
+  `=== '/search'` 落 else → 同路由 push 不重 mount、autoFocus 不触发。改
+  `startsWith('/search')`。探针 FAIL 抓出，非量具错。
+- **giscus 父文档 CSP**：client.js 在父文档注入 `https://giscus.app/default.css`，
+  style-src 未放行整条被拒（控制台每篇红一行，来源 location 实证）。`app/layout.tsx`
+  style-src 只加 `https://giscus.app` 一个源。giscus `/api/discussions` 404 = 仓库
+  Discussions 未启用，环境态；探针按 console location URL 过滤并留档理由，非产品错误。
+
+**三、证据（全部对最终构建 build-zm3）**
+
+- `npm run build` / `npm run check` rc=0；纪律闸「125 源文件 · 17 @keyframes · 违规 0」。
+- `zm-interact.mjs` 33/33：Meta+k 首页→/search 且焦点落输入框；blur 后 Ctrl+k 接回；
+  文章页 Ctrl+k 跳转；三处文案 Ctrl K；主笔行；侧栏名首屏；方印双模式几何/色值/楷体 +
+  390 48px 无溢出；clamp 1；首屏完整 2 起头 3；390 订阅块落位/复制/剪贴板真值/DOM 顺序
+  （compareDocumentPosition：相关文章在前、评论区在后）；桌面订阅；reduce 档 Ctrl+k。
+- 七闸 `reg-zm3-*`：zc-verify 全部通过；narrow-overflow 320/360 各 0 页；fontwt PASS；
+  noscript 20 页 0 不达标；mathclass 92 页 / 2750 块等价；batchy 全 PASS；sweep2 43 页 /
+  215 检查 findings []。
+- 截图目检 `shots-zm/`：home-1440 亮全页 / 暗折叠线、home-390 亮全页、posttail-390
+  （订阅块居中于相关文章与评论之间）、search-1440（三处 Ctrl K）。
+- 红线不变：**不声称全站 AA 全绿、不声称 INP 绿**；计时闸不在本轮电池内。
+
+**四、残留**
+
+- D6 内容多样与更新频率（最近更新 2026.09.16）需 `content/` / `lib/` 解锁，方向项未动。
+- giscus 404 环境态：仓库启用 Discussions + 装 giscus App 即消；评论失败兜底已带三步诊断。
+- DESIGN.md 增补 §5.5（首屏的人与入口）。
+

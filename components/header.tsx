@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { NAV_LINKS, SITE } from '@/lib/constants'
 import { ThemeToggle } from './theme-toggle'
 import { IconSearch } from '@tabler/icons-react'
@@ -14,8 +14,29 @@ import { useRef, useState, useEffect } from 'react'
  */
 export function Header() {
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [isMac, setIsMac] = useState(false)
+
+  useEffect(() => setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.platform)), [])
+
+  // 键帽承诺必须有 handler 接班（ZM D1）：⌘K / Ctrl+K 全站跳搜索并聚焦；
+  // 已在搜索页时只把焦点接回输入框，不重复导航。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'k') return
+      e.preventDefault()
+      // trailingSlash:true 下 usePathname 带尾斜杠（/search/），等值比较会漏。
+      if (pathname.startsWith('/search')) {
+        document.querySelector<HTMLInputElement>('input[aria-label="搜索全站内容"]')?.focus()
+      } else {
+        router.push('/search')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pathname, router])
 
   const navRef = useRef<HTMLElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -133,6 +154,12 @@ export function Header() {
             >
               <IconSearch size={15} strokeWidth={1.75} />
               <span className="text-sm hidden sm:inline">搜索</span>
+              <kbd
+                className="hidden md:inline-flex items-center px-1.5 py-0.5 text-xs font-mono"
+                style={{ border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 'var(--radius-xs)' }}
+              >
+                {isMac ? '⌘K' : 'Ctrl K'}
+              </kbd>
             </Link>
             <ThemeToggle />
             <button

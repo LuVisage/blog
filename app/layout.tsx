@@ -72,7 +72,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             "form-action 'self'",
             'frame-src https://giscus.app',
             `script-src 'self' 'unsafe-inline'${DEV_SCRIPT_SRC} 'wasm-unsafe-eval' https://giscus.app https://www.googletagmanager.com`,
-            "style-src 'self' 'unsafe-inline'",
+            // giscus client.js 会往父文档注入 default.css（ZM 实测：不放行则整条被拒，
+            // 控制台红一行且评论框缺父侧样式）。只加这一个源，其余不动。
+            "style-src 'self' 'unsafe-inline' https://giscus.app",
             "font-src 'self' data:",
             "img-src 'self' data: blob: https:",
             "media-src 'self' blob: https:",

@@ -91,8 +91,11 @@ export function SearchPage({ starts }: { starts: Start[] }) {
   const [searched, setSearched] = useState(false)
   const [ready, setReady] = useState(false)
   const [visible, setVisible] = useState(RESULT_PAGE)
+  const [isMac, setIsMac] = useState(false)
   const pagefindRef = useRef<Pagefind | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.platform)), [])
 
   useEffect(() => {
     const link = document.createElement('link')
@@ -200,7 +203,7 @@ export function SearchPage({ starts }: { starts: Start[] }) {
         eyebrow="搜索 — Search"
         title="搜索"
         lead="输入关键词，在文章、教程与各个栏目里找相关内容。"
-        counter="⌘K 随时可用"
+        counter={isMac ? '⌘K 随时可用' : 'Ctrl K 随时可用'}
       />
 
       {/* Query field — a ruled line, not a pill；聚焦时线色转强调色。
@@ -239,7 +242,7 @@ export function SearchPage({ starts }: { starts: Start[] }) {
             className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-mono flex-shrink-0"
             style={{ border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 'var(--radius-xs)' }}
           >
-            <IconCommand size={11} strokeWidth={2} />K
+            {isMac ? <><IconCommand size={11} strokeWidth={2} />K</> : 'Ctrl K'}
           </kbd>
         )}
       </div>
