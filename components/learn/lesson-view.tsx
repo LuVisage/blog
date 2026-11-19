@@ -29,6 +29,26 @@ import { SimulatorClient } from '@/components/learn/simulator-client'
  * 所有课程共用的课时正文。课程归属写在 lesson 自身，这里不会猜错目录。
  */
 
+// 115/268 课的 lead 与正文开篇逐字相同或为其前缀（写作层遗留）：渲染期去重，content/ 不动。
+// 比前 3 段、含/不含引用块两路都比：lead 可能复读首段，也可能是开篇 callout 的前缀。
+function leadRepeatsBody(lead: string, content: string): boolean {
+  const norm = (t: string) =>
+    t.replace(/\]\([^)]*\)/g, '').replace(/[*`#[\]]/g, '').replace(/\s+/g, '')
+  const openings = (keepQuote: boolean) =>
+    content
+      .split(/\r?\n/)
+      .filter((l) => !/^(---|#+\s|<)/.test(l.trim()))
+      .filter((l) => keepQuote || !/^>/.test(l.trim()))
+      .map((l) => l.replace(/^>\s?/, ''))
+      .join('\n')
+      .trim()
+      .split(/\r?\n\r?\n/)
+      .slice(0, 3)
+      .map(norm)
+  const n = norm(lead)
+  return [...openings(true), ...openings(false)].some((o) => o === n || o.startsWith(n))
+}
+
 // 标题里的「…」引语染信号红，与文章页同一套巨字签名细节。
 function renderTitle(title: string) {
   return title.split(/(「[^」]*」)/g).map((part, i) =>
@@ -156,7 +176,7 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
 
             <h1 className="ptitle">{renderTitle(lesson.title)}</h1>
 
-            {lesson.lead && (
+            {lesson.lead && !leadRepeatsBody(lesson.lead, lesson.content) && (
               <p className="body-lg lead-md mt-5 max-w-2xl" style={{ color: 'var(--muted)' }}>
                 <InlineMd text={lesson.lead} />
               </p>

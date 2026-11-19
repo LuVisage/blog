@@ -22,5 +22,17 @@ export default function Search() {
     { href: '/tags', name: '标签', count: getAllTags().length, unit: '个' },
   ]
 
-  return <SearchPage starts={starts} />
+  return (
+    <SearchPage
+      starts={starts}
+      recent={getAllPosts()
+        .slice(0, 3)
+        .map((p) => ({
+          href: `/posts/${p.slug}`,
+          title: p.title,
+          date: p.date.slice(0, 10).replace(/-/g, '.'),
+          minutes: p.readingTime,
+        }))}
+    />
+  )
 }

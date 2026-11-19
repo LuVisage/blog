@@ -13,7 +13,7 @@ interface PageMastheadProps {
 
 export function PageMasthead({ eyebrow, title, lead, counter, actions }: PageMastheadProps) {
   return (
-    <header className="mb-16 sm:mb-20">
+    <header className="mb-10 sm:mb-12">
       <div
         className="flex items-center justify-between gap-4 py-2.5"
         style={{ borderTop: '2px solid var(--ink)', borderBottom: '1px solid var(--line)' }}

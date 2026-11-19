@@ -2663,3 +2663,44 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - CRLF：本轮编辑文件逐次归一（globals.css / page.tsx / layout.tsx）。- focusvis 全量（R1 构建，独走）：4 项 PASS 均 0 处——2.4.7 焦点可见（像素差复核后）/ 2.4.13 焦点外观 / 2.4.11 遮挡≥50% / 焦点停稳整块出视口；合计 3868 真实焦点站 · 像素复核 124 站 · 浮层重走 30 次 · 4 档视口/主题 × 15 类页面；rc=0（focusvis-r1-full.log）。
 - vitals 独跑（R1 构建，静机、无并发浏览器活）：30 站（15 类页面 × 2 视图）PASS——最差 CLS 0.0484（闸 0.1）、最慢交互 16ms（闸 200ms）；layout-shift 41 条、带 interactionId 交互 6 次；网络 off、注入 none、发车前空闲确认开、触顶 0 站（vitals-r1-full.log）。CLS 高位仍是数学页 KaTeX 落位（0.0484/0.0257），与 ZO 同源、闸内。
 - 全闸收口：build / check / contrast / scrollbar / narrow / names / ZL / ZM / focusvis 全量 / vitals 十闸全绿，R1 构建具备提交条件。
+
+### 11.52 R2 精修：页头死白、搜索空态、教程 lead 复读（Batch ZO-R2）
+
+#### 一 方法
+
+1. 12 页目检 + 几何实测定位缺陷：索引页 lead 底 354 → 正文首规 434（/posts）/ 474（/tags）/
+   529（/about），80–175px 死白让页头像浮在空中。源为 PageMasthead 的 mb-16 sm:mb-20
+   与 /about 跳转 nav 的 mb-14。
+2. 收节奏不放宽判据：masthead 改 mb-10 sm:mb-12（40/48px）、about nav 改 mb-10。
+   复测 /posts 首行 434→402、/about 首栏头 529→481、/tags 474→442、/learn 531→499。
+   home hero 不动（ZM 900px 契约只约束 home，复跑仍全过）。
+3. 搜索空态补真实内容而非装饰：服务端 getAllPosts().slice(0,3) 以 recent prop 传入，
+   chips 下加「最近发布」三行（2px 双规栏头 + 行线 + 宋体题 + mono 日期/分钟 + 全部文章入口）。
+   390 实测单行四列把题截到约 10 字 → 窄屏藏序号与分钟列、题改 line-clamp-2，复截成立。
+4. 教程 lead 复读去重（渲染期决策，content/ 与 lib/ 零改动）：扫 268 课得 115 课的 lead
+   与正文开篇逐字相同或为其前缀。规则比前 3 段、含引用块/去引用块两路候选，norm 去 markdown
+   记号、链接 URL 与空白；lesson-view 命中即不渲染 lead，153 课保留。day-29 同段出现两次、
+   day-01 lead 复读第二个 callout 首句，修后目检各只出现一次。
+5. 量具教训：首扫只比「去引用块首段」且未剥 YAML 引号，得 4/268 的假低估；二扫含引用块又漏回
+   已修的 51 课。每次改规则先对拍原始 mdx 文本与 DOM 实测（verify-r2*.mjs），再定稿。
+6. 纪律执行：lead 规则定稿前与窄屏修前各需重建，均先 TaskStop 停掉在跑的全量焦点闸再 build，
+   不在探针跑时重建。
+
+#### 二 偏差登记
+
+- 无新偏差。ZM / discipline / contrast 判据原值保留；lead 去重只改视图层渲染条件。
+- 115 课隐藏 lead 后开篇由 drop-cap 段或 callout 承担导语嗓音，目检 day-01 / day-29 成立。
+
+#### 三 证据
+
+- build + postbuild 审计：1160 文件通过；秘密扫描 741 文本产物 0 命中；外链脚本域名（无）。
+- npm run check rc=0：discipline 违规 0 处 0 类（工具类 66→68 随新增行类）。
+- contrast：亮暗低于 AA 0 处。scrollbar-contrast：2 对拇指 PASS。
+- narrow-overflow：320 / 360 两档 0 页横向溢出（含搜索新行）。
+- names：22 可见控件 · 15 类页面 · 66 角色另一腿 · 不一致 0。
+- ZL / ZM 交互探针：全部通过（R2 最终构建复跑）。
+- 目检：shots-r2/ 八张（posts / search 亮暗 / about / day-01 / day-29 / home-390 / search-390 / search-320）。
+- CRLF：本轮编辑文件逐次归一（page-masthead / lesson-view / about page / search-page / search page）。
+- focusvis 全量（R2 最终构建，独走）：4 项 PASS 均 0 处；合计 3886 真实焦点站（较 R1 +18，为搜索最近发布新增链接）· 像素复核 124 站 · 浮层重走 30 次 · 4 档视口/主题 × 15 类页面；rc=0（focusvis-r2-full.log）。
+- vitals 独跑（R2 最终构建，静机、无并发浏览器活）：30 站 PASS——最差 CLS 0.0484（闸 0.1）、最慢交互 24ms（闸 200ms）；layout-shift 41 条、带 interactionId 交互 17 次（较 R1 +11，为搜索最近发布链接进入交互步）；网络 off、注入 none、发车前空闲确认开、触顶 0 站（vitals-r2-full.log）。
+- 全闸收口：build / check / contrast / scrollbar / narrow / names / ZL / ZM / focusvis 全量 / vitals 十闸全绿，R2 构建具备提交条件。

@@ -41,6 +41,14 @@ export interface Start {
   unit: string
 }
 
+/** 空态下的真实最近发布，服务端切片传入。 */
+export interface Recent {
+  href: string
+  title: string
+  date: string
+  minutes: number
+}
+
 /** pagefind 报的 URL 自带部署前缀（/blog/posts/x/），先摘掉再喂给 next/link，
     否则它会再加一次 basePath，变成 /blog/blog/。 */
 function routePath(url: string): string {
@@ -84,7 +92,7 @@ function EmptyBlock({ children }: { children: ReactNode }) {
   return <div className="pt-14 pb-6 text-center rule">{children}</div>
 }
 
-export function SearchPage({ starts }: { starts: Start[] }) {
+export function SearchPage({ starts, recent }: { starts: Start[]; recent: Recent[] }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('全部')
   const [results, setResults] = useState<SearchResult[]>([])
@@ -267,6 +275,43 @@ export function SearchPage({ starts }: { starts: Start[] }) {
               </Link>
             ))}
           </div>
+          {recent.length > 0 && (
+            <div className="mt-12">
+              <div
+                className="flex items-baseline justify-between gap-4 pb-4"
+                style={{ borderTop: '2px solid var(--rule)', paddingTop: 'var(--space-12)' }}
+              >
+                <span className="eyebrow">最近发布</span>
+                <Link href="/posts" className="meta tint-body transition-colors hover:text-[var(--accent-text)]">
+                  全部文章 →
+                </Link>
+              </div>
+              <ul>
+                {recent.map((r, i) => (
+                  <li
+                    key={r.href}
+                    className="flex items-baseline gap-6 py-4"
+                    style={{ borderTop: '1px solid var(--line)' }}
+                  >
+                    <span className="meta tabular-nums shrink-0 hidden sm:inline" style={{ color: 'var(--faint)' }}>
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span className="meta tabular-nums shrink-0">{r.date}</span>
+                    <Link
+                      href={r.href}
+                      className="min-w-0 line-clamp-2 text-[17px] leading-snug tint-body transition-colors hover:text-[var(--accent-text)]"
+                      style={{ fontFamily: 'var(--font-serif)' }}
+                    >
+                      {r.title}
+                    </Link>
+                    <span className="meta ml-auto shrink-0 hidden sm:inline" style={{ color: 'var(--faint)' }}>
+                      {r.minutes} 分钟
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </nav>
       )}
 

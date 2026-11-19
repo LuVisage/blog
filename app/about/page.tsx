@@ -40,7 +40,7 @@ export default function AboutPage() {
 
       <nav
         aria-label="本页分节"
-        className="flex flex-wrap items-center gap-x-7 gap-y-2 pb-4 mb-14"
+        className="flex flex-wrap items-center gap-x-7 gap-y-2 pb-4 mb-10"
         style={{ borderBottom: '1px solid var(--line)' }}
       >
         <span className="eyebrow">本页</span>
