@@ -158,17 +158,18 @@ export function PostsCalendar({ posts }: Props) {
         <div
           ref={tipRef}
           aria-hidden="true"
-          className="fixed z-50 overlay rounded px-3.5 py-2.5 text-xs pointer-events-none animate-scale-in"
+          className="fixed z-50 overlay px-3.5 py-2.5 text-xs pointer-events-none animate-scale-in"
           style={{
             left: tip.left + 16 + fit.x,
             // max-content 是给测量用的：shrink-to-fit（含 fit-content）会把宽度算成
             // 「视口右沿 − left」，于是往左挪反而让它变宽，右沿永远贴着视口，留白夹不出来。
             width: 'max-content',
             maxWidth: 'min(320px, calc(100vw - 24px))',
+            borderTop: '2px solid var(--rule)',
             ...(fit.below ? { top: tip.bottom + GAP } : { top: 'auto', bottom: tip.vh - tip.top + GAP }),
           }}
         >
-          <p className="font-semibold mb-1" style={{ color: 'var(--ink)' }}>
+          <p className="meta mb-1" style={{ color: 'var(--ink)', fontWeight: 700 }}>
             {format(tip.date, 'yyyy 年 M 月 d 日', { locale: zhCN })}
           </p>
           {tip.posts.map((p) => (

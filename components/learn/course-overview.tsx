@@ -17,6 +17,8 @@ interface CourseOverviewProps {
   notes: { heading: string; items: ReactNode[] }[]
 }
 
+const pad = (n: number) => String(n).padStart(2, '0')
+
 /** 周与手册共用的段头：左侧编号标签，右侧标题 + 计数 + 可选引言。 */
 function SectionHead({ label, title, count, blurb }: { label: string; title: string; count: string; blurb?: string }) {
   return (
@@ -56,12 +58,13 @@ export function CourseOverview({ course, eyebrow, title, lead, counter, notes }:
       <div className="space-y-16">
         {weeks.map(({ week, title: weekTitle, blurb, lessons: weekLessons }) => (
           <section key={week}>
-            <SectionHead
-              label={week === 0 ? 'Day 0' : `Week ${String(week).padStart(2, '0')}`}
-              title={weekTitle}
-              count={`${weekLessons.length} 课`}
-              blurb={blurb}
-            />
+            <p className="week-h">
+              {week === 0 ? 'DAY 0' : `WEEK ${pad(week)}`} · {weekTitle}
+              <small>
+                {weekLessons.length} 课 · DAY {pad(weekLessons[0].day)}–{pad(weekLessons[weekLessons.length - 1].day)}
+              </small>
+            </p>
+            {blurb && <p className="body-sm mt-2 max-w-2xl">{blurb}</p>}
             <Ledger>
               {weekLessons.map((lesson) => {
                 const simCount = getSimSpecs(course, lesson.slug).length
@@ -75,7 +78,7 @@ export function CourseOverview({ course, eyebrow, title, lead, counter, notes }:
                   <LedgerRow
                     key={lesson.slug}
                     href={lessonHref(course, lesson.slug)}
-                    label={`Day ${lesson.day}`}
+                    label={`DAY ${pad(lesson.day)}`}
                     title={lesson.title}
                     desc={plainInline(lesson.lead)}
                     meta={`${lesson.readingTime} 分钟`}

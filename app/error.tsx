@@ -14,15 +14,27 @@ export default function Error({
     <div>
       <div
         className="flex items-center justify-between gap-4 py-2.5"
-        style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
+        style={{ borderTop: '2px solid var(--ink)', borderBottom: '1px solid var(--line)' }}
       >
         <span className="eyebrow">错误 500 — Server Error</span>
         <span className="eyebrow" style={{ color: 'var(--danger)' }}>渲染失败</span>
       </div>
 
       <div className="pt-12 sm:pt-16 max-w-xl">
-        <h1 className="heading-1 mb-5">这一页没能渲染出来。</h1>
-        <p className="body-md mb-8">
+        <p
+          className="font-serif font-black"
+          style={{
+            fontSize: 'clamp(72px, 16vw, 160px)',
+            lineHeight: 0.9,
+            letterSpacing: 'var(--tracking-display)',
+            color: 'var(--ink)',
+            fontVariantNumeric: 'lining-nums',
+          }}
+        >
+          500<span style={{ color: 'var(--accent-text)' }}>.</span>
+        </p>
+        <h1 className="heading-2 mt-6">这一页没能渲染出来。</h1>
+        <p className="body-md mt-3 mb-8">
           构建或渲染时抛出了异常。重试通常就够了；如果一直失败，
           请把下面的错误标识一起反馈给站点作者。
         </p>

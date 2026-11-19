@@ -3,9 +3,14 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { NAV_LINKS, SITE, ABOUT } from '@/lib/constants'
 import { IconSearch } from '@tabler/icons-react'
-import { NAV_LINKS, SITE } from '@/lib/constants'
 import { ThemeToggle } from './theme-toggle'
+
+// 刊头走 A 方向「巨字工程出版」：wordmark + mono 编号索引 + 下划线检索入口。
+// 当前态下划线由 .idx a[aria-current]::after 的 scaleX 承担（纯 CSS），
+// 不再 JS 测量偏移 —— 少一组 resize/fonts.ready 监听，位移只走 transform。
+const [WM_A, WM_B] = SITE.title.split('_')
 
 export function Header() {
   const pathname = usePathname()
@@ -13,9 +18,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [isMac, setIsMac] = useState(false)
-  const navRef = useRef<HTMLElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
-  const [indicator, setIndicator] = useState<{ x: number; width: number } | null>(null)
 
   useEffect(() => setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.platform)), [])
 
@@ -57,103 +60,53 @@ export function Header() {
     }
   }, [mobileMenuOpen])
 
-  useEffect(() => {
-    const nav = navRef.current
-    if (!nav) return
-    let alive = true
-
-    const measure = () => {
-      if (!alive || !navRef.current) return
-      const active = navRef.current.querySelector<HTMLElement>('[aria-current="page"]')
-      // md 断点以下桌面导航 display:none，量出来是零宽。
-      if (!active || !active.offsetWidth) {
-        setIndicator(null)
-        return
-      }
-      setIndicator({ x: active.offsetLeft, width: active.offsetWidth })
-    }
-
-    measure()
-    const raf = requestAnimationFrame(measure)
-    // webfont 换入后标签宽度会变，落地后再量一次。
-    document.fonts?.ready.then(measure)
-    window.addEventListener('resize', measure)
-    return () => {
-      alive = false
-      cancelAnimationFrame(raf)
-      window.removeEventListener('resize', measure)
-    }
-  }, [pathname])
-
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href))
 
   return (
-    <header className={`apple-nav sticky top-0 z-50 w-full${scrolled ? ' is-scrolled' : ''}`}>
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-6" style={{ height: 'var(--nav-h)' }}>
-          <Link
-            href="/"
-            className="pressable flex items-center gap-2.5 no-underline flex-shrink-0"
-            aria-label={SITE.title}
-          >
-            <span className="accent-dot" aria-hidden="true" />
-            <span
-              className="font-serif font-bold"
-              style={{ fontSize: 'var(--text-h3)', color: 'var(--ink)', letterSpacing: 'var(--tracking-heading)' }}
-            >
-              {SITE.title}
+    <header id="top" className={`apple-nav sticky top-0 z-50 w-full${scrolled ? ' is-scrolled' : ''}`}>
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-3 sm:gap-6" style={{ height: 'var(--nav-h)' }}>
+          <div className="mast-top flex-shrink-0">
+            <Link href="/" className="wordmark pressable no-underline" aria-label={SITE.title}>
+              {WM_A.toUpperCase()}<em>_</em>{WM_B.toUpperCase()}
+            </Link>
+            <span className="wm-sub hidden xl:inline">
+              {ABOUT.title}
+              <span className="wm-x"> · 工程实践笔记</span>
             </span>
-          </Link>
+          </div>
 
-          <nav ref={navRef} className="relative hidden lg:flex items-center" aria-label="主导航">
-            {NAV_LINKS.map((link) => (
+          <nav className="idx hidden lg:flex" aria-label="主导航">
+            {NAV_LINKS.map((link, i) => (
               <Link
                 key={link.href}
                 href={link.href}
                 aria-current={isActive(link.href) ? 'page' : undefined}
-                className="nav-row pressable relative px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors cursor-pointer"
-                style={{ transitionDuration: 'var(--duration-fast)' }}
+                className="pressable no-underline cursor-pointer"
               >
+                <i aria-hidden="true">{String(i + 1).padStart(2, '0')}</i>
                 {link.label}
               </Link>
             ))}
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -bottom-px left-0 h-[2px] w-px origin-left transition-[transform,opacity]"
-              style={{
-                // 1px 基准 + scaleX：位移只走 transform；方头短杠无圆角，缩放与改宽像素等价。
-                transform: `translateX(${indicator?.x ?? 0}px) scaleX(${indicator?.width ?? 0})`,
-                background: 'var(--color-primary)',
-                opacity: indicator ? 1 : 0,
-                transitionDuration: 'var(--duration-base)',
-                transitionTimingFunction: 'var(--ease)',
-              }}
-            />
           </nav>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             <Link
               href="/search"
-              className="pressable surface surface-hover flex items-center gap-2 h-10 px-3 no-underline"
-              style={{ borderRadius: 'var(--radius-xs)', color: 'var(--muted)' }}
+              className="mast-search pressable no-underline"
               aria-label="搜索"
-              title="搜索"
+              title="搜索全站内容"
             >
-              <IconSearch size={15} strokeWidth={1.75} />
-              <span className="text-sm hidden sm:inline">搜索</span>
-              <kbd
-                className="hidden md:inline-flex items-center px-1.5 py-0.5 text-xs font-mono"
-                style={{ border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 'var(--radius-xs)' }}
-              >
-                {isMac ? '⌘K' : 'Ctrl K'}
-              </kbd>
+              <span className="hidden sm:inline">SEARCH</span>
+              <IconSearch size={16} strokeWidth={2} className="sm:hidden" aria-hidden="true" />
+              <kbd className="hidden md:inline-flex">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
             </Link>
             <ThemeToggle />
             <button
               ref={menuButtonRef}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="pressable surface surface-hover tint-muted lg:hidden w-10 h-10 flex items-center justify-center cursor-pointer"
-              style={{ borderRadius: 'var(--radius-xs)' }}
+              className="pressable lg:hidden w-10 h-10 flex items-center justify-center cursor-pointer"
+              style={{ border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 'var(--radius-xs)' }}
               aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
               aria-expanded={mobileMenuOpen}
             >
@@ -207,16 +160,20 @@ export function Header() {
             e.preventDefault()
             links[(i + (e.shiftKey ? -1 : 1) + links.length) % links.length].focus()
           }}
-          style={{ background: 'var(--canvas)', borderBottom: '1px solid var(--line-strong)' }}
+          style={{ background: 'var(--canvas)', borderBottom: '2px solid var(--rule)' }}
         >
-          {NAV_LINKS.map((link) => (
+          {NAV_LINKS.map((link, i) => (
             <Link
               key={link.href}
               href={link.href}
               onClick={() => setMobileMenuOpen(false)}
               aria-current={isActive(link.href) ? 'page' : undefined}
-              className="nav-row pressable relative block px-4 sm:px-6 py-3.5 text-sm font-medium transition-colors cursor-pointer"
-              style={{ borderTop: '1px solid var(--line)', transitionDuration: 'var(--duration-fast)' }}
+              className="pressable relative flex items-baseline gap-3 px-4 sm:px-6 py-3.5 text-sm font-medium no-underline transition-colors cursor-pointer"
+              style={{
+                borderTop: '1px solid var(--line)',
+                color: isActive(link.href) ? 'var(--ink)' : 'var(--muted)',
+                transitionDuration: 'var(--duration-fast)',
+              }}
             >
               {isActive(link.href) && (
                 <span
@@ -224,6 +181,9 @@ export function Header() {
                   style={{ background: 'var(--color-primary)' }}
                 />
               )}
+              <span className="font-mono text-xs" style={{ color: isActive(link.href) ? 'var(--accent-text)' : 'var(--faint)' }}>
+                {String(i + 1).padStart(2, '0')}
+              </span>
               {link.label}
             </Link>
           ))}

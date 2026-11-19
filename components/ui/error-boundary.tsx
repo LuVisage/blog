@@ -18,11 +18,11 @@ export class ErrorBoundary extends Component<Props, { hasError: boolean }> {
     if (!this.state.hasError) return this.props.children
     return (
       this.props.fallback ?? (
-        <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-          <span className="text-sm" style={{ color: 'var(--muted)' }}>
+        <div className="flex flex-col items-center justify-center gap-4 py-12 text-center rule">
+          <span className="meta" style={{ color: 'var(--accent-text)' }}>
             组件加载失败
           </span>
-          <button onClick={() => this.setState({ hasError: false })} className="btn-ghost text-xs">
+          <button onClick={() => this.setState({ hasError: false })} className="btn-secondary text-xs">
             重试
           </button>
         </div>

@@ -1,5 +1,19 @@
 import Link from 'next/link'
+import type { CSSProperties } from 'react'
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
+
+// A 的分页是 mono 编号控件：当前页实心信号红，其余纸白方框，墨线描边。
+const NUM_STYLE: CSSProperties = {
+  fontFamily: 'var(--font-mono)',
+  fontWeight: 700,
+  letterSpacing: '0.04em',
+}
+const ACTIVE_STYLE: CSSProperties = {
+  ...NUM_STYLE,
+  background: 'var(--accent)',
+  borderColor: 'var(--accent)',
+  color: 'var(--on-accent)',
+}
 
 // 第 1 页就是 /posts/，后续页才走 /posts/page/[n]/（静态导出下每页都是真实路由）。
 function hrefFor(page: number): string {
@@ -33,13 +47,13 @@ export function Pagination({ current, total }: { current: number; total: number 
 
       {items.map((item, i) =>
         item === 'gap' ? (
-          <span key={`gap-${i}`} className="apple-pagination__ellipsis" aria-hidden="true">…</span>
+          <span key={`gap-${i}`} className="apple-pagination__ellipsis" aria-hidden="true" style={NUM_STYLE}>…</span>
         ) : item === current ? (
-          <span key={item} className="apple-pagination__item" aria-current="page" aria-label={`第 ${item} 页`}>
+          <span key={item} className="apple-pagination__item" aria-current="page" aria-label={`第 ${item} 页`} style={ACTIVE_STYLE}>
             {item}
           </span>
         ) : (
-          <Link key={item} href={hrefFor(item)} className="apple-pagination__item" aria-label={`第 ${item} 页`}>
+          <Link key={item} href={hrefFor(item)} className="apple-pagination__item" aria-label={`第 ${item} 页`} style={NUM_STYLE}>
             {item}
           </Link>
         )

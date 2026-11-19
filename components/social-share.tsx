@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { IconCheck, IconCopy } from '@tabler/icons-react'
+import { IconCopy } from '@tabler/icons-react'
 
 // 只留「复制本文链接」一枚安静按钮；复制失败不谎报成功；无 JS 时 data-js-only 整块摘除。
 export function SocialShare({ url }: { url: string }) {
@@ -33,7 +33,7 @@ export function SocialShare({ url }: { url: string }) {
         aria-label={copied ? '链接已复制' : '复制本文链接'}
         title={copied ? '链接已复制' : '复制本文链接'}
       >
-        {copied ? <IconCheck size={14} strokeWidth={2} /> : <IconCopy size={14} strokeWidth={1.5} />}
+        {copied ? <span className="check" aria-hidden="true" /> : <IconCopy size={14} strokeWidth={1.5} />}
         <span>{copied ? '已复制' : '复制链接'}</span>
       </button>
       <p className="sr-only" role="status" aria-live="polite">

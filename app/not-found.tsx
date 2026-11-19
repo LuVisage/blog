@@ -6,7 +6,7 @@ export default function NotFound() {
     <div>
       <div
         className="flex items-center justify-between gap-4 py-2.5"
-        style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
+        style={{ borderTop: '2px solid var(--ink)', borderBottom: '1px solid var(--line)' }}
       >
         <span className="eyebrow">错误 404 — Not Found</span>
         <span className="eyebrow eyebrow-accent">此路不通</span>
@@ -15,10 +15,16 @@ export default function NotFound() {
       <div className="pt-12 sm:pt-16 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-12 lg:gap-16 items-start">
         <div>
           <h1
-            className="font-serif font-bold"
-            style={{ fontSize: 'clamp(72px, 16vw, 160px)', lineHeight: 0.9, letterSpacing: '-0.04em', color: 'var(--ink)' }}
+            className="font-serif font-black"
+            style={{
+              fontSize: 'clamp(72px, 16vw, 160px)',
+              lineHeight: 0.9,
+              letterSpacing: 'var(--tracking-display)',
+              color: 'var(--ink)',
+              fontVariantNumeric: 'lining-nums',
+            }}
           >
-            404
+            404<span style={{ color: 'var(--accent-text)' }}>.</span>
           </h1>
           <p className="heading-2 mt-6">这个地址上没有内容。</p>
           <p className="body-md mt-3 max-w-md">

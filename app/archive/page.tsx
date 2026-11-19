@@ -41,13 +41,14 @@ export default function ArchivePage() {
         文章总数 {totalPosts} · {currentYear} 年 {postsThisYear} · 写作年份 {archive.length} · 活跃月份 {activeMonths}
       </p>
 
-      <div>
-        <section className="mb-16">
-          <div className="eyebrow mb-2">分布</div>
-          <h2 className="section-title mb-6">写作日历</h2>
-          <PostsCalendar posts={allPosts} />
-        </section>
-      </div>
+      <section className="mb-16">
+        <div className="shead" style={{ flexWrap: 'wrap' }}>
+          <span className="snum" aria-hidden="true">01</span>
+          <h2>写作日历</h2>
+          <span className="smeta">DISTRIBUTION · {activeMonths} 个活跃月份</span>
+        </div>
+        <PostsCalendar posts={allPosts} />
+      </section>
 
       {archive.length > 0 ? (
         <div className="space-y-16">
@@ -58,20 +59,10 @@ export default function ArchivePage() {
                 <section>
                   <div
                     className="flex items-end justify-between gap-4 pb-3 mb-2"
-                    style={{ borderBottom: '1px solid var(--line-strong)' }}
+                    style={{ borderTop: '2px solid var(--rule)', paddingTop: 'var(--space-16)' }}
                   >
-                    <h2
-                      className="font-serif font-bold"
-                      style={{
-                        fontSize: 'clamp(var(--text-h2), 5vw, var(--text-h1))',
-                        lineHeight: 1,
-                        letterSpacing: 'var(--tracking-heading)',
-                        color: 'var(--ink)',
-                      }}
-                    >
-                      {year}
-                    </h2>
-                    <span className="eyebrow mb-1.5">{yearCount} 篇</span>
+                    <h2 className="heading-1" style={{ lineHeight: 1 }}>{year}</h2>
+                    <span className="eyebrow mb-1.5">{yearCount} 篇 · {months.length} 个月</span>
                   </div>
 
                   {months.map(({ month, posts }) => (

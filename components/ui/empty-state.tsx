@@ -14,7 +14,7 @@ interface EmptyStateProps {
   }
 }
 
-/** 空态是索引里的一段留白加规线，不是一张浮卡。 */
+/** 空态是一间排印的空房：2px 墨线开合、巨字黑体标题、红色记号，不是一张浮卡。 */
 export function EmptyState({
   className,
   icon,
@@ -40,17 +40,20 @@ export function EmptyState({
   }
 
   return (
-    <div className={`text-center py-20 sm:py-24 rule ${className ?? ''}`}>
-      <div className="inline-flex items-center justify-center mb-5" style={{ color: 'var(--accent-text)' }}>
+    <div
+      className={`text-center py-20 sm:py-24 ${className ?? ''}`}
+      style={{ borderTop: '2px solid var(--rule)', borderBottom: '1px solid var(--line)' }}
+    >
+      <div className="inline-flex items-center justify-center mb-6" style={{ color: 'var(--accent-text)' }}>
         {icon ?? (
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="square" strokeLinejoin="miter">
             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
         )}
       </div>
-      <h3 className="heading-3 mb-2">{title}</h3>
-      <p className="body-sm mb-6 max-w-sm mx-auto">{description}</p>
+      <h3 className="heading-2 mb-3">{title}</h3>
+      <p className="body-sm mb-8 max-w-sm mx-auto">{description}</p>
       {actionNode}
     </div>
   )

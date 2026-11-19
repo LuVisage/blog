@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   description: '这个站点用什么搭建、怎样发布与订阅。',
 }
 
-/** /uses —— 开发者博客常见的 slash page。这里只列能从仓库核对的站点技术栈。 */
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** /uses —— 开发者博客常见的 slash page。这里只列能从仓库核对的站点技术栈。
+ *  A 方向：每组一个编号栏头（shead），条目走规线清单 + mono 序号。 */
 export default function UsesPage() {
   // USES 在数据层（lib/** 按约束不改），里面还留着第 18 轮已下线的 Three.js。
   // 这一页宣称「可在 package.json 核对」，所以按当前构建过滤掉已不存在的依赖。
@@ -27,17 +30,30 @@ export default function UsesPage() {
         counter="可在 package.json 核对"
       />
 
-      {groups.map((group) => (
+      {groups.map((group, gi) => (
         <section key={group.label}>
-          <h2>{group.label}</h2>
+          <div className="shead" style={{ flexWrap: 'wrap' }}>
+            <span className="snum" aria-hidden="true">{pad(gi + 1)}</span>
+            <h2 style={{ margin: 0 }}>{group.label}</h2>
+            <span className="smeta">{pad(group.items.length)} 项</span>
+          </div>
           <ul className="slash-page__list">
-            {group.items.map((item) => <li key={item}>{item}</li>)}
+            {group.items.map((item, i) => (
+              <li key={item} className="flex items-baseline gap-4">
+                <span className="meta tabular-nums" aria-hidden="true">{pad(i + 1)}</span>
+                {item}
+              </li>
+            ))}
           </ul>
         </section>
       ))}
 
       <section>
-        <h2>说明</h2>
+        <div className="shead" style={{ flexWrap: 'wrap' }}>
+          <span className="snum" aria-hidden="true">{pad(groups.length + 1)}</span>
+          <h2 style={{ margin: 0 }}>说明</h2>
+          <span className="smeta">COLOPHON · 跟着仓库走</span>
+        </div>
         <p className="slash-page__note">
           这份清单跟着仓库走：框架与库的版本可在 package.json 里逐项核对，发布流程写在 GitHub Actions 里。
           想知道写这些字的人是谁，看<Link href="/about">关于</Link>。

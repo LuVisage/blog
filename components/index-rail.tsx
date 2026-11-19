@@ -62,13 +62,19 @@ export function IndexRail({ hide = [] }: { hide?: GroupId[] }) {
             </Link>
           </div>
           <div className="flex flex-col">
-            {group.rows.map((row) => (
+            {group.rows.map((row, i) => (
               <Link
                 key={row.key}
                 href={row.href}
                 className="row-line pressable group flex items-baseline gap-3 py-2 text-sm rule transition-colors"
                 style={{ color: 'var(--body)' }}
               >
+                <span
+                  className="meta tabular-nums flex-shrink-0 transition-colors group-hover:text-[var(--accent-text)]"
+                  aria-hidden="true"
+                >
+                  {String(i + 1).padStart(2, '0')}
+                </span>
                 <span className="truncate transition-colors group-hover:text-[var(--accent-text)]">{row.name}</span>
                 <span className="meta tabular-nums ml-auto">{row.count}</span>
               </Link>

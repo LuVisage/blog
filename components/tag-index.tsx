@@ -51,7 +51,7 @@ export function TagIndex({ posts, tags }: Props) {
         </div>
       ) : (
         <EmptyState
-          icon={<IconTag size={30} strokeWidth={1.25} />}
+          icon={<IconTag size={30} strokeWidth={1.25} style={{ color: 'var(--accent-text)' }} />}
           title="还没有标签"
           description="文章发出后，主题线索会在这里汇总"
         />

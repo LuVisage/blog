@@ -70,7 +70,7 @@ export default function LearnPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-12 lg:gap-16 items-start">
         <div className="min-w-0">
-          <section className="mb-14 rounded-xl p-5" style={{ border: '1px solid var(--line)', background: 'var(--surface-2)' }}>
+          <section className="mb-14" style={{ borderTop: '2px solid var(--rule)', paddingTop: 'var(--space-20)' }}>
             <h2 className="section-title mb-3">推荐学习路径</h2>
             <p className="body-sm max-w-3xl">
               想走「AI 应用工程师」这条路，按下面的顺序推进，知识点是一条线接一条线的：

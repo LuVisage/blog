@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation'
 import { SITE, siteUrl } from '@/lib/constants'
 import { getAllPosts, getPostBySlug, getAdjacentPosts, getPostsBySeries } from '@/lib/posts'
 import { MDXContent } from '@/components/mdx-content'
-import { TagBadge } from '@/components/tag-badge'
 import { GiscusComments } from '@/components/giscus-comments'
 import { TableOfContents } from '@/components/toc'
 import { ChapterBar } from '@/components/chapter-bar'
@@ -49,6 +48,15 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   }
 }
 
+// 标题里的「…」引语染信号红，是 A 方向巨字标题的签名细节。
+function renderTitle(title: string) {
+  return title.split(/(「[^」]*」)/g).map((part, i) =>
+    part.startsWith('「') && part.endsWith('」')
+      ? <span key={i} className="q">{part}</span>
+      : <span key={i}>{part}</span>
+  )
+}
+
 export default async function PostPage({ params }: { params: PageParams }) {
   const { slug } = await params
   const post = getPostBySlug(slug)
@@ -82,216 +90,145 @@ export default async function PostPage({ params }: { params: PageParams }) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ReadingProgress />
+      {/* 窄屏常驻阅读定位条（<xl）：≥xl 由左目录承担定位 */}
+      <ChapterBar />
 
-      <div className="xl:flex xl:gap-16">
-        <article className="flex-1 min-w-0">
-          {/* 窄屏常驻阅读定位条（§11.11）：取代滚过即失联的页首折叠目录 */}
-          <ChapterBar />
-
-          {/* Top rail — xl 才自带上线，窄屏由 ChapterBar 的下发丝线承担分隔 */}
-          <div
-            className="flex items-center justify-between gap-4 py-2.5 border-b-[color:var(--line)] xl:border-t-[color:var(--line-strong)]"
-          >
-            <Link href="/posts" className="eyebrow inline-flex min-h-6 items-center hover:text-[var(--accent-text)] transition-colors">
-              ← 文章目录
-            </Link>
-          </div>
-
-          {/* Article header — 元信息行 → 标题 → 署名 → 摘要/系列/标签 */}
-          <div className="pt-10 sm:pt-14 pb-8">
-            <header>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 eyebrow">
-                {post.category && (
-                  <Link
-                    href={`/categories/${post.category}`}
-                    className="eyebrow eyebrow-accent inline-flex min-h-6 items-center hover:underline underline-offset-4"
-                  >
-                    {post.category}
-                  </Link>
-                )}
-                {post.category && <span style={{ color: 'var(--faint)' }}>/</span>}
-                <span>{format(date, 'yyyy.MM.dd', { locale: zhCN })}</span>
-                <span style={{ color: 'var(--faint)' }}>/</span>
-                <span>{post.readingTime} 分钟阅读</span>
-                <span style={{ color: 'var(--faint)' }}>/</span>
-                <span>约 {wordCount} 字</span>
-                {post.updated && (
-                  <span style={{ color: 'var(--faint)' }}>
-                    （更新于 {format(parseISO(post.updated), 'yyyy.MM.dd', { locale: zhCN })}）
-                  </span>
-                )}
-              </div>
-            </header>
-
-            <h1 className="display mt-5" style={{ fontSize: 'clamp(32px, 4.8vw, 56px)', lineHeight: 1.22 }}>
-              {post.title}
-            </h1>
-
-            {/* byline：博客的署名在标题下就出现，不等读完才见作者卡 */}
-            <div className="mt-5 flex items-center gap-2.5">
-              <span
-                className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0"
-                style={{ border: '1px solid var(--line)' }}
-              >
-                <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
-              </span>
-              <span className="body-sm" style={{ color: 'var(--ink)' }}>{SITE.author.name}</span>
-            </div>
-
-            <header className="mt-0">
-              {post.description && (
-                <p className="body-md mt-6 max-w-2xl" style={{ color: 'var(--muted)' }}>
-                  {post.description}
-                </p>
-              )}
-
-              {post.series && (
-                <Link
-                  href={`/series/${post.series}`}
-                  className="chip chip-body inline-flex mt-7 px-3 py-1.5 text-xs"
-                  style={{ borderRadius: 'var(--radius-xs)' }}
-                >
-                  <span className="eyebrow">系列</span>
-                  {post.series}
-                </Link>
-              )}
-
-              <div
-                className="flex flex-wrap items-center gap-2 mt-8 pt-6"
-                style={{ borderTop: '1px solid var(--line)' }}
-              >
-                {post.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
-                <div className="flex flex-wrap items-center gap-3 ml-auto">
-                  <BookmarkButton slug={post.slug} />
-                  <SocialShare url={postUrl} />
-                </div>
-              </div>
-            </header>
-          </div>
-
-          {/* Article content — no card, text sits on the canvas */}
-          {/* 行长由 .prose 的 --measure（38em，对应中文 34-40 全角）决定，这里不再覆盖。
-              轻版滚动入场只作用于图 / 代码块 / 引语 / 表格 / 章节标题，
-              段落文字始终完整可读（Ctrl+F、打印、无 JS 都不受影响）。 */}
-          <div className="prose mx-0 mb-6">
-            <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
-          </div>
-
-          <PostLicense editHref={`${SITE.repo}/edit/main/content/posts/${slug}.mdx`} />
-
-          {/* Prev / next — ledger row, not cards */}
-          <nav className="post-nav grid grid-cols-1 sm:grid-cols-2 mb-12">
-            {prev ? (
-              <Link
-                href={`/posts/${prev.slug}`}
-                className="post-nav__item group flex flex-col gap-2 py-5 sm:pr-8 sm:border-r border-t-[color:var(--line-strong)] border-b-[color:var(--line)] sm:border-r-[color:var(--line)]"
-              >
-                <span className="caption flex items-center gap-1.5">
-                  <IconChevronLeft size={13} strokeWidth={2} /> 上一篇
-                </span>
-                <span className="heading-3 row-title transition-colors group-hover:text-[var(--accent-text)]">
-                  {prev.title}
-                </span>
-                <span className="post-nav__date">{format(parseISO(prev.date), 'yyyy.MM.dd', { locale: zhCN })}</span>
-              </Link>
-            ) : (
-              <div />
+      <article>
+        {/* 刊头元信息 → 巨字标题 → 署名 → 标签 / 动作 */}
+        <div className="pmeta">
+          <p className="pmeta-row">
+            {post.category && (
+              <Link href={`/categories/${post.category}`} className="cat no-underline">{post.category}</Link>
             )}
-            <Link
-              href={next ? `/posts/${next.slug}` : '/posts'}
-              className="post-nav__item group flex flex-col items-end gap-2 py-5 text-right sm:pl-8 border-t-[color:var(--line-strong)] border-b-[color:var(--line)]"
-            >
-              <span className="caption flex items-center gap-1.5">
-                {next ? '下一篇' : '返回列表'} <IconChevronRight size={13} strokeWidth={2} />
-              </span>
-              <span className="heading-3 max-w-full row-title transition-colors group-hover:text-[var(--accent-text)]">
-                {next ? next.title : '查看更多文章'}
-              </span>
-              {next && <span className="post-nav__date">{format(parseISO(next.date), 'yyyy.MM.dd', { locale: zhCN })}</span>}
-            </Link>
-          </nav>
+            <span>{format(date, 'yyyy.MM.dd', { locale: zhCN })}</span>
+            <span>{post.readingTime} 分钟阅读</span>
+            <span>约 {wordCount} 字</span>
+            {post.series && (
+              <Link href={`/series/${post.series}`} className="pser no-underline">
+                系列 · {post.series}{post.seriesOrder ? ` · 第 ${post.seriesOrder} 篇` : ''}
+              </Link>
+            )}
+            {post.updated && (
+              <span>更新于 {format(parseISO(post.updated), 'yyyy.MM.dd', { locale: zhCN })}</span>
+            )}
+          </p>
 
-          {/* Series */}
-          {seriesPosts.length > 1 && (
-            <section className="mb-12 surface p-5 sm:p-6">
-              <h2 className="eyebrow mb-4">
-                系列文章 · {post.series}
-              </h2>
-              <ol>
-                {seriesPosts.map((sp, i) => {
-                  const isCurrent = sp.slug === slug
-                  return (
-                    <li
-                      key={sp.slug}
-                      className="grid grid-cols-[28px_minmax(0,1fr)] items-baseline gap-3 py-2.5 rule"
-                    >
-                      <span className="meta tabular-nums" style={{ color: isCurrent ? 'var(--accent-text)' : 'var(--faint)' }}>
-                        {String(i + 1).padStart(2, '0')}
-                      </span>
-                      {isCurrent ? (
-                        <span className="body-md" style={{ color: 'var(--ink)' }}>{sp.title}</span>
-                      ) : (
-                        <Link
-                          href={`/posts/${sp.slug}`}
-                          className="body-md row-title no-underline hover:text-[var(--accent-text)] transition-colors"
-                        >
-                          {sp.title}
-                        </Link>
-                      )}
-                    </li>
-                  )
-                })}
-              </ol>
-              {(seriesPrev || seriesNext) && (
-                <div
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4"
-                  style={{ borderTop: '1px solid var(--line)' }}
-                >
-                  {seriesPrev ? (
-                    <Link href={`/posts/${seriesPrev.slug}`} className="group flex flex-col gap-1">
-                      <span className="caption flex items-center gap-1.5">
-                        <IconChevronLeft size={13} strokeWidth={2} /> 系列上一篇
-                      </span>
-                      <span className="body-sm row-title transition-colors group-hover:text-[var(--accent-text)]">
-                        {seriesPrev.title}
-                      </span>
-                    </Link>
-                  ) : <div />}
-                  {seriesNext ? (
-                    <Link href={`/posts/${seriesNext.slug}`} className="group flex flex-col items-end gap-1 text-right">
-                      <span className="caption flex items-center gap-1.5">
-                        系列下一篇 <IconChevronRight size={13} strokeWidth={2} />
-                      </span>
-                      <span className="body-sm row-title transition-colors group-hover:text-[var(--accent-text)]">
-                        {seriesNext.title}
-                      </span>
-                    </Link>
-                  ) : <div />}
-                </div>
-              )}
-            </section>
+          <h1 className="ptitle">{renderTitle(post.title)}</h1>
+
+          {/* byline：署名在标题下就出现，不等读完才见作者卡（D1 首屏见人） */}
+          <div className="mt-5 flex items-center gap-2.5">
+            <span
+              className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0"
+              style={{ border: '1px solid var(--line)' }}
+            >
+              <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
+            </span>
+            <span className="body-sm" style={{ color: 'var(--ink)' }}>{SITE.author.name}</span>
+          </div>
+
+          {post.description && (
+            <p className="body-md mt-6 max-w-2xl" style={{ color: 'var(--muted)' }}>{post.description}</p>
           )}
 
-          <RelatedPosts currentSlug={slug} />
-
-          {/* 读完一篇是订阅意愿最高的时刻；移动端侧栏堆到首页四屏下，
-              文尾这条是移动端唯一顺路的订阅入口（ZM D3）。 */}
-          <section className="post-subscribe mt-10" aria-label="订阅更新">
-            <SubscribeCard />
-          </section>
-
-          <section className="mt-10 surface p-5 sm:p-7">
-            <GiscusComments />
-          </section>
-        </article>
-
-        {/* Desktop TOC — sticky rail, no card */}
-        <aside className="hidden xl:flex xl:flex-col xl:w-56 xl:flex-shrink-0">
-          <div className="sticky top-24 self-start flex flex-col w-full max-h-[calc(100vh-8rem)] py-5">
-            <TableOfContents variant="desktop" />
+          <div className="ptags" aria-label="标签">
+            {post.tags.map((tag) => (
+              <Link key={tag} href={`/tags/${tag}`} className="no-underline">{tag}</Link>
+            ))}
           </div>
-        </aside>
-      </div>
+
+          <div className="flex flex-wrap items-center gap-3 mt-6">
+            <BookmarkButton slug={post.slug} />
+            <SocialShare url={postUrl} />
+          </div>
+
+          <div className="phead-rule" aria-hidden="true" />
+        </div>
+
+        {/* 左目录（≥xl sticky）+ 正文 */}
+        <div className="pwrap">
+          <aside className="toc" aria-label="文章目录">
+            <TableOfContents variant="desktop" />
+          </aside>
+
+          <div className="min-w-0">
+            {/* 行长由 .prose 的 --measure 决定；轻版滚动入场只作用于图/代码/引语/表格/章节标题，
+                段落文字始终完整可读（Ctrl+F、打印、无 JS 都不受影响）。 */}
+            <div className="prose mx-0 mb-6">
+              <CodeBlockEnhancer><MDXContent source={post.content} /></CodeBlockEnhancer>
+            </div>
+
+            <PostLicense editHref={`${SITE.repo}/edit/main/content/posts/${slug}.mdx`} />
+
+            <div className="pend">
+              {/* 系列位置：两格边框导航 */}
+              {seriesPosts.length > 1 && (
+                <nav className="seriesnav" aria-label="系列位置">
+                  <div className="sn-cell">
+                    <p className="sn-k">← 系列上一篇 · {post.series}</p>
+                    <p className="sn-t">
+                      {seriesPrev
+                        ? <Link href={`/posts/${seriesPrev.slug}`} className="no-underline">{seriesPrev.title}</Link>
+                        : <span className="muted">已是系列第一篇</span>}
+                    </p>
+                  </div>
+                  <div className="sn-cell">
+                    <p className="sn-k">系列下一篇 →</p>
+                    <p className="sn-t">
+                      {seriesNext
+                        ? <Link href={`/posts/${seriesNext.slug}`} className="no-underline">{seriesNext.title}</Link>
+                        : <span className="muted">已是系列最新一篇（第 {seriesIndex + 1} 篇 / 共 {seriesPosts.length} 篇）</span>}
+                    </p>
+                  </div>
+                </nav>
+              )}
+
+              {/* 读完一篇是订阅意愿最高的时刻；移动端侧栏堆到首页四屏下，
+                  文尾这条是移动端唯一顺路的订阅入口（ZM D3）。 */}
+              <section className="psub" aria-label="订阅更新">
+                <p className="psub-h">订阅这份笔记</p>
+                <p className="psub-p">{SITE.description}</p>
+                <SubscribeCard bare />
+              </section>
+            </div>
+          </div>
+        </div>
+
+        {/* 全站上一篇 / 下一篇 —— 账本行，不是卡片 */}
+        <nav className="post-nav grid grid-cols-1 sm:grid-cols-2 mb-12" style={{ marginTop: 'var(--space-64)' }}>
+          {prev ? (
+            <Link
+              href={`/posts/${prev.slug}`}
+              className="post-nav__item group flex flex-col gap-2 py-5 sm:pr-8 sm:border-r border-t-[color:var(--line-strong)] border-b-[color:var(--line)] sm:border-r-[color:var(--line)]"
+            >
+              <span className="caption flex items-center gap-1.5">
+                <IconChevronLeft size={13} strokeWidth={2} /> 上一篇
+              </span>
+              <span className="heading-3 row-title transition-colors group-hover:text-[var(--accent-text)]">{prev.title}</span>
+              <span className="post-nav__date">{format(parseISO(prev.date), 'yyyy.MM.dd', { locale: zhCN })}</span>
+            </Link>
+          ) : (
+            <div />
+          )}
+          <Link
+            href={next ? `/posts/${next.slug}` : '/posts'}
+            className="post-nav__item group flex flex-col items-end gap-2 py-5 text-right sm:pl-8 border-t-[color:var(--line-strong)] border-b-[color:var(--line)]"
+          >
+            <span className="caption flex items-center gap-1.5">
+              {next ? '下一篇' : '返回列表'} <IconChevronRight size={13} strokeWidth={2} />
+            </span>
+            <span className="heading-3 max-w-full row-title transition-colors group-hover:text-[var(--accent-text)]">
+              {next ? next.title : '查看更多文章'}
+            </span>
+            {next && <span className="post-nav__date">{format(parseISO(next.date), 'yyyy.MM.dd', { locale: zhCN })}</span>}
+          </Link>
+        </nav>
+
+        <RelatedPosts currentSlug={slug} />
+
+        <section className="mt-10 surface p-5 sm:p-7">
+          <GiscusComments />
+        </section>
+      </article>
     </>
   )
 }

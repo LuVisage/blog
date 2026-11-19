@@ -23,7 +23,10 @@ export function ProjectsSection() {
   return (
     <section id="projects">
       <div className="eyebrow mb-2">项目</div>
-      <h2 className="section-title mb-2">作品</h2>
+      <h2 className="section-title mb-2">
+        作品
+        {PROJECTS.length > 0 && <span className="meta">{PROJECTS.length} 个项目</span>}
+      </h2>
       {PROJECTS.length > 0 ? (
         <Ledger>
           {PROJECTS.map((project, i) => (
@@ -34,10 +37,7 @@ export function ProjectsSection() {
               <span className="issue-badge tabular-nums mt-1">{String(i + 1).padStart(2, '0')}</span>
 
               <div className="min-w-0">
-                <h3
-                  className="font-serif font-bold truncate transition-colors group-hover:text-[var(--accent-text)] tint-ink"
-                  style={{ fontSize: 'var(--text-h3)', lineHeight: 1.4, letterSpacing: 'var(--tracking-heading)' }}
-                >
+                <h3 className="heading-3 truncate transition-colors group-hover:text-[var(--accent-text)]">
                   <a
                     href={project.url}
                     target="_blank"
@@ -97,7 +97,10 @@ export function FriendsSection() {
   return (
     <section id="friends">
       <div className="eyebrow mb-2">友链</div>
-      <h2 className="section-title mb-6">同道中人</h2>
+      <h2 className="section-title mb-6">
+        同道中人
+        {FRIENDS.length > 0 && <span className="meta">{FRIENDS.length} 位朋友</span>}
+      </h2>
 
       {FRIENDS.length > 0 && (
         <div className="mb-12">

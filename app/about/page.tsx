@@ -5,17 +5,7 @@ import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 import { AvatarImage } from '@/components/avatar-image'
 import { PageMasthead } from '@/components/page-masthead'
 import { ProjectsSection, FriendsSection, NowSection } from '@/components/about-sections'
-import {
-  IconBrandGithub, IconMail, IconArrowRight,
-  IconRobot, IconBrain, IconTools, IconPencil, IconCode,
-} from '@tabler/icons-react'
-
-const FOCUS_ICONS: Record<string, React.ReactNode> = {
-  robot: <IconRobot size={17} strokeWidth={1.6} />,
-  brain: <IconBrain size={17} strokeWidth={1.6} />,
-  tools: <IconTools size={17} strokeWidth={1.6} />,
-  pencil: <IconPencil size={17} strokeWidth={1.6} />,
-}
+import { IconBrandGithub, IconMail, IconArrowRight } from '@tabler/icons-react'
 
 export const metadata: Metadata = {
   title: '关于',
@@ -33,6 +23,11 @@ const JUMPS = [
   { href: '#friends', label: '友链' },
 ]
 
+/**
+ * /about —— A 方向的宣言页：巨字主张与首页 hero 同一嗓音，
+ * 自述 / 方向 / 技术栈 / 时间线走编号栏头（shead），红方勾标关注方向；
+ * 项目 / 近况 / 友链三节由 about-sections 统一渲染，锚点不变。
+ */
 export default function AboutPage() {
   return (
     <div>
@@ -65,9 +60,15 @@ export default function AboutPage() {
         <div className="min-w-0">
           <div>
             <section className="mb-16">
-              <div className="eyebrow mb-2">自述</div>
-              <h2 className="section-title mb-6">写作与探索</h2>
-              <div className="prose">
+              <div className="shead" style={{ flexWrap: 'wrap' }}>
+                <span className="snum" aria-hidden="true">01</span>
+                <h2>自述</h2>
+                <span className="smeta">MANIFESTO · 写作即思考</span>
+              </div>
+              <p className="ptitle" style={{ marginTop: 'var(--space-8)' }}>
+                写作是最好的<br />思考方式<span style={{ color: 'var(--accent-text)' }}>。</span>
+              </p>
+              <div className="prose" style={{ marginTop: 'var(--space-24)' }}>
                 <p>
                   我专注于 AI Agent 开发与大模型应用实践。在这个博客里，我分享 AI 开发中的实战经验与技术思考，记录构建智能体应用的探索过程。
                 </p>
@@ -80,8 +81,11 @@ export default function AboutPage() {
 
           <div>
             <section className="mb-16">
-              <div className="eyebrow mb-2">方向</div>
-              <h2 className="section-title mb-6">主要关注</h2>
+              <div className="shead" style={{ flexWrap: 'wrap' }}>
+                <span className="snum" aria-hidden="true">02</span>
+                <h2>关注方向</h2>
+                <span className="smeta">FOCUS · {ABOUT.focusAreas.length} 个方向</span>
+              </div>
               <ul>
                 {ABOUT.focusAreas.map((area, i) => (
                   <li
@@ -89,17 +93,9 @@ export default function AboutPage() {
                     className="flex items-start gap-4 py-4"
                     style={i > 0 ? { borderTop: '1px solid var(--line)' } : undefined}
                   >
-                    <span
-                      className="flex-shrink-0 mt-0.5"
-                      style={{ color: 'var(--accent-text)' }}
-                      aria-hidden="true"
-                    >
-                      {FOCUS_ICONS[area.icon] || <IconCode size={17} strokeWidth={1.6} />}
-                    </span>
+                    <span className="check" style={{ marginTop: 5 }} aria-hidden="true" />
                     <span className="min-w-0">
-                      <span className="heading-3 block" style={{ color: 'var(--ink)' }}>
-                        {area.title}
-                      </span>
+                      <span className="heading-3 block">{area.title}</span>
                       <span className="body-sm block mt-1">{area.desc}</span>
                     </span>
                   </li>
@@ -110,8 +106,11 @@ export default function AboutPage() {
 
           <div>
             <section className="mb-16">
-              <div className="eyebrow mb-2">工具</div>
-              <h2 className="section-title mb-6">技术栈</h2>
+              <div className="shead" style={{ flexWrap: 'wrap' }}>
+                <span className="snum" aria-hidden="true">03</span>
+                <h2>技术栈</h2>
+                <span className="smeta">STACK · {ABOUT.skills.length} 项</span>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {ABOUT.skills.map((skill) => (
                   <span key={skill} className="chip px-3 py-1.5 text-xs" style={{ color: 'var(--body)' }}>
@@ -136,8 +135,11 @@ export default function AboutPage() {
 
           <div className="mb-16">
             <section>
-              <div className="eyebrow mb-2">年表</div>
-              <h2 className="section-title mb-2">时间线</h2>
+              <div className="shead" style={{ flexWrap: 'wrap' }}>
+                <span className="snum" aria-hidden="true">04</span>
+                <h2>时间线</h2>
+                <span className="smeta">TIMELINE · {ABOUT.timeline.length} 个节点</span>
+              </div>
               <div>
                 {ABOUT.timeline.map((item) => (
                   <div
@@ -147,7 +149,7 @@ export default function AboutPage() {
                   >
                     <span className="meta" style={{ color: 'var(--accent-text)' }}>{item.year}</span>
                     <div>
-                      <p className="font-semibold" style={{ color: 'var(--ink)' }}>{item.title}</p>
+                      <p className="heading-3">{item.title}</p>
                       <p className="body-sm mt-1">{item.description}</p>
                     </div>
                   </div>
@@ -170,7 +172,7 @@ export default function AboutPage() {
             >
               <AvatarImage src={SITE.avatar} alt={SITE.author.name} />
             </div>
-            <div className="font-serif font-bold" style={{ fontSize: 18, color: 'var(--ink)' }}>
+            <div className="font-serif font-black" style={{ fontSize: 18, color: 'var(--ink)' }}>
               {ABOUT.greeting}
             </div>
             <div className="eyebrow mt-1.5">{ABOUT.title}</div>

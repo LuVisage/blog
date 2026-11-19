@@ -51,7 +51,7 @@ export function TocList({ maxHeight, onNavigate }: TocListProps) {
       className={`relative flex-1 min-h-0 overflow-y-auto pr-1 ${SCROLLBAR_HIDDEN}`}
       style={maxHeight ? { maxHeight } : undefined}
     >
-      {headings.map(({ id, text, level }: TocItem) => {
+      {headings.map(({ id, text, level }: TocItem, index) => {
         const active = activeId === id
         return (
           <li key={id}>
@@ -65,7 +65,7 @@ export function TocList({ maxHeight, onNavigate }: TocListProps) {
               }}
               title={text}
               aria-current={active ? 'true' : undefined}
-              className={`toc-link pressable relative block text-sm py-1.5 line-clamp-1 transition-colors${active ? ' is-active' : ''}`}
+              className={`toc-link pressable relative flex items-baseline gap-2 text-sm py-1.5 transition-colors${active ? ' is-active' : ''}`}
               style={{
                 borderLeft: `1px solid ${active ? 'var(--line-strong)' : 'var(--line)'}`,
                 paddingLeft: level === 3 ? 24 : 12,
@@ -74,7 +74,8 @@ export function TocList({ maxHeight, onNavigate }: TocListProps) {
             >
               {/* 激活项由一条 2px 强调色短标滑动进入 */}
               <span aria-hidden="true" className="indicator-bar indicator-bar--lead" />
-              {text}
+              <i aria-hidden="true" className="toc-num">{String(index + 1).padStart(2, '0')}</i>
+              <span className="truncate">{text}</span>
             </a>
           </li>
         )
@@ -127,7 +128,7 @@ export function TableOfContents({ variant = 'both' }: { variant?: Variant }) {
       {showDesktop && (
         <nav aria-label="文章目录" className="hidden xl:flex xl:flex-col flex-1 min-h-0">
           <div className="flex items-baseline gap-3 mb-4">
-            <h4 className="eyebrow flex-shrink-0">目录</h4>
+            <h4 className="toc-k flex-shrink-0" style={{ marginBottom: 0 }}>INDEX · {headings.length} 节</h4>
             <ReadRule />
           </div>
           {/* 高度由使用方的外层 flex 容器约束，列表自己滚 */}

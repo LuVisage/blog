@@ -28,7 +28,10 @@ export function LedgerRow({ href, external, ordinal, title, label, desc, meta, n
     <>
       <span className="flex-shrink-0 w-9 self-center">
         {lead ?? (ordinal !== undefined && (
-          <span className="meta tabular-nums transition-colors group-hover:text-[var(--accent-text)]">
+          <span
+            className="tint-faint tabular-nums transition-colors group-hover:text-[var(--accent-text)]"
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em' }}
+          >
             {String(ordinal).padStart(2, '0')}
           </span>
         ))}

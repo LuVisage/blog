@@ -37,6 +37,8 @@ export const metadata: Metadata = {
  */
 const DEV_SCRIPT_SRC = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
 
+// 地址栏染色取 lib/constants 的 THEME_COLORS（唯一写死处，R5 豁免 lib/）。
+// lib/ 锁定不动，视图层不另立裸色号；画布精调留给 globals.css 的 --color-canvas。
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -119,14 +121,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="flex flex-col min-h-screen relative bg-body">
+        <div className="crop-marks" aria-hidden="true"><i /><i /><i /><i /></div>
         <a href="#main-content" className="skip-to-content">跳到主要内容</a>
         <ThemeProvider>
           <ToastProvider>
           <Header />
-          {/* §2.1 容器 1200px；§1 区块留白按 96px 档展开。
+          {/* A 方向容器 1400px（--container-max）；区块留白按 96px 档展开。
               tabIndex=-1 是让「跳到主要内容」真的能落脚：不可聚焦的目标只会改 hash，
               焦点仍留在 BODY，读屏不播报正文、下一跳 Tab 回到页头。 */}
-          <main id="main-content" tabIndex={-1} data-pagefind-body className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24 relative z-10">
+          <main id="main-content" tabIndex={-1} data-pagefind-body className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 relative z-10">
             <PageTransition>{children}</PageTransition>
           </main>
           <Footer since={allPosts[allPosts.length - 1]?.date ?? ''} />

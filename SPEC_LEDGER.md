@@ -2543,3 +2543,123 @@ Batch Y 立的 byline / 字数 / 许可 / 运行天数 / 系列导航、PageTran
   Discussions + 装 giscus App 即消；失败兜底三步诊断照旧。
 - 冻结层 lint 警告（yearIdx）留待将来解锁 app 层时顺手清。
 
+
+### 11.50 视觉层全量重做：巨字工程出版（Batch ZO）
+
+2026-11-19。用户裁定「我的意思是整个UI都要去掉，都要重新设计重做」；三版真实初稿方向门
+后作者选定「A 巨字工程出版」。范围 = `app/globals.css` 单层令牌系统全量重写（现 2405 行，
+含清掉 333 行旧设计死 CSS）+ `app/` 其余 12 件（组合层页面与 layout）+ `components/`
+视觉过 21 件；
+`lib/`、`content/`、`proxy/` 一律不碰，数据与契约冻结（导出名/props、DOM 钩子、
+aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
+
+**一、方法**
+
+- 方向门留档：三版真实 HTML 初稿与截图在父目录 `design-demos/`（不入库），选定原话与
+  截图路径记 `direction-approved.md`；迭代不再过门。
+- 视觉语汇：纸白 #F6F5F1 / 暗 #121212、信号红 #C82217（暗档 #FF6B5E）、墨黑规线；
+  巨字中文 display 900（hero `clamp(58px,9.5vw,128px)`）；规线模块网格 + mono 编号索引
+  （导航 01–07、索引行、INDEX 栏）；方角（radius token 全 0）；「跑通/验收」母题贯穿课程面。
+- 探针揪出两处真缺陷并修：① 巨字 hero 吃掉整块 900px 首屏（started=1/full=0）→ hero
+  padding/margin 共收约 136px、h1 上限 154→128px，复测 started=2/full=1、shead 651；
+  ② 390px 汉堡被推出视口（x=825）——`.idx` 在 globals 写 `display:flex` 压过同优先级
+  Tailwind `hidden` → 删 display 交还 `hidden lg:flex` 分区；刊头压缩（gap-3/gap-2、
+  SEARCH 低于 sm 收成图标、≤560 wordmark 18px）。
+- 闸失明修正：`body overflow-x:clip` 吞刊头溢出，doc-scrollWidth 闸绿而汉堡按不中 →
+  narrow-overflow 增 `headerOut` 独量（可见 header a/button 整块落视口内）。量具修正，
+  非判据放宽。
+- 探针改挂（契约随设计换，阈值按实测立）：ZL 30+ 条 / ZM 37 条改挂 A 语汇；byline
+  `rounded-full` 计算值 9999px 与 50% 双收；reduce 档 `.a-title` 是 <a>、故意保留 200ms
+  颜色反馈，位移归零改量 `.a-idx` span；focusvis 命令面板腿按 ZK 减法事实摘除（Ctrl+K
+  改跳搜索页、站内再无 role=dialog），只量移动抽屉这一现存浮层世界，零次自证保留。
+- 改挂后首全量（3866 焦点站 / 像素复核 124 / 浮层重走 30）揪出两处真缺陷并修：
+  ① 固定回顶钮盖住右下角焦点站（页脚「订阅」、代码「复制代码」，2.4.11 计 27 处）→
+  角钮与焦点相交期间让位（opacity 0 + tabIndex -1 一起摘），焦点离开或滚走再回来；
+  首版让位带 20px 下滑位移，藏起时矩形移出相交区→判「没盖」→回来→自激振荡，
+  子集复量抓现行后去掉隐藏态位移（矩形恒定才判得稳）；
+  ② 搜索页 `autoFocus` 在搜索子树 hydration commit 才开火（等 pagefind、比刊头晚），
+  抽屉先开则焦点被拽到遮罩背后（/search/ 抽屉遍链被盖 100%）→ 改挂载 effect，
+  仅当 activeElement 仍是 body 时接焦点；⌘K 显式 focus 不受影响。
+  同簇另有量具假阳：focusvis 开抽屉用 `el.click()` 不移动焦点，Tab 起点留在页内
+  （/search/ 是输入框）整遍走在遮罩背后；真鼠标/键盘必先聚焦汉堡 → 探针补 `b.focus()`
+  对齐真语义（focus()+click() 对照实测：抽屉 7 链被盖 0）。
+
+**二、偏差登记**
+
+- 首屏密度判据 started>=2 && full>=1 为修复后实测立阈：巨字版起初不达标是真缺陷，
+  修到达标后把实测写进探针，不是把原判据放宽迁就画面。
+- 其余无 deliberate 偏差：组件契约与 ZN 冻结清单逐条照旧。
+
+**三、证据（全部对最终构建）**
+
+- `npm run build` rc=0；产物审计 1160 文件通过；out/ CSS chunk 含
+  `clamp(58px,9.5vw,128px)`，构建新于最后一次源改动（05:33 > 05:32）。
+- `npm run check` rc=0；纪律闸「125 源文件 · 18 @keyframes · 违规 0 处 · 0 类」；
+  proxy/attack/env 审计全过。
+- 交互探针 ZL/ZM 全绿；narrow-overflow 320/360 各 0 页（含 headerOut）；names 22 控件 /
+  15 页 / 66 AX 角色；contrast 明暗两档全页低于 AA 0 处。
+- 目检 `shots-zo/` 5 张：1440 明/暗、390、390 抽屉开、文章页 1440——首屏见规线与第一条
+  索引行、抽屉 7 链当前项红侧标、文章页 stamp/署名条/INDEX 栏/首字下沉均在位。
+- 34 件改动统一 CRLF + 文末换行（10 件补文末换行，纯空白）。
+- 红线不变：**不声称全站 AA 全绿、不声称 INP 绿**。
+
+**四、残留**
+
+- D6 内容多样与更新频率仍待 `content/` / `lib/` 解锁。
+- giscus 环境态不变（仓库启用 Discussions + 装 App 即消）。
+- sysweight 信息档：Windows YaHei 把 500 钳到 400、650/700 钳到 600，平台边界非缺陷。
+- 全量焦点闸与 vitals 未在 ZO 构建上跑完（被 R1 迭代取代），证据以 §11.51 的 R1 复跑为准。
+
+### 11.51 R1 精修：宋体书嗓与印刷细节（Batch ZO-R1）
+
+触发：作者看 ZO 成品首页仍判「我觉得还是不太好看，你能不能再优化一下，参考一下其他优秀的博客网站」。
+属方向 A 选定后的迭代改稿（direction-approved.md 已落档豁免原话），不重开三方向门。
+
+#### 一 方法
+
+1. 参照实测而非凭印象：headless 截五站（overreacted / leerob / yihui / paco / antfu，
+   存 ui-concepts/verify/ref-*.png）。两站弃用留因：emilkowalski.com 域名易主为无关链接页、
+   diygod.me 连接超时。in-app 浏览器无可见viewport（NATIVE_BROWSER_VIEWPORT_UNAVAILABLE），
+   截图改走自有 shot.mjs——量具不可用时换量具，不换结论来源。
+2. 诊断（对照成品截图与初稿 A）：落地并未丢初稿结构，丑在嗓音单一——全站黑体 900/700，
+   巨字像黑 slab、整页像规格表；无视线锚点（纯平纸 + 发丝线）；无印刷细节（单线、无套准 mark）；
+   冷灰面（#eceef0）与暖纸（#f6f5f1）打架。
+3. 借法落地（app/globals.css + app/page.tsx + app/layout.tsx，lib/content/proxy 零改动）：
+   - 嗓音：--font-title / --font-serif 改 Georgia + Songti SC/Source Han Serif/Noto Serif/SimSun；
+     展示巨字、报头 wordmark、栏头、行题、课程名、黑带题全部转宋体（汉字粗宋系统合成，报纸大标宋同路）；
+     .prose / .a-desc / .hero-bio 转书嗓阅读面；UI 控件与 mono 索引不动。
+   - 印刷细节：刊头与栏头 2px solid → 3px double 双规；四角裁切 mark（.crop-marks，fixed +
+     pointer-events:none 不参与命中测试，窄屏 display:none）；hero 右栏最新一文做样张卡
+     （.side-card 暖面 + 1px 边 + 3px 红顶规）+ 「跑通」落款印章（.seal 竖排两字、-3deg 微旋、
+     stampIn 400ms ease-out 500ms both，只动 transform/opacity）。
+   - 暖纸面：surface-2/raised 亮 #edeae2、暗 #242220；surface-3 与 skeleton-sweep 同步。
+4. 闸驱动的三个真修（都不放宽判据）：
+   - discipline 抓印章 delay 600ms 不在 200/300/400/500/800/1200 档 → 改 500ms 档。
+   - contrast 抓暖面把 --faint 压到 4.37:1（7 处 span.meta 压 surface-2）→ token 层加深
+     faint/muted 亮档 #6e6c66 → #696761（新面 4.66:1、画布 5.1:1），拇指闸同步复跑仍 PASS。
+   - ZM 抓 900px 首屏完整行 0（row1 bottom 恰 900）→ measure-r1.mjs 实测后收 36px 垂直节奏
+     （hero padding 16/24、bio/attr margin、shead padding/margin、arow padding 20）→ bottom 860。
+     判据未动，是版面让回契约。
+5. 探针契约未改挂：R1 只换视觉嗓音，焦点/名字/溢出/计时契约原样复跑。
+
+#### 二 偏差登记
+
+- 无新偏差。ZM 首屏完整行 ≥1、discipline 时长档、contrast AA 三条判据均原值保留，靠修版面/修 token 达标。
+- 宋体粗汉字为系统合成（Windows SimSun / macOS Songti SC）；无宋体的 Linux 落 serif 默认族，
+   属优雅降级，与零 webfont 约束一致（sysweight 残留同 ZO）。
+
+#### 三 证据
+
+- build + postbuild 审计：1160 文件通过；秘密扫描 741 文本产物 0 命中；外链脚本域名（无）。
+- npm run check rc=0：discipline 扫 125 源文件 · 19 @keyframes · 时长 9 / 缓动 114 / 属性 153 /
+  语汇 3 / 颜色 88 / 动画引用 18 / 工具类 64 · 违规 0 处 0 类（yearIdx 警告为冻结层遗留，非本轮）。
+- contrast：亮暗两档低于 AA 0 处（修 faint 前 7 处，修后复跑归零）。
+- scrollbar-contrast：2 对拇指基准 PASS（亮档随 faint 加深升到约 5.1:1）。
+- narrow-overflow：320 / 360 两档 0 页横向溢出。
+- names：22 可见控件 · 15 类页面 · 66 角色另一腿 · 不一致 0。
+- ZL / ZM 交互探针：全部通过（ZM 首屏完整行恢复，measure-r1.mjs 实测 row1 bottom 860 < 900）。
+- 目检：shots-r1/ 四张（home 亮 1440 / home 暗 1440 / home 390 / post 亮 1440）——
+  粗宋巨字笔画对比成立、暗色夜报质感、样张卡印章不压链接、窄屏裁切 mark 摘除无挤爆。
+- CRLF：本轮编辑文件逐次归一（globals.css / page.tsx / layout.tsx）。- focusvis 全量（R1 构建，独走）：4 项 PASS 均 0 处——2.4.7 焦点可见（像素差复核后）/ 2.4.13 焦点外观 / 2.4.11 遮挡≥50% / 焦点停稳整块出视口；合计 3868 真实焦点站 · 像素复核 124 站 · 浮层重走 30 次 · 4 档视口/主题 × 15 类页面；rc=0（focusvis-r1-full.log）。
+- vitals 独跑（R1 构建，静机、无并发浏览器活）：30 站（15 类页面 × 2 视图）PASS——最差 CLS 0.0484（闸 0.1）、最慢交互 16ms（闸 200ms）；layout-shift 41 条、带 interactionId 交互 6 次；网络 off、注入 none、发车前空闲确认开、触顶 0 站（vitals-r1-full.log）。CLS 高位仍是数学页 KaTeX 落位（0.0484/0.0257），与 ZO 同源、闸内。
+- 全闸收口：build / check / contrast / scrollbar / narrow / names / ZL / ZM / focusvis 全量 / vitals 十闸全绿，R1 构建具备提交条件。

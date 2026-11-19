@@ -29,6 +29,15 @@ import { SimulatorClient } from '@/components/learn/simulator-client'
  * 所有课程共用的课时正文。课程归属写在 lesson 自身，这里不会猜错目录。
  */
 
+// 标题里的「…」引语染信号红，与文章页同一套巨字签名细节。
+function renderTitle(title: string) {
+  return title.split(/(「[^」]*」)/g).map((part, i) =>
+    part.startsWith('「') && part.endsWith('」')
+      ? <span key={i} className="q">{part}</span>
+      : <span key={i}>{part}</span>
+  )
+}
+
 /**
  * 实验台的 Suspense 兜底：`next/dynamic` + `ssr: false` 不参与服务端渲染，
  * 边界必须自己能画出东西。
@@ -127,7 +136,7 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
 
       <div className="xl:flex xl:gap-10 xl:items-start">
         <article className="flex-1 min-w-0">
-          <header className="pt-9 sm:pt-12 pb-8">
+          <header className="pt-9 sm:pt-12">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 eyebrow">
               {!reference && weekLessons.length < 2 && (
                 <>
@@ -145,9 +154,7 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
               <span>{lesson.readingTime} 分钟</span>
             </div>
 
-            <h1 className="display mt-5" style={{ fontSize: 'clamp(28px, 5vw, 48px)', lineHeight: 1.18 }}>
-              {lesson.title}
-            </h1>
+            <h1 className="ptitle">{renderTitle(lesson.title)}</h1>
 
             {lesson.lead && (
               <p className="body-lg lead-md mt-5 max-w-2xl" style={{ color: 'var(--muted)' }}>
@@ -183,10 +190,12 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
                 </a>
               </div>
             )}
+
+            <div className="phead-rule" aria-hidden="true" />
           </header>
 
           {/* 窄屏常驻阅读定位条，与文章页同一套语汇。 */}
-          <div className="mb-8 xl:mb-0">
+          <div className="mt-8 mb-8 xl:mb-0">
             <ChapterBar />
           </div>
 

@@ -40,7 +40,11 @@ export default function SeriesPage() {
           {series.length > 0 ? (
             <div>
               <div>
-                <div className="eyebrow mb-5">索引</div>
+                <div className="shead" style={{ flexWrap: 'wrap' }}>
+                  <span className="snum" aria-hidden="true">01</span>
+                  <h2>系列索引</h2>
+                  <span className="smeta">SERIES · {series.length} 个 · {total} 篇</span>
+                </div>
                 <Ledger>
                   {series.map(({ series: name, count }, i) => (
                     <LedgerRow

@@ -7,7 +7,7 @@ import { PageMasthead } from '@/components/page-masthead'
 import { LedgerRow, Ledger } from '@/components/ledger-row'
 import { IndexRail } from '@/components/index-rail'
 import { EmptyState } from '@/components/ui/empty-state'
-import { IconFolder, IconArrowUpRight } from '@tabler/icons-react'
+import { IconFolder } from '@tabler/icons-react'
 
 export const metadata: Metadata = {
   title: '分类',
@@ -56,7 +56,11 @@ export default function CategoriesPage() {
           {categories.length > 0 ? (
             <div>
               <div>
-                <div className="eyebrow mb-5">索引</div>
+                <div className="shead" style={{ flexWrap: 'wrap' }}>
+                  <span className="snum" aria-hidden="true">01</span>
+                  <h2>分类索引</h2>
+                  <span className="smeta">CATEGORIES · {categories.length} 个</span>
+                </div>
                 <Ledger>
                   {categories.map(({ category, count }, i) => (
                     <LedgerRow
@@ -82,8 +86,12 @@ export default function CategoriesPage() {
           {/* ── 系列：同一主题下的连续思考（真实数据：getAllSeries） ── */}
           {series.length > 0 && (
             <div>
-              <section className="mt-16 pt-8" style={{ borderTop: '1px solid var(--line)' }}>
-                <div className="eyebrow mb-4">系列 · Series</div>
+              <section style={{ marginTop: 'var(--space-64)' }}>
+                <div className="shead" style={{ flexWrap: 'wrap' }}>
+                  <span className="snum" aria-hidden="true">02</span>
+                  <h2>系列栏目</h2>
+                  <span className="smeta">SERIES · {series.length} 个 · <Link href="/series">全部 →</Link></span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {series.map(({ series: name, count }) => (
                     <Link
@@ -102,16 +110,11 @@ export default function CategoriesPage() {
 
           {/* ── 课程：/learn 五门体系（真实数据：COURSES + getCurriculumStats） ── */}
           <div>
-            <section className="mt-16 pt-8" style={{ borderTop: '1px solid var(--line)' }}>
-              <div className="flex items-end justify-between gap-4 mb-4">
-                <div>
-                  <div className="eyebrow mb-2">课程 · Learn</div>
-                  <h2 className="section-title">成体系的学习路径</h2>
-                </div>
-                <Link href="/learn" className="btn-ghost text-sm">
-                  进入课程体系
-                  <IconArrowUpRight size={14} strokeWidth={2} />
-                </Link>
+            <section style={{ marginTop: 'var(--space-64)' }}>
+              <div className="shead" style={{ flexWrap: 'wrap' }}>
+                <span className="snum" aria-hidden="true">03</span>
+                <h2>成体系的学习路径</h2>
+                <span className="smeta">LEARN · {courses.length} 门 · <Link href="/learn">进入 →</Link></span>
               </div>
               <Ledger>
                 {courses.map((course, i) => (

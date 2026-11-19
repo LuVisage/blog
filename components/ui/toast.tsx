@@ -79,7 +79,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={`surface ${t.leaving ? 'animate-fade-out' : 'animate-fade-up'} pointer-events-none flex items-start gap-3 px-4 py-3.5`}
-            style={{ borderRadius: 'var(--radius-xs)' }}
+            style={{ borderRadius: 'var(--radius-xs)', borderTop: '2px solid var(--rule)' }}
           >
             <span className="mt-0.5 flex-shrink-0">
               {t.tone === 'secret' ? (

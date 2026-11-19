@@ -77,7 +77,7 @@ export function BookmarkButton({ slug }: { slug: string }) {
         className="chip pressable inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium cursor-pointer"
         style={
           saved
-            ? { color: 'var(--accent-text)', borderColor: 'var(--accent-line)' }
+            ? { color: 'var(--accent-text)', borderColor: 'var(--accent-line)', background: 'var(--accent-soft)' }
             : undefined
         }
       >

@@ -1,138 +1,282 @@
-import { getAllPosts, getAllTags, getAllCategories, getPopularPosts } from '@/lib/posts'
-import { COURSE_IDS, getCurriculumStats } from '@/lib/curriculum'
-import { EditorialList } from '@/components/editorial-list'
-import { SubscribeCard } from '@/components/subscribe-card'
-import { AvatarImage } from '@/components/avatar-image'
-import { SITE } from '@/lib/constants'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { getAllPosts, getAllSeries, getPostsBySeries } from '@/lib/posts'
+import { COURSES, COURSE_IDS, getCurriculumStats, getWeeks, getAllLessons, lessonHref, type CourseId } from '@/lib/curriculum'
+import { SITE, ABOUT, SOCIAL_LINKS, EMAIL_OBFUSCATED, basePathUrl } from '@/lib/constants'
+import { EditorialList } from '@/components/editorial-list'
+import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 
 /**
- * 首页 · ZK 简洁风。
+ * 首页 · A 方向「巨字工程出版」。
  *
- * 刊头只留 eyebrow / 标题 / 导语 / 一行计量；编号快捷入口、翻板数字、签名色带、
- * 视差与课程编排图版全部下线（入口全局导航已有，编排图在 /learn 有完整版）。
- * 主栏是纯文字文章行，侧栏保留身份、精选、标签、书架与订阅五个功能块。
+ * hero 是作者原话的巨字排印（ABOUT.bio 的核心句），右栏对位最新与教程入口；
+ * 往下四个编号区块：01 最新文章（规则线行）/ 02 交互教程（DAY 计数 + 验收章母题）/
+ * 03 系列栏目（真实计数巨字）/ 04 反转黑带（关注方向 × 订阅）。
+ * 所有计数、日期、课程进度都从 content/ 与 lib/ 现算，不编造。
  */
+
+// 课程显示名与 /learn 的 CARDS 同源；首页只取名称与统计，不复制 tagline。
+const COURSE_NAMES: Record<CourseId, string> = {
+  devtool: '工具箱 · 开发工具链',
+  ml: '机器学习与深度学习',
+  backend: 'Python 工程化与后端实战',
+  agent: '从零到生产级 Agent',
+  csp: 'CSP 认证 20 天冲刺',
+}
+const COURSE_KIND: Record<CourseId, string> = {
+  devtool: 'TOOLBOX · 工具手册',
+  ml: 'LEARN · 主线课程',
+  backend: 'CURRICULUM · 工程实战',
+  agent: 'LEARN · 交互教程',
+  csp: 'CURRICULUM · 备考冲刺',
+}
+const SIDE_COURSES: CourseId[] = ['agent', 'ml', 'devtool', 'csp']
+
+const pad = (n: number) => String(n).padStart(2, '0')
+const fmtDate = (d: string) => format(parseISO(d), 'yyyy.MM.dd', { locale: zhCN })
+
 export default function HomePage() {
   const allPosts = getAllPosts()
-  const tags = getAllTags()
-  const categories = getAllCategories()
-  const featured = getPopularPosts(3)
-  const lessons = COURSE_IDS.reduce((sum, id) => sum + getCurriculumStats(id).lessons, 0)
-  const latestDate = allPosts[0]?.date
+  const series = getAllSeries()
+  const latest = allPosts[0]
+  const totalLessons = COURSE_IDS.reduce((sum, id) => sum + getCurriculumStats(id).lessons, 0)
 
-  const shelves = [
-    { href: '/categories', label: '分类', count: categories.length },
-    { href: '/tags', label: '标签', count: tags.length },
-    { href: '/series', label: '系列', count: null },
-    { href: '/subscribe', label: '订阅', count: null },
-  ]
+  const backendWeeks = getWeeks('backend')
+  const backendStats = getCurriculumStats('backend')
 
   return (
-    <div className="editorial">
-      <header className="editorial__masthead">
-        <div className="editorial__masthead-main">
-          <div className="eyebrow editorial__eyebrow">
-            BARON_ZHANG · 个人志
-            <span className="editorial__eyebrow-sep">/</span>
-            AI · Agent · LLM
+    <div>
+      {/* hero：全幅巨字（作者原话）+ 右栏对位（最新 / 去哪） */}
+      <section className="hero" aria-label="作者与主张">
+        <div className="hero-grid">
+          <div className="hero-main">
+            <p className="hero-eyebrow">{SITE.title} — {ABOUT.title}</p>
+            <p className="hero-lede">我相信</p>
+            <h1 className="hero-h1">
+              <span className="ln"><span>写作是最好的</span></span>
+              <span className="ln"><span>思考方式<i className="dot">。</i></span></span>
+            </h1>
+            <p className="hero-bio">
+              {ABOUT.shortBio}从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。
+            </p>
+            <p className="hero-attr">
+              —— 作者自述 · <Link href="/about" className="no-underline" style={{ color: 'inherit' }}>ABOUT</Link>
+            </p>
           </div>
-          <h1 className="editorial__title mt-4">写在 AI 时代的开发笔记</h1>
-          <p className="editorial__intro">
-            关于大模型、Agent 与工程实践的一手记录。不是转述文档，而是把跑通的代码、
-            踩过的坑和取舍理由一并写下来；写得慢一点，但每篇都经得起追问。
-          </p>
-          <p className="editorial__meta-line">
-            {SITE.author.name} 主笔 · {allPosts.length} 篇文章 · {lessons} 课次 · {tags.length} 标签
-            {latestDate && (
-              <>
-                {' · 最近更新 '}
-                <time dateTime={latestDate}>{format(parseISO(latestDate), 'yyyy.MM.dd', { locale: zhCN })}</time>
-              </>
-            )}
-          </p>
-        </div>
-        <span className="editorial__seal" aria-hidden="true">志</span>
-      </header>
 
-      <div className="editorial__rule" />
-
-      <div className="editorial__grid">
-        <div className="editorial__main">
-          <section className="editorial__section" aria-labelledby="latest-title">
-            <div className="editorial__section-head">
-              <h2 id="latest-title">最新</h2>
-              <span className="head-rule" aria-hidden="true" />
-              <Link href="/posts">全部 {allPosts.length} 篇 →</Link>
+          <aside className="hero-side" aria-label="最新与入口">
+            <div className="side-card">
+              <p className="side-k">LATEST{latest ? ` · ${fmtDate(latest.date)}` : ''}</p>
+              {latest && (
+                <>
+                  <Link href={`/posts/${latest.slug}`} className="side-title no-underline">{latest.title}</Link>
+                  <p className="side-meta">
+                    {latest.category ? `分类 ${latest.category}` : '分类未标注'}
+                    {latest.series ? ` · 系列 ${latest.series}` : ''}
+                  </p>
+                </>
+              )}
+              <Link href="/posts" className="side-more no-underline">全部 {pad(allPosts.length)} 篇 <span aria-hidden="true">↓</span></Link>
+              <span className="seal" aria-hidden="true">跑通</span>
             </div>
-            <EditorialList posts={allPosts.slice(0, 5)} />
-          </section>
-        </div>
-
-        <aside className="editorial__side" aria-label="站点信息与导航">
-          <section className="side-block">
-            <h2>关于本站</h2>
-            <div className="side-about">
-              <span className="side-about__avatar"><AvatarImage src={SITE.avatar} alt={SITE.author.name} /></span>
-              <p>
-                <span className="side-about__name">{SITE.author.name}</span>
-                AI 探索者 &amp; Agent 开发者。关注大模型应用、Agent 架构与工程实践，
-                也记录把技术讲清楚的过程。
+            <div className="side-rule" aria-hidden="true" />
+            <div>
+              <p className="side-k">LEARN · {pad(COURSE_IDS.length)} 门</p>
+              <p className="side-note">
+                交互教程 · 每一步都给出验收命令。共 {totalLessons} 课次，跟一个 Day 试试。
               </p>
+              <Link href="/learn" className="side-more no-underline">跟一个 DAY <span aria-hidden="true">↓</span></Link>
             </div>
-          </section>
+          </aside>
+        </div>
+      </section>
 
-          <section className="side-block">
-            <div className="side-block__head">
-              <h2>精选</h2>
-              <Link href="/posts">全部 →</Link>
-            </div>
-            <ol className="side-list">
-              {featured.map((post, i) => (
-                <li key={post.slug}>
-                  <span className="side-list__no">{String(i + 1).padStart(2, '0')}</span>
-                  <Link href={`/posts/${post.slug}`}>{post.title}</Link>
-                  <span>{format(parseISO(post.date), 'yyyy.MM.dd', { locale: zhCN })}</span>
-                </li>
-              ))}
-            </ol>
-          </section>
+      {/* 01 最新文章 */}
+      <section aria-labelledby="latest-title">
+        <div className="shead">
+          <span className="snum" aria-hidden="true">01</span>
+          <h2 id="latest-title">最新文章</h2>
+          <span className="smeta">
+            LATEST · {pad(allPosts.length)} 篇 · 日期倒序 · <Link href="/posts">全部 →</Link>
+          </span>
+        </div>
+        <EditorialList posts={allPosts.slice(0, 6)} />
+      </section>
 
-          <section className="side-block">
-            <div className="side-block__head">
-              <h2>热门标签</h2>
-              <Link href="/tags">全部 →</Link>
-            </div>
-            <div className="side-tagcloud">
-              {tags.slice(0, 9).map(({ tag, count }) => (
-                <Link key={tag} href={`/tags/${tag}`} className="side-tag">
-                  #{tag}<span>{count}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
+      {/* 02 交互教程：母题主场 —— DAY 计数 + 验收章 */}
+      <section aria-labelledby="learn-title" style={{ marginTop: 'var(--space-96)' }}>
+        <div className="shead">
+          <span className="snum" aria-hidden="true">02</span>
+          <h2 id="learn-title">交互教程</h2>
+          <span className="smeta">
+            LEARN / CURRICULUM / TOOLBOX · {pad(COURSE_IDS.length)} 门 · <Link href="/learn">进入 →</Link>
+          </span>
+        </div>
 
-          <section className="side-block">
-            <h2>书架</h2>
-            <ul className="side-links">
-              {shelves.map((item) => (
-                <li key={item.href}>
-                  <Link href={item.href}>
-                    {item.label}
-                    {item.count !== null && <span>{item.count}</span>}
-                  </Link>
+        <div className="learn-grid">
+          {/* 左：backend 全展开 */}
+          <div className="course-feature">
+            <p className="course-k">{COURSE_KIND.backend}</p>
+            <h3 className="course-name">
+              <Link href={COURSES.backend.path} className="no-underline" style={{ color: 'inherit' }}>{COURSE_NAMES.backend}</Link>
+            </h3>
+            <p className="course-scale">{backendStats.lessons} 天 · {backendStats.weeks} 周 · 每天附验收命令</p>
+
+            {backendWeeks.map(({ week, title, lessons }) => (
+              <div className="week" key={week}>
+                <p className="week-h">
+                  WEEK {pad(week)} · {title}
+                  <small>DAY {pad(lessons[0].day)}–{pad(lessons[lessons.length - 1].day)}</small>
+                </p>
+                <ul>
+                  {lessons.map((lesson) => (
+                    <li className="day" key={lesson.slug}>
+                      <span className="daynum">DAY {pad(lesson.day)}</span>
+                      <Link
+                        href={lessonHref('backend', lesson.slug)}
+                        className="daytitle no-underline transition-colors hover:text-[var(--accent-text)]"
+                      >
+                        {lesson.title}
+                      </Link>
+                      <span className="check" title="附验收命令" aria-hidden="true" />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            <p className="accept-note">
+              <span className="check" aria-hidden="true" /> 红勾 = 该 DAY 附验收命令。学习进度只存在你自己的浏览器里。
+            </p>
+          </div>
+
+          {/* 右：其余四门，对位排印 */}
+          <div className="course-list">
+            {SIDE_COURSES.map((course) => {
+              const stats = getCurriculumStats(course)
+              const lessons = getAllLessons(course)
+              const first = lessons[0]
+              const last = lessons[lessons.length - 1]
+              return (
+                <div className="course-row" key={course}>
+                  <p className="course-k">{COURSE_KIND[course]}</p>
+                  <div className="cr-head">
+                    <h3 className="course-name">
+                      <Link href={COURSES[course].path} className="no-underline" style={{ color: 'inherit' }}>{COURSE_NAMES[course]}</Link>
+                    </h3>
+                    <span className="course-scale">{stats.weeks} 周 · {stats.lessons} 天</span>
+                  </div>
+                  {first && (
+                    <p className="cr-day">
+                      <span className="daynum">DAY {pad(first.day)}</span>
+                      <Link href={lessonHref(course, first.slug)} className="no-underline transition-colors hover:text-[var(--accent-text)]" style={{ color: 'var(--body)' }}>
+                        {first.title}
+                      </Link>
+                      <span className="check" title="附验收命令" aria-hidden="true" />
+                    </p>
+                  )}
+                  {last && last.slug !== first?.slug && (
+                    <p className="cr-day">
+                      <span className="daynum">DAY {pad(last.day)}</span>
+                      <Link href={lessonHref(course, last.slug)} className="no-underline transition-colors hover:text-[var(--accent-text)]" style={{ color: 'var(--body)' }}>
+                        {last.title}
+                      </Link>
+                      <span className="check" title="附验收命令" aria-hidden="true" />
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+            <p className="learn-static">
+              课程入口接 /learn 各课程页。<br />
+              课内含 Quiz / Checklist / GotchaTable / DayComplete / 可交互模拟实验（labs）。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 03 系列栏目：真实计数 */}
+      {series.length > 0 && (
+        <section aria-labelledby="series-title" style={{ marginTop: 'var(--space-96)' }}>
+          <div className="shead">
+            <span className="snum" aria-hidden="true">03</span>
+            <h2 id="series-title">系列栏目</h2>
+            <span className="smeta">SERIES · 计数由真实文章表算得 · <Link href="/series">全部 →</Link></span>
+          </div>
+          <div className="ser-grid">
+            {series.slice(0, 3).map(({ series: name, count }) => {
+              const posts = getPostsBySeries(name)
+              return (
+                <div className="ser" key={name}>
+                  <p className="ser-count">{pad(count)}<small>篇</small></p>
+                  <h3 className="ser-name">
+                    <span className="check" aria-hidden="true" />
+                    <Link href={`/series/${name}`} className="no-underline" style={{ color: 'inherit' }}>{name}</Link>
+                  </h3>
+                  <ul className="ser-list">
+                    {posts.slice(0, 3).map((post) => (
+                      <li key={post.slug}>
+                        <Link href={`/posts/${post.slug}`} className="no-underline">
+                          {post.title}
+                          <span className="mono">{fmtDate(post.date)}{post.seriesOrder ? ` · 第 ${post.seriesOrder} 篇` : ''}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 04 反转黑带：关注方向 × 订阅 */}
+      <section className="darkband" aria-labelledby="focus-title">
+        <div className="dark-grid">
+          <div className="focus-col">
+            <p className="dark-k">04 / FOCUS · ABOUT.FOCUSAREAS</p>
+            <h2 className="dark-h" id="focus-title">关注方向</h2>
+            <ul className="focus">
+              {ABOUT.focusAreas.map((area) => (
+                <li key={area.title}>
+                  <span className="check lt" aria-hidden="true" />
+                  <div>
+                    <b>{area.title}</b>
+                    <small>{area.desc}</small>
+                  </div>
                 </li>
               ))}
             </ul>
-          </section>
-
-          <section className="side-block editorial__subscribe" aria-labelledby="subscribe-title">
-            <SubscribeCard />
-          </section>
-        </aside>
-      </div>
+          </div>
+          <div>
+            <p className="dark-k">SUBSCRIBE · 三种订阅源真实存在</p>
+            <h2 className="dark-h">订阅这份笔记</h2>
+            <div className="feeds">
+              <a className="feed no-underline" href={basePathUrl('/rss.xml')}><b>RSS 2.0</b><small>XML</small><span className="arr" aria-hidden="true">→</span></a>
+              <a className="feed no-underline" href={basePathUrl('/atom.xml')}><b>ATOM 1.0</b><small>XML</small><span className="arr" aria-hidden="true">→</span></a>
+              <a className="feed no-underline" href={basePathUrl('/feed.json')}><b>JSON FEED 1.1</b><small>JSON</small><span className="arr" aria-hidden="true">→</span></a>
+            </div>
+            <p className="dark-note">
+              没有邮件列表，也不收集地址。把订阅源加进任意阅读器即可。
+              <br />
+              联系：
+              <ObfuscatedEmailIcon encoded={EMAIL_OBFUSCATED} label="邮件" className="cursor-pointer" style={{ color: 'var(--footer-ink)' }}>
+                邮箱 · 运行时解码
+              </ObfuscatedEmailIcon>
+              {SOCIAL_LINKS.github && (
+                <>
+                  {' · '}
+                  <a href={SOCIAL_LINKS.github} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--footer-ink)' }}>GitHub</a>
+                </>
+              )}
+            </p>
+            <a className="gh-big no-underline" href={SITE.repo} target="_blank" rel="noopener noreferrer">
+              GITHUB 仓库 <span aria-hidden="true">→</span>
+            </a>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

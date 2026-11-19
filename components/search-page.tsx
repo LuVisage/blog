@@ -95,8 +95,16 @@ export function SearchPage({ starts }: { starts: Start[] }) {
   const [isMac, setIsMac] = useState(false)
   const pagefindRef = useRef<Pagefind | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.platform)), [])
+
+  // 不用 autoFocus：它在 hydration commit 才开火，而搜索子树等 pagefind、比刊头晚
+  // commit——抽屉先开的话焦点会被拽到遮罩背后。只在焦点还无人使用时接过来。
+  useEffect(() => {
+    const a = document.activeElement
+    if (!a || a === document.body || a === document.documentElement) inputRef.current?.focus()
+  }, [])
 
   useEffect(() => {
     const link = document.createElement('link')
@@ -194,11 +202,11 @@ export function SearchPage({ starts }: { starts: Start[] }) {
       <div className="field-rule relative flex items-center gap-4 pb-4" data-js-only>
         <IconSearch size={20} strokeWidth={1.75} style={{ color: 'var(--muted)' }} className="flex-shrink-0" />
         <input
+          ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="搜索文章、教程与栏目…"
-          autoFocus
           aria-label="搜索全站内容"
           className="flex-1 min-w-0 bg-transparent border-0 outline-none font-serif"
           style={{

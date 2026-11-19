@@ -38,7 +38,7 @@ export function CodeBlockEnhancer({ children }: { children: React.ReactNode }) {
       if (lang) {
         const label = document.createElement('span')
         label.className =
-          'absolute top-2 left-3 z-10 px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider pointer-events-none'
+          'absolute top-2 left-3 z-10 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wider pointer-events-none'
         label.style.backgroundColor = 'var(--demo-chip)'
         label.style.color = 'var(--demo-muted)'
         label.textContent = lang
@@ -50,7 +50,7 @@ export function CodeBlockEnhancer({ children }: { children: React.ReactNode }) {
       // 所以这里不再挂 transition-*）。
       const btn = document.createElement('button')
       btn.className =
-        'code-copy pressable absolute top-2 right-2 z-10 p-1.5 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+        'code-copy pressable absolute top-2 right-2 z-10 p-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
       const paint = (bg: string, fg: string) => {
         btn.style.backgroundColor = bg
         btn.style.color = fg
