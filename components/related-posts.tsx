@@ -1,19 +1,10 @@
-import { getRelatedPosts } from '@/lib/posts'
-import { Ledger, LedgerRow } from '@/components/ledger-row'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { getRelatedPosts } from '@/lib/posts'
+import { Ledger, LedgerRow } from '@/components/ledger-row'
 
-interface RelatedPostsProps {
-  currentSlug: string
-}
-
-/**
- * 文末「相关文章」用台账行，不用封面卡。
- * 文章尽头原来同时压着许可行、上下篇、系列块、三张封面卡、作者卡、评论卡，
- * 滚到底是四张卡片而不是下一篇；换成与全站索引同一种行语汇后，
- * 这一节只剩三条可扫读的行，封面卡那套跟手光斑与视差也随之整套下线。
- */
-export function RelatedPosts({ currentSlug }: RelatedPostsProps) {
+// 文末「相关文章」用与全站索引同一种行语汇：三条可扫读的行，不是封面卡。
+export function RelatedPosts({ currentSlug }: { currentSlug: string }) {
   const related = getRelatedPosts(currentSlug, 3)
   if (related.length === 0) return null
 

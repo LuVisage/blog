@@ -9,9 +9,14 @@ import { ControlRow, TextField } from './sim/frame'
 
 type Probe = { state: 'idle' | 'running' | 'done'; ok?: boolean; detail?: string }
 
+const MODES = [
+  { value: 'ollama', label: '本机 Ollama · 免费无 key' },
+  { value: 'proxy', label: '远程 API · 经你自己的代理' },
+] as const
+
 /**
- * Where the visitor's own endpoint and key live. Everything typed here stays in
- * this browser; the only thing that leaves is the request the visitor starts.
+ * 访客自己的接口与 Key 住在这里：填的一切只留在这台浏览器，
+ * 唯一出门的请求是访客自己发起的那一次。
  */
 export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value: boolean) => void }) {
   const { settings, stored, save, erase } = useLlmSettings()
@@ -19,13 +24,14 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
   const [probe, setProbe] = useState<Probe>({ state: 'idle' })
   const [origin, setOrigin] = useState('')
   const ready = stored && isConfigured(settings)
+  const knownBase = ALLOWED_BASES.includes(draft.baseUrl as (typeof ALLOWED_BASES)[number])
 
-  /** 服务端渲染时读不到 location，挂载后再填，否则首帧两边文字不一致。 */
+  // 服务端读不到 location，挂载后再填，否则首帧两边文字不一致。
   useEffect(() => {
     setOrigin(window.location.origin)
   }, [])
 
-  /** The first render cannot read localStorage yet, so pick the saved record up once it can. */
+  // 首帧读不到 localStorage，存档到位后把草稿接过来。
   useEffect(() => {
     setDraft(settings)
   }, [settings])
@@ -35,11 +41,8 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
     setProbe({ state: 'idle' })
   }
 
-  /**
-   * 「配置写进本机」和「连得上」是两件事：`isConfigured` 只看字段非空，所以旧写法里
-   * 手滑填错 Worker 地址的那一刻 chip 就绿了，而同一屏下面正挂着红色的连不上。
-   * 绿色只留给真验过的这一次握手。
-   */
+  // 「配置写进本机」和「连得上」是两件事：isConfigured 只看字段非空。
+  // 绿色只留给真验过的这一次握手，填错地址的那一刻 chip 不许绿。
   const chipTone = !ready
     ? 'var(--muted)'
     : probe.state !== 'done'
@@ -48,7 +51,7 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
         ? 'var(--success)'
         : 'var(--danger)'
 
-  /** 面板收起时这行是唯一出口，所以空闲态也要把「还没验过」讲出来。 */
+  // 面板收起时这行是唯一出口，空闲态也要把「还没验过」讲出来。
   const status =
     probe.state === 'running'
       ? { tone: 'var(--muted)', icon: <IconLoader size={13} strokeWidth={1.7} className="animate-spin mt-0.5" />, text: '正在握手' }
@@ -83,25 +86,17 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
         <div className="animate-fade-up mt-4 space-y-4">
           <ControlRow label="走哪条路">
             <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  { value: 'ollama', label: '本机 Ollama · 免费无 key' },
-                  { value: 'proxy', label: '远程 API · 经你自己的代理' },
-                ] as const
-              ).map((option) => {
-                const on = draft.mode === option.value
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => set('mode', option.value)}
-                    aria-pressed={on}
-                    className="chip chip-toggle px-3 py-1.5 text-xs"
-                  >
-                    {option.label}
-                  </button>
-                )
-              })}
+              {MODES.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => set('mode', option.value)}
+                  aria-pressed={draft.mode === option.value}
+                  className="chip chip-toggle px-3 py-1.5 text-xs"
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
           </ControlRow>
 
@@ -124,7 +119,7 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
               </ControlRow>
               <ControlRow label="上游">
                 <select
-                  value={ALLOWED_BASES.includes(draft.baseUrl as (typeof ALLOWED_BASES)[number]) ? draft.baseUrl : 'other'}
+                  value={knownBase ? draft.baseUrl : 'other'}
                   onChange={(e) => set('baseUrl', e.target.value === 'other' ? 'https://' : e.target.value)}
                   className="w-full px-3 py-2 text-sm surface"
                   style={{ borderRadius: 'var(--radius-xs)', color: 'var(--ink)' }}
@@ -137,7 +132,7 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
                   <option value="other">自定义（需与代理白名单一致）</option>
                 </select>
               </ControlRow>
-              {!ALLOWED_BASES.includes(draft.baseUrl as (typeof ALLOWED_BASES)[number]) && (
+              {!knownBase && (
                 <ControlRow label="上游地址">
                   <TextField value={draft.baseUrl} onChange={(value) => set('baseUrl', value)} label="自定义上游" />
                 </ControlRow>
@@ -193,10 +188,9 @@ export function ApiConsole({ open, onToggle }: { open: boolean; onToggle: (value
         </div>
       )}
 
-      {/* 这次动作的回执。容器常驻 DOM 并挂 live（同检索页与勾选清单的约定，WCAG 4.1.3），
-          而且必须住在 {open && …} 外面：展开状态是父层按 !ready 推导的，「保存并测试连接」
-          一按就把 ready 翻真、面板收走 —— 实测 0.4s 与 4.4s 两次快照里按钮、「正在握手」、
-          失败原因全部不在屏上。反馈写在会被自己收掉的抽屉里，等于按了没按。 */}
+      {/* 回执必须住在 {open && …} 外面：展开态由父层按 !ready 推导，「保存并测试连接」
+          一按 ready 翻真、面板收走 —— 反馈写在会被自己收掉的抽屉里等于按了没按。
+          容器常驻 DOM 并挂 live（WCAG 4.1.3），空着时不占位。 */}
       <div
         role="status"
         aria-live="polite"

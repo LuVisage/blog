@@ -7,16 +7,12 @@ import { TickList } from './tick-list'
 interface ChecklistProps {
   course: CourseId
   slug: string
-  /** Names this list in localStorage. Required, because one lesson can carry
-   *  several and their ticks must not land in the same index array. */
+  /** 存储键的一部分：一课可挂多张清单，各自的勾必须落在各自的索引数组里。 */
   name: string
   items: string[]
 }
 
-/**
- * The 自查清单 a lesson asks of itself: "can you do each of these without
- * looking". Same mechanic as 今日自测, stored per name.
- */
+/** 自查清单：与今日自测同一套勾选机制，只是按 name 分开存。 */
 export function Checklist({ course, slug, name, items }: ChecklistProps) {
   const { progress, toggleList } = useLessonProgress(course, slug)
   return (

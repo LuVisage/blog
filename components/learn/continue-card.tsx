@@ -13,11 +13,10 @@ interface ContinueCardProps {
 }
 
 /**
- * 课程页的主行动：读这台浏览器里的真实进度，而不是永远写着「从 Day 1 开始」。
- * 优先回到勾了一半的那一课，其次是第一所没完成的；全部读完就指回开头。
+ * 课程页主行动：优先回到勾了一半的那一课，其次是第一所没完成的，全部读完指回开头。
  *
- * 进度只存在 localStorage，`useLearnProgress` 的服务端快照是空表，所以 SSR 与注水首帧
- * 一律渲染「第一课」，挂载后才换成真实的那一课 —— 两边不会打架。
+ * 进度只在 localStorage，服务端快照是空表，所以 SSR 与注水首帧一律渲染「第一课」，
+ * 挂载后才换成真实目标 —— 两边不会打架。
  */
 export function ContinueCard({ course, lessons }: ContinueCardProps) {
   const { map } = useLearnProgress(course)
@@ -46,7 +45,7 @@ export function ContinueCard({ course, lessons }: ContinueCardProps) {
         <span className="eyebrow truncate" style={{ color: 'var(--accent-text)' }}>
           {label}
         </span>
-        {/* 进度是状态消息：在本页勾完一课，这一格的数字会当场变；容器常驻才播得出。 */}
+        {/* 在本页勾完一课这格数字当场变；容器常驻才播得出。 */}
         <span className="meta tabular-nums flex-shrink-0" role="status" aria-live="polite">
           {completed}/{lessons.length}
         </span>

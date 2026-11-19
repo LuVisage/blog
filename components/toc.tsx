@@ -15,7 +15,7 @@ interface TocListProps {
 
 /**
  * 目录列表本体。桌面侧栏、移动端折叠、常驻章节条浮层三处共用同一份标记，
- * 标题与高亮都来自 §11.11 的单例扫描器（use-toc-spy）。
+ * 标题与高亮都来自单例扫描器（use-toc-spy）。
  */
 export function TocList({ maxHeight, onNavigate }: TocListProps) {
   const { headings, activeId } = useTocSpy()
@@ -27,10 +27,9 @@ export function TocList({ maxHeight, onNavigate }: TocListProps) {
     if (!activeId) return
     const list = listRef.current
     if (!list) return
-    // 焦点在这个列表里、而且是键盘走过来的（:focus-visible 画出了环）时才不跟随。
+    // 焦点在列表里、而且是键盘走过来的（:focus-visible 画出了环）时不跟随：
     // Tab 进目录的那一刻浏览器会把列表滚到被聚焦的那一项，紧接着页面位移又让 spy 换了
-    // activeId —— 这个 effect 会把列表拽回去居中高亮项，于是「焦点在一个刚被推出可视区的
-    // 项上」：实测 day-10 第 37 站落在视口上方 -424px，用户按了 Tab 但屏幕上什么都没有
+    // activeId —— 此时若把列表拽回去居中高亮项，焦点就落在一个刚被推出可视区的项上
     //（WCAG 2.4.7 焦点可见 / 2.4.11 不被遮挡）。
     // 判据用 :focus-visible 而不是「焦点在不在列表里」：鼠标点目录会把焦点留在那条链接上
     // 却根本不画环，此时不跟随只会让高亮项跟着滚丢 —— 只有真看得见环的那位才需要让位。
@@ -73,7 +72,7 @@ export function TocList({ maxHeight, onNavigate }: TocListProps) {
                 transitionDuration: 'var(--duration-fast)',
               }}
             >
-              {/* 激活项由一条 2px 强调色短标滑动进入（SPEC_LEDGER §1.8.2 的 300ms 档） */}
+              {/* 激活项由一条 2px 强调色短标滑动进入 */}
               <span aria-hidden="true" className="indicator-bar indicator-bar--lead" />
               {text}
             </a>
@@ -84,7 +83,7 @@ export function TocList({ maxHeight, onNavigate }: TocListProps) {
   )
 }
 
-/** 阅读比例尺：1px 发丝线上盖一条 indigo scaleX 填充（§11.11，滚动链接不过渡）。 */
+/** 阅读比例尺：1px 发丝线上盖一条强调色 scaleX 填充；滚动链接，不过渡。 */
 export function ReadRule() {
   const { progress } = useTocSpy()
   return (
@@ -104,7 +103,7 @@ type Variant = 'both' | 'desktop' | 'mobile-inline'
  *
  * `desktop` 是 xl 侧栏（带阅读比例尺），`mobile-inline` 是页首折叠，
  * `both` 同时渲染两者并按断点隐藏——课时页仍用默认值。
- * 文章页改用 `desktop` + 常驻 ChapterBar（§11.11），避免同页两套扫描。
+ * 文章页改用 `desktop` + 常驻 ChapterBar，窄屏定位交给吸顶条。
  */
 export function TableOfContents({ variant = 'both' }: { variant?: Variant }) {
   const [isOpen, setIsOpen] = useState(false)

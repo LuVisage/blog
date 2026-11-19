@@ -2492,3 +2492,54 @@ Batch Y 立的 byline / 字数 / 许可 / 运行天数 / 系列导航、PageTran
 - giscus 404 环境态：仓库启用 Discussions + 装 giscus App 即消；评论失败兜底已带三步诊断。
 - DESIGN.md 增补 §5.5（首屏的人与入口）。
 
+### 11.49 组件层全量重写：契约不变，把补丁疤清掉（Batch ZN）
+
+2026-11-19。用户裁定「你要不把前端组件全删了重新写吧，保留原有数据就好」。范围 =
+`components/` 全部 66 个源文件（63 tsx + 3 ts）；`app/`（组合层）、`app/globals.css`
+（ZL 单层设计系统）、`lib/`（除 accents）、`content/`、`proxy/` 一律不碰。数据与契约
+冻结：导出名/props、DOM 钩子（data-pagefind-body / data-js-only / 各类名）、aria 与
+键盘/焦点闭环、localStorage key 与值形状、时序档位，逐条照旧。
+
+**一、方法**
+
+- 现文件即行为规格：干净重实现，删补丁疤、死分支、重复 JSX、带批次编号的注释；
+  只留非显然的 WHY（水合陷阱、postMessage 时序、焦点三问、:has() 等价特异性等）。
+- 分工四组不相交：主笔 32（ui 五件 + hooks 三件 + 外壳与索引十四件 + 搜索/评论等），
+  三个后台代理分别 learn-core 16、sim 8、shell-2 10；代理禁 build / 禁碰 8126 /
+  禁改清单外文件。合流前主笔逐 diff 验收全部 66 件（trust but verify）。
+- 代理自证：learn-core 62 条 SSR 契约断言；sim 83 条运行时断言 0 FAIL + 重写前后
+  DOM 签名 A/B 完全一致（16 实验台初始与单步后）；shell-2 边界日期/URL 修复等价测试。
+  主笔复核重点：storage 入口、live 区常驻位置、焦点交接、类名字面量（Tailwind 静态
+  提取不能被常量拼接破坏，gotcha-table 曾试 GRID 常量已回退）。
+
+**二、两处 deliberate 偏差（登记，非漂移）**
+
+- `progress-wall` 图例 swatch 去 `rounded-[3px]` 归方角：落实半径 token 全 0 的硬约束，
+  唯一像素级改动；三态配色与计数逻辑逐条等价。
+- `code-block-enhancer` 连点复制时先 clearTimeout 上一枚复位定时器：保证「最后一次
+  复制后 2s 复位」，消重复交互隐患；状态机文案/图标/色值不变。
+
+**三、证据（全部对最终构建 build-zn）**
+
+- `npm run build` rc=0：313 页索引；产物审计 1160 文件通过（邮箱明文/秘密/外链脚本）。
+- `npm run check` rc=0：tsc 0 错；lint 0 错 1 警告（`app/archive/page.tsx:54` yearIdx
+  未使用 —— 冻结层固有，ZM 轮同在，不动）；纪律闸「125 源文件 · 17 @keyframes ·
+  违规 0 处 · 0 类」；proxy/attack/env 审计全过。
+- 交互探针：`reg-zn-zl-interact` 28/28、`reg-zn-zm-interact` 33/33（含 ⌘K 三处文案、
+  文尾订阅 DOM 顺序、reduce 档颜色反馈与平滑滚归零）。
+- 七闸 `reg-zn-*`：zc-verify 全部通过；narrow-overflow 320/360 各 0 页；fontwt PASS；
+  noscript 20 页 0 不达标；mathclass 92 页 / 2750 块逐元素等价；batchy 全 PASS；
+  sweep2 43 页 / 215 检查 findings []。
+- 截图目检 `shots-zn/` 10 张（明暗 × 1440/390）：home / posts / post / posttail /
+  learn / lesson / search / archive / about，零控制台错误；印章、署名条、章节条、
+  周条、日历热格、搜索入口胶囊真实计数均在位。
+- 66 件统一 CRLF 归一 + 文末换行（normalize-zn.mjs，scanned=66 touched=66）。
+- 红线不变：**不声称全站 AA 全绿、不声称 INP 绿**；计时闸不在本轮电池内。
+
+**四、残留**
+
+- D6 内容多样与更新频率仍待 `content/` / `lib/` 解锁，方向项未动。
+- giscus 环境态不变：posttail 截图里 iframe 停在「正在加载评论……」占位，仓库启用
+  Discussions + 装 giscus App 即消；失败兜底三步诊断照旧。
+- 冻结层 lint 警告（yearIdx）留待将来解锁 app 层时顺手清。
+

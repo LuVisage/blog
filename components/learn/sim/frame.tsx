@@ -12,6 +12,8 @@ const BADGES: Record<Tone, string> = {
   ollama: '本机 Ollama · 真实调用',
 }
 
+const SQUARE: CSSProperties = { borderRadius: 'var(--radius-xs)' }
+
 interface SimFrameProps {
   label: string
   hint: string
@@ -29,10 +31,7 @@ export function SimFrame({ label, hint, source, tone = 'local', children }: SimF
         <span className="heading-3" style={{ color: 'var(--ink)' }}>
           {label}
         </span>
-        <span
-          className="chip ml-auto px-2.5 py-1 text-[11px]"
-          style={{ color: 'var(--muted)', borderRadius: 'var(--radius-xs)' }}
-        >
+        <span className="chip ml-auto px-2.5 py-1 text-[11px]" style={{ color: 'var(--muted)', ...SQUARE }}>
           {BADGES[tone]}
         </span>
       </div>
@@ -110,7 +109,7 @@ export function TextField({ value, onChange, placeholder, label }: TextFieldProp
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       className="w-full px-3 py-2 text-sm surface"
-      style={{ borderRadius: 'var(--radius-xs)', color: 'var(--ink)' }}
+      style={{ ...SQUARE, color: 'var(--ink)' }}
     />
   )
 }
@@ -124,20 +123,17 @@ interface PillsProps {
 export function Pills({ items, active, onPick }: PillsProps) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {items.map((item) => {
-        const on = item.value === active
-        return (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => onPick(item.value)}
-            aria-pressed={on}
-            className="chip chip-toggle px-2.5 py-1 text-xs"
-          >
-            {item.label}
-          </button>
-        )
-      })}
+      {items.map((item) => (
+        <button
+          key={item.value}
+          type="button"
+          onClick={() => onPick(item.value)}
+          aria-pressed={item.value === active}
+          className="chip chip-toggle px-2.5 py-1 text-xs"
+        >
+          {item.label}
+        </button>
+      ))}
     </div>
   )
 }
@@ -145,8 +141,8 @@ export function Pills({ items, active, onPick }: PillsProps) {
 export function ScoreBar({ ratio }: { ratio: number }) {
   const clamped = Math.max(0, Math.min(1, ratio))
   return (
-    <span className="block h-1 w-full overflow-hidden" style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-xs)' }}>
-      {/* 填充走 scaleX 而不是 width：§1.8.1 的属性白名单里没有布局属性。
+    <span className="block h-1 w-full overflow-hidden" style={{ background: 'var(--surface-2)', ...SQUARE }}>
+      {/* 填充走 scaleX 而不是 width：动效白名单只收 transform/opacity/color 族。
           origin-left 让缩放从左上角起，视觉与 width 增长一致。 */}
       <span
         className="block h-full origin-left transition-transform duration-300"

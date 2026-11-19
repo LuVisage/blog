@@ -5,8 +5,7 @@ import { HYBRID_DOCS, HYBRID_QUERIES } from '@/lib/sim/corpus'
 import { buildBm25, cosine, normalize, rrf } from '@/lib/sim/text'
 import { ControlRow, Pills, SimFrame } from './frame'
 
-const TEXTS = HYBRID_DOCS.map((doc) => doc.text)
-const BM25 = buildBm25(TEXTS)
+const BM25 = buildBm25(HYBRID_DOCS.map((doc) => doc.text))
 
 interface Column {
   title: string
@@ -27,7 +26,7 @@ function RankColumn({ column, vectorRank }: { column: Column; vectorRank?: Map<n
       <ol className="space-y-2.5">
         {column.order.map((row, rank) => {
           const doc = HYBRID_DOCS[row.index]
-          const move = vectorRank ? vectorRank.get(row.index)! - rank : 0
+          const move = (vectorRank?.get(row.index) ?? rank) - rank
           return (
             <li key={doc.pk} style={{ opacity: row.score > 0 ? 1 : 0.42 }}>
               <div className="flex items-baseline gap-2">
@@ -69,35 +68,32 @@ export function HybridLab() {
     })).sort((a, b) => b.score - a.score)
 
     const bm25Order = BM25.search(preset.query).filter((row) => row.score > 0)
-
     const rank = new Map(vectorOrder.map((row, index) => [row.index, index]))
-    const fused = rrf([vectorOrder.map((r) => r.index), bm25Order.map((r) => r.index)], 60)
+    const fused = rrf([vectorOrder.map((row) => row.index), bm25Order.map((row) => row.index)], 60)
 
-    return {
-      vectorColumn: {
-        title: '纯向量',
-        caption: `cosine · 查询向量 [${preset.vector.join(', ')}]（课文手写维度，只为看排名）`,
-        order: vectorOrder,
-        format: (score: number) => score.toFixed(4),
-      } as Column,
-      bm25Column: {
-        title: '纯 BM25',
-        caption: 'k1=1.2 b=0.75 · 只看词面命中，稀有词权重高',
-        order: bm25Order,
-        format: (score: number) => score.toFixed(3),
-      } as Column,
-      fusionColumn: {
-        title: '混合 · RRF',
-        caption: '1/(60+名次) 相加 · 只认名次不认分数，两路都在前的赢',
-        order: fused.map((row) => ({ index: row.index, score: row.score })),
-        format: (score: number) => score.toFixed(5),
-      } as Column,
-      vectorRank: rank,
+    const vectorColumn: Column = {
+      title: '纯向量',
+      caption: `cosine · 查询向量 [${preset.vector.join(', ')}]（课文手写维度，只为看排名）`,
+      order: vectorOrder,
+      format: (score) => score.toFixed(4),
     }
+    const bm25Column: Column = {
+      title: '纯 BM25',
+      caption: 'k1=1.2 b=0.75 · 只看词面命中，稀有词权重高',
+      order: bm25Order,
+      format: (score) => score.toFixed(3),
+    }
+    const fusionColumn: Column = {
+      title: '混合 · RRF',
+      caption: '1/(60+名次) 相加 · 只认名次不认分数，两路都在前的赢',
+      order: fused.map((row) => ({ index: row.index, score: row.score })),
+      format: (score) => score.toFixed(5),
+    }
+    return { vectorColumn, bm25Column, fusionColumn, vectorRank: rank }
   }, [preset])
 
-  const spread = vectorColumn.order.slice(0, 2).map((row) => row.score)
-  const gap = spread.length > 1 ? Math.abs(spread[0] - spread[1]) : 0
+  const [first, second] = vectorColumn.order
+  const gap = second ? Math.abs(first.score - second.score) : 0
   const topTwo = vectorColumn.order.slice(0, 2).map((row) => HYBRID_DOCS[row.index].pk)
   const moved = fusionColumn.order.filter((row, rank) => vectorRank.get(row.index) !== rank).length
 
@@ -109,7 +105,7 @@ export function HybridLab() {
     >
       <ControlRow label="查询">
         <Pills
-          items={HYBRID_QUERIES.map((item) => ({ value: item.label, label: `${item.label}` }))}
+          items={HYBRID_QUERIES.map((item) => ({ value: item.label, label: item.label }))}
           active={picked}
           onPick={setPicked}
         />
@@ -121,14 +117,8 @@ export function HybridLab() {
         <RankColumn column={fusionColumn} vectorRank={vectorRank} />
       </div>
 
-      <p
-        className="body-sm mt-4"
-        style={{ color: 'var(--muted)' }}
-        // 换查询重写的是这一句实算结论，而它常驻 DOM —— 挂在可见的那句上，不另写一份
-        // （同进度墙计数条与检索页的约定，WCAG 4.1.3）。
-        role="status"
-        aria-live="polite"
-      >
+      {/* 换查询重写的是这一句实算结论；它常驻 DOM，live 直接挂在可见句上，不另写一份（WCAG 4.1.3）。 */}
+      <p className="body-sm mt-4" style={{ color: 'var(--muted)' }} role="status" aria-live="polite">
         {`实算结果：向量列把 #${topTwo[0]} 和 #${topTwo[1]} 拉开 ${gap.toFixed(4)}，${gap < 0.02 ? '这个差距小到单靠向量分不出高下' : '这个差距已经足够分清先后'}。BM25 命中 ${bm25Column.order.length} 条，融合列相对向量列有 ${moved} 行换了名次，第一名是 #${
           fusionColumn.order[0] ? HYBRID_DOCS[fusionColumn.order[0].index].pk : '—'
         }。`}

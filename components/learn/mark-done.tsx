@@ -15,17 +15,9 @@ export function MarkDone({ course, slug, label }: { course: CourseId; slug: stri
       data-js-only
       onClick={() => toggleDone(slug)}
       className="btn-secondary inline-flex items-center gap-2 px-4 py-2 text-sm cursor-pointer transition-colors"
-      style={
-        done
-          ? { borderColor: 'var(--accent)', color: 'var(--accent-text)' }
-          : { color: 'var(--body)' }
-      }
+      style={done ? { borderColor: 'var(--accent)', color: 'var(--accent-text)' } : { color: 'var(--body)' }}
     >
-      {done ? (
-        <IconCheck size={15} strokeWidth={2.25} />
-      ) : (
-        <IconCircle size={15} strokeWidth={1.75} />
-      )}
+      {done ? <IconCheck size={15} strokeWidth={2.25} /> : <IconCircle size={15} strokeWidth={1.75} />}
       {done ? '已完成' : label}
     </button>
   )

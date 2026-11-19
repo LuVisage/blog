@@ -23,8 +23,19 @@ function HeadingAnchor({ id }: { id?: string }) {
   )
 }
 
+function heading(Tag: 'h2' | 'h3') {
+  return function Heading({ id, children, ...props }: HeadingProps) {
+    return (
+      <Tag id={id} {...props}>
+        {children}
+        <HeadingAnchor id={id} />
+      </Tag>
+    )
+  }
+}
+
 /**
- * 正文排版的唯一出处是 globals.css 第 6 节「Prose — the reading surface」。
+ * 正文排版的唯一出处是 globals.css 的 Prose 节。
  * 这里只保留 CSS 做不到的几件事：内部链接换成 next/link 才能带上部署 basePath，
  * 正文里的 <img> 补同一个前缀，标题补一枚可分享的章节锚点。
  * 任何 style/className 都会以行内样式的身份压过 .prose 规则，等于把同一套排版
@@ -56,12 +67,8 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       const imgSrc = src?.startsWith('/') && !src.startsWith(BASE_PATH) ? `${BASE_PATH}${src}` : src
       return <img src={imgSrc} alt={alt || ''} loading="lazy" {...(props as ImgHTMLAttributes<HTMLImageElement>)} />
     },
-    h2: ({ id, children, ...props }: HeadingProps) => (
-      <h2 id={id} {...props}>{children}<HeadingAnchor id={id} /></h2>
-    ),
-    h3: ({ id, children, ...props }: HeadingProps) => (
-      <h3 id={id} {...props}>{children}<HeadingAnchor id={id} /></h3>
-    ),
+    h2: heading('h2'),
+    h3: heading('h3'),
     ...components,
   }
 }

@@ -1,11 +1,6 @@
 import Link from 'next/link'
 import { getAllCategories, getAllTags, getAllSeries } from '@/lib/posts'
 
-interface Props {
-  /** 本页自己已经铺开的维度，不再在栏里重复一遍。 */
-  hide?: GroupId[]
-}
-
 type GroupId = 'categories' | 'tags' | 'series'
 
 interface RailGroup {
@@ -21,15 +16,10 @@ const toRows = (base: string, items: { name: string; count: number }[]) =>
 const byWeight = (a: { name: string; count: number }, b: { name: string; count: number }) =>
   b.count - a.count || a.name.localeCompare(b.name, 'zh-Hans-CN')
 
-/**
- * 站内索引栏 —— 稀疏索引页（/posts、/tags、/categories、/series、/projects、/friends）
- * 共用的右栏：把「这一维度之外还有什么」常驻在页面右侧，
- * 单维度清单不再因为内容少而只剩半屏空白。
- * 只放数据组（分类/标签/系列），栏目导航交给每页都在的页脚站点目录，两件事不重复。
- * 标签取前 6：整栏高度刻意压到 ~500px。sticky 的可滑动余量 = 网格行高 − 栏高，
- * 栏比行只矮一点点时，吸顶会被行的下边界顶回去、栏头反而钻到页头底下（/friends 实测）。
- */
-export function IndexRail({ hide = [] }: Props) {
+// 稀疏索引页共用右栏：把「这一维度之外还有什么」常驻右侧。只放数据组，
+// 栏目导航交给页脚站点目录。标签取前 6 把栏高压到 ~500px：栏比网格行只矮一点时，
+// sticky 余量不足会被行下边界顶回去、栏头钻到页头底下。
+export function IndexRail({ hide = [] }: { hide?: GroupId[] }) {
   const all: RailGroup[] = [
     {
       id: 'categories',

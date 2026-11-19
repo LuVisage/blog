@@ -9,10 +9,10 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { readBookmarks, removeBookmark, subscribeBookmarks } from '@/lib/bookmarks'
 import type { PostMeta } from '@/lib/posts'
 
-type Status = 'loading' | 'ready'
-
 export function BookmarksList({ posts }: { posts: PostMeta[] }) {
-  const [status, setStatus] = useState<Status>('loading')
+  // 收藏只存在本机 localStorage：SSR 首帧不能假装知道内容，先渲染读取态，
+  // 挂载后同步一次，此后同页事件与跨标签页 storage 事件都走同一入口。
+  const [ready, setReady] = useState(false)
   const [items, setItems] = useState<PostMeta[]>([])
   const listRef = useRef<HTMLUListElement>(null)
   const emptyRef = useRef<HTMLDivElement>(null)
@@ -26,7 +26,7 @@ export function BookmarksList({ posts }: { posts: PostMeta[] }) {
           .map((slug) => bySlug.get(slug))
           .filter((post): post is PostMeta => Boolean(post))
       )
-      setStatus('ready')
+      setReady(true)
     }
     sync()
     return subscribeBookmarks(sync)
@@ -55,7 +55,7 @@ export function BookmarksList({ posts }: { posts: PostMeta[] }) {
     removeBookmark(slug)
   }
 
-  if (status === 'loading') {
+  if (!ready) {
     return (
       <>
         <p className="body-sm" data-js-only style={{ color: 'var(--muted)' }}>

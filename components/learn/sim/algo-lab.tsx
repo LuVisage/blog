@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ALGOS, type AlgoDef, type Cell, type CellTone, type Grid, type Inputs } from '@/lib/sim/algo'
+import { ALGOS, type AlgoDef, type Cell, type CellTone, type Field, type Grid, type Inputs } from '@/lib/sim/algo'
 import { ControlRow, Range, SimFrame, Stat, TextField } from './frame'
 
 /**
@@ -89,11 +89,41 @@ function GridView({ grid }: { grid: Grid }) {
   )
 }
 
-function defaults(fields: AlgoDef['fields']): Inputs {
-  const input: Inputs = {}
-  for (const field of fields) input[field.key] = field.def
-  return input
+function FieldControl({ field, value, onChange }: { field: Field; value: Inputs[string] | undefined; onChange: (value: string | number | boolean) => void }) {
+  if (field.kind === 'range') {
+    return (
+      <Range
+        label={field.label}
+        value={Number(value ?? field.def)}
+        min={field.min}
+        max={field.max}
+        step={field.step ?? 1}
+        suffix={field.suffix}
+        onChange={onChange}
+      />
+    )
+  }
+  if (field.kind === 'toggle') {
+    return (
+      <button
+        type="button"
+        onClick={() => onChange(!value)}
+        aria-pressed={!!value}
+        className="chip chip-toggle px-2.5 py-1 text-xs"
+      >
+        {value ? field.on : field.off}
+      </button>
+    )
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <TextField value={String(value ?? field.def)} label={field.label} onChange={onChange} />
+      {field.hint && <span className="caption">{field.hint}</span>}
+    </div>
+  )
 }
+
+const defaults = (fields: AlgoDef['fields']): Inputs => Object.fromEntries(fields.map((field) => [field.key, field.def]))
 
 export function AlgoLab({ algo }: { algo: string }) {
   const def = ALGOS[algo]
@@ -113,7 +143,7 @@ export function AlgoLab({ algo }: { algo: string }) {
       setPlaying(false)
       return
     }
-    // 自动播放的步进节拍取 §1.8.2 档位表里的 800ms，三个播放器共用同一拍。
+    // 800ms 一拍，三个播放器共用同一节拍；effect 重跑即清掉上一拍，不会叠定时器。
     const timer = setTimeout(() => setCursor((value) => value + 1), 800)
     return () => clearTimeout(timer)
   }, [playing, shown, total])
@@ -132,35 +162,7 @@ export function AlgoLab({ algo }: { algo: string }) {
       <div className="space-y-3">
         {def.fields.map((field) => (
           <ControlRow key={field.key} label={field.label}>
-            {field.kind === 'range' ? (
-              <Range
-                label={field.label}
-                value={Number(input[field.key] ?? field.def)}
-                min={field.min}
-                max={field.max}
-                step={field.step ?? 1}
-                suffix={field.suffix}
-                onChange={(value) => set(field.key, value)}
-              />
-            ) : field.kind === 'toggle' ? (
-              <button
-                type="button"
-                onClick={() => set(field.key, !input[field.key])}
-                aria-pressed={!!input[field.key]}
-                className="chip chip-toggle px-2.5 py-1 text-xs"
-              >
-                {input[field.key] ? field.on : field.off}
-              </button>
-            ) : (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <TextField
-                  value={String(input[field.key] ?? field.def)}
-                  label={field.label}
-                  onChange={(value) => set(field.key, value)}
-                />
-                {field.hint && <span className="caption">{field.hint}</span>}
-              </div>
-            )}
+            <FieldControl field={field} value={input[field.key]} onChange={(value) => set(field.key, value)} />
           </ControlRow>
         ))}
       </div>
@@ -201,8 +203,8 @@ export function AlgoLab({ algo }: { algo: string }) {
         <span className="meta tabular-nums ml-auto" style={{ color: 'var(--muted)' }}>
           步 {shown}/{total}
         </span>
-        {/* 常驻 live 容器（同检索页与进度墙的约定，WCAG 4.1.3）：点一次「单步执行」，变的只有
-            下面那块按需挂载的讲解卡 —— 区域本身随点随现的话读屏不会播报，所以容器必须一直挂着。 */}
+        {/* live 容器必须常驻：点「单步执行」变的只有按需挂载的讲解卡，区域随点随现的话
+            读屏不会播报第一次变化（WCAG 4.1.3）。 */}
         <p className="sr-only" role="status" aria-live="polite">
           {total === 0
             ? '输入没解析出可算的东西。'

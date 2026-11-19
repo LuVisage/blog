@@ -8,19 +8,34 @@ import type { LessonMeta } from '@/lib/curriculum'
 import { touched } from '@/lib/learn-progress'
 import { useLearnProgress } from './use-progress'
 
-/** The day grid. Colour encodes the visitor's own localStorage state, nothing else. */
+type DayState = 'done' | 'started' | 'idle'
+
+const CELL: Record<DayState, { border: string; background: string; text: string }> = {
+  done: { border: 'var(--accent)', background: 'var(--accent)', text: 'var(--on-accent)' },
+  started: { border: 'var(--line)', background: 'var(--heat-2)', text: 'var(--faint)' },
+  idle: { border: 'var(--line)', background: 'var(--surface-2)', text: 'var(--muted)' },
+}
+
+const LEGEND: { label: string; style: React.CSSProperties }[] = [
+  { label: '未开始', style: { background: 'var(--surface-2)', border: '1px solid var(--line)' } },
+  { label: '进行中', style: { background: 'var(--heat-2)' } },
+  { label: '已完成', style: { background: 'var(--accent)', borderColor: 'var(--accent)' } },
+]
+
+/** 课次网格：颜色只编码访客自己的 localStorage 状态。 */
 export function ProgressWall({ course, lessons }: { course: CourseId; lessons: LessonMeta[] }) {
   const { map, reset } = useLearnProgress(course)
   const shellRef = useRef<HTMLElement>(null)
-  const completed = lessons.filter((l) => map[l.slug]?.done).length
-  const started = lessons.filter((l) => !map[l.slug]?.done && touched(map[l.slug])).length
 
-  const stateOf = (slug: string): 'done' | 'started' | 'idle' => {
+  const stateOf = (slug: string): DayState => {
     const entry = map[slug]
     if (entry?.done) return 'done'
     if (touched(entry)) return 'started'
     return 'idle'
   }
+  const states = lessons.map((lesson) => stateOf(lesson.slug))
+  const completed = states.filter((state) => state === 'done').length
+  const started = states.filter((state) => state === 'started').length
 
   return (
     <section ref={shellRef} aria-label="学习进度" tabIndex={-1} className="mb-14">
@@ -39,8 +54,8 @@ export function ProgressWall({ course, lessons }: { course: CourseId; lessons: L
               type="button"
               onClick={() => {
                 reset()
-                // 重置后这条按钮随 completed 一起消失：先把它自己的焦点交还给区块，
-                // 否则 activeElement 掉回 BODY，键盘用户的下一跳从文档开头重来。
+                // 按钮随 completed 归零一起消失：先把焦点交还区块，
+                // 否则 activeElement 掉回 BODY，键盘用户下一跳从文档开头重来。
                 shellRef.current?.focus()
               }}
               className="btn-ghost inline-flex items-center gap-1.5 text-xs cursor-pointer transition-colors"
@@ -54,8 +69,8 @@ export function ProgressWall({ course, lessons }: { course: CourseId; lessons: L
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(30px,1fr))] gap-1.5 mt-6">
-        {lessons.map((lesson) => {
-          const state = stateOf(lesson.slug)
+        {lessons.map((lesson, index) => {
+          const cell = CELL[states[index]]
           return (
             <Link
               key={lesson.slug}
@@ -64,19 +79,11 @@ export function ProgressWall({ course, lessons }: { course: CourseId; lessons: L
               className="group relative aspect-square grid place-items-center transition-transform duration-200 hover:scale-[1.12] hover:z-10"
               style={{
                 borderRadius: 'var(--radius-xs)',
-                border: `1px solid ${state === 'done' ? 'var(--accent)' : 'var(--line)'}`,
-                background:
-                  state === 'done'
-                    ? 'var(--accent)'
-                    : state === 'started'
-                      ? 'var(--heat-2)'
-                      : 'var(--surface-2)',
+                border: `1px solid ${cell.border}`,
+                background: cell.background,
               }}
             >
-              <span
-                className="text-[11px] font-mono tabular-nums transition-colors"
-                style={{ color: state === 'done' ? 'var(--on-accent)' : state === 'started' ? 'var(--faint)' : 'var(--muted)' }}
-              >
+              <span className="text-[11px] font-mono tabular-nums transition-colors" style={{ color: cell.text }}>
                 {lesson.day}
               </span>
             </Link>
@@ -85,18 +92,12 @@ export function ProgressWall({ course, lessons }: { course: CourseId; lessons: L
       </div>
 
       <div className="flex flex-wrap items-center gap-5 mt-4 meta">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-[3px]" style={{ background: 'var(--surface-2)', border: '1px solid var(--line)' }} />
-          未开始
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-[3px]" style={{ background: 'var(--heat-2)' }} />
-          进行中
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-[3px]" style={{ background: 'var(--accent)', borderColor: 'var(--accent)' }} />
-          已完成
-        </span>
+        {LEGEND.map((item) => (
+          <span key={item.label} className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3" style={item.style} />
+            {item.label}
+          </span>
+        ))}
       </div>
     </section>
   )

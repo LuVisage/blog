@@ -7,23 +7,23 @@ import { inlineCode } from './inline-text'
 interface TickListProps {
   eyebrow: string
   items: string[]
-  /** Indexes currently ticked in whichever list this renders. */
+  /** 当前勾中的索引，属于调用方指定的那张清单。 */
   checked: number[]
   onToggle: (index: number, total: number) => void
-  /** Shown once every item is ticked. Omit for a list that doesn't end the lesson. */
+  /** 全部勾完才出现；不收尾的清单可省略。 */
   doneNote?: string
 }
 
 /**
- * A ruled list of things the visitor ticks by hand. Shared by 今日自测 and the
- * 自查清单 so both read the same; only where their ticks are stored differs.
+ * 手动勾选的横线清单，今日自测与自查清单共用；只有存储位置不同。
  */
 export function TickList({ eyebrow, items, checked, onToggle, doneNote }: TickListProps) {
   const on = new Set(checked)
   const doneCount = items.filter((_, i) => on.has(i)).length
   const allDone = items.length > 0 && doneCount === items.length
-  // 清单的行是正文，不像 chrome 那样能整块摘掉 —— 所以改的是「什么才算一个控件」：
-  // 挂载前渲染同尺寸的普通行，水合完才升级为可勾选项。SSR 与首帧客户端都是 div，不产 mismatch。
+
+  // 清单行是正文，不能像 chrome 那样整块摘掉：挂载前渲染同尺寸的普通 div 行，
+  // 水合完才升级为 button/checkbox。SSR 与首帧客户端都是 div，不产 mismatch。
   const [live, setLive] = useState(false)
   useEffect(() => setLive(true), [])
   const Row = live ? 'button' : 'div'
@@ -32,7 +32,7 @@ export function TickList({ eyebrow, items, checked, onToggle, doneNote }: TickLi
     <div className="learn-block not-prose" style={{ borderTop: '1px solid var(--line-strong)' }}>
       <div className="flex items-baseline gap-4 py-3">
         <span className="eyebrow min-w-0 truncate">{eyebrow}</span>
-        {/* 状态比例尺：每勾一条就走 300ms 的一段，勾完即满格（§11.13） */}
+        {/* 状态比例尺：每勾一条走一段过渡，勾完即满格。 */}
         <span
           className="read-rule is-state min-w-[48px] self-center"
           style={{ '--p': items.length ? doneCount / items.length : 0 } as React.CSSProperties}
@@ -40,8 +40,8 @@ export function TickList({ eyebrow, items, checked, onToggle, doneNote }: TickLi
         >
           <span className="read-rule__fill" />
         </span>
-        {/* 计数是状态消息：容器常驻 DOM 并挂 live，读屏才会在勾选后报出「3 / 5」。
-            勾选框自身的 aria-checked 只说明这一行变了，说明不了还剩几行。 */}
+        {/* 计数是状态消息：容器常驻 DOM 并挂 live，读屏才会在勾选后报出「3 / 5」；
+            行自身的 aria-checked 只说明这一行变了，说明不了还剩几行。 */}
         <span
           className="meta tabular-nums flex-shrink-0"
           role="status"
@@ -100,12 +100,7 @@ export function TickList({ eyebrow, items, checked, onToggle, doneNote }: TickLi
                   }}
                 >
                   {active && (
-                    <IconCheck
-                      size={13}
-                      strokeWidth={3}
-                      className="tick-pop"
-                      style={{ color: 'var(--on-accent)' }}
-                    />
+                    <IconCheck size={13} strokeWidth={3} className="tick-pop" style={{ color: 'var(--on-accent)' }} />
                   )}
                 </span>
               </Row>

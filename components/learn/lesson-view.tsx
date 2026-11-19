@@ -2,7 +2,15 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import type { MDXComponents } from 'mdx/types'
 import { IconArrowLeft, IconArrowRight, IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
-import { COURSES, getAdjacentLessons, getWeekLessons, lessonHref, type Lesson } from '@/lib/curriculum'
+import {
+  COURSES,
+  getAdjacentLessons,
+  getWeekLessons,
+  lessonHref,
+  type CourseId,
+  type Lesson,
+  type LessonMeta,
+} from '@/lib/curriculum'
 import { getSimSpecs } from '@/lib/sim/registry'
 import { MDXContent } from '@/components/mdx-content'
 import { InlineMd } from '@/components/inline-md'
@@ -18,13 +26,12 @@ import { WeekStrip } from '@/components/learn/week-strip'
 import { SimulatorClient } from '@/components/learn/simulator-client'
 
 /**
- * The lesson body shared by every course. Which course a lesson belongs to is
- * carried on the lesson itself, so nothing here can guess the wrong directory.
+ * 所有课程共用的课时正文。课程归属写在 lesson 自身，这里不会猜错目录。
  */
 
 /**
- * Suspense fallback for the labs. `next/dynamic` with `ssr: false` bails out of the
- * server render, so the boundary has to be able to paint something on its own.
+ * 实验台的 Suspense 兜底：`next/dynamic` + `ssr: false` 不参与服务端渲染，
+ * 边界必须自己能画出东西。
  */
 function LabSkeleton({ count }: { count: number }) {
   return (
@@ -44,10 +51,44 @@ function LabSkeleton({ count }: { count: number }) {
   )
 }
 
+/** 上一课 / 下一课共用一张卡，只有方向相关的类与箭头不同。 */
+function LessonHop({ course, lesson, direction }: { course: CourseId; lesson: LessonMeta; direction: 'prev' | 'next' }) {
+  const back = direction === 'prev'
+  const Chevron = back ? IconChevronLeft : IconChevronRight
+  return (
+    <Link
+      href={lessonHref(course, lesson.slug)}
+      className={
+        back
+          ? 'group flex flex-col gap-2 py-5 sm:pr-8 sm:border-r border-t-[color:var(--line-strong)] border-b-[color:var(--line)] sm:border-r-[color:var(--line)]'
+          : 'group flex flex-col gap-2 py-5 sm:pl-8 sm:text-right border-t-[color:var(--line-strong)] border-b-[color:var(--line)]'
+      }
+    >
+      <span
+        className={
+          back
+            ? 'eyebrow inline-flex items-center gap-1.5'
+            : 'eyebrow inline-flex sm:flex-row-reverse items-center gap-1.5'
+        }
+      >
+        <Chevron
+          size={13}
+          strokeWidth={2}
+          className={back ? 'transition-transform group-hover:-translate-x-0.5' : 'transition-transform group-hover:translate-x-0.5'}
+        />
+        Day {lesson.day}
+      </span>
+      <span className="text-sm line-clamp-2" style={{ color: 'var(--body)' }}>
+        {lesson.title}
+      </span>
+    </Link>
+  )
+}
+
 export function LessonView({ lesson }: { lesson: Lesson }) {
   const course = lesson.course
   const root = COURSES[course].path
-  /** The manuals that stand beside the sequence have no week and no day number. */
+  /** 随查手册不在序列里：没有周次，也没有天编号。 */
   const reference = lesson.kind === 'reference'
   const { prev, next } = getAdjacentLessons(course, lesson.slug)
   const weekLessons = getWeekLessons(course, lesson.week)
@@ -63,7 +104,6 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
   return (
     <div className="py-10 sm:py-14">
       <ReadingProgress />
-      {/* Top rail */}
       <div
         className="flex items-center justify-between gap-4 py-2.5"
         style={{ borderTop: '1px solid var(--line-strong)', borderBottom: '1px solid var(--line)' }}
@@ -145,21 +185,20 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
             )}
           </header>
 
-          {/* 窄屏常驻阅读定位条（§11.11），与文章页同一套语汇 */}
+          {/* 窄屏常驻阅读定位条，与文章页同一套语汇。 */}
           <div className="mb-8 xl:mb-0">
             <ChapterBar />
           </div>
 
-          {/* 行长交给 .prose 的 --measure（无层样式，本来就赢过 Tailwind 工具类），
-              原来这里的 max-w-[68ch] 是条从没生效的死类。 */}
+          {/* 行长由 .prose 的 --measure 决定，这里不再叠宽度类。 */}
           <div className="prose mx-0 mb-14">
             <CodeBlockEnhancer>
               <MDXContent source={lesson.content} components={components} />
             </CodeBlockEnhancer>
           </div>
 
-          {/* tabIndex=-1：上面那条「本课 N 个可动手实验台」是页内跳转，可聚焦的落点
-              才会真的把焦点交过来；否则只改 hash，焦点留在 BODY，下一跳 Tab 回页头。 */}
+          {/* tabIndex=-1：页内跳转「本课 N 个实验台」要有可聚焦落点，焦点才真的交过来；
+              否则只改 hash，焦点留在 BODY，下一跳 Tab 回页头。 */}
           {specs.length > 0 && (
             <section id="labs" tabIndex={-1} className="mb-14" style={{ scrollMarginTop: '5rem' }} aria-label="本课实验台">
               <Suspense fallback={<LabSkeleton count={specs.length} />}>
@@ -170,44 +209,14 @@ export function LessonView({ lesson }: { lesson: Lesson }) {
 
           {(prev || next) && (
             <nav className="grid grid-cols-1 sm:grid-cols-2 mb-10">
-              {prev ? (
-                <Link
-                  href={lessonHref(course, prev.slug)}
-                  className="group flex flex-col gap-2 py-5 sm:pr-8 sm:border-r border-t-[color:var(--line-strong)] border-b-[color:var(--line)] sm:border-r-[color:var(--line)]"
-                >
-                  <span className="eyebrow inline-flex items-center gap-1.5">
-                    <IconChevronLeft size={13} strokeWidth={2} className="transition-transform group-hover:-translate-x-0.5" />
-                    Day {prev.day}
-                  </span>
-                  <span className="text-sm line-clamp-2" style={{ color: 'var(--body)' }}>
-                    {prev.title}
-                  </span>
-                </Link>
-              ) : (
-                <span />
-              )}
-              {next && (
-                <Link
-                  href={lessonHref(course, next.slug)}
-                  className="group flex flex-col gap-2 py-5 sm:pl-8 sm:text-right border-t-[color:var(--line-strong)] border-b-[color:var(--line)]"
-                >
-                  <span className="eyebrow inline-flex sm:flex-row-reverse items-center gap-1.5">
-                    <IconChevronRight size={13} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" />
-                    Day {next.day}
-                  </span>
-                  <span className="text-sm line-clamp-2" style={{ color: 'var(--body)' }}>
-                    {next.title}
-                  </span>
-                </Link>
-              )}
+              {prev ? <LessonHop course={course} lesson={prev} direction="prev" /> : <span />}
+              {next && <LessonHop course={course} lesson={next} direction="next" />}
             </nav>
           )}
         </article>
 
         <aside className="hidden xl:flex xl:flex-col xl:w-56 xl:flex-shrink-0 xl:self-stretch">
-          <div
-            className="sticky top-24 self-start flex flex-col w-full max-h-[calc(100vh-8rem)] py-5"
-          >
+          <div className="sticky top-24 self-start flex flex-col w-full max-h-[calc(100vh-8rem)] py-5">
             <TableOfContents variant="desktop" />
             {next && (
               <Link

@@ -1,18 +1,9 @@
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { IconFileText } from '@tabler/icons-react'
 import type { PostMeta } from '@/lib/posts'
 import { EmptyState } from '@/components/ui/empty-state'
-import { IconFileText } from '@tabler/icons-react'
-
-/**
- * 文章索引行 · ZK 简洁风：序号 + 标题/摘要/标签 + 日期/时长，刻意不做成卡片。
- * 封面缩略图、跟手聚光与揭示箭头全部下线；hover 只留标题换色。
- */
-
-function shortDate(iso: string) {
-  return format(parseISO(iso), 'yyyy.MM.dd', { locale: zhCN })
-}
 
 function IndexRow({ post, ordinal }: { post: PostMeta; ordinal: number }) {
   return (
@@ -29,9 +20,7 @@ function IndexRow({ post, ordinal }: { post: PostMeta; ordinal: number }) {
         >
           {post.title}
         </h3>
-        {post.description && (
-          <p className="body-sm line-clamp-1 mt-1.5">{post.description}</p>
-        )}
+        {post.description && <p className="body-sm line-clamp-1 mt-1.5">{post.description}</p>}
         <div className="flex items-center gap-3 mt-2.5">
           {post.category && <span className="eyebrow">{post.category}</span>}
           {post.tags.length > 0 && (
@@ -45,7 +34,9 @@ function IndexRow({ post, ordinal }: { post: PostMeta; ordinal: number }) {
       </div>
 
       <div className="text-right flex-shrink-0">
-        <div className="meta transition-opacity group-hover:opacity-60">{shortDate(post.date)}</div>
+        <div className="meta transition-opacity group-hover:opacity-60">
+          {format(parseISO(post.date), 'yyyy.MM.dd', { locale: zhCN })}
+        </div>
         <div className="caption mt-1 transition-opacity group-hover:opacity-60">{post.readingTime} 分钟</div>
       </div>
     </Link>
@@ -65,11 +56,9 @@ export function PostList({ posts }: { posts: PostMeta[] }) {
 
   return (
     <div>
-      <div>
-        {posts.map((post, i) => (
-          <IndexRow key={post.slug} post={post} ordinal={i + 1} />
-        ))}
-      </div>
+      {posts.map((post, i) => (
+        <IndexRow key={post.slug} post={post} ordinal={i + 1} />
+      ))}
       <div className="rule" />
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { MENU_DOCS, PARENT_DOCS } from '@/lib/sim/corpus'
 import { cosine, hashVector } from '@/lib/sim/text'
 import { ControlRow, Pills, ScoreBar, SimFrame, Stat, TextField } from './frame'
@@ -16,19 +16,21 @@ const YEARS = [
   { value: '2024', label: 'year == 2024' },
 ]
 
-function MatchRow({
-  text,
-  score,
-  top,
-  tag,
-  dropped,
-}: {
-  text: string
-  score: number
-  top: number
-  tag: string
-  dropped?: boolean
-}) {
+/** 索引层是句子，与查询无关，摊平一次就够。 */
+const CHILD_ENTRIES = PARENT_DOCS.flatMap((parent, parentIndex) =>
+  parent.children.map((child, childIndex) => ({ parentIndex, childIndex, parent, child }))
+)
+
+function Panel({ title, titleClass = 'eyebrow mb-2', children }: { title: string; titleClass?: string; children: ReactNode }) {
+  return (
+    <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
+      <div className={titleClass}>{title}</div>
+      {children}
+    </div>
+  )
+}
+
+function MatchRow({ text, score, top, tag, dropped }: { text: string; score: number; top: number; tag: string; dropped?: boolean }) {
   return (
     <li className="py-2.5 rule" style={{ opacity: dropped ? 0.45 : 1 }}>
       <div className="flex items-baseline gap-2">
@@ -70,8 +72,9 @@ function MetadataFilter() {
     .join(' and ')
 
   const kept = scored.filter((row) => (category === 'none' || row.doc.category === category) && (year === 'none' || String(row.doc.year) === year))
-  const top = Math.max(scoredOrZero(scored), 0)
-  const dropped = scored.filter((row) => !kept.includes(row))
+  const keptIds = new Set(kept.map((row) => row.index))
+  const dropped = scored.filter((row) => !keptIds.has(row.index))
+  const top = Math.max(scored[0]?.score ?? 0, 0)
 
   return (
     <>
@@ -93,16 +96,15 @@ function MetadataFilter() {
       >
         expr = {expr || '""（不过滤）'}
       </div>
-      {/* 换过滤条件改的是右边那一列的条数，而两边列本身是按需挂载的 —— 容器得常驻，
-          第一次变化才有地方播报（同进度墙与检索页的约定，WCAG 4.1.3）。 */}
+      {/* 换过滤条件改的是右边一列的条数，而两列内容按需挂载 —— live 容器必须常驻，
+          第一次变化才有地方播报（WCAG 4.1.3）。 */}
       <p className="sr-only" role="status" aria-live="polite">
         {expr ? `过滤条件 ${expr}，` : '不设过滤条件，'}
         命中 {kept.length} 条，被条件挡掉 {dropped.length} 条。
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-        <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
-          <div className="eyebrow mb-1">不过滤</div>
+        <Panel title="不过滤" titleClass="eyebrow mb-1">
           <ul>
             {scored.map((row) => (
               <MatchRow
@@ -111,13 +113,12 @@ function MetadataFilter() {
                 score={row.score}
                 top={top}
                 tag={row.doc.category}
-                dropped={!kept.includes(row)}
+                dropped={!keptIds.has(row.index)}
               />
             ))}
           </ul>
-        </div>
-        <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
-          <div className="eyebrow mb-1">过滤后</div>
+        </Panel>
+        <Panel title="过滤后" titleClass="eyebrow mb-1">
           {kept.length ? (
             <ul>
               {kept.map((row) => (
@@ -135,14 +136,10 @@ function MetadataFilter() {
               {dropped.map((row) => `「${row.doc.text.slice(0, 6)}…」`).join('')}
             </p>
           )}
-        </div>
+        </Panel>
       </div>
     </>
   )
-}
-
-function scoredOrZero(rows: { score: number }[]) {
-  return rows.length ? Math.max(...rows.map((r) => r.score)) : 0
 }
 
 /** Day 13 ②: hit on a child sentence, return the whole parent section. */
@@ -150,30 +147,21 @@ function ParentDocument() {
   const [query, setQuery] = useState('闷蒸要等多久')
   const [mode, setMode] = useState<'child' | 'parent'>('child')
 
-  const children = useMemo(
-    () =>
-      PARENT_DOCS.flatMap((parent, parentIndex) =>
-        parent.children.map((child, childIndex) => ({ parentIndex, childIndex, parent, child }))
-      ),
-    []
-  )
-
   const ranked = useMemo(() => {
     const q = hashVector(query)
-    return children
-      .map((entry) => ({ ...entry, score: cosine(q, hashVector(entry.child.text)) }))
-      .sort((a, b) => b.score - a.score)
-  }, [children, query])
+    return CHILD_ENTRIES.map((entry) => ({ ...entry, score: cosine(q, hashVector(entry.child.text)) })).sort(
+      (a, b) => b.score - a.score
+    )
+  }, [query])
 
   const hits = ranked.slice(0, 3)
-  const parentOrder = [...new Map(hits.map((hit) => [hit.parentIndex, hit.parent.parent])).values()]
-  const top = Math.max(...ranked.map((r) => r.score), 0)
+  /** 按首次命中的顺序去重，直接留下父块对象，省掉回查。 */
+  const parents = [...new Map(hits.map((hit) => [hit.parentIndex, hit.parent])).values()]
+  const top = Math.max(ranked[0]?.score ?? 0, 0)
   const contextText =
     mode === 'child'
       ? hits.map((hit) => hit.child.text).join('')
-      : parentOrder
-          .map((name) => PARENT_DOCS.find((item) => item.parent === name)!.children.map((c) => c.text).join(''))
-          .join('')
+      : parents.map((parent) => parent.children.map((child) => child.text).join('')).join('')
   /** Join separators differ between the two renderings, so only count the characters a reader can point at. */
   const contextChars = [...contextText].filter((ch) => !/\s/.test(ch)).length
 
@@ -196,8 +184,7 @@ function ParentDocument() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
-        <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
-          <div className="eyebrow mb-2">索引层命中的子块</div>
+        <Panel title="索引层命中的子块">
           <ul>
             {hits.map((hit, rank) => (
               <MatchRow
@@ -209,41 +196,36 @@ function ParentDocument() {
               />
             ))}
           </ul>
-        </div>
-        <div className="surface p-3.5" style={{ borderRadius: 'var(--radius-xs)' }}>
-          <div className="eyebrow mb-2">交给模型的上下文</div>
+        </Panel>
+        <Panel title="交给模型的上下文">
           {mode === 'child'
             ? hits.map((hit) => (
                 <p key={`${hit.parentIndex}c-${hit.childIndex}`} className="text-sm py-2 rule" style={{ color: 'var(--body)' }}>
                   {hit.child.text}
                 </p>
               ))
-            : parentOrder.map((parent) => {
-                const source = PARENT_DOCS.find((item) => item.parent === parent)!
-                return (
-                  <div key={parent} className="py-2.5 rule">
-                    <div className="eyebrow mb-1" style={{ color: 'var(--accent-text)' }}>
-                      {parent} · 整节
-                    </div>
-                    <p className="text-sm leading-relaxed" style={{ color: 'var(--body)' }}>
-                      {source.children.map((child) => child.text).join(' ')}
-                    </p>
+            : parents.map((parent) => (
+                <div key={parent.parent} className="py-2.5 rule">
+                  <div className="eyebrow mb-1" style={{ color: 'var(--accent-text)' }}>
+                    {parent.parent} · 整节
                   </div>
-                )
-              })}
-        </div>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--body)' }}>
+                    {parent.children.map((child) => child.text).join(' ')}
+                  </p>
+                </div>
+              ))}
+        </Panel>
       </div>
 
+      {/* 切「返回子块 / 上溯父块」改的就是这三个数；容器常驻，直接挂 live（WCAG 4.1.3）。 */}
       <div
         className="flex flex-wrap gap-x-6 gap-y-2 mt-4 pt-4"
         style={{ borderTop: '1px solid var(--line)' }}
-        // 切「返回子块 / 上溯父块」改的就是这三个数；容器常驻，直接挂 live
-        // （同进度墙计数条的约定，WCAG 4.1.3）。
         role="status"
         aria-live="polite"
       >
         <Stat label="命中子块" value={`${hits.length} 条`} />
-        <Stat label="去重后父块" value={`${parentOrder.length} 节`} />
+        <Stat label="去重后父块" value={`${parents.length} 节`} />
         <Stat label="上下文字数（不含空格）" value={`${contextChars} 字`} />
       </div>
       <p className="body-sm mt-2.5" style={{ color: 'var(--muted)' }}>

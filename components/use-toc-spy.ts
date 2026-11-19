@@ -17,19 +17,10 @@ export interface TocSnapshot {
 
 const EMPTY: TocSnapshot = { headings: [], activeId: '', progress: 0 }
 
-/**
- * 判定线：标题顶边越过视口上方 120px 即视为「已进入阅读区」，
- * 最后越线的标题就是当前章节。阈值取在页头下方，避免被 sticky 头部遮挡。
- */
+// 标题顶边越过视口上方 120px 即「已进入阅读区」，最后越线者为当前章节；阈值取在页头下方。
 const ACTIVE_LINE = 120
 
-/**
- * 全站唯一的目录扫描器。
- *
- * 文章页与课时页各有一份目录（侧栏 + 移动端），第 6 轮之前两份各自扫描标题、
- * 各挂一个 scroll/resize 监听、各跑一个 rAF 循环 —— 同一页四份列表、两套判定。
- * 这里换成模块级单例：状态一份、监听一份，两份视图只是订阅者。
- */
+// 模块级单例：文章页侧栏与移动端两份目录只是订阅者，状态一份、监听一份、rAF 一份。
 let snapshot: TocSnapshot = EMPTY
 const listeners = new Set<() => void>()
 let headingEls: HTMLElement[] = []
@@ -55,7 +46,6 @@ function measure() {
 
   const doc = document.documentElement
   const scrollable = doc.scrollHeight - window.innerHeight
-  // 量化到 1%：滚动链接的填充不过渡（挂过渡反而滞后于滚动），重渲染也因此封顶 100 次。
   const ratio = scrollable > 0 ? window.scrollY / scrollable : 0
   const progress = Math.round(Math.min(1, Math.max(0, ratio)) * 100) / 100
 
@@ -70,7 +60,7 @@ function measure() {
     else break
   }
 
-  // 结尾短章节常常够不到判定线，滚到底时强制点亮最后一项。
+  // 结尾短章节常常够不到判定线，滚到底强制点亮最后一项。
   if (window.innerHeight + window.scrollY >= doc.scrollHeight - 4) index = headingEls.length - 1
 
   commit({ activeId: headingEls[index].id, progress })
@@ -100,8 +90,7 @@ function scan() {
 }
 
 function start() {
-  // rehype-slug 在构建期就把 id 写进 SSR 的 HTML，正常首帧即可扫到；
-  // 兜底轮询是给 MDX 客户端补渲染留的，扫到或超时即停。
+  // rehype-slug 构建期已把 id 写进 SSR HTML，正常首帧即可扫到；兜底轮询留给 MDX 客户端补渲染。
   if (!scan()) {
     let tries = 0
     scanTimer = setInterval(() => {
@@ -153,32 +142,25 @@ export function useTocIndex(): { current: number; total: number } {
   return { current: index + 1, total: headings.length }
 }
 
-/**
- * 目录跳转走原生平滑滚动（html 的 scroll-behavior 已是 smooth）。
- * 让位 sticky 头部不在这里算——html 的 scroll-padding-top 已负责，
- * scrollIntoView 会读它；再叠一个 offset 就会多空出一截。
- */
 export function useTocJump() {
   return useCallback((id: string) => {
     const el = document.getElementById(id)
     if (!el) return
-    // 第 19 轮：目录原来是 preventDefault + scrollIntoView，跳完地址栏一动不动，
-    // 读者既没法把「读到哪一节」复制给别人，刷新也会回到页首。replaceState 只改
-    // fragment、不新增历史项，连点十次目录也不会把返回键堵死；保留 history.state
-    // 是为了不抹掉 App Router 存在那里的路由记录。
+    // replaceState 只改 fragment、不新增历史项，连点十次也不堵返回键；
+    // 保留 history.state 是为了不抹掉 App Router 存在那里的路由记录。
     try {
       window.history.replaceState(window.history.state, '', `#${id}`)
     } catch {
       // 少数内嵌环境禁止改 history：跳转本身照常生效。
     }
-    // 点完目录，窄屏面板会整块卸载，焦点原本掉回 BODY：读屏不播报落点，
-    // 键盘用户下一跳 Tab 又从页头翻起。把焦点交给目标标题，下一跳就从这一节继续。
-    // tabindex=-1 只让它可以被程序聚焦，不进 Tab 序列；失焦即摘掉，不留痕。
+    // 窄屏面板点完整块卸载，焦点会掉回 BODY；交给目标标题，下一跳 Tab 从这一节继续。
+    // tabindex=-1 只供程序聚焦、不进 Tab 序列，失焦即摘。
     if (!el.hasAttribute('tabindex')) {
       el.setAttribute('tabindex', '-1')
       el.addEventListener('blur', () => el.removeAttribute('tabindex'), { once: true })
     }
     el.focus({ preventScroll: true })
+    // 让位 sticky 头部靠 html 的 scroll-padding-top，scrollIntoView 会读它，这里不再叠 offset。
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
   }, [])

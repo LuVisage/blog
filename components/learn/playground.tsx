@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   IconAlertTriangle,
   IconCheck,
@@ -38,7 +38,7 @@ interface PlaygroundProps {
   mode: Mode
   label: string
   hint: string
-  /** Day 36: keep every turn in the request so history is visible. */
+  /** Day 36：每轮都留在请求里，历史可见。 */
   history?: boolean
   seed?: { system: string; user: string }
 }
@@ -81,9 +81,20 @@ function Block({ children, name }: { children: string; name?: string }) {
   )
 }
 
+/** 武装确认与失败回执共用的左侧色条盒子。 */
+function Callout({ tone, children }: { tone: string; children: ReactNode }) {
+  return (
+    <div
+      className="p-3.5"
+      style={{ border: '1px solid var(--line-strong)', borderLeft: `2px solid ${tone}`, borderRadius: 'var(--radius-xs)' }}
+    >
+      {children}
+    </div>
+  )
+}
+
 /**
- * The only block on the site that can spend the visitor's money, so it defaults
- * to a request preview and asks once more before the network call.
+ * 全站唯一能花访客自己钱的块：默认只给请求预览，网络调用前再确认一次。
  */
 export function Playground({ mode, label, hint, history = false, seed }: PlaygroundProps) {
   const { settings, stored } = useLlmSettings()
@@ -97,6 +108,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
   const [multiTurn, setMultiTurn] = useState(history)
   const [log, setLog] = useState<ChatMessage[]>([])
   const [armed, setArmed] = useState(false)
+  // null = 跟随 ready 推导的默认值；一旦用户亲手开合过，就听用户的。
   const [requestOverride, setShowRequest] = useState<boolean | null>(null)
   const [consoleOverride, setConsoleOpen] = useState<boolean | null>(null)
   const [copied, setCopied] = useState(false)
@@ -109,10 +121,13 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
   const showRequest = requestOverride ?? !ready
   const consoleOpen = consoleOverride ?? !ready
 
-  const touches = (run: () => void) => {
-    run()
-    setArmed(false)
-  }
+  // 任何参数改动都撤销已按下的确认：花钱的许可只对当时那份请求有效。
+  const edit =
+    <T,>(apply: (value: T) => void) =>
+    (value: T) => {
+      apply(value)
+      setArmed(false)
+    }
 
   const hits = useMemo(() => {
     if (mode !== 'rag') return []
@@ -215,10 +230,10 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
     >
       <div className="space-y-4">
         <ControlRow label="system">
-          <Area value={system} label="system 提示词" onChange={(value) => touches(() => setSystem(value))} />
+          <Area value={system} label="system 提示词" onChange={edit(setSystem)} />
         </ControlRow>
         <ControlRow label="user">
-          <Area value={ask} label="用户消息" rows={2} onChange={(value) => touches(() => setAsk(value))} />
+          <Area value={ask} label="用户消息" rows={2} onChange={edit(setAsk)} />
         </ControlRow>
 
         {mode === 'rag' && (
@@ -245,10 +260,10 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <ControlRow label="temperature">
-            <Range label="temperature" value={temperature} min={0} max={1} step={0.05} onChange={(value) => touches(() => setTemperature(value))} />
+            <Range label="temperature" value={temperature} min={0} max={1} step={0.05} onChange={edit(setTemperature)} />
           </ControlRow>
           <ControlRow label="max_tokens">
-            <Range label="max_tokens" value={maxTokens} min={64} max={MAX_TOKENS_CAP} step={32} onChange={(value) => touches(() => setMaxTokens(value))} />
+            <Range label="max_tokens" value={maxTokens} min={64} max={MAX_TOKENS_CAP} step={32} onChange={edit(setMaxTokens)} />
           </ControlRow>
         </div>
 
@@ -257,7 +272,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
             <input
               type="checkbox"
               checked={multiTurn}
-              onChange={(event) => touches(() => setMultiTurn(event.target.checked))}
+              onChange={(event) => edit(setMultiTurn)(event.target.checked)}
               style={{ accentColor: 'var(--accent)' }}
             />
             带历史（每轮把前面的对话一起发出去）
@@ -318,10 +333,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
         </div>
 
         {armed && !running && (
-          <div
-            className="p-3.5"
-            style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--color-warning)', borderRadius: 'var(--radius-xs)' }}
-          >
+          <Callout tone="var(--color-warning)">
             <p className="body-sm" style={{ color: 'var(--body)' }}>
               {settings.mode === 'ollama'
                 ? `确认后会真的向本机 Ollama 发一次请求，不花钱也不涉及任何 Key：模型 `
@@ -330,7 +342,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
               <span className="tabular-nums">{estimate.promptTokens}</span> tokens，输出最多{' '}
               <span className="tabular-nums">{estimate.completionCap}</span> tokens。实际用量以对方返回的 usage 为准。
             </p>
-          </div>
+          </Callout>
         )}
 
         {multiTurn && log.length > 0 && (
@@ -393,10 +405,7 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
         )}
 
         {failure && (
-          <div
-            className="p-3.5"
-            style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--danger)', borderRadius: 'var(--radius-xs)' }}
-          >
+          <Callout tone="var(--danger)">
             <div className="flex items-start gap-2">
               <IconAlertTriangle size={14} strokeWidth={1.7} className="mt-0.5" style={{ color: 'var(--danger)' }} />
               <div>
@@ -408,12 +417,11 @@ export function Playground({ mode, label, hint, history = false, seed }: Playgro
                 </p>
               </div>
             </div>
-          </div>
+          </Callout>
         )}
 
-        {/* 失败原因和「正在握手」一样是状态消息：容器常驻 DOM 并挂 live，读屏才会在它
-            出现的那一刻报出来（同检索页 / 勾选清单的约定，WCAG 4.1.3）。上面那块红色是
-            和数据同时挂载的，读屏看不见 —— 而这一句恰恰是花钱失败后最需要听到的。 */}
+        {/* 失败原因是状态消息：红色盒子与数据同一次挂载，读屏看不见；常驻 live 区
+            才能在它出现的那一刻报出来（WCAG 4.1.3）—— 花钱失败后最需要听到的一句。 */}
         <p className="sr-only" role="status" aria-live="polite">
           {failure ? `调用失败：${failure.message}。${failure.hint}` : ''}
         </p>

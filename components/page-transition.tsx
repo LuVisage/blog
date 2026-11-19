@@ -1,20 +1,12 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
-/**
- * 换页焦点交接（功能，不是动效）。
- *
- * 客户端导航会整块换掉正文 DOM，刚被点中的那条链接随之消失，焦点就掉在 BODY 上：
- * 读屏不会播报「到了新页面」，键盘用户下一次 Tab 还得从页首重新翻一遍。这里在
- * pathname 落地后补一次交接，并且只在「焦点确实没人接管」时动手 —— 页头那类跨页
- * 常驻的控件、以及 /search 这类挂载即聚焦输入框的页面都不会被抢。
- *
- * ZK 起换页不再有任何编排动画（微升 / 扫光线都已下线）：简洁风下换页就是换页，
- * 这个组件只剩焦点交接这一件功能。
- */
-export function PageTransition({ children }: { children: React.ReactNode }) {
+// 客户端导航整块换正文，被点中的链接随之消失，焦点掉在 BODY 上：读屏不播报新页、
+// 键盘下一跳 Tab 从页首翻起。pathname 落地后补一次交接，且只在焦点没人接管时动手——
+// 常驻页头控件与 /search 挂载即聚焦的输入框都不抢。
+export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const mounted = useRef(false)
 

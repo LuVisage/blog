@@ -10,7 +10,7 @@ interface GotchaTableProps {
   rows: GotchaRow[]
 }
 
-/** 常见坑速查 — the tutorial keeps every lesson's error/cause/fix table in one shape. */
+/** 常见坑速查：每课的现象 / 原因 / 解决都是同一形状。 */
 export function GotchaTable({ rows }: GotchaTableProps) {
   if (rows.length === 0) return null
 

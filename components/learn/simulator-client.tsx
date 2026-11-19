@@ -5,8 +5,8 @@ import type { SimSpec } from '@/lib/sim/registry'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 /**
- * Each lab is its own chunk: a lesson only downloads the simulators it renders,
- * and none of them run during static generation.
+ * 每个实验台独立成 chunk：一课只下载它渲染到的模拟器，静态生成期间一个都不跑。
+ * ssr:false 的加载兜底必须自己会画，所以 loading 与 Suspense 用同一副骨架。
  */
 const ChunkLab = dynamic(() => import('./sim/chunk-lab').then((m) => m.ChunkLab), { ssr: false, loading: fallback })
 const VectorLab = dynamic(() => import('./sim/vector-lab').then((m) => m.VectorLab), { ssr: false, loading: fallback })
@@ -30,11 +30,10 @@ function fallback() {
 export function SimulatorClient({ specs }: { specs: SimSpec[] }) {
   return (
     <>
-      {specs.map((spec, index) => {
-        const key = `${spec.kind}-${index}`
-        // 一课可以挂 7 个实验台：一个坏了只塌它自己那格，正文和其余实验台照常。
-        return <ErrorBoundary key={key}>{renderLab(spec)}</ErrorBoundary>
-      })}
+      {specs.map((spec, index) => (
+        // 一课可挂多个实验台：一个坏了只塌它自己那格，正文与其余实验台照常。
+        <ErrorBoundary key={`${spec.kind}-${index}`}>{renderLab(spec)}</ErrorBoundary>
+      ))}
     </>
   )
 }

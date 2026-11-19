@@ -13,13 +13,28 @@ interface CourseOverviewProps {
   title: string
   lead: string
   counter: string
-  /** Free-form closing notes; two read best side by side, one spans the row. */
+  /** 收尾随笔：两条并排最好读，一条独占整行。 */
   notes: { heading: string; items: ReactNode[] }[]
 }
 
+/** 周与手册共用的段头：左侧编号标签，右侧标题 + 计数 + 可选引言。 */
+function SectionHead({ label, title, count, blurb }: { label: string; title: string; count: string; blurb?: string }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-[92px_minmax(0,1fr)] gap-x-10 items-end mb-2">
+      <span className="eyebrow eyebrow-accent">{label}</span>
+      <div>
+        <h2 className="section-title">
+          {title}
+          <span className="meta ml-2">{count}</span>
+        </h2>
+        {blurb && <p className="body-sm mt-2 max-w-2xl">{blurb}</p>}
+      </div>
+    </div>
+  )
+}
+
 /**
- * Course landing page: progress wall first, then one ledger per week.
- * Every course gets the same shape so a second one costs only copy.
+ * 课程落地页：进度墙在前，每周一张台账。所有课程同一形状，第二门课只花文案。
  */
 export function CourseOverview({ course, eyebrow, title, lead, counter, notes }: CourseOverviewProps) {
   const lessons = getAllLessons(course)
@@ -41,22 +56,21 @@ export function CourseOverview({ course, eyebrow, title, lead, counter, notes }:
       <div className="space-y-16">
         {weeks.map(({ week, title: weekTitle, blurb, lessons: weekLessons }) => (
           <section key={week}>
-            <div className="grid grid-cols-1 md:grid-cols-[92px_minmax(0,1fr)] gap-x-10 items-end mb-2">
-              <span className="eyebrow eyebrow-accent">
-                {week === 0 ? 'Day 0' : `Week ${String(week).padStart(2, '0')}`}
-              </span>
-              <div>
-                <h2 className="section-title">
-                  {weekTitle}
-                  <span className="meta ml-2">{weekLessons.length} 课</span>
-                </h2>
-                {blurb && <p className="body-sm mt-2 max-w-2xl">{blurb}</p>}
-              </div>
-            </div>
-
+            <SectionHead
+              label={week === 0 ? 'Day 0' : `Week ${String(week).padStart(2, '0')}`}
+              title={weekTitle}
+              count={`${weekLessons.length} 课`}
+              blurb={blurb}
+            />
             <Ledger>
               {weekLessons.map((lesson) => {
                 const simCount = getSimSpecs(course, lesson.slug).length
+                const note = [
+                  lesson.examples.length ? `${lesson.examples.length} 个案例` : '',
+                  simCount ? `${simCount} 个实验台` : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
                 return (
                   <LedgerRow
                     key={lesson.slug}
@@ -65,7 +79,7 @@ export function CourseOverview({ course, eyebrow, title, lead, counter, notes }:
                     title={lesson.title}
                     desc={plainInline(lesson.lead)}
                     meta={`${lesson.readingTime} 分钟`}
-                    note={[lesson.examples.length ? `${lesson.examples.length} 个案例` : '', simCount ? `${simCount} 个实验台` : ''].filter(Boolean).join(' · ') || undefined}
+                    note={note || undefined}
                   />
                 )
               })}
@@ -76,16 +90,12 @@ export function CourseOverview({ course, eyebrow, title, lead, counter, notes }:
 
       {references.length > 0 && (
         <section className="mt-16">
-          <div className="grid grid-cols-1 md:grid-cols-[92px_minmax(0,1fr)] gap-x-10 items-end mb-2">
-            <span className="eyebrow eyebrow-accent">Reference</span>
-            <div>
-              <h2 className="section-title">
-                随查手册
-                <span className="meta ml-2">{references.length} 页</span>
-              </h2>
-              <p className="body-sm mt-2 max-w-2xl">不按天排，做题做到卡壳时直接翻这一页。</p>
-            </div>
-          </div>
+          <SectionHead
+            label="Reference"
+            title="随查手册"
+            count={`${references.length} 页`}
+            blurb="不按天排，做题做到卡壳时直接翻这一页。"
+          />
           <Ledger>
             {references.map((page) => (
               <LedgerRow

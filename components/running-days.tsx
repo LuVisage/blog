@@ -2,11 +2,8 @@
 
 import { useEffect, useState } from 'react'
 
-/**
- * 站点运行天数：起算日是首篇文章的发布日（真实数据，server 侧传入），
- * 天数在客户端算 —— 静态导出若把天数烘进 HTML，部署第二天就开始说谎。
- * 首帧只渲染「自 … 起」，水合后补天数，不产 hydration mismatch。
- */
+// 起算日是首篇文章发布日（server 侧真实数据传入）；天数必须客户端算——
+// 静态导出若把天数烘进 HTML，部署第二天就开始说谎。首帧只渲染「自 … 起」，不产水合不齐。
 export function RunningDays({ since }: { since: string }) {
   const [days, setDays] = useState<number | null>(null)
 

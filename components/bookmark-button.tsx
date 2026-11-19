@@ -15,6 +15,8 @@ export function BookmarkButton({ slug }: { slug: string }) {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
+    // Safari 无痕 / 企业策略会让 localStorage 直接抛异常：先写读一枚探针确认能用，
+    // 不能用就整体退成禁用态，而不是让按钮按下去静默失败。
     let storageWorks = true
     try {
       const probe = '__baron_bookmark_probe__'

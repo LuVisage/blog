@@ -54,19 +54,12 @@ const MATH_BLOCK_TAGS = new Set(['p', 'li', 'dd', 'td', 'h3', 'h4', 'blockquote'
 
 /**
  * 给「含行内公式的块」在构建期打上 has-math，供 globals.css 的窄屏横滚出口使用。
- *
- * 原来那条 CSS 写的是 .prose p:has(.katex) 等七个选择器。:has() 要在后代变化时向上
- * 失效，而 day-10 有 9062 个元素、其中 7404 个是 KaTeX 后代：改一次阅读字号，实测
- * 触发 ~45 次重样式 / 5–6 次重排；换成这个类等价选择器后压到 ~13 次 / 1 次，
- * 重样式 131→101ms、INP 355→323ms（attr-ze.mjs，3 轮位次轮换，15 行全自证通过）。
- * 特异性不变：:has() 取参数里最高的特异性，p:has(.katex) 与 p.has-math 同为 (0,2,1)。
- *
- * 静态站里公式只在构建期产生，所以「构建期打标」与「运行期 :has()」命中同一批元素；
- * mathclass.mjs 对 out/ 里全部 92 个含公式页逐元素比对命中集合，漏标/多标一个就 FAIL。
+ * 与 .prose p:has(.katex) 等选择器命中等价、特异性相同，但避开 :has() 在后代变化时
+ * 向上失效引发的重样式风暴（公式密集页有数千个 KaTeX 后代）。静态站里公式只在
+ * 构建期产生，所以构建期打标与运行期 :has() 命中同一批元素。
  *
  * 遍历必须穿过非 element 节点：MDX 里的 <details> 之类 JSX 块在 hast 里是
- * mdxJsxFlowElement，按 type === 'element' 过滤会把整棵子树跳过 —— 第一版就这么漏了
- * 229 个块（day-10 漏 6 个，全在 <details> 里），是等价闸抓出来的。
+ * mdxJsxFlowElement，按 type === 'element' 过滤会把整棵子树跳过，漏掉其中的公式块。
  */
 function rehypeMathBlocks() {
   return (tree: { type: string; tagName?: string; properties?: Record<string, unknown>; children?: unknown[] }) => {

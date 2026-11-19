@@ -10,10 +10,7 @@ interface QuizProps {
   items: string[]
 }
 
-/**
- * 今日自测. The tutorial's questions are open-ended practice tasks, so this is a
- * self-check list, not a scored quiz — ticking means "I actually did this".
- */
+/** 今日自测：开放练习而非计分测验，勾一条意味着「我真的动手做了」。 */
 export function Quiz({ course, slug, items }: QuizProps) {
   const { progress, toggleQuiz } = useLessonProgress(course, slug)
   return (

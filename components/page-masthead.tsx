@@ -1,18 +1,18 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { IconArrowRight } from '@tabler/icons-react'
 
 interface PageMastheadProps {
   eyebrow: string
   title: string
   lead?: string
-  /** Right-aligned mono label on the rule strip. */
+  /** 规线条右端的 mono 标签。 */
   counter?: string
-  actions?: React.ReactNode
+  actions?: ReactNode
 }
 
 export function PageMasthead({ eyebrow, title, lead, counter, actions }: PageMastheadProps) {
   return (
-    /* ZK 简洁风：刊头静态呈现，不再分级入场 */
     <header className="mb-16 sm:mb-20">
       <div
         className="flex items-center justify-between gap-4 py-2.5"
@@ -27,7 +27,7 @@ export function PageMasthead({ eyebrow, title, lead, counter, actions }: PageMas
           <h1 className="heading-1">{title}</h1>
           {lead && <p className="editorial__intro">{lead}</p>}
         </div>
-        {/* 不带 min-w-0 时这格顶不住收缩，卡片的 truncate 永不生效：320px 上把 288px 父栏撑到 335px。 */}
+        {/* 不带 min-w-0 这格顶不住收缩，子级 truncate 永不生效：320px 上曾把 288px 父栏撑到 335px。 */}
         {actions && <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">{actions}</div>}
       </div>
     </header>

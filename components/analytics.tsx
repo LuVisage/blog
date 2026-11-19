@@ -1,16 +1,16 @@
 'use client'
 
-import { ANALYTICS } from '@/lib/constants'
 import { useEffect } from 'react'
+import { ANALYTICS } from '@/lib/constants'
 
+/** 只注入脚本，不渲染任何节点。 */
 export function Analytics() {
   useEffect(() => {
     if (ANALYTICS.provider === 'google' && ANALYTICS.googleId) {
-      // Google Analytics
-      const script = document.createElement('script')
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${ANALYTICS.googleId}`
-      script.async = true
-      document.head.appendChild(script)
+      const loader = document.createElement('script')
+      loader.src = `https://www.googletagmanager.com/gtag/js?id=${ANALYTICS.googleId}`
+      loader.async = true
+      document.head.appendChild(loader)
 
       const inline = document.createElement('script')
       inline.textContent = `
@@ -23,7 +23,6 @@ export function Analytics() {
     }
 
     if (ANALYTICS.provider === 'umami' && ANALYTICS.umamiSrc && ANALYTICS.umamiId) {
-      // Umami Analytics
       const script = document.createElement('script')
       script.defer = true
       script.src = ANALYTICS.umamiSrc
@@ -32,6 +31,5 @@ export function Analytics() {
     }
   }, [])
 
-  // This component renders nothing — just injects scripts
   return null
 }

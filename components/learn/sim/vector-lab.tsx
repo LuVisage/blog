@@ -13,6 +13,9 @@ const REWRITES = [
   { value: 'RAG 先检索知识库再让模型基于片段作答，因此知识可更新、幻觉可缓解。', label: 'HyDE · 假设答案' },
 ]
 
+/** 语料不随查询变，向量只算一次；查询向量才是每次输入要重算的那一半。 */
+const DOC_VECTORS = KB_DOCS.map((doc) => hashVector(doc.text))
+
 export function VectorLab({ presets = false }: { presets?: boolean }) {
   const [query, setQuery] = useState(presets ? REWRITES[0].value : String(KB_QUERIES[0]))
   const [k, setK] = useState(3)
@@ -24,13 +27,14 @@ export function VectorLab({ presets = false }: { presets?: boolean }) {
       KB_DOCS.map((doc, index) => ({
         index,
         doc,
-        score: cosine(queryVector, hashVector(doc.text)),
+        score: cosine(queryVector, DOC_VECTORS[index]),
       })).sort((a, b) => b.score - a.score),
     [queryVector]
   )
   const top = ranked[0]?.score || 1
   const hits = ranked.slice(0, k)
   const missed = ranked.slice(k)
+  const sources = new Set(hits.filter((hit) => hit.score > 0.05).map((hit) => hit.doc.source))
 
   return (
     <SimFrame
@@ -51,28 +55,24 @@ export function VectorLab({ presets = false }: { presets?: boolean }) {
         </ControlRow>
         <ControlRow label={presets ? '四种问法' : '示例查询'}>
           <Pills
-            items={(presets ? REWRITES : KB_QUERIES.map((q) => ({ value: String(q), label: String(q) }))).slice()}
+            items={presets ? REWRITES : KB_QUERIES.map((q) => ({ value: String(q), label: String(q) }))}
             active={query}
             onPick={setQuery}
           />
         </ControlRow>
       </div>
 
+      {/* 查询、k、预设改的都首先是这一排数；容器常驻，第一次变化才有地方播报（WCAG 4.1.3）。 */}
       <div
         className="flex flex-wrap gap-x-6 gap-y-2 mt-6 pt-4"
         style={{ borderTop: '1px solid var(--line)' }}
-        // 查询、k、预设改的都首先是这一排数；容器常驻，所以第一次变化就有地方播报
-        // （同进度墙计数条与检索页的约定，WCAG 4.1.3）。
         role="status"
         aria-live="polite"
       >
         <Stat label="语料块" value={`${KB_DOCS.length}`} />
         <Stat label="召回" value={`${hits.length}`} />
         <Stat label="第一名分数" value={top.toFixed(4)} />
-        <Stat
-          label="命中来源"
-          value={hits.some((h) => h.score > 0.05) ? String(new Set(hits.filter((h) => h.score > 0.05).map((h) => h.doc.source)).size) + ' 个文件' : '无有效命中'}
-        />
+        <Stat label="命中来源" value={sources.size ? `${sources.size} 个文件` : '无有效命中'} />
       </div>
 
       <ol className="mt-5 space-y-2.5">

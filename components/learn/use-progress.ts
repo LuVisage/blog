@@ -9,8 +9,7 @@ import {
 } from '@/lib/learn-progress'
 import type { CourseId } from '@/lib/courses'
 
-/** Flip one index, then rebuild over the full range so the array stays ordered
- *  and drops any index the current item list no longer has. */
+// 翻转一个下标后按全量范围重建：数组保持有序，且丢掉当前清单已不存在的下标。
 function tickedIndexes(current: number[] | undefined, index: number, total: number): number[] {
   const on = new Set(current)
   if (on.has(index)) on.delete(index)
@@ -20,10 +19,9 @@ function tickedIndexes(current: number[] | undefined, index: number, total: numb
 
 const listeners = new Set<() => void>()
 const EMPTY_SNAPSHOT: ProgressMap = {}
-/** Every mutator spreads the entry, so this shared default is never written in place. */
+// 所有 mutator 都 spread 条目，这个共享默认值不会被原地写。
 const EMPTY_PROGRESS: LessonProgress = { quiz: [], lists: {}, done: false }
-// One cache slot per course: they share a slug space, so a single slot would
-// serve Agent progress to a CSP page after a visit between the two.
+// 每课程一个缓存槽：slug 空间共享，单槽会把 Agent 的进度喂给跨课访问后的 CSP 页。
 const cache = new Map<CourseId, ProgressMap | null>()
 
 function notify() {
@@ -48,23 +46,26 @@ function getSnapshot(course: CourseId) {
   return fresh
 }
 
-/** Shared view of localStorage progress so the wall, quiz and footer never disagree. */
+/** localStorage 进度的共享视图：进度墙、quiz、页脚永不各执一词。 */
 export function useLearnProgress(course: CourseId) {
   const map = useSyncExternalStore(subscribe, () => getSnapshot(course), () => EMPTY_SNAPSHOT)
 
-  /** Mutations run against the live snapshot, not the last render, so clicks in the same frame compose. */
-  const update = useCallback((slug: string, mutate: (prev: LessonProgress) => LessonProgress) => {
-    const current = getSnapshot(course)
-    const previous: LessonProgress = current[slug] ?? EMPTY_PROGRESS
-    writeProgress(course, { ...current, [slug]: mutate(previous) })
-    notify()
-  }, [course])
+  // 变更对着活快照跑而非上一次渲染，同帧连点也能正确复合。
+  const update = useCallback(
+    (slug: string, mutate: (prev: LessonProgress) => LessonProgress) => {
+      const current = getSnapshot(course)
+      const previous: LessonProgress = current[slug] ?? EMPTY_PROGRESS
+      writeProgress(course, { ...current, [slug]: mutate(previous) })
+      notify()
+    },
+    [course]
+  )
 
   const toggleQuiz = useCallback(
     (slug: string, index: number, total: number) => {
       update(slug, (prev) => ({ ...prev, quiz: tickedIndexes(prev.quiz, index, total) }))
     },
-    [update],
+    [update]
   )
 
   const toggleList = useCallback(
@@ -74,12 +75,12 @@ export function useLearnProgress(course: CourseId) {
         lists: { ...prev.lists, [name]: tickedIndexes(prev.lists[name], index, total) },
       }))
     },
-    [update],
+    [update]
   )
 
   const toggleDone = useCallback(
     (slug: string) => update(slug, (prev) => ({ ...prev, done: !prev.done })),
-    [update],
+    [update]
   )
 
   const reset = useCallback(() => {

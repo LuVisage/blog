@@ -12,8 +12,8 @@ interface Props {
 
 /**
  * 标签索引 = 一张按篇数排好的清单，不是一个在前端重算的筛选器。
- * 行直接链到 /tags/[tag]（服务端已渲染、可收藏），
- * 计数比例尺复用 §11.11 的 .read-rule —— 同一个「位置映射」语汇，一处用在滚动、一处用在数量。
+ * 行直接链到 /tags/[tag]（服务端已渲染、可收藏）；
+ * 计数比例尺复用 .read-rule —— 同一个「位置映射」语汇，一处用在滚动、一处用在数量。
  */
 export function TagIndex({ posts, tags }: Props) {
   const sorted = [...tags].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'zh-Hans-CN'))

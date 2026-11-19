@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { GRAPH_DAY16, GRAPH_DAY17, GRAPH_DAY18, GRAPH_DAY33, type GraphFixture, type GraphState } from '@/lib/sim/corpus'
 import { runGraph, stateEntries, type GraphStep } from '@/lib/sim/graph'
 import { SimFrame } from './frame'
@@ -29,8 +29,21 @@ function StateTable({ state }: { state: GraphState }) {
   )
 }
 
+/** 左侧 2px 色标承担警示语义；正文颜色另选，见各调用点的对比度约束。 */
+function Callout({ accent, children }: { accent: string; children: ReactNode }) {
+  return (
+    <div
+      className="mt-4 p-4"
+      style={{ border: '1px solid var(--line-strong)', borderLeft: `2px solid ${accent}`, borderRadius: 'var(--radius-xs)' }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph: string; checkpoint?: boolean; label: string; hint: string }) {
   const fixture = FIXTURES[graph] ?? GRAPH_DAY16
+  const router = fixture.router
   const [cursor, setCursor] = useState(0)
   const [approved, setApproved] = useState<boolean | undefined>(undefined)
   const [resume, setResume] = useState<{ step: GraphStep; index: number } | null>(null)
@@ -51,7 +64,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
         ? [{ from: currentStep.node, to: currentStep.branch }]
         : fixture.edges.filter((edge) => edge.from === (currentStep?.node ?? '__start__'))
   /** Only the edges leaving the router node are decided at run time; the rest are wired up front. */
-  const routed = Boolean(fixture.router) && frontier.some((edge) => edge.from === fixture.router!.at)
+  const routed = router ? frontier.some((edge) => edge.from === router.at) : false
 
   useEffect(() => {
     if (!playing) return
@@ -59,6 +72,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
       setPlaying(false)
       return
     }
+    // 800ms 一拍，三个播放器共用同一节拍；effect 重跑即清掉上一拍，不会叠定时器。
     const timer = setTimeout(() => setCursor((value) => value + 1), 800)
     return () => clearTimeout(timer)
   }, [playing, shown, total])
@@ -76,7 +90,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
   const toolbarRef = useRef<HTMLDivElement>(null)
   const pristine = shown === 0 && !playing && approved === undefined && !resume
 
-  /** 决定批准后整个「等待人工输入」面板连同两个按钮一起卸载，焦点会掉回 BODY。 */
+  /** 决定批准后整个「等待人工输入」面板连同两个按钮一起卸载，焦点会掉回 BODY，先接回工具条。 */
   const decide = (ok: boolean) => {
     setApproved(ok)
     setCursor((value) => value + 1)
@@ -149,28 +163,28 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
           </button>
         )}
         <span className="meta tabular-nums ml-auto" style={{ color: 'var(--muted)' }}>
-          步 {shown}/{total || 0} · 上限 {fixture.limit}
+          步 {shown}/{total} · 上限 {fixture.limit}
         </span>
       </div>
-      {/* 单步执行改的是下面那份轨迹，可见文字全在别处 —— 没有常驻的 live 区，读屏用户按一步
-          等于什么都不知道（同检索页与进度墙的约定，WCAG 4.1.3）。它住在工具条外面：批准/驳回
-          之后焦点交还给工具条，容器会把里面所有文字读一遍，句子再躲在里头就是读两遍。 */}
+      {/* live 区必须常驻且紧跟工具条：单步改的是下面按需挂载的轨迹，没有常驻容器读屏就一声不吭
+          （WCAG 4.1.3）。它住在工具条外面 —— 批准/驳回后焦点交还工具条，容器会把里面所有文字
+          读一遍，句子再躲在里头就是读两遍。 */}
       <p className="sr-only" role="status" aria-live="polite">
         {spoken}
       </p>
 
       <div className="mt-4 px-3 py-2 text-xs font-mono overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)', color: 'var(--muted)' }}>
         {fixture.edges.map((edge) => `${edge.from} → ${edge.to}`).join('   ')}
-        {fixture.router && (
+        {router && (
           <>
             {'   '}
-            <span style={{ color: 'var(--accent-text)' }}>conditional({fixture.router.at})</span>
+            <span style={{ color: 'var(--accent-text)' }}>conditional({router.at})</span>
           </>
         )}
       </div>
-      {fixture.router && (
+      {router && (
         <p className="body-sm mt-2" style={{ color: 'var(--muted)' }}>
-          条件边：{fixture.router.describe}
+          条件边：{router.describe}
         </p>
       )}
 
@@ -201,11 +215,8 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
       )}
 
       {paused && (
-        <div
-          className="mt-4 p-4"
-          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--color-warning)', borderRadius: 'var(--radius-xs)' }}
-        >
-          {/* 同上：橙色只上 2px 标记，文字留在 indigo 以保持 10px eyebrow 的对比度 */}
+        <Callout accent="var(--color-warning)">
+          {/* 橙色只上 2px 标记，文字留在 indigo 以保持 10px eyebrow 的对比度 */}
           <div className="eyebrow mb-2.5" style={{ color: 'var(--accent-text)' }}>
             图停在 {paused} —— 等待人工输入
           </div>
@@ -213,36 +224,25 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
             这一步对应 <code>interrupt()</code>：图把状态存下来就退出，直到有人 <code>Command(resume=...)</code>。选一个决定：
           </p>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => decide(true)}
-              className="btn-primary px-3 py-1.5 text-xs"
-            >
+            <button type="button" onClick={() => decide(true)} className="btn-primary px-3 py-1.5 text-xs">
               批准，继续
             </button>
-            <button
-              type="button"
-              onClick={() => decide(false)}
-              className="btn-secondary px-3 py-1.5 text-xs tint-body"
-            >
+            <button type="button" onClick={() => decide(false)} className="btn-secondary px-3 py-1.5 text-xs tint-body">
               驳回
             </button>
           </div>
-        </div>
+        </Callout>
       )}
 
       {run.status === 'limit' && (
-        <div
-          className="mt-4 p-4"
-          style={{ border: '1px solid var(--line-strong)', borderLeft: '2px solid var(--danger)', borderRadius: 'var(--radius-xs)' }}
-        >
+        <Callout accent="var(--danger)">
           <div className="eyebrow" style={{ color: 'var(--danger)' }}>
             触发步数上限，图被强制停止
           </div>
           <p className="body-sm mt-1.5" style={{ color: 'var(--muted)' }}>
             课文里的现象是 <code>GraphRecursionError</code>：条件边永远不指向结束节点时，靠 <code>recursion_limit</code> 兜底。
           </p>
-        </div>
+        </Callout>
       )}
 
       <ol className="mt-5 space-y-2.5">
@@ -253,7 +253,7 @@ export function GraphPlayer({ graph, checkpoint = false, label, hint }: { graph:
               key={`${step.node}-${index}`}
               className="p-3.5"
               style={{
-                border: '1px solid ' + (active ? 'var(--accent-line)' : 'var(--line)'),
+                border: `1px solid ${active ? 'var(--accent-line)' : 'var(--line)'}`,
                 borderLeft: `2px solid ${active ? 'var(--accent)' : 'var(--line-strong)'}`,
                 borderRadius: 'var(--radius-xs)',
                 background: active ? 'var(--accent-soft)' : 'transparent',

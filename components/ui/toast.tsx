@@ -1,7 +1,7 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { IconSparkles, IconFlag, IconX } from '@tabler/icons-react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { IconFlag, IconSparkles, IconX } from '@tabler/icons-react'
 
 export type ToastTone = 'info' | 'secret'
 
@@ -10,31 +10,28 @@ export interface ToastInput {
   title: string
   description?: string
   tone?: ToastTone
-  /** ms; omit for the tone default */
+  /** ms；不传按 tone 默认 */
   duration?: number
 }
 
-interface ToastRecord extends Required<Omit<ToastInput, 'description'>> {
+interface ToastRecord extends ToastInput {
   id: number
-  description?: string
-  /** 退场中：先播 200ms 淡出，再从列表里摘掉。 */
+  tone: ToastTone
+  duration: number
+  /** 退场中：先播 200ms 淡出，再摘节点。 */
   leaving?: boolean
 }
 
-const TONE_DURATION: Record<ToastTone, number> = {
-  info: 3600,
-  secret: 6800,
-}
-
-function ToneIcon({ tone }: { tone: ToastTone }) {
-  const props = { size: 16, strokeWidth: 1.75 }
-  if (tone === 'secret') return <IconSparkles {...props} style={{ color: 'var(--accent-text)' }} />
-  return <IconFlag {...props} style={{ color: 'var(--muted)' }} />
-}
+const TONE_DURATION: Record<ToastTone, number> = { info: 3600, secret: 6800 }
+const EXIT_MS = 200
 
 const ToastContext = createContext<((toast: ToastInput) => void) | null>(null)
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function useToast() {
+  return useContext(ToastContext)
+}
+
+export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastRecord[]>([])
   const seq = useRef(0)
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
@@ -45,29 +42,26 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const dismiss = useCallback((id: number) => {
-    // 先标记退场（CSS 200ms 淡出，见 SPEC_LEDGER §1.8.2 的 fast 档），再摘除节点。
-    setToasts((current) => current.map((t) => (t.id === id ? { ...t, leaving: true } : t)))
-    const timer = timers.current.get(id)
-    if (timer) {
-      clearTimeout(timer)
-      timers.current.delete(id)
-    }
-    const removal = setTimeout(() => {
-      setToasts((current) => current.filter((t) => t.id !== id))
-      timers.current.delete(id)
-    }, 200)
-    timers.current.set(id, removal)
+    setToasts((list) => list.map((t) => (t.id === id ? { ...t, leaving: true } : t)))
+    const auto = timers.current.get(id)
+    if (auto) clearTimeout(auto)
+    timers.current.set(
+      id,
+      setTimeout(() => {
+        setToasts((list) => list.filter((t) => t.id !== id))
+        timers.current.delete(id)
+      }, EXIT_MS)
+    )
   }, [])
 
   const push = useCallback(
-    (toast: ToastInput) => {
-      const tone = toast.tone ?? 'info'
+    (input: ToastInput) => {
+      const tone = input.tone ?? 'info'
+      const duration = input.duration ?? TONE_DURATION[tone]
       const id = ++seq.current
-      setToasts((current) => [...current.slice(-2), { ...toast, tone, duration: toast.duration ?? TONE_DURATION[tone], id }])
-      timers.current.set(
-        id,
-        setTimeout(() => dismiss(id), toast.duration ?? TONE_DURATION[tone])
-      )
+      // 最多三张叠放：再多会压住页脚链接的悬停与点击。
+      setToasts((list) => [...list.slice(-2), { ...input, tone, duration, id }])
+      timers.current.set(id, setTimeout(() => dismiss(id), duration))
     },
     [dismiss]
   )
@@ -75,38 +69,41 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      {/* 提示卡本体不吃指针：三枚成就叠在左下角时有 320×308，正压着页脚的站次链接，
-          悬停与点击全被吞掉。关掉按钮自己恢复 auto，卡片只当一块会浮的说明。 */}
+      {/* 卡体不吃指针：叠在左下角时正压着页脚链接，只有关闭按钮自己恢复 auto。 */}
       <div
         className="fixed bottom-5 left-4 sm:left-6 z-[70] flex flex-col gap-2 w-[min(320px,calc(100vw-2rem))] pointer-events-none"
         role="status"
         aria-live="polite"
       >
-        {toasts.map((toast) => (
+        {toasts.map((t) => (
           <div
-            key={toast.id}
-            className={`surface ${toast.leaving ? 'animate-fade-out' : 'animate-fade-up'} pointer-events-none flex items-start gap-3 px-4 py-3.5`}
+            key={t.id}
+            className={`surface ${t.leaving ? 'animate-fade-out' : 'animate-fade-up'} pointer-events-none flex items-start gap-3 px-4 py-3.5`}
             style={{ borderRadius: 'var(--radius-xs)' }}
           >
             <span className="mt-0.5 flex-shrink-0">
-              <ToneIcon tone={toast.tone} />
+              {t.tone === 'secret' ? (
+                <IconSparkles size={16} strokeWidth={1.75} style={{ color: 'var(--accent-text)' }} />
+              ) : (
+                <IconFlag size={16} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />
+              )}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="eyebrow">{toast.label}</div>
+              <div className="eyebrow">{t.label}</div>
               <p
                 className="font-serif font-bold mt-1"
                 style={{ fontSize: 'var(--text-reading-sm)', lineHeight: 1.4, color: 'var(--ink)' }}
               >
-                {toast.title}
+                {t.title}
               </p>
-              {toast.description && (
-                <p className="body-sm mt-1" style={{ fontSize: 'var(--text-code)' }}>{toast.description}</p>
+              {t.description && (
+                <p className="body-sm mt-1" style={{ fontSize: 'var(--text-code)' }}>{t.description}</p>
               )}
             </div>
             <button
-              onClick={() => dismiss(toast.id)}
-              className="pressable pointer-events-auto flex-shrink-0 -mr-1.5 -mt-1.5 p-1.5 cursor-pointer transition-colors hover:text-[var(--ink)] tint-faint"
+              onClick={() => dismiss(t.id)}
               aria-label="关闭提示"
+              className="pressable pointer-events-auto flex-shrink-0 -mr-1.5 -mt-1.5 p-1.5 cursor-pointer transition-colors hover:text-[var(--ink)] tint-faint"
             >
               <IconX size={13} strokeWidth={2} />
             </button>
@@ -115,8 +112,4 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       </div>
     </ToastContext.Provider>
   )
-}
-
-export function useToast() {
-  return useContext(ToastContext)
 }

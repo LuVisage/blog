@@ -10,15 +10,12 @@ interface DayCompleteProps {
   recap: string
 }
 
-/** The tutorial closes every lesson with a "Day N 完成！" line plus a pointer to tomorrow. */
+/** 每课收尾：「Day N 完成」+ 标记按钮 + 指向下一课。 */
 export function DayComplete({ course, slug, day, recap }: DayCompleteProps) {
   const { next } = getAdjacentLessons(course, slug)
 
   return (
-    <section
-      className="mt-12 pt-8 pb-2"
-      style={{ borderTop: '1px solid var(--line-strong)' }}
-    >
+    <section className="mt-12 pt-8 pb-2" style={{ borderTop: '1px solid var(--line-strong)' }}>
       <div className="eyebrow mb-3">Day {day} 完成</div>
       <p className="body-lg max-w-[var(--measure)]" style={{ color: 'var(--body)' }}>
         {recap}
@@ -29,8 +26,7 @@ export function DayComplete({ course, slug, day, recap }: DayCompleteProps) {
       </div>
 
       {next && (
-        /* 下一课从按钮行里拆出来独占一行：标题长了不会被挤掉，
-           hover 走 §11.12 的行语汇（indigo 发丝线沿行顶擦过）。 */
+        /* 下一课独占一行：标题长了不会被按钮挤掉；hover 走 .row-line 的行顶发丝线。 */
         <Link
           href={lessonHref(course, next.slug)}
           className="pressable row-line group mt-6 flex items-baseline gap-4 py-4 rule"
@@ -39,9 +35,7 @@ export function DayComplete({ course, slug, day, recap }: DayCompleteProps) {
             下一课
           </span>
           <span className="meta tabular-nums flex-shrink-0">Day {next.day}</span>
-          <span
-            className="min-w-0 flex-1 row-title text-sm font-medium transition-colors group-hover:text-[var(--accent-text)] tint-body"
-          >
+          <span className="min-w-0 flex-1 row-title text-sm font-medium transition-colors group-hover:text-[var(--accent-text)] tint-body">
             {next.title}
           </span>
           <IconArrowRight

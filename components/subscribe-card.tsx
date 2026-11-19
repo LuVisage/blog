@@ -3,11 +3,8 @@
 import { useState } from 'react'
 import { siteUrl, basePathUrl } from '@/lib/constants'
 
-/**
- * 订阅：纯静态站没有邮件后端，所以给的是可直接投喂任意阅读器的 RSS/Atom/JSON Feed 地址
- * + 一键复制。不做大卡片，只占一条发丝线之间的位置；关掉 JS 时按钮摘除，
- * 地址仍是可点的普通链接。
- */
+// 纯静态站没有邮件后端：给可直接投喂任意阅读器的三种 Feed 地址 + 一键复制。
+// 无 JS 时复制按钮摘除，地址仍是可点的普通链接。
 export function SubscribeCard({ bare = false }: { bare?: boolean }) {
   const [copied, setCopied] = useState(false)
   const feedUrl = siteUrl('rss.xml')
@@ -24,8 +21,7 @@ export function SubscribeCard({ bare = false }: { bare?: boolean }) {
 
   return (
     <div>
-      {/* bare：/subscribe 页自带同名 masthead 与「没有邮件列表」一节，
-          嵌进去时摘掉标题和导语，避免一页两个「订阅更新」 */}
+      {/* bare：/subscribe 页自带同名 masthead，嵌进去时摘标题导语，避免一页两个「订阅更新」。 */}
       {!bare && (
         <>
           <h2 id="subscribe-title">订阅更新</h2>

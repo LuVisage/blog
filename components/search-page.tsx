@@ -7,7 +7,7 @@ import { IconSearch, IconCommand, IconX } from '@tabler/icons-react'
 import { PageMasthead } from '@/components/page-masthead'
 import { BASE_PATH, basePathUrl } from '@/lib/constants'
 
-/** 本页只碰到 pagefind 的这几个字段，其余交给它自己负责。 */
+/** 只声明本页用到的 pagefind 字段，其余交给它自己负责。 */
 type Pagefind = {
   search(term: string): Promise<{
     results?: { data(): Promise<{ url: string; meta?: { title?: string } }> }[]
@@ -24,7 +24,7 @@ type Kind = '文章' | '教程' | '分类' | '标签' | '系列' | '栏目'
 const FILTERS = ['全部', '文章', '教程', '分类', '标签', '系列', '栏目'] as const
 type Filter = typeof FILTERS[number]
 
-/** 一次最多铺开多少条；再多走「显示更多」，避免 80+ 条结果把页面拉到无限长。 */
+/** 一次最多铺开多少条；再多走「显示更多」，避免几十条结果把页面拉到无限长。 */
 const RESULT_PAGE = 30
 
 interface SearchResult {
@@ -41,12 +41,15 @@ export interface Start {
   unit: string
 }
 
-/**
- * 检索覆盖面：除文章与课时外，分类/标签/系列/栏目页也是内容，不该被丢掉。
- * 分页路由 /posts/page/N/ 只是列表切片，不当成独立结果。
- */
+/** pagefind 报的 URL 自带部署前缀（/blog/posts/x/），先摘掉再喂给 next/link，
+    否则它会再加一次 basePath，变成 /blog/blog/。 */
+function routePath(url: string): string {
+  return BASE_PATH && url.startsWith(BASE_PATH + '/') ? url.slice(BASE_PATH.length) : url
+}
+
+/** 分类/标签/系列/栏目页也是内容，不该被丢掉；分页路由只是列表切片，不算独立结果。 */
 function resultKind(url: string): Kind | null {
-  const path = BASE_PATH && url.startsWith(BASE_PATH + '/') ? url.slice(BASE_PATH.length) : url
+  const path = routePath(url)
   if (/^\/posts\/page\/\d+\/$/.test(path)) return null
   if (/^\/posts\/[^/]+\/$/.test(path)) return '文章'
   if (/^\/learn\/[^/]+\/[^/]+\/$/.test(path)) return '教程'
@@ -57,13 +60,7 @@ function resultKind(url: string): Kind | null {
   return null
 }
 
-/** pagefind 报的 URL 自带部署前缀（/blog/posts/x/），而 next/link 会再加一次
-    basePath —— 原样喂进去就变成 /blog/blog/。Link 要的是路由路径，先摘前缀。 */
-function routePath(url: string): string {
-  return BASE_PATH && url.startsWith(BASE_PATH + '/') ? url.slice(BASE_PATH.length) : url
-}
-
-/** 关键词高亮：按片段拼 React 节点，不碰 innerHTML，用户输入天然被转义。 */
+/** 关键词高亮按片段拼 React 节点，不碰 innerHTML，用户输入天然被转义。 */
 function Highlight({ text, term }: { text: string; term: string }) {
   const needle = term.trim().toLowerCase()
   if (!needle) return <>{text}</>
@@ -81,6 +78,10 @@ function Highlight({ text, term }: { text: string; term: string }) {
     cursor = at + needle.length
   }
   return <>{parts}</>
+}
+
+function EmptyBlock({ children }: { children: ReactNode }) {
+  return <div className="pt-14 pb-6 text-center rule">{children}</div>
 }
 
 export function SearchPage({ starts }: { starts: Start[] }) {
@@ -105,8 +106,8 @@ export function SearchPage({ starts }: { starts: Start[] }) {
 
     const script = document.createElement('script')
     script.type = 'module'
-    // 字符串必须闭合：少一个收尾引号，整段内联模块就是「Invalid or unexpected
-    // token」，window.__pagefind 永远不出现，检索框看着活着、打字永远零结果。
+    // 内联模块的字符串必须闭合：少一个收尾引号就是「Invalid or unexpected token」，
+    // window.__pagefind 永远不出现，检索框看着活着、打字永远零结果。
     script.textContent = `
       import * as pf from '${window.location.origin}${basePathUrl('/pagefind/pagefind.js')}';
       window.__pagefind = pf;
@@ -121,14 +122,12 @@ export function SearchPage({ starts }: { starts: Start[] }) {
         setReady(true)
         clearInterval(interval)
       } else if (tries >= 100) {
-        // 10 秒还没等到就是加载失败，别再用 100ms 的轮询空转一生。
+        // 10 秒还没等到就是加载失败，别让 100ms 的轮询空转一生。
         clearInterval(interval)
       }
     }, 100)
 
-    return () => {
-      clearInterval(interval)
-    }
+    return () => clearInterval(interval)
   }, [])
 
   const doSearch = useCallback(async (term: string) => {
@@ -144,28 +143,15 @@ export function SearchPage({ starts }: { starts: Start[] }) {
 
     try {
       const search = await pagefindRef.current.search(term.trim())
-      if (!search?.results?.length) {
-        setResults([])
-        setLoading(false)
-        return
-      }
-
       const seen = new Set<string>()
       const unique: SearchResult[] = []
 
-      for (const r of search.results) {
+      for (const r of search?.results ?? []) {
         const data = await r.data()
-        const url: string = data.url
-        const kind = resultKind(url)
-        if (!kind) continue
-        if (!seen.has(url)) {
-          seen.add(url)
-          unique.push({
-            title: data.meta?.title || url,
-            url,
-            kind,
-          })
-        }
+        const kind = resultKind(data.url)
+        if (!kind || seen.has(data.url)) continue
+        seen.add(data.url)
+        unique.push({ title: data.meta?.title || data.url, url: data.url, kind })
       }
 
       setResults(unique)
@@ -185,10 +171,7 @@ export function SearchPage({ starts }: { starts: Start[] }) {
       return
     }
 
-    debounceRef.current = setTimeout(() => {
-      doSearch(query)
-    }, 300)
-
+    debounceRef.current = setTimeout(() => doSearch(query), 300)
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
@@ -206,9 +189,8 @@ export function SearchPage({ starts }: { starts: Start[] }) {
         counter={isMac ? '⌘K 随时可用' : 'Ctrl K 随时可用'}
       />
 
-      {/* Query field — a ruled line, not a pill；聚焦时线色转强调色。
-          关掉 JS 时这是一具死控件：能打进去，但 pagefind 跑不了，永远没有结果 ——
-          整行摘掉，由下面那条 noscript 说明来接班（同 §11.22 的 data-js-only 约定）。 */}
+      {/* 关掉 JS 时这是一具死控件：能打进去但 pagefind 跑不了 ——
+          整行摘掉，由下面的 noscript 说明接班。 */}
       <div className="field-rule relative flex items-center gap-4 pb-4" data-js-only>
         <IconSearch size={20} strokeWidth={1.75} style={{ color: 'var(--muted)' }} className="flex-shrink-0" />
         <input
@@ -247,10 +229,8 @@ export function SearchPage({ starts }: { starts: Start[] }) {
         )}
       </div>
 
-      {/* 检索跑在浏览器里（pagefind 的索引是静态分块），没有 JS 就没有结果 ——
-          上面那行输入框已经摘掉了，这里补一句为什么，并把人递到下面的栏目入口。
-          用 dangerouslySetInnerHTML 而不是给 noscript 挂 JSX 子节点：开着 JS 时浏览器把
-          noscript 的内容当文本节点，React 拿子节点去水合就判不匹配（§11.21 五 同一课）。 */}
+      {/* 用 dangerouslySetInnerHTML 而不是给 noscript 挂 JSX 子节点：开着 JS 时浏览器把
+          noscript 的内容当文本节点，React 拿子节点去水合就判不匹配。 */}
       <noscript
         dangerouslySetInnerHTML={{
           __html:
@@ -258,12 +238,11 @@ export function SearchPage({ starts }: { starts: Start[] }) {
         }}
       />
 
-      {/* 结果条数是状态消息：容器得常驻 DOM，读屏才会在文案换掉时播报。 */}
+      {/* 结果条数是状态消息：容器常驻 DOM，读屏才会在文案换掉时播报。 */}
       <p className="sr-only" role="status" aria-live="polite">
         {loading ? '正在检索' : searched ? (shown.length ? `共 ${shown.length} 条结果` : '没有匹配的内容') : ''}
       </p>
 
-      {/* Results */}
       {!query && !loading && (
         <nav className="pt-14" aria-label="检索之外的入口">
           <div className="flex items-baseline justify-between gap-4 pb-4">
@@ -296,14 +275,14 @@ export function SearchPage({ starts }: { starts: Start[] }) {
 
       {/* 索引没到位时不要静默：静默看起来像「搜不到」，其实是「没在搜」。 */}
       {!loading && query && !ready && (
-        <div className="pt-14 pb-6 text-center rule">
+        <EmptyBlock>
           <p className="body-lg">索引还没就绪。</p>
           <p className="body-sm mt-2">稍等片刻再搜一次。</p>
-        </div>
+        </EmptyBlock>
       )}
 
       {!loading && searched && results.length === 0 && (
-        <div className="pt-14 pb-6 text-center rule">
+        <EmptyBlock>
           <p className="body-lg">没有匹配「<span style={{ color: 'var(--ink)' }}>{query}</span>」的内容。</p>
           <p className="body-sm mt-2">
             换个关键词试试，或者从
@@ -312,7 +291,7 @@ export function SearchPage({ starts }: { starts: Start[] }) {
             </Link>
             里找。
           </p>
-        </div>
+        </EmptyBlock>
       )}
 
       {!loading && shown.length > 0 && (
@@ -380,10 +359,10 @@ export function SearchPage({ starts }: { starts: Start[] }) {
 
       {/* 有结果、但当前筛选档下一条都没有 —— 别误报成「整站搜不到」。 */}
       {!loading && searched && results.length > 0 && shown.length === 0 && (
-        <div className="pt-14 pb-6 text-center rule">
+        <EmptyBlock>
           <p className="body-lg">「{filter}」这一档没有匹配。</p>
           <p className="body-sm mt-2">切回「全部」可以看到另外 {results.length} 条结果。</p>
-        </div>
+        </EmptyBlock>
       )}
     </div>
   )

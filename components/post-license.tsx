@@ -3,13 +3,8 @@ import { IconCreativeCommons } from '@tabler/icons-react'
 export const LICENSE_URL = 'https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans'
 export const LICENSE_NAME = 'CC BY-NC-SA 4.0'
 
-/**
- * 文末许可声明：作者选定的 CC BY-NC-SA 4.0（第 16 轮问答定案）。
- * 样板文字不进搜索索引（data-pagefind-ignore），否则每篇 snippet 都带一段许可套话。
- *
- * 第 19 轮补上「修订」出口：技术博客的内容会被读者抓错字、跑不通的命令和过期 API，
- * 给一条直到源文件的路比放一排社交分享有用（overreacted 文末的源码链接同一个意思）。
- */
+// 样板文字不进搜索索引，否则每篇 snippet 都带一段许可套话。
+// 「修订」出口给一条直到源文件的路：技术博客的错字与过期 API 靠读者修。
 export function PostLicense({ editHref }: { editHref?: string }) {
   return (
     <p
@@ -20,24 +15,14 @@ export function PostLicense({ editHref }: { editHref?: string }) {
       <IconCreativeCommons size={15} strokeWidth={1.75} aria-hidden="true" className="mt-0.5 flex-shrink-0" />
       <span>
         本文采用{' '}
-        <a
-          href={LICENSE_URL}
-          target="_blank"
-          rel="license noopener noreferrer"
-          className="link-underline"
-        >
+        <a href={LICENSE_URL} target="_blank" rel="license noopener noreferrer" className="link-underline">
           {LICENSE_NAME}
         </a>{' '}
         许可：转载请注明出处与原文链接，非商业性使用，相同方式共享。
         {editHref && (
           <>
             {' · '}
-            <a
-              href={editHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="link-underline"
-            >
+            <a href={editHref} target="_blank" rel="noopener noreferrer" className="link-underline">
               在 GitHub 上修订本文
             </a>
           </>

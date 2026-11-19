@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { MCP_TRACE, TRACE_LANGSMITH } from '@/lib/sim/corpus'
 import { SimFrame } from './frame'
 
+/** 步进播放的最小状态机：800ms 一拍，effect 重跑即清上一拍，unmount 不残留定时器。 */
 function usePlayer(length: number) {
   const [shown, setShown] = useState(1)
   const [playing, setPlaying] = useState(false)
@@ -51,8 +52,8 @@ function Controls({
       <span className="meta tabular-nums ml-auto" style={{ color: 'var(--muted)' }}>
         {Math.min(shown, total)}/{total}
       </span>
-      {/* 常驻的 live 容器：按「下一条」时变化的是下面列表里新长出来的一条报文，
-          它自己不在任何可播报的区域里（WCAG 4.1.3，同检索页与进度墙的约定）。 */}
+      {/* 常驻 live 容器：按「下一条」时新长出来的报文不在任何可播报区域里，
+          容器随列表一起挂载的话第一次变化读屏收不到（WCAG 4.1.3）。 */}
       <p className="sr-only" role="status" aria-live="polite">
         {status}
       </p>
@@ -118,7 +119,6 @@ function McpTrace() {
       <ol className="mt-4 space-y-2">
         {MCP_WIRE.slice(0, shown).map((message, index) => {
           const outgoing = message.dir === '→'
-          const payload = JSON.stringify(message.body, null, 2)
           return (
             <li key={message.method} className="p-3" style={{ border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)' }}>
               <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
@@ -142,7 +142,7 @@ function McpTrace() {
                 className="mt-2 px-3 py-2 text-[11.5px] leading-relaxed overflow-x-auto"
                 style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 'var(--radius-xs)', color: 'var(--body)' }}
               >
-                {payload}
+                {JSON.stringify(message.body, null, 2)}
               </pre>
             </li>
           )
@@ -152,16 +152,27 @@ function McpTrace() {
   )
 }
 
+const ROOT_SPAN = TRACE_LANGSMITH[0]
+const CHILD_MS = TRACE_LANGSMITH.filter((span) => span.depth === 1).reduce((sum, span) => sum + span.ms, 0)
+
 function LangSmithTrace() {
   const { shown, setShown, playing, setPlaying } = usePlayer(TRACE_LANGSMITH.length)
   const rows = TRACE_LANGSMITH.slice(0, shown)
-  const root = TRACE_LANGSMITH[0]
-  const children = TRACE_LANGSMITH.filter((span) => span.depth === 1)
-  const childMs = children.reduce((sum, span) => sum + span.ms, 0)
-  const tokens = rows.filter((span) => span.tokens).reduce((sum, span) => sum + (span.tokens ?? 0), 0)
+  const tokens = rows.reduce((sum, span) => sum + (span.tokens ?? 0), 0)
   const inner = rows.filter((span) => span.depth > 0)
-  const slowest = inner.reduce((best, span) => (span.ms > best.ms ? span : best), inner[0])
+  const slowest = inner.reduce<(typeof inner)[number] | undefined>(
+    (best, span) => (!best || span.ms > best.ms ? span : best),
+    undefined
+  )
   const latest = rows[rows.length - 1]
+
+  const summary = [
+    { label: '根节点', value: `${ROOT_SPAN.ms} ms` },
+    { label: '子节点合计', value: `${CHILD_MS} ms` },
+    { label: '没被 span 盖住', value: `${ROOT_SPAN.ms - CHILD_MS} ms`, tone: CHILD_MS > ROOT_SPAN.ms ? 'var(--danger)' : 'var(--ink)' },
+    { label: '可见 token', value: `${tokens}` },
+    { label: '最慢子节点', value: slowest ? `${slowest.name} · ${slowest.ms} ms` : '—' },
+  ]
 
   return (
     <>
@@ -195,7 +206,7 @@ function LangSmithTrace() {
               className="py-2 pr-3"
               style={{
                 paddingLeft: 12 + span.depth * 22,
-                border: '1px solid ' + (active ? 'var(--accent-line)' : 'transparent'),
+                border: `1px solid ${active ? 'var(--accent-line)' : 'transparent'}`,
                 borderLeft: `1px solid ${failed ? 'var(--danger)' : 'var(--line-strong)'}`,
                 borderRadius: 'var(--radius-xs)',
                 background: active ? 'var(--accent-soft)' : 'transparent',
@@ -222,7 +233,7 @@ function LangSmithTrace() {
                 <div
                   className="h-full"
                   style={{
-                    width: `${Math.max(1, (span.ms / root.ms) * 100)}%`,
+                    width: `${Math.max(1, (span.ms / ROOT_SPAN.ms) * 100)}%`,
                     background: failed ? 'var(--danger)' : 'var(--accent)',
                     borderRadius: 'var(--radius-xs)',
                   }}
@@ -237,22 +248,12 @@ function LangSmithTrace() {
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 pt-4" style={{ borderTop: '1px solid var(--line)' }}>
-        <span className="meta">
-          根节点 <span style={{ color: 'var(--ink)' }}>{root.ms} ms</span>
-        </span>
-        <span className="meta">
-          子节点合计 <span style={{ color: 'var(--ink)' }}>{childMs} ms</span>
-        </span>
-        <span className="meta">
-          没被 span 盖住 <span style={{ color: childMs > root.ms ? 'var(--danger)' : 'var(--ink)' }}>{root.ms - childMs} ms</span>
-        </span>
-        <span className="meta">
-          可见 token <span style={{ color: 'var(--ink)' }}>{tokens}</span>
-        </span>
-        <span className="meta">
-          最慢子节点{' '}
-          <span style={{ color: 'var(--ink)' }}>{slowest ? `${slowest.name} · ${slowest.ms} ms` : '—'}</span>
-        </span>
+        {summary.map((item) => (
+          <span key={item.label} className="meta">
+            {item.label}{' '}
+            <span style={{ color: item.tone ?? 'var(--ink)' }}>{item.value}</span>
+          </span>
+        ))}
       </div>
     </>
   )

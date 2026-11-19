@@ -1,13 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { IconCopy, IconCheck } from '@tabler/icons-react'
+import { IconCheck, IconCopy } from '@tabler/icons-react'
 
-/**
- * 文首工具 · ZK 简洁风：只留「复制本文链接」一枚安静按钮。
- * 分享到 X / 微博的外链矩阵下线（链接本身就在地址栏里）；
- * 复制失败不再谎报成功。无 JS 时由 [data-js-only] 整块摘除。
- */
+// 只留「复制本文链接」一枚安静按钮；复制失败不谎报成功；无 JS 时 data-js-only 整块摘除。
 export function SocialShare({ url }: { url: string }) {
   const [copied, setCopied] = useState(false)
 
@@ -15,6 +11,7 @@ export function SocialShare({ url }: { url: string }) {
     try {
       await navigator.clipboard.writeText(url)
     } catch {
+      // 非安全上下文没有 clipboard API：退到 execCommand，仍失败就保持原样。
       const input = document.createElement('input')
       input.value = url
       document.body.appendChild(input)

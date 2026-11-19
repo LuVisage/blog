@@ -28,6 +28,12 @@ interface Anchor {
   vh: number
 }
 
+const LEGEND = [
+  { heat: 'var(--heat-0)', label: '未更新' },
+  { heat: 'var(--heat-1)', label: '1 篇' },
+  { heat: 'var(--heat-2)', label: '多篇' },
+]
+
 export function PostsCalendar({ posts }: Props) {
   const [tip, setTip] = useState<Anchor | null>(null)
   const tipRef = useRef<HTMLDivElement>(null)
@@ -35,39 +41,30 @@ export function PostsCalendar({ posts }: Props) {
 
   const datePostsMap = useMemo(() => {
     const map = new Map<string, PostMeta[]>()
-    posts.forEach((post) => {
+    for (const post of posts) {
       const key = format(parseISO(post.date), 'yyyy-MM-dd')
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(post)
-    })
+      const bucket = map.get(key)
+      if (bucket) bucket.push(post)
+      else map.set(key, [post])
+    }
     return map
   }, [posts])
 
   const months = useMemo(() => {
     const today = new Date()
-    const result: { days: (Date | null)[]; label: string }[] = []
-
-    for (let i = MONTH_COUNT - 1; i >= 0; i--) {
-      const monthDate = subMonths(today, i)
+    return Array.from({ length: MONTH_COUNT }, (_, i) => {
+      const monthDate = subMonths(today, MONTH_COUNT - 1 - i)
       const start = startOfMonth(monthDate)
-      const end = endOfMonth(monthDate)
-      const days = eachDayOfInterval({ start, end })
-      const startDay = getDay(start)
-      const padded = [...Array(startDay).fill(null), ...days] as (Date | null)[]
-
-      result.push({
-        days: padded,
+      const days = eachDayOfInterval({ start, end: endOfMonth(monthDate) })
+      return {
+        days: [...Array<null>(getDay(start)).fill(null), ...days] as (Date | null)[],
         label: format(monthDate, 'M月', { locale: zhCN }),
-      })
-    }
-
-    return result
+      }
+    })
   }, [])
 
-  const postDates = useMemo(() => new Set(datePostsMap.keys()), [datePostsMap])
-
   // 浮层挂到 body：任何祖先的 transform / overflow 都会给 fixed 建立 containing block
-  // 或把它裁掉（ZK 删掉入场层后实测过格子与浮层错位 341px），挂 body 一劳永逸。
+  // 或把它裁掉，浮层就会和格子错位；挂 body 一劳永逸。
   useLayoutEffect(() => {
     const el = tipRef.current
     if (!el || !tip) return
@@ -80,11 +77,6 @@ export function PostsCalendar({ posts }: Props) {
   }, [tip])
 
   if (posts.length === 0) return null
-
-  const getCellStyle = (hasPost: boolean, isMulti: boolean): React.CSSProperties => {
-    if (!hasPost) return { background: 'var(--heat-0)' }
-    return { background: isMulti ? 'var(--heat-2)' : 'var(--heat-1)' }
-  }
 
   const show = (el: HTMLElement, date: Date, dayPosts: PostMeta[]) => {
     const rect = el.getBoundingClientRect()
@@ -109,15 +101,18 @@ export function PostsCalendar({ posts }: Props) {
                 if (!day) return <div key={`pad-${i}`} style={{ width: 'var(--cal-day)', height: 'var(--cal-day)' }} />
 
                 const key = format(day, 'yyyy-MM-dd')
-                const hasPost = postDates.has(key)
-                const dayPosts = datePostsMap.get(key) || []
-                const isFuture = day > new Date()
+                const dayPosts = datePostsMap.get(key) ?? []
+                const hasPost = dayPosts.length > 0
                 const only = dayPosts.length === 1 ? dayPosts[0] : null
 
                 const cellStyle: React.CSSProperties = {
                   width: 'var(--cal-day)',
                   height: 'var(--cal-day)',
-                  ...(isFuture ? { background: 'transparent' } : getCellStyle(hasPost, dayPosts.length > 1)),
+                  background: day > new Date()
+                    ? 'transparent'
+                    : hasPost
+                      ? (dayPosts.length > 1 ? 'var(--heat-2)' : 'var(--heat-1)')
+                      : 'var(--heat-0)',
                   borderRadius: 'var(--radius-xs)',
                 }
                 const events = {
@@ -185,20 +180,15 @@ export function PostsCalendar({ posts }: Props) {
         document.body
       )}
 
-      {/* Legend */}
       <div
         className="flex items-center gap-5 mt-6 pt-4 meta"
         style={{ borderTop: '1px solid var(--line)' }}
       >
-        <span className="flex items-center gap-2">
-          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-0)', borderRadius: 'var(--radius-xs)' }} /> 未更新
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-1)', borderRadius: 'var(--radius-xs)' }} /> 1 篇
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="w-3 h-3 inline-block" style={{ background: 'var(--heat-2)', borderRadius: 'var(--radius-xs)' }} /> 多篇
-        </span>
+        {LEGEND.map(({ heat, label }) => (
+          <span key={label} className="flex items-center gap-2">
+            <span className="w-3 h-3 inline-block" style={{ background: heat, borderRadius: 'var(--radius-xs)' }} /> {label}
+          </span>
+        ))}
         <span className="ml-auto">{posts.length} 篇</span>
       </div>
     </div>

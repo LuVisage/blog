@@ -1,3 +1,5 @@
+import { Fragment } from 'react'
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
@@ -85,6 +87,12 @@ function Host({ label, value }: { label: string; value: string }) {
   )
 }
 
+const HOST_ROWS = [
+  { label: '名称', value: SITE.title },
+  { label: '地址', value: SITE.url },
+  { label: 'RSS', value: `${SITE.url}/rss.xml` },
+]
+
 export function FriendsSection() {
   return (
     <section id="friends">
@@ -123,11 +131,12 @@ export function FriendsSection() {
         把站点的名称、简介和 RSS 发给我，我会连同你的信息一起登记在上面这份清单里。
       </p>
       <div style={{ borderTop: '1px solid var(--line-strong)' }}>
-        <Host label="名称" value={SITE.title} />
-        <div className="rule" />
-        <Host label="地址" value={SITE.url} />
-        <div className="rule" />
-        <Host label="RSS" value={`${SITE.url}/rss.xml`} />
+        {HOST_ROWS.map((row, i) => (
+          <Fragment key={row.label}>
+            {i > 0 && <div className="rule" />}
+            <Host label={row.label} value={row.value} />
+          </Fragment>
+        ))}
       </div>
       <div className="flex items-center gap-2 mt-8">
         <IconLink size={15} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />
@@ -149,6 +158,18 @@ export function NowSection() {
   const latest = posts[0]
   const updated = latest ? format(parseISO(latest.date), 'yyyy.MM.dd', { locale: zhCN }) : '—'
 
+  const rows: { label: string; value: ReactNode }[] = [
+    { label: '文章', value: `${posts.length} 篇` },
+    { label: '课程', value: `${COURSE_IDS.length} 门 · ${lessons} 篇课次` },
+    {
+      label: '最新一篇',
+      value: latest ? (
+        <Link href={`/posts/${latest.slug}`} className="tint-accent underline underline-offset-2">{latest.title}</Link>
+      ) : '—',
+    },
+    { label: '最近更新', value: updated },
+  ]
+
   return (
     <section id="now">
       <div className="eyebrow mb-2">近况</div>
@@ -157,10 +178,9 @@ export function NowSection() {
       {NOW.personalNote && <p className="body-md max-w-xl mb-6">{NOW.personalNote}</p>}
 
       <div className="slash-page__rows" style={{ borderTop: '1px solid var(--line-strong)' }}>
-        <div><span>文章</span><strong>{posts.length} 篇</strong></div>
-        <div><span>课程</span><strong>{COURSE_IDS.length} 门 · {lessons} 篇课次</strong></div>
-        <div><span>最新一篇</span><strong>{latest ? <Link href={`/posts/${latest.slug}`} className="tint-accent underline underline-offset-2">{latest.title}</Link> : '—'}</strong></div>
-        <div><span>最近更新</span><strong>{updated}</strong></div>
+        {rows.map(({ label, value }) => (
+          <div key={label}><span>{label}</span><strong>{value}</strong></div>
+        ))}
       </div>
       <div className="rule" />
       <p className="body-sm mt-5">

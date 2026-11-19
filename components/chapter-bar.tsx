@@ -7,15 +7,10 @@ import { useTocIndex, useTocSpy } from '@/components/use-toc-spy'
 
 /**
  * ChapterBar —— 窄屏（<xl）常驻的阅读定位条。
- *
- * 第 6 轮之前，移动端目录是页首一个折叠块，滚过第一段就再也回不去；
- * xl 侧栏又要到 1280px 才出现，中间整段阅读没有任何「我在第几节、还剩多少」的提示。
- * 这里把页首折叠换成吸顶常驻条（§11.6 当年否掉的是「再加一套抽屉」，
- * 本条是把已有的那份目录搬到看得见的位置，不新增第二份列表）：
- *   · 章节计数 mono `02/07`
- *   · 当前章节名翻牌进场（200ms ease，只动 opacity/transform，key 换元素重播）
- *   · 底边 1px 阅读比例尺（scaleX 填充，滚动链接不过渡）
- *   · 「目录」开合，面板复用同一个 TocList
+ * xl 侧栏要到 1280px 才出现，页首折叠块滚过第一段就再也回不去，
+ * 中间整段阅读需要一条始终看得见的「我在第几节、还剩多少」提示。
+ * 这不是第二份目录：面板复用同一个 TocList，状态来自单例扫描器（use-toc-spy），
+ * 吸顶常驻只是把已有的那份目录搬到看得见的位置。
  */
 export function ChapterBar() {
   const { headings, activeId, progress } = useTocSpy()

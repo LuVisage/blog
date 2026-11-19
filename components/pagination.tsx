@@ -1,18 +1,15 @@
 import Link from 'next/link'
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 
-/** 第 1 页就是 /posts/，后续页才走 /posts/page/[n]/。 */
+// 第 1 页就是 /posts/，后续页才走 /posts/page/[n]/（静态导出下每页都是真实路由）。
 function hrefFor(page: number): string {
   return page === 1 ? '/posts' : `/posts/page/${page}`
 }
 
-/**
- * 列表分页。静态导出下每一页都是真实路由（见 app/posts/page/[page]），
- * 所以这里只负责渲染链接；窗口算法在页数很多时把中间折成省略号。
- */
 export function Pagination({ current, total }: { current: number; total: number }) {
   if (total <= 1) return null
 
+  // 页数多时把中间折成省略号：首尾 + 当前±1 常驻。
   const items: (number | 'gap')[] = []
   for (let p = 1; p <= total; p++) {
     if (p === 1 || p === total || Math.abs(p - current) <= 1) items.push(p)
