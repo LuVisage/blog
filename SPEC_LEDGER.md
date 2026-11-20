@@ -2716,3 +2716,17 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 证据：build 审计 1160 通过（build-rename3.log）；npm run check rc=0 · discipline 违规 0（gate-rename2-check.log）；contrast 0 处 · scrollbar PASS · narrow 0 · names 全合格 · ZL 全部通过 · ZM 全部通过，整组 0 FAIL（gate-rename2-browser.log）。
 - 目检：shots-rename/ 首页亮暗（红 V 刊头）、about（你好，我是 LuVisage）、文章 byline（LuVisage）、og-default.png 新卡。
 - CRLF：本轮编辑文件逐次归一（constants / header / manifest / og-svg / README / DESIGN）。
+
+### 11.54 简介扩宽 + 巨字主张换嗓 · 写作即思考 → 跑通验收（2026-11-20）
+
+- 用户原话：「我认为你需要再改一下我的简介，因为我不止关注agent，大模型应用，我还关注一些AI算法，CV，NLP这些，同时，写作是最好的思考方式这句话哦我感觉也有点不妥，你看看别的博客是怎么介绍的，参考一下」；嗓音三选回复「[No preference]」→ 落推荐项跑通验收派。追加指令「代码中不要出现emoji」。
+- 参照结论（五标杆实测，ref-*.png 与 blog-reference-sites 记忆）：overreacted 无格言只索引、leerob「I'm an engineer and writer.」+ 使命句、antfu 自述身份与热情、paco「Crafting interfaces.」、yihui 事实自嘲——无人把借来的最高级格言放首页。用户对「写作是最好的思考方式」的不妥直觉成立：借来格言 + 「最好」绝对化。
+- 新主张：巨字「算法要跑通 / 工程要验收。」（红 。锚不变），继承本站「跑通」印章母题，是自己的工程信条；写作降为工具嗓「写作是为了把这两件事讲清楚」，保留写作身份去掉绝对化。关于页 manifesto 同嗓：眉题 MANIFESTO · 从算法到工程、巨字同句、自述两段与 ABOUT.bio 同步。
+- 简介扩宽单一真源 lib/constants.ts：SITE.description / ABOUT.title（AI 算法 · 大模型 · Agent）/ shortBio / bio / NOW.focus / timeline；focusAreas 4→5（新增 AI 算法 首项、desc 点名计算机视觉与自然语言处理；AI 开发工具链 → 工程与工具链）。CV / NLP 进 description / shortBio / bio / focusAreas；title 保持短句保 xl 刊头 wm-sub 不溢出。
+- 视图层同步：app/page.tsx hero 两行巨字 + bio 尾句（lede「我相信」保留，信条作相信宾语）；about 页眉题 / 巨字 / 两段；about-sections 友链邀请句扩到 AI 算法 / 大模型 / Agent。header wm-sub、footer、about masthead 全读 ABOUT.title 自动随动，零硬编码。
+- 静态资产：manifest name/description；og-default.svg 副题 + 底句；og-card.mjs 眉题 / desc / 三栏（01 AI 算法 / 02 大模型应用 / 03 Agent 架构）重生成 og-default.png 并目检；README 两段。feeds 三件套经 prebuild 同源再生。
+- emoji 清零：全仓扫（app/components/lib/public/scripts + README/DESIGN）命中 2 处——og-default.svg 🤖、rss.xsl 💡，均除；复扫 0 命中。台账历史条目保留档案性质。
+- 探针零改动理由：ZL/ZM 身份断言上一轮已改读 SITE（§11.53），本轮文案换嗓自然随动；batchm.mjs 量的是旧版 hero echo 行（终端提示符 / sr-char 已不在源码），属退役探针不在闸链，未动。
+- 证据：npm run check rc=0；build 审计 1160 通过（build-bio.log）；contrast / scrollbar-contrast / narrow-overflow / names / ZL / ZM 六闸 rc=0 · 整组 0 FAIL（gates-bio.log）；ZM 首屏契约不变：眉题 y=163、自述行 y=608、首索引行 top=727、390px wm-sub 隐藏。
+- 目检：shots-bio/ 四张 home/about 亮暗。首轮截图撞 riseIn 半落（首行灰、二行隐）——.hero-h1 .ln > span 有 800ms+200ms 逐行落位，shot 未传 --wait，属截图量具问题非文案回归；--wait=2500 重拍全落位（亮墨 / 暗纸白，红 。与跑通印章在）。
+- CRLF：本轮编辑文件逐次归一（constants / page / about page / about-sections / manifest / og-svg / README / rss.xsl）。

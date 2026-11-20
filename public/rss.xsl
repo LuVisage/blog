@@ -49,7 +49,7 @@
         </xsl:for-each>
 
         <div class="footer">
-          💡 这是一个 RSS Feed，请用 <a href="https://feedly.com" target="_blank">Feedly</a> 或其他 RSS 阅读器订阅。
+          这是一个 RSS Feed，请用 <a href="https://feedly.com" target="_blank">Feedly</a> 或其他 RSS 阅读器订阅。
         </div>
       </body>
     </html>

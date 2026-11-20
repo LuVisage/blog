@@ -22,12 +22,12 @@
   </text>
   <!-- Subtitle -->
   <text x="600" y="370" text-anchor="middle" font-family="'Noto Sans SC', sans-serif" font-size="28" fill="#888">
-    AI 探索者 &amp; Agent 开发者
+    AI 算法 · 大模型 · Agent
   </text>
   <!-- Divider -->
   <line x1="450" y1="420" x2="750" y2="420" stroke="#555" stroke-width="1" opacity="0.5"/>
   <!-- Bottom text -->
   <text x="600" y="480" text-anchor="middle" font-family="'Noto Sans SC', sans-serif" font-size="20" fill="#666">
-    分享 AI Agent 开发实战经验 🤖
+    从算法到工程 · 跑通与验收
   </text>
 </svg>

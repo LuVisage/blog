@@ -63,17 +63,17 @@ export default function AboutPage() {
               <div className="shead" style={{ flexWrap: 'wrap' }}>
                 <span className="snum" aria-hidden="true">01</span>
                 <h2>自述</h2>
-                <span className="smeta">MANIFESTO · 写作即思考</span>
+                <span className="smeta">MANIFESTO · 从算法到工程</span>
               </div>
               <p className="ptitle" style={{ marginTop: 'var(--space-8)' }}>
-                写作是最好的<br />思考方式<span style={{ color: 'var(--accent-text)' }}>。</span>
+                算法要跑通<br />工程要验收<span style={{ color: 'var(--accent-text)' }}>。</span>
               </p>
               <div className="prose" style={{ marginTop: 'var(--space-24)' }}>
                 <p>
-                  我专注于 AI Agent 开发与大模型应用实践。在这个博客里，我分享 AI 开发中的实战经验与技术思考，记录构建智能体应用的探索过程。
+                  我关注 AI 算法与工程实践：计算机视觉、自然语言处理、大模型应用与 Agent 架构。在这个博客里，我分享从算法到工程的实战经验与技术思考，记录把东西跑通、把工程验收的过程。
                 </p>
                 <p>
-                  我相信<strong>写作是最好的思考方式</strong>。通过写作，我能更深入地理解技术本质，也希望能帮助到同样在这条路上探索的朋友。
+                  我相信<strong>算法要跑通，工程要验收</strong>。跑通是底线，验收是标准；写作是为了把这两件事讲清楚，也希望能帮助到同样在这条路上探索的朋友。
                 </p>
               </div>
             </section>

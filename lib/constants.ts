@@ -45,7 +45,7 @@ export const THEME_COLORS = {
 
 export const SITE = {
   title: 'LuVisage',
-  description: 'AI 探索者 & Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。',
+  description: 'AI 算法与工程实践笔记。关注 CV、NLP、大模型应用与 Agent 架构，从算法到工程，记录跑通与验收的过程。',
   url: `${SITE_ORIGIN}${DEPLOY_BASE_PATH}`,
   repo: 'https://github.com/LuVisage/blog',
   author: {
@@ -183,8 +183,9 @@ export const PROJECTS: Project[] = [
 export const NOW = {
   personalNote: '',
   focus: [
-    'AI Agent 架构与多 Agent 协作',
+    'AI 算法：CV、NLP 与深度学习实践',
     '大模型应用：RAG、工具调用与工程化',
+    'AI Agent 架构与多 Agent 协作',
     '技术写作：把跑通的东西讲清楚',
   ],
 } as const
@@ -205,22 +206,23 @@ export const USES = {
 
 export const ABOUT = {
   greeting: '你好，我是 LuVisage',
-  title: 'AI 探索者 & Agent 开发者',
-  shortBio: '关注大模型应用、Agent 架构与工程实践，也记录把技术讲清楚的过程。',
+  title: 'AI 算法 · 大模型 · Agent',
+  shortBio: '关注 AI 算法、CV、NLP、大模型应用与 Agent 架构。',
   bio: `
-我专注于 AI Agent 开发与大模型应用实践。在这个博客里，我分享 AI 开发中的实战经验与技术思考，记录构建智能体应用的探索过程。
+我关注 AI 算法与工程实践：计算机视觉、自然语言处理、大模型应用与 Agent 架构。在这个博客里，我分享从算法到工程的实战经验与技术思考，记录把东西跑通、把工程验收的过程。
 
-我相信 **写作是最好的思考方式**。通过写作，我能更深入地理解技术本质，也希望能帮助到同样在这条路上探索的朋友。
+我相信 **算法要跑通，工程要验收**。跑通是底线，验收是标准；写作是为了把这两件事讲清楚，也希望能帮助到同样在这条路上探索的朋友。
 
 目前主要关注的方向：`,
   focusAreas: [
-    { icon: 'robot', title: 'AI Agent 架构', desc: '多 Agent 协作、工具调用、Agent 框架' },
+    { icon: 'brain', title: 'AI 算法', desc: '计算机视觉、自然语言处理与深度学习实践' },
     { icon: 'brain', title: '大模型应用', desc: 'Prompt Engineering、RAG、Fine-tuning' },
-    { icon: 'tools', title: 'AI 开发工具链', desc: '框架评测、开发效率提升' },
-    { icon: 'pencil', title: '技术写作', desc: '将复杂的 AI 概念用通俗的语言讲清楚' },
+    { icon: 'robot', title: 'AI Agent 架构', desc: '多 Agent 协作、工具调用、Agent 框架' },
+    { icon: 'tools', title: '工程与工具链', desc: '框架评测、开发效率、跑通与验收' },
+    { icon: 'pencil', title: '技术写作', desc: '把复杂的 AI 概念用通俗的语言讲清楚' },
   ],
   skills: ['Python', 'TypeScript', 'React', 'Next.js', 'LangChain', 'OpenAI API', 'Docker', 'Git'],
   timeline: [
-    { year: '2026', title: '搭建个人博客', description: '用 Next.js 构建技术写作平台，开始 AI Agent 开发之旅' },
+    { year: '2026', title: '搭建个人博客', description: '用 Next.js 构建技术写作平台，记录从算法到工程的实践' },
   ],
 }

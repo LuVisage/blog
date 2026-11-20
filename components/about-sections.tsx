@@ -130,7 +130,7 @@ export function FriendsSection() {
       )}
 
       <p className="body-md max-w-xl mb-8">
-        如果你也在写 AI、Agent 或工程实践方向的博客，欢迎交换友链。
+        如果你也在写 AI 算法、大模型、Agent 或工程实践方向的博客，欢迎交换友链。
         把站点的名称、简介和 RSS 发给我，我会连同你的信息一起登记在上面这份清单里。
       </p>
       <div style={{ borderTop: '1px solid var(--line-strong)' }}>

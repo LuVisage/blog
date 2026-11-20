@@ -4,7 +4,7 @@
   <channel>
     <title>LuVisage</title>
     <link>https://LuVisage.github.io/blog/</link>
-    <description>AI 探索者 &amp; Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。</description>
+    <description>AI 算法与工程实践笔记。关注 CV、NLP、大模型应用与 Agent 架构，从算法到工程，记录跑通与验收的过程。</description>
     <language>zh-CN</language>
     <lastBuildDate>Wed, 16 Sep 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://LuVisage.github.io/blog/rss.xml" rel="self" type="application/rss+xml"/>

@@ -54,11 +54,11 @@ export default function HomePage() {
             <p className="hero-eyebrow">{SITE.title} — {ABOUT.title}</p>
             <p className="hero-lede">我相信</p>
             <h1 className="hero-h1">
-              <span className="ln"><span>写作是最好的</span></span>
-              <span className="ln"><span>思考方式<i className="dot">。</i></span></span>
+              <span className="ln"><span>算法要跑通</span></span>
+              <span className="ln"><span>工程要验收<i className="dot">。</i></span></span>
             </h1>
             <p className="hero-bio">
-              {ABOUT.shortBio}从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。
+              {ABOUT.shortBio}跑通是底线，验收是标准；写作是为了把这两件事讲清楚。
             </p>
             <p className="hero-attr">
               —— 作者自述 · <Link href="/about" className="no-underline" style={{ color: 'inherit' }}>ABOUT</Link>
