@@ -2774,3 +2774,12 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 证据：npm run check rc=0（check-nocap.log；lint 唯一 warning 为 archive 页既有 yearIdx，非本批引入）；build rc=0 · 审计 1164 文件 / 741 文本产物 0 命中（build-nocap.log）。六闸 rc=0 · 整组 0 FAIL（gate-*-nocap.log）：ZM「01 最新文章标题入首屏（首行 top=731）」「900px 首屏完整 1 行 / 起 2 行」。vitals 独跑 VITALS_ONLY='/,/learn/,/about/'（MSYS_NO_PATHCONV=1）：6 视图 CLS 0.0000 · 最慢交互 16ms（闸 200ms）· PASS（vitals-nocap.log）。
 - 目检六张（shots-fig/）：home-nocap-light（首屏右栏横 banner 无图注、新简介与 01 首行未被挤出）、band-nocap-dark（黑带恢复关注方向 + 订阅两栏、无机器人）、404-nocap-light（云上之城无图注）、bookmarks-nocap-light（EmptyState 夜城无图注）、learn-nocap-bottom（主栏止于「进度是怎么存的 / 还有一件事」两栏即接页脚、无白日城市）、about-nocap-plate（滚至侧栏像素黄昏、无图注）。about-nocap-light 与改前 about-bio-light 字节相同系图版在首屏外、首屏截图自然不变，非缺陷；补滚动态截图作实据。
 - CRLF 归一：components/figure-plate.tsx、app/page.tsx、app/learn/page.tsx、app/not-found.tsx、app/about/page.tsx、components/ui/empty-state.tsx、app/globals.css、SPEC_LEDGER.md。
+
+## 11.58 黑带出血：去掉容器留下的纸色画框（批次 73）
+
+- 作者指认（附首页黑带截图）：「这里这个边框你不觉得不合适吗」。实缺陷：.darkband 是 main#main-content（1400px 居中 + lg:px-8，layout.tsx:132）的子区块，背景只铺内容宽 1336 → 视口左右各留 52px 纸色画框，黑带读作嵌进去的框而非通栏色带；容器外的 footer 本是通栏，两者节奏不一致。左栏文字贴黑带边（52px 即页面网格左缘）的对齐本身没错，错的是背景没到视口边。
+- 修法（只动 CSS，布局宽度不变）：.darkband 的 background 移入 ::before（position:absolute; top/bottom:0; left/right:calc(50% - 50vw); z-index:-1）出血到视口两边；.darkband 改 position:relative、不再自带 background。内容仍落页面网格 52px，出血后自然获得正常栏距。html/body overflow-x:clip 既有（globals.css:336）兜住出血不产生横向滚动；50vw 含经典滚动条宽时公式自校正（内容缘始终等于 main 内容缘）。
+- 几何实证（shot.mjs --eval 回报）：1440 下 scrollWidth=clientWidth=1440、.darkband 布局 left=52 不变、::before left=-52px（背景到 0）；390 下 scrollWidth=clientWidth=390，无横向溢出。
+- 证据：build rc=0（build-band.log）；六闸 rc=0 · 整组 0 FAIL（gate-*-band.log），ZM「首行 top=731」「900px 首屏完整 1 行 / 起 2 行」不变（布局未动，符合预期）；vitals 独跑 VITALS_ONLY='/'（黑带仅首页，MSYS_NO_PATHCONV=1）：2 视图 CLS 0.0000 · 最慢交互 24ms（闸 200ms）· PASS（vitals-band.log）。
+- 目检三张（shots-fig/）：band-band-light（通栏黑带、纸色只留区块上下节奏、左栏 52px 栏距）、band-band-dark（暗色通栏与 footer 同节奏）、band-band-390（窄屏通栏单列、feeds 2+1 换行、无横向溢出）。
+- CRLF 归一：app/globals.css、SPEC_LEDGER.md。

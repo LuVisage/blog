@@ -2139,10 +2139,22 @@ figure[data-rehype-pretty-code-figure]:hover {
 
 /* 反转黑带：关注方向 × 订阅。亮暗两模式都是深面。 */
 .darkband {
-  background: var(--footer-bg);
+  position: relative;
   color: var(--footer-ink);
   margin-top: var(--space-96);
   padding: var(--space-64) 0;
+}
+/* 背景出血到视口两边：黑带在居中容器内，只铺内容宽会留一圈纸色画框；
+   伪元素出血不动布局宽度，内容仍对齐页面网格。 */
+.darkband::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 50vw);
+  right: calc(50% - 50vw);
+  background: var(--footer-bg);
+  z-index: -1;
 }
 .dark-grid { display: grid; grid-template-columns: 7fr 5fr; gap: var(--space-64); align-items: start; }
 .dark-k {
