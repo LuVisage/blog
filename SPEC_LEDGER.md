@@ -2795,3 +2795,11 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 目检四张：public/og-default.png 与 shots-fig/og-svg-preview.png（render-svg.mjs 光栅化；wrapper.html 在 img-candidates/，量具按 --in 同目录找它，需拷 svg 进去）、band-og-dark（上下墨线收边、通栏节奏与 footer 一致）、band-og-light（亮色无边框、与批 73 同）。
 - 遗留如实记：多数社交平台 OG 抓取不渲染 SVG（Twitter / Facebook / 微信），lesson 分享卡要真正生效需把 lib/lesson-page.ts:41 指到 png——lib 锁定，待另批批准；本批只保证 svg 与 png 同嗓同版面。
 - CRLF 归一：app/globals.css、SPEC_LEDGER.md。
+
+## 11.60 首页巨字换作者新信条（批次 75）
+
+- 作者原话：「帮我把首页大字改为"问题不大，我们再来！"」。范围仅首页 hero 巨字；about 页信条、OG 图版信条（og-card.mjs 与 public/og-default.*）、台账旧引均不动。
+- 改法：app/page.tsx hero h1 两行换为「问题不大，」／「我们再来！」；句末「！」沿用 i.dot 红点母题（.hero-h1 .dot 取 --accent-text），行内逗号留墨色。两行各 5 字形（含标点），行数与字号不变 → 首屏密度契约不动。
+- 证据：build rc=0（build-hero.log）；六闸 rc=0 整组 0 FAIL（gate-*-hero.log）：ZM 眉题 y=163、ABOUT 行 y=608、01 首行 top=731、900px 首屏完整 1 行 / 起 2 行，与批 72–74 同值。vitals 独跑 VITALS_ONLY='/' rc=0 PASS：2 站 CLS 0.0000（0 条）、最慢交互 16ms（闸 200）、字体 0/20 系统栈（vitals-hero.log）。
+- 目检三张：shots-fig/home-hero-light.png / home-hero-dark.png / home-hero-390.png（--wait=2500 等 riseIn 落定）：明/暗两模式巨字两行成立、红「！」在位（暗色取暗嗓 accent）、390 无横溢、右栏 LATEST / LEARN / 夜城图版与 01 区块对位不变。
+- CRLF 归一：app/page.tsx、SPEC_LEDGER.md。

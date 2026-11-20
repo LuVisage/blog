@@ -56,8 +56,8 @@ export default function HomePage() {
             <p className="hero-eyebrow">{SITE.title} — {ABOUT.title}</p>
             <p className="hero-lede">我相信</p>
             <h1 className="hero-h1">
-              <span className="ln"><span>算法要跑通</span></span>
-              <span className="ln"><span>工程要验收<i className="dot">。</i></span></span>
+              <span className="ln"><span>问题不大，</span></span>
+              <span className="ln"><span>我们再来<i className="dot">！</i></span></span>
             </h1>
             <p className="hero-bio">{ABOUT.bio}</p>
             <p className="hero-attr">
