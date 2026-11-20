@@ -2156,6 +2156,12 @@ figure[data-rehype-pretty-code-figure]:hover {
   background: var(--footer-bg);
   z-index: -1;
 }
+/* 暗色下黑带与页面底色几乎同色，区块边界只剩极弱色阶；
+   上下收一条与 footer 顶边同款的墨线，保住通栏节奏。 */
+.dark .darkband::before {
+  border-top: 1px solid var(--footer-line);
+  border-bottom: 1px solid var(--footer-line);
+}
 .dark-grid { display: grid; grid-template-columns: 7fr 5fr; gap: var(--space-64); align-items: start; }
 .dark-k {
   font-family: var(--font-mono);

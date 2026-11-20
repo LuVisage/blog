@@ -2783,3 +2783,15 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 证据：build rc=0（build-band.log）；六闸 rc=0 · 整组 0 FAIL（gate-*-band.log），ZM「首行 top=731」「900px 首屏完整 1 行 / 起 2 行」不变（布局未动，符合预期）；vitals 独跑 VITALS_ONLY='/'（黑带仅首页，MSYS_NO_PATHCONV=1）：2 视图 CLS 0.0000 · 最慢交互 24ms（闸 200ms）· PASS（vitals-band.log）。
 - 目检三张（shots-fig/）：band-band-light（通栏黑带、纸色只留区块上下节奏、左栏 52px 栏距）、band-band-dark（暗色通栏与 footer 同节奏）、band-band-390（窄屏通栏单列、feeds 2+1 换行、无横向溢出）。
 - CRLF 归一：app/globals.css、SPEC_LEDGER.md。
+
+## 11.59 OG 排字图版换嗓统一 + 暗色黑带墨线收边（批次 74）
+
+- 作者批准顺序（「可以就这么做吧」）：先 OG 统一、再暗色黑带收边；D6 内容锁未批解锁 → 不动。
+- OG 实缺陷两层：① public/og-default.svg 仍是旧暗渐变（#1a1a2e→#0f3460 + 灰字圆斑），lesson OG 经 lib/lesson-page.ts:41 在用；② og-card.mjs 自身令牌停在 ZI 旧嗓（#faf9f5 / #b4442f / Space Grotesk），即 og-default.png 也与 A 方向纸面红嗓不一致。lib/ 锁定不动 → 只换资产与生成脚本。
+- 修法：og-card.mjs 重写为当前亮色令牌逐条对应（canvas #f6f5f1 / ink #101010 / prose #161615 / secondary #55534e / hair #d6d4cd / mark #a9a7a0 / red #c82217；宋体展示 + mono 索引 + 黑体 UI 三嗓），绝对坐标骨架一份，同源产出 png（Playwright 截图）与 svg（同坐标 text 基线），两资产由构造不再漂移。版面＝巨字信条「算法要跑通 / 工程要验收。」红句号 + 4px 红规 + 作者原话简介两行 + 三方向栏（mono 红索引）+ 裁切 mark + 跑通红印 + mono 页脚 URL。
+- 基线对齐修正：首版 png 栏名基线比 svg 高 21px（HTML .name top 21 误对 svg 532 基线）→ top 42 复跑，两版目检同版面。
+- 暗色收边：.dark .darkband::before 上下 1px var(--footer-line)（#3a3a38，与 footer 顶边同款）；亮色不加（纸→黑步阶已够强）。计算值实测：暗 border-top 1px rgb(58,58,56)、亮 0px。
+- 证据：build rc=0 · 审计 1164 文件 / 741 文本产物 0 命中（build-og.log）；六闸 rc=0 · 整组 0 FAIL（gate-*-og.log），ZM 首行 top=731 / 完整 1 起 2 不变。vitals 独跑 VITALS_ONLY='/'：首跑 rc=1 FAIL「整轮 0 个带 interactionId 的 event」＝交互腿空转、非超闸；本批改动（OG 资产 + 仅暗色边框）不触首页亮色 DOM，上批同面 vitals-band 有 1 次交互 → 先疑量具偶发，静机复跑 rc=0 PASS（1 次交互 24ms 与上批同值；vitals-og.log 与 vitals-og2.log 双记，不藏首跑 FAIL）。
+- 目检四张：public/og-default.png 与 shots-fig/og-svg-preview.png（render-svg.mjs 光栅化；wrapper.html 在 img-candidates/，量具按 --in 同目录找它，需拷 svg 进去）、band-og-dark（上下墨线收边、通栏节奏与 footer 一致）、band-og-light（亮色无边框、与批 73 同）。
+- 遗留如实记：多数社交平台 OG 抓取不渲染 SVG（Twitter / Facebook / 微信），lesson 分享卡要真正生效需把 lib/lesson-page.ts:41 指到 png——lib 锁定，待另批批准；本批只保证 svg 与 png 同嗓同版面。
+- CRLF 归一：app/globals.css、SPEC_LEDGER.md。
