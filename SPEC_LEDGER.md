@@ -2725,8 +2725,26 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 简介扩宽单一真源 lib/constants.ts：SITE.description / ABOUT.title（AI 算法 · 大模型 · Agent）/ shortBio / bio / NOW.focus / timeline；focusAreas 4→5（新增 AI 算法 首项、desc 点名计算机视觉与自然语言处理；AI 开发工具链 → 工程与工具链）。CV / NLP 进 description / shortBio / bio / focusAreas；title 保持短句保 xl 刊头 wm-sub 不溢出。
 - 视图层同步：app/page.tsx hero 两行巨字 + bio 尾句（lede「我相信」保留，信条作相信宾语）；about 页眉题 / 巨字 / 两段；about-sections 友链邀请句扩到 AI 算法 / 大模型 / Agent。header wm-sub、footer、about masthead 全读 ABOUT.title 自动随动，零硬编码。
 - 静态资产：manifest name/description；og-default.svg 副题 + 底句；og-card.mjs 眉题 / desc / 三栏（01 AI 算法 / 02 大模型应用 / 03 Agent 架构）重生成 og-default.png 并目检；README 两段。feeds 三件套经 prebuild 同源再生。
-- emoji 清零：全仓扫（app/components/lib/public/scripts + README/DESIGN）命中 2 处——og-default.svg 🤖、rss.xsl 💡，均除；复扫 0 命中。台账历史条目保留档案性质。
+- emoji 清零：全仓扫（app/components/lib/public/scripts + README/DESIGN）命中 2 处——og-default.svg U+1F916、rss.xsl U+1F4A1，均除；复扫 0 命中。台账历史条目保留档案性质（本行原字面字符亦改码点记法，避免证据行自触 emoji 闸）。
 - 探针零改动理由：ZL/ZM 身份断言上一轮已改读 SITE（§11.53），本轮文案换嗓自然随动；batchm.mjs 量的是旧版 hero echo 行（终端提示符 / sr-char 已不在源码），属退役探针不在闸链，未动。
 - 证据：npm run check rc=0；build 审计 1160 通过（build-bio.log）；contrast / scrollbar-contrast / narrow-overflow / names / ZL / ZM 六闸 rc=0 · 整组 0 FAIL（gates-bio.log）；ZM 首屏契约不变：眉题 y=163、自述行 y=608、首索引行 top=727、390px wm-sub 隐藏。
 - 目检：shots-bio/ 四张 home/about 亮暗。首轮截图撞 riseIn 半落（首行灰、二行隐）——.hero-h1 .ln > span 有 800ms+200ms 逐行落位，shot 未传 --wait，属截图量具问题非文案回归；--wait=2500 重拍全落位（亮墨 / 暗纸白，红 。与跑通印章在）。
 - CRLF：本轮编辑文件逐次归一（constants / page / about page / about-sections / manifest / og-svg / README / rss.xsl）。
+
+## §11.55 装饰配图：CC0 动漫卡通谱系三张印刷图版
+
+- 用户原话：「代码中不要出现emoji」＋「帮我在网上找一下好看的，可商用的，高清的配图放到我的博客里做装饰，尽量是动漫卡通风的」。
+- 寻源约束（实测）：Pixabay / Pexels / Unsplash / Wikimedia / Openverse 源页 403 / SSL 被拦 → 许可不可自核 → 全拒；Openclipart 详情页可达、全站 CC0（schema.org license 字段）；其 PNG 仅 800px（2000px 选项 302 回 800）→ 高清走 SVG 矢量本地光栅化（render-svg.mjs，dsf=2），零新依赖。
+- 七候选下载渲预览目检，取三拒四：取 c9 Sky City（漫画木刻墨笔 → 404）、c4 Parallax Mountain At Dusk Pixel Art（像素卡通 → about 侧栏）、c8 Generic Skyline At Night（扁平卡通暖窗灯 → 空态地平线）；拒 c1 画家_halftone（非卡通且色噪）、c11 氰蓝过吵、c12 clipart 脸苦、c2 单笔山太 logo。真·动漫风在本网络约束下不可达，最接近的可商用谱系＝漫画墨笔 / 像素 / 扁平卡通，如实说明不冒充。
+- 许可自核（WebFetch 详情页亲读 schema.org，不转信代理口述）：三页均 "license":"https://creativecommons.org/publicdomain/zero/1.0/"；作者 j4p4n / GDJ / GDJ。c8 页注「derived from an image on Pixabay」——CC0 声明覆盖该矢量重绘版，源链记档。出处：
+  https://openclipart.org/detail/328123/sky-city
+  https://openclipart.org/detail/310202/parallax-mountain-at-dusk-pixel-art
+  https://openclipart.org/detail/310835/generic-skyline-at-night
+- 成品（public/fig/，入 git）：sky-city.webp 1280×790 · 93,498B；pixel-dusk.png 600×353 · 65,142B（nearest 近整数倍缩样，optimize-img.mjs 新增 --nearest 开关）；night-skyline.webp 1040×470 · 57,988B。均 ≤100KB，对显示宽 560 / 280 / 520 css 足 2x retina。
+- 落位语言＝印刷图版：components/figure-plate.tsx（1px --line-strong 墨框 + .plate-img 宽满高自适 + .plate-cap mono 图注「FIG. 编号 — 题名 · 作者 · CC0 出处链接」）；width/height 写死防 CLS；loading=lazy decoding=async；alt 中文描述画面；print 隐藏。三槽：404 左栏 FIG.404 云上之城（地址在云上）、about 侧栏 FIG.01 像素黄昏、EmptyState FIG.00 夜城天际线（空房地平线，search / bookmarks 等空态共享）。首页 hero 冻结契约未碰。
+- emoji 闸自触修正：§11.54 证据行原字面写了被除的两枚 emoji，check:emoji 扫台账命中 → 改码点记法 U+1F916 / U+1F4A1，证据保留且闸过。
+- 证据：npm run check rc=0（含 emoji 闸自触修正后复跑）；build rc=0 · 审计 1163 通过（build-fig.log）。六闸 rc=0 · 整组 0 FAIL（gates-fig.log）：contrast 低于 AA 可见文字 0（压图片 0）；ZM 首屏契约不变（首索引行 top=727 / wordmark LUVISAGE / 390px wm-sub 隐藏）。
+- vitals 独跑 VITALS_ONLY=/about/（MSYS_NO_PATHCONV=1 防路径改写）：2 视图 CLS 0.0000（0 条位移）· 最慢交互 16ms（闸 200ms）· PASS（vitals-fig.log）。不全站跑的理由：新图版只落 about / 404 / EmptyState 系；探针站列里仅 /about/ 含新图版；404 非 2xx 被 vitals 规则判 dead、bookmarks 不在站列——这两处 CLS 由 width/height 写死 + lazy 预留保证，截图目检落位稳定。focusvis 不跑的理由：新增交互元素仅图注 CC0 出处链接，与既有外链（GitHub 按钮等，focusvis 已覆盖）同 markup 同全局焦点样式。
+- 目检八张（shots-fig/）：404 明暗、about 明暗、search 明暗（初态未变）、bookmarks 明暗（EmptyState 图版）。404 走 /blog/404.html 直求：本地 serve-out.mjs 对未知路径回裸 h1（serve-out.mjs:53-54），量具局限非站点缺陷；生产 GH Pages 未知路径走 404.html。
+- 量具教训两条：① shot.mjs --eval 的包装是 return (expr)，expr 必须自调用（传函数体则返回函数对象、序列化 undefined）；② EmptyState 真实使用面六处（bookmarks / categories / archive / series / post-list / tag-index），search 空房是独立 markup 不走该组件——纠正旧摘要误记，search 无结果房保持原设计不动。
+- CRLF 归一：components/figure-plate.tsx、app/globals.css、app/not-found.tsx、app/about/page.tsx、components/ui/empty-state.tsx、SPEC_LEDGER.md。

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { FigurePlate } from '@/components/figure-plate'
 
 interface EmptyStateProps {
   className?: string
@@ -55,6 +56,17 @@ export function EmptyState({
       <h3 className="heading-2 mb-3">{title}</h3>
       <p className="body-sm mb-8 max-w-sm mx-auto">{description}</p>
       {actionNode}
+      <FigurePlate
+        className="mt-12 mx-auto max-w-[520px]"
+        src="/fig/night-skyline.webp"
+        alt="扁平卡通风格的夜晚城市天际线剪影，楼群亮着暖黄与红色窗灯"
+        width={1040}
+        height={470}
+        fig="00"
+        caption="夜城天际线"
+        author="GDJ"
+        source="https://openclipart.org/detail/310835/generic-skyline-at-night"
+      />
     </div>
   )
 }

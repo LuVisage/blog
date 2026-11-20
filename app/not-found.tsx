@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { NAV_LINKS } from '@/lib/constants'
+import { FigurePlate } from '@/components/figure-plate'
 
 export default function NotFound() {
   return (
@@ -36,6 +37,17 @@ export default function NotFound() {
             <Link href="/posts" className="btn-secondary">全部文章</Link>
             <Link href="/archive" className="btn-ghost">按时间翻</Link>
           </div>
+          <FigurePlate
+            className="mt-10 max-w-[560px]"
+            src="/fig/sky-city.webp"
+            alt="漫画木刻笔触的浮空城市：云海上林立着复古未来的楼群"
+            width={1280}
+            height={790}
+            fig="404"
+            caption="云上之城"
+            author="j4p4n"
+            source="https://openclipart.org/detail/328123/sky-city"
+          />
         </div>
 
         <nav aria-label="站点栏目">

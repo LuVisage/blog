@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { SITE, ABOUT, SOCIAL_LINKS, EMAIL_OBFUSCATED } from '@/lib/constants'
 import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 import { AvatarImage } from '@/components/avatar-image'
+import { FigurePlate } from '@/components/figure-plate'
 import { PageMasthead } from '@/components/page-masthead'
 import { ProjectsSection, FriendsSection, NowSection } from '@/components/about-sections'
 import { IconBrandGithub, IconMail, IconArrowRight } from '@tabler/icons-react'
@@ -210,6 +211,17 @@ export default function AboutPage() {
                 <IconArrowRight size={14} strokeWidth={1.75} style={{ color: 'var(--muted)' }} />
               </Link>
             </div>
+            <FigurePlate
+              className="mt-6"
+              src="/fig/pixel-dusk.png"
+              alt="像素画风的黄昏山谷：藕紫色天空、奶油色月亮与松林剪影"
+              width={600}
+              height={353}
+              fig="01"
+              caption="像素黄昏"
+              author="GDJ"
+              source="https://openclipart.org/detail/310202/parallax-mountain-at-dusk-pixel-art"
+            />
           </aside>
         </div>
       </div>

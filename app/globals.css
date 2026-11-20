@@ -2453,9 +2453,16 @@ figure[data-rehype-pretty-code-figure]:hover {
   header, footer, .chapter-bar,
   .toc, .index-rail, .back-to-top, .btn-primary, .btn-secondary, .btn-ghost,
   .apple-filters, .apple-pagination, .reading-progress, .heading-anchor,
-  .darkband, .hero-side, [data-js-only] { display: none !important; }
+  .darkband, .hero-side, .plate, [data-js-only] { display: none !important; }
   #main-content { max-width: none !important; padding: 0 !important; }
   .pwrap { display: block !important; }
   .slash-page, .prose { max-width: none; }
   a { text-decoration: underline; }
 }
+
+/* ── 25. Figure plates：装饰插画按印刷图版落位 ─────────────────────────── */
+.plate { border: 1px solid var(--line-strong); background: var(--surface); }
+.plate-img { display: block; width: 100%; height: auto; }
+.plate-cap { border-top: 1px solid var(--line); padding: 7px 10px; text-align: left; }
+.plate-cap a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.plate-cap a:hover { color: var(--accent-text); }
