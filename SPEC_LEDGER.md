@@ -2815,3 +2815,20 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 证据：build rc=0（build-shi.log）；六闸 rc=0 整组 0 FAIL（gate-*-shi.log）：ZM 眉题 y=163 / 自述 y=572 / 首行 top=731 / 完整 1 起 2。vitals 独跑 VITALS_ONLY='/' rc=0 PASS：2 站 CLS 0.0000、最慢交互 16ms、字体 0/20（vitals-shi.log）。
 - 目检六张：home-shi-light / dark / 390 / reduced（照片层限 h1 盒、脸部在巨字间、reduced 下字压照片）+ band-shi-light / dark（白道归零、暗色仅留 footer 同款墨线）。
 - CRLF 归一：app/page.tsx、app/globals.css、SPEC_LEDGER.md。
+
+## 11.62 信条整块背景换彩色照片（透明度 + 朦胧）（批次 77）
+
+- 作者原话：「把这里整块背景都换成一张石宇奇图片吧，不要灰的，你加点透明度或者朦胧感就行」。范围＝hero 信条整块（巨字 + 自述 + 署名，即作者截图裁切范围）；眉题与右栏仍落净纸面。
+- 结构：新增 .hero-creed 包 h1/bio/attr，图层自 h1 内移为 creed 首子；层级照片 z0 / scrim z1 / 文字 z2（.hero-creed > :not(.hero-photo) 相对定位 z2）。去 grayscale，改 blur(2px) saturate(1.05) 朦胧；亮 multiply 0.45 / 暗 screen 0.22 + brightness(0.9)；径向淡出保留；object-position 50% 30%。
+- 分区 scrim（.hero-creed::after，color-mix var(--canvas)）：巨字段 42%（暗 45%）留彩色 wash，自述/署名段 88→93%（暗 86→92%）把底色收近纸面/暗面，保 --muted 小字 ≥4.5:1（最坏估算亮自述区 ≈4.9:1、暗 ≈4.7:1；巨字区墨字/红！远超基线）。梯度步 70%/78%。
+- 窄屏缺陷与修（目检抓出，如实记）：390 下巨字只占 creed 块约四成，70/78 步落在自述中段，自述首行落 42% wash ≈3.9:1 → ≤560 另加一组步 40%/46%，重截 390 明/暗确认自述落高权重区。
+- 清理：批 76 加在 .hero-h1 与 .ln 的 position:relative 已被 creed 层级取代，删除；print 隐藏列表加 .hero-creed::after。
+- 证据：build rc=0（build-color.log）；六闸 rc=0 整组 0 FAIL（gate-*-color.log），ZM 首行 top=731 / 完整 1 起 2 不变；vitals 独跑 rc=0 PASS CLS 0.0000 最慢 16ms（vitals-color.log）。
+- 目检五张：home-color-light / dark / 390（修前，缺陷证据）/ 390（修后）/ 390-dark。
+- CRLF 归一：app/page.tsx、app/globals.css、SPEC_LEDGER.md。
+- 源码纪律收口（首跑 FAIL 如实记）：首轮 npm run check rc=1，ui-discipline R4 语汇 ×4——.hero-creed::after 与 .dark .hero-creed::after（含 ≤560 media 组）内联 linear-gradient（app/globals.css:1790/1799/1831/1840）。闸自身语汇：渐变只准定义在 --gradient-* / --hero-* 令牌里、组件用 var() 引用；按语汇修、不松闸。:root 与 .dark 各新增 --hero-creed-scrim / --hero-creed-scrim-narrow（步值与重构前完全相同：亮 42/42@70/88@78/93@100、narrow 42/42@40/88@46/93@100；暗 45/45@70/86@78/92@100、narrow 45/45@40/86@46/92@100），.hero-creed::after 改 background: var(--hero-creed-scrim)，media 内只留 var(--hero-creed-scrim-narrow)，删 .dark 组件级两条（暗色靠令牌翻值）；page.tsx 头注释「灰度」顺改「彩色」。
+- 复验（令牌版）：build rc=0（build-token.log）；六闸 rc=0（gate-*-token.log）；--eval 读 getComputedStyle(.hero-creed,'::after').backgroundImage 得 linear-gradient(canvas 42%…)，证 var() 解析非 none；目检四张 home-token-light / dark / 390 / 390-dark 与重构前一致（彩色球衣可见、自述落高权重区）。
+- vitals 三记录（空跑如实记）：vitals-token.log、vitals-token2.log 均 FAIL「整轮一个带 interactionId 的 event 都没收到」。归因量具侧：观测阈 durationThreshold=16，首页交互腿本就靠一条悬阈值的 Escape keydown 撑（color/shi 版 PASS 同样只有这一条 16ms），机器偏快时落阈下被滤掉，非站点回归。改走既定严格静窗流程 quiet-vitals-strict.sh（sample 118 入窗 load=0）→ vitals-token3.log PASS：2 站 CLS 0.0000、INP 16ms/16ms。
+- 量具修（闸判定标准不动）：strict 脚本 curl -o /dev/null 在 MSYS_NO_PATHCONV 下把字面路径交给原生 curl 写盘失败，活检查误报死（服务实测 HTTP 200）；改 -o NUL（Windows 原生设备，两种转换模式下都不变）。另记：首次 strict 尝试脚本未跑却误 cp 旧 vitals-z.log（30 站）为 vitals-token3.log；后台链跑完后已用新 2 站 PASS 日志覆盖，尺寸与 mtime 核对（2332B、22:20:41/42），旧副本不作本轮证据。
+- 收口证据：npm run check rc=0（check-token.log），ui-discipline 违规 0 处 0 类；仅存量 eslint warning（app/archive/page.tsx:55 yearIdx，warning 级非失败）。
+- CRLF 归一（本轮）：app/globals.css、app/page.tsx、SPEC_LEDGER.md。

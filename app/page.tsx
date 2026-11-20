@@ -11,7 +11,7 @@ import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 /**
  * 首页 · A 方向「巨字工程出版」。
  *
- * hero 是巨字信条 + 作者原话简介（ABOUT.bio），巨字背后叠一层灰度比赛照片（装饰层，不计图版），
+ * hero 是巨字信条 + 作者原话简介（ABOUT.bio），整块信条背景叠一层彩色比赛照片（装饰层，不计图版，分区 scrim 保小字对比），
  * 右栏对位最新与教程入口，并以一块夜城横 banner 图版收住右栏；
  * 往下四个编号区块：01 最新文章（规则线行）/ 02 交互教程（DAY 计数 + 验收章母题）/
  * 03 系列栏目（真实计数巨字）/ 04 反转黑带（关注方向 × 订阅）。
@@ -54,7 +54,7 @@ export default function HomePage() {
         <div className="hero-grid">
           <div className="hero-main">
             <p className="hero-eyebrow">{SITE.title} — {ABOUT.title}</p>
-            <h1 className="hero-h1">
+            <div className="hero-creed">
               <img
                 className="hero-photo"
                 src={basePathUrl('/fig/shi-yuqi.webp')}
@@ -64,13 +64,15 @@ export default function HomePage() {
                 height={1331}
                 decoding="async"
               />
-              <span className="ln"><span>问题不大，</span></span>
-              <span className="ln"><span>我们再来<i className="dot">！</i></span></span>
-            </h1>
-            <p className="hero-bio">{ABOUT.bio}</p>
-            <p className="hero-attr">
-              —— 作者自述 · <Link href="/about" className="no-underline" style={{ color: 'inherit' }}>ABOUT</Link>
-            </p>
+              <h1 className="hero-h1">
+                <span className="ln"><span>问题不大，</span></span>
+                <span className="ln"><span>我们再来<i className="dot">！</i></span></span>
+              </h1>
+              <p className="hero-bio">{ABOUT.bio}</p>
+              <p className="hero-attr">
+                —— 作者自述 · <Link href="/about" className="no-underline" style={{ color: 'inherit' }}>ABOUT</Link>
+              </p>
+            </div>
           </div>
 
           <aside className="hero-side" aria-label="最新与入口">
