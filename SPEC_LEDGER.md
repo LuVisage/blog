@@ -2803,3 +2803,15 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 证据：build rc=0（build-hero.log）；六闸 rc=0 整组 0 FAIL（gate-*-hero.log）：ZM 眉题 y=163、ABOUT 行 y=608、01 首行 top=731、900px 首屏完整 1 行 / 起 2 行，与批 72–74 同值。vitals 独跑 VITALS_ONLY='/' rc=0 PASS：2 站 CLS 0.0000（0 条）、最慢交互 16ms（闸 200）、字体 0/20 系统栈（vitals-hero.log）。
 - 目检三张：shots-fig/home-hero-light.png / home-hero-dark.png / home-hero-390.png（--wait=2500 等 riseIn 落定）：明/暗两模式巨字两行成立、红「！」在位（暗色取暗嗓 accent）、390 无横溢、右栏 LATEST / LEARN / 夜城图版与 01 区块对位不变。
 - CRLF 归一：app/page.tsx、SPEC_LEDGER.md。
+
+## 11.61 删「我相信」+ 黑带 footer 间白道归零 + 巨字背后石宇奇照片层（批次 76）
+
+- 作者原话三件：「把"我相信"这三个字去掉」「修复截图中的白道」「在"问题不大，我们再来！"大字背后加上石宇奇图片（要高清帅气无水印的）」。
+- 白道成因：黑带出血伪元素只铺自身 section，主容器 py-12/16/20 的底 padding 在黑带与 footer 之间露一条纸色横带（亮色 80px @lg）。修法：.darkband margin-bottom -3rem / -4rem(@640) / -5rem(@1024)，三档与 layout.tsx 主容器 padding 同步，黑带底边沉到 main 底边；出血与内容网格不动。实测页底几何 gapBefore/gapAfter 均 0（明/暗），sw=cw=1440 无横溢。
+- 删 lede：.hero-lede 规则与 560 断点规则一并删除；.hero-h1 margin-top 8→24 接住眉题节奏。hero 高度由右栏撑住 → ZM 首行 top=731 与「完整 1 起 2」不变，自述行 y 608→572（报告值，非断言）。
+- 照片源：搜狐体育图集（新华社稿）2026 马来西亚公开赛正手抽球瞬间，5400×3593 无水印（q9.itc.cn/q_70/images03/20260109/b549e56daf7646d58e0f8a7bec71923a.jpeg）；备选世锦赛夺冠坐像同集。Commons 分类页本机 fetch 失败、无清晰许可源可得 → 用新闻图并如实记来源；许可未明、个人博客装饰用途，列为遗留。sharp 为既有依赖（非新增）转 webp 2000×1331 q80 = 199KB → public/fig/shi-yuqi.webp。
+- 首版两缺陷（目检抓出，如实记）：① 绝对定位替换元素忽略 bottom 约束，图层按 intrinsic 比例高溢出 hero 进 01 区块；② 0.18 灰 veil 罩住眉题小字会跌 4.5:1。修法：图层改挂 h1 盒内（字面「大字背后」），width/height 显式 100% + object-fit cover + object-position 50% 26%；.hero-h1 与 .ln 加 position:relative 保证关动效时字仍压照片；眉题/自述/右栏落净纸面，小字对比回基线。
+- 图层参数：grayscale(1) contrast(1.06)；亮 multiply 0.18 / 暗 screen 0.16 + brightness(0.9)（底色只朝纸面/暗面收敛）；radial-gradient 径向淡出收边；pointer-events none + alt="" + aria-hidden；print 隐藏 .hero-photo。
+- 证据：build rc=0（build-shi.log）；六闸 rc=0 整组 0 FAIL（gate-*-shi.log）：ZM 眉题 y=163 / 自述 y=572 / 首行 top=731 / 完整 1 起 2。vitals 独跑 VITALS_ONLY='/' rc=0 PASS：2 站 CLS 0.0000、最慢交互 16ms、字体 0/20（vitals-shi.log）。
+- 目检六张：home-shi-light / dark / 390 / reduced（照片层限 h1 盒、脸部在巨字间、reduced 下字压照片）+ band-shi-light / dark（白道归零、暗色仅留 footer 同款墨线）。
+- CRLF 归一：app/page.tsx、app/globals.css、SPEC_LEDGER.md。

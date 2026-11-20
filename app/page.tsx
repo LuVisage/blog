@@ -11,8 +11,8 @@ import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 /**
  * 首页 · A 方向「巨字工程出版」。
  *
- * hero 是巨字工程信条 + 作者原话简介（ABOUT.bio），右栏对位最新与教程入口，
- * 并以一块夜城横 banner 图版收住右栏（首屏可见的唯一图版，ZM D4 密度契约内）；
+ * hero 是巨字信条 + 作者原话简介（ABOUT.bio），巨字背后叠一层灰度比赛照片（装饰层，不计图版），
+ * 右栏对位最新与教程入口，并以一块夜城横 banner 图版收住右栏；
  * 往下四个编号区块：01 最新文章（规则线行）/ 02 交互教程（DAY 计数 + 验收章母题）/
  * 03 系列栏目（真实计数巨字）/ 04 反转黑带（关注方向 × 订阅）。
  * 所有计数、日期、课程进度都从 content/ 与 lib/ 现算，不编造。
@@ -54,8 +54,16 @@ export default function HomePage() {
         <div className="hero-grid">
           <div className="hero-main">
             <p className="hero-eyebrow">{SITE.title} — {ABOUT.title}</p>
-            <p className="hero-lede">我相信</p>
             <h1 className="hero-h1">
+              <img
+                className="hero-photo"
+                src={basePathUrl('/fig/shi-yuqi.webp')}
+                alt=""
+                aria-hidden="true"
+                width={2000}
+                height={1331}
+                decoding="async"
+              />
               <span className="ln"><span>问题不大，</span></span>
               <span className="ln"><span>我们再来<i className="dot">！</i></span></span>
             </h1>
