@@ -5,15 +5,12 @@ interface FigurePlateProps {
   alt: string
   width: number
   height: number
-  fig: string
-  caption: string
-  author: string
-  source: string
   className?: string
 }
 
-/** 装饰插画按印刷图版落位：墨线框 + mono 图注 + 作者与 CC0 出处，宽高写死防 CLS。 */
-export function FigurePlate({ src, alt, width, height, fig, caption, author, source, className }: FigurePlateProps) {
+/** 装饰插画按印刷图版落位：墨线框 + 宽高写死防 CLS。图注解释按作者要求关闭，
+ *  作者与 CC0 出处只留在 SPEC_LEDGER 的寻源记录里（CC0 不强制署名）。 */
+export function FigurePlate({ src, alt, width, height, className }: FigurePlateProps) {
   return (
     <figure className={`plate ${className ?? ''}`}>
       <img
@@ -25,10 +22,6 @@ export function FigurePlate({ src, alt, width, height, fig, caption, author, sou
         decoding="async"
         className="plate-img"
       />
-      <figcaption className="meta plate-cap">
-        FIG. {fig} — {caption} · {author} ·{' '}
-        <a href={source} target="_blank" rel="noopener noreferrer">CC0</a>
-      </figcaption>
     </figure>
   )
 }

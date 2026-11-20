@@ -90,10 +90,6 @@ export default function HomePage() {
               alt="像素画风的夜城横幅：绿色夜空下的厂房屋顶、脚手架与点点窗灯"
               width={1084}
               height={416}
-              fig="01"
-              caption="像素夜城"
-              author="Lazur"
-              source="https://openclipart.org/detail/310447/pixel-city-animated-3"
             />
           </aside>
         </div>
@@ -283,17 +279,6 @@ export default function HomePage() {
             </a>
           </div>
         </div>
-        <FigurePlate
-          className="band-plate"
-          src="/fig/robot-wave.webp"
-          alt="橙色卡通机器人举手打招呼，两只手是钳爪"
-          width={480}
-          height={621}
-          fig="02"
-          caption="打招呼的机器人"
-          author="wildchief"
-          source="https://openclipart.org/detail/327479/orange-cartoon-robot"
-        />
       </section>
     </div>
   )

@@ -215,10 +215,6 @@ export default function AboutPage() {
               alt="像素画风的黄昏山谷：藕紫色天空、奶油色月亮与松林剪影"
               width={600}
               height={353}
-              fig="01"
-              caption="像素黄昏"
-              author="GDJ"
-              source="https://openclipart.org/detail/310202/parallax-mountain-at-dusk-pixel-art"
             />
           </aside>
         </div>

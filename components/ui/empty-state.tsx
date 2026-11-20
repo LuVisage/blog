@@ -62,10 +62,6 @@ export function EmptyState({
         alt="扁平卡通风格的夜晚城市天际线剪影，楼群亮着暖黄与红色窗灯"
         width={1040}
         height={470}
-        fig="00"
-        caption="夜城天际线"
-        author="GDJ"
-        source="https://openclipart.org/detail/310835/generic-skyline-at-night"
       />
     </div>
   )

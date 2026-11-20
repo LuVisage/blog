@@ -43,10 +43,6 @@ export default function NotFound() {
             alt="漫画木刻笔触的浮空城市：云海上林立着复古未来的楼群"
             width={1280}
             height={790}
-            fig="404"
-            caption="云上之城"
-            author="j4p4n"
-            source="https://openclipart.org/detail/328123/sky-city"
           />
         </div>
 

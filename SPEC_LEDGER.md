@@ -2764,3 +2764,13 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 量具教训：shot.mjs --selector 语义是 waitForSelector 而非裁剪——首版黑带截图与首屏整图字节数完全相同暴露此事；改 --eval 自调用表达式 scrollIntoView({block:'center'}) + 内等 900ms（lazy 图解码）再截。--eval 自调用规则同 §11.55。
 - 遗留未动：public/og-default.svg 仍是旧暗渐变视觉（lesson OG 经 lib/lesson-page.ts:41 在用），换视觉需另批批准。
 - CRLF 归一：lib/constants.ts、app/page.tsx、app/about/page.tsx、app/learn/page.tsx、app/globals.css、README.md、public/manifest.webmanifest、SPEC_LEDGER.md。
+
+## 11.57 图注关闭 + 底部非组件图版下线（批次 72）
+
+- 作者原话：「把图片解释关了，再把，底部不是嵌入组件中的图片也删了，例如招手机器人，只保留原版即可」。两动作：① FigurePlate 的 figcaption 全关（FIG. 编号 — 题名 · 作者 · CC0 出处那行解释不再渲染）；② 删两块非共享组件嵌入的页底图版——首页 04 黑带的招手机器人（FIG.02）与 /learn 主栏末的白日城市（FIG.03），两处恢复插图前的原版面。
+- 保留四块图版但均无图注：首页首屏 hero-side 末夜城横 banner（批次 71 为「首页都看不到」而加）、404 云上之城、about 侧栏像素黄昏、EmptyState 夜城天际线（search / bookmarks 等空态共享组件）。FigurePlate props 收为 src/alt/width/height/className；fig/caption/author/source 四 prop、.plate-cap 三条 CSS 与 .band-plate 规则一并删除；墨框 + 宽高写死防 CLS + lazy/async + print 隐藏不变。CC0 不强制署名，作者与出处链只留本台账寻源记录（§11.55 / §11.56）。
+- 产物删除：public/fig/robot-wave.webp、public/fig/city-day.webp（git rm）；city-band / sky-city / pixel-dusk / night-skyline 四件保留。
+- 几何预算：图注移除释放右栏约 33px → 把批次 71 的 hero padding-bottom 收紧（16）归还为 24；side-note 单行与 side-rule 删除保持不还原（还原这两项右栏约 516、超主栏 52 > 预算 39，会破 ZM）。改后 ZM 实测首索引行 top=731（批次 71 为 760、插图前 727、预算上限约 766），900px 首屏完整 1 行 / 起 2 行，契约余量回升。
+- 证据：npm run check rc=0（check-nocap.log；lint 唯一 warning 为 archive 页既有 yearIdx，非本批引入）；build rc=0 · 审计 1164 文件 / 741 文本产物 0 命中（build-nocap.log）。六闸 rc=0 · 整组 0 FAIL（gate-*-nocap.log）：ZM「01 最新文章标题入首屏（首行 top=731）」「900px 首屏完整 1 行 / 起 2 行」。vitals 独跑 VITALS_ONLY='/,/learn/,/about/'（MSYS_NO_PATHCONV=1）：6 视图 CLS 0.0000 · 最慢交互 16ms（闸 200ms）· PASS（vitals-nocap.log）。
+- 目检六张（shots-fig/）：home-nocap-light（首屏右栏横 banner 无图注、新简介与 01 首行未被挤出）、band-nocap-dark（黑带恢复关注方向 + 订阅两栏、无机器人）、404-nocap-light（云上之城无图注）、bookmarks-nocap-light（EmptyState 夜城无图注）、learn-nocap-bottom（主栏止于「进度是怎么存的 / 还有一件事」两栏即接页脚、无白日城市）、about-nocap-plate（滚至侧栏像素黄昏、无图注）。about-nocap-light 与改前 about-bio-light 字节相同系图版在首屏外、首屏截图自然不变，非缺陷；补滚动态截图作实据。
+- CRLF 归一：components/figure-plate.tsx、app/page.tsx、app/learn/page.tsx、app/not-found.tsx、app/about/page.tsx、components/ui/empty-state.tsx、app/globals.css、SPEC_LEDGER.md。

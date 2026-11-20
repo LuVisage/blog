@@ -1746,7 +1746,7 @@ figure[data-rehype-pretty-code-figure]:hover {
 }
 
 /* 巨字 hero：作者原话逐行升起 + 右栏对位。 */
-.hero { padding: var(--space-16) 0 var(--space-16); }
+.hero { padding: var(--space-16) 0 var(--space-24); }
 .hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
@@ -2462,8 +2462,3 @@ figure[data-rehype-pretty-code-figure]:hover {
 /* ── 25. Figure plates：装饰插画按印刷图版落位 ─────────────────────────── */
 .plate { border: 1px solid var(--line-strong); background: var(--surface); }
 .plate-img { display: block; width: 100%; height: auto; }
-.plate-cap { border-top: 1px solid var(--line); padding: 7px 10px; text-align: left; }
-.plate-cap a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
-.plate-cap a:hover { color: var(--accent-text); }
-/* 黑带里的落款图版：居中窄幅，像版权页旁的吉祥物插签。 */
-.band-plate { max-width: 240px; margin: var(--space-64) auto 0; }
