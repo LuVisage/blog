@@ -2704,3 +2704,15 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - focusvis 全量（R2 最终构建，独走）：4 项 PASS 均 0 处；合计 3886 真实焦点站（较 R1 +18，为搜索最近发布新增链接）· 像素复核 124 站 · 浮层重走 30 次 · 4 档视口/主题 × 15 类页面；rc=0（focusvis-r2-full.log）。
 - vitals 独跑（R2 最终构建，静机、无并发浏览器活）：30 站 PASS——最差 CLS 0.0484（闸 0.1）、最慢交互 24ms（闸 200ms）；layout-shift 41 条、带 interactionId 交互 17 次（较 R1 +11，为搜索最近发布链接进入交互步）；网络 off、注入 none、发车前空闲确认开、触顶 0 站（vitals-r2-full.log）。
 - 全闸收口：build / check / contrast / scrollbar / narrow / names / ZL / ZM / focusvis 全量 / vitals 十闸全绿，R2 构建具备提交条件。
+
+### 11.53 改名 · Baron_Zhang → LuVisage（2026-11-20）
+
+- 用户原话：「把我的名字改成LuVisage」。只改身份串，数据与版面契约不动。
+- 唯一真源 lib/constants.ts：SITE.title / SITE.author.name / ABOUT.greeting 三处改 LuVisage；刊头 wordmark、首页眉题、关于问候、文章 byline、页脚版权、metadata / OG / 结构化数据全部读它，一处随动。
+- 刊头 wordmark：旧名以下划线拆段、红下划线为身份锚；新名无下划线，驼峰边界大写字母 V 继承信号红缀字（LU<em>V</em>ISAGE），.wordmark em 亮暗翻色契约不变（ZM D5 复测：亮 rgb(200,34,23) / 暗 rgb(255,107,94)，与本体分离）。
+- 静态资产同步：manifest.webmanifest name/short_name；og-default.svg 文本；og-card.mjs h1 改后重生成 og-default.png（排字刊头，非生成式素材）；README / DESIGN.md 站名同步。台账历史条目保留旧名（档案性质）。
+- feeds / sitemap 走脚本重生成（与 prebuild 同源）：rss.xml / atom.xml / feed.json 的 title/author 随 SITE；sitemap lastmod 按惯例刷 2026-11-20。
+- 探针随 spec 改挂（量具跟规格，非放宽）：ZL/ZM 身份断言由硬编码 'Baron' 改读 SITE.author.name / SITE.title，wordmark 文案断言改 SITE.title.toUpperCase()——单一真源，今后改名不再漂移。首轮探针 FAIL 与崩溃（getComputedStyle(null)）系量具期望旧名 + 缀字 em 被删所致，非站点缺陷；改挂后复跑全绿。
+- 证据：build 审计 1160 通过（build-rename3.log）；npm run check rc=0 · discipline 违规 0（gate-rename2-check.log）；contrast 0 处 · scrollbar PASS · narrow 0 · names 全合格 · ZL 全部通过 · ZM 全部通过，整组 0 FAIL（gate-rename2-browser.log）。
+- 目检：shots-rename/ 首页亮暗（红 V 刊头）、about（你好，我是 LuVisage）、文章 byline（LuVisage）、og-default.png 新卡。
+- CRLF：本轮编辑文件逐次归一（constants / header / manifest / og-svg / README / DESIGN）。

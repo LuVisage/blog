@@ -1,11 +1,11 @@
 ---
-name: Baron_Zhang Blog
+name: LuVisage Blog
 version: 8.0.0
 codename: Grid Editorial
 updated: 2026-11-07
 ---
 
-# Baron_Zhang Blog — Design System（当前 v8 · Grid Editorial）
+# LuVisage Blog — Design System（当前 v8 · Grid Editorial）
 
 > **现行事实源：`app/globals.css` 末尾的「第 7 轮 · 博客编辑层」（配色 / 排版）
 > 与「第 8 轮 · 分栏编排」（布局）。** 两者都后置声明，覆盖 v5 / v6 / v6.1 的全部取值。

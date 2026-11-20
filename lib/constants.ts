@@ -44,12 +44,12 @@ export const THEME_COLORS = {
 } as const
 
 export const SITE = {
-  title: 'Baron_Zhang',
+  title: 'LuVisage',
   description: 'AI 探索者 & Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。',
   url: `${SITE_ORIGIN}${DEPLOY_BASE_PATH}`,
   repo: 'https://github.com/LuVisage/blog',
   author: {
-    name: 'Baron_Zhang',
+    name: 'LuVisage',
     email: EMAIL,
   },
   avatar: '/avatar.jpg',
@@ -204,7 +204,7 @@ export const USES = {
 // ─── About Page Content ──────────────────────────────────
 
 export const ABOUT = {
-  greeting: '你好，我是 Baron_Zhang',
+  greeting: '你好，我是 LuVisage',
   title: 'AI 探索者 & Agent 开发者',
   shortBio: '关注大模型应用、Agent 架构与工程实践，也记录把技术讲清楚的过程。',
   bio: `

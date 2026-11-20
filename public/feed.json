@@ -1,13 +1,13 @@
 {
   "version": "https://jsonfeed.org/version/1.1",
-  "title": "Baron_Zhang",
+  "title": "LuVisage",
   "description": "AI 探索者 & Agent 开发者。分享大模型应用、AI Agent 架构与开发实践。从 LLM 到多 Agent 协作，记录 AI 开发的学习与实战历程。",
   "home_page_url": "https://LuVisage.github.io/blog/",
   "feed_url": "https://LuVisage.github.io/blog/feed.json",
   "language": "zh-CN",
   "authors": [
     {
-      "name": "Baron_Zhang",
+      "name": "LuVisage",
       "url": "https://LuVisage.github.io/blog/"
     }
   ],

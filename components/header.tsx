@@ -10,7 +10,8 @@ import { ThemeToggle } from './theme-toggle'
 // 刊头走 A 方向「巨字工程出版」：wordmark + mono 编号索引 + 下划线检索入口。
 // 当前态下划线由 .idx a[aria-current]::after 的 scaleX 承担（纯 CSS），
 // 不再 JS 测量偏移 —— 少一组 resize/fonts.ready 监听，位移只走 transform。
-const [WM_A, WM_B] = SITE.title.split('_')
+// 名字驼峰边界的大写字母承担信号红缀字（旧名下划线锚位的继承），暗色翻色走 .wordmark em。
+const [WM_A, WM_B] = SITE.title.split(/(?=[A-Z])/)
 
 export function Header() {
   const pathname = usePathname()
@@ -68,7 +69,13 @@ export function Header() {
         <div className="flex items-center justify-between gap-3 sm:gap-6" style={{ height: 'var(--nav-h)' }}>
           <div className="mast-top flex-shrink-0">
             <Link href="/" className="wordmark pressable no-underline" aria-label={SITE.title}>
-              {WM_A.toUpperCase()}<em>_</em>{WM_B.toUpperCase()}
+              {WM_A.toUpperCase()}
+              {WM_B && (
+                <>
+                  <em>{WM_B[0].toUpperCase()}</em>
+                  {WM_B.slice(1).toUpperCase()}
+                </>
+              )}
             </Link>
             <span className="wm-sub hidden xl:inline">
               {ABOUT.title}

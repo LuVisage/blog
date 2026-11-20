@@ -18,7 +18,7 @@
   <circle cx="600" cy="315" r="280" fill="rgba(255,255,255,0.015)"/>
   <!-- Title -->
   <text x="600" y="280" text-anchor="middle" font-family="'Noto Sans SC', sans-serif" font-size="72" font-weight="bold" fill="url(#text)">
-    Baron_Zhang
+    LuVisage
   </text>
   <!-- Subtitle -->
   <text x="600" y="370" text-anchor="middle" font-family="'Noto Sans SC', sans-serif" font-size="28" fill="#888">

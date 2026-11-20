@@ -1,4 +1,4 @@
-# Baron_Zhang Blog
+# LuVisage Blog
 
 这是我的个人技术博客。我是一名 AI 探索者与 Agent 开发者，在这里记录大模型应用、AI Agent 架构与开发实践——从 LLM 到多 Agent 协作，从 Prompt Engineering 到 RAG、微调，还有一路上的学习与实战历程。
 
