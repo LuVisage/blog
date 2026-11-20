@@ -5,12 +5,14 @@ import { getAllPosts, getAllSeries, getPostsBySeries } from '@/lib/posts'
 import { COURSES, COURSE_IDS, getCurriculumStats, getWeeks, getAllLessons, lessonHref, type CourseId } from '@/lib/curriculum'
 import { SITE, ABOUT, SOCIAL_LINKS, EMAIL_OBFUSCATED, basePathUrl } from '@/lib/constants'
 import { EditorialList } from '@/components/editorial-list'
+import { FigurePlate } from '@/components/figure-plate'
 import { ObfuscatedEmailIcon } from '@/components/obfuscated-email'
 
 /**
  * 首页 · A 方向「巨字工程出版」。
  *
- * hero 是作者原话的巨字排印（ABOUT.bio 的核心句），右栏对位最新与教程入口；
+ * hero 是巨字工程信条 + 作者原话简介（ABOUT.bio），右栏对位最新与教程入口，
+ * 并以一块夜城横 banner 图版收住右栏（首屏可见的唯一图版，ZM D4 密度契约内）；
  * 往下四个编号区块：01 最新文章（规则线行）/ 02 交互教程（DAY 计数 + 验收章母题）/
  * 03 系列栏目（真实计数巨字）/ 04 反转黑带（关注方向 × 订阅）。
  * 所有计数、日期、课程进度都从 content/ 与 lib/ 现算，不编造。
@@ -57,9 +59,7 @@ export default function HomePage() {
               <span className="ln"><span>算法要跑通</span></span>
               <span className="ln"><span>工程要验收<i className="dot">。</i></span></span>
             </h1>
-            <p className="hero-bio">
-              {ABOUT.shortBio}跑通是底线，验收是标准；写作是为了把这两件事讲清楚。
-            </p>
+            <p className="hero-bio">{ABOUT.bio}</p>
             <p className="hero-attr">
               —— 作者自述 · <Link href="/about" className="no-underline" style={{ color: 'inherit' }}>ABOUT</Link>
             </p>
@@ -80,14 +80,21 @@ export default function HomePage() {
               <Link href="/posts" className="side-more no-underline">全部 {pad(allPosts.length)} 篇 <span aria-hidden="true">↓</span></Link>
               <span className="seal" aria-hidden="true">跑通</span>
             </div>
-            <div className="side-rule" aria-hidden="true" />
             <div>
               <p className="side-k">LEARN · {pad(COURSE_IDS.length)} 门</p>
-              <p className="side-note">
-                交互教程 · 每一步都给出验收命令。共 {totalLessons} 课次，跟一个 Day 试试。
-              </p>
+              <p className="side-note">每步附验收命令 · 共 {totalLessons} 课次。</p>
               <Link href="/learn" className="side-more no-underline">跟一个 DAY <span aria-hidden="true">↓</span></Link>
             </div>
+            <FigurePlate
+              src="/fig/city-band.webp"
+              alt="像素画风的夜城横幅：绿色夜空下的厂房屋顶、脚手架与点点窗灯"
+              width={1084}
+              height={416}
+              fig="01"
+              caption="像素夜城"
+              author="Lazur"
+              source="https://openclipart.org/detail/310447/pixel-city-animated-3"
+            />
           </aside>
         </div>
       </section>
@@ -276,6 +283,17 @@ export default function HomePage() {
             </a>
           </div>
         </div>
+        <FigurePlate
+          className="band-plate"
+          src="/fig/robot-wave.webp"
+          alt="橙色卡通机器人举手打招呼，两只手是钳爪"
+          width={480}
+          height={621}
+          fig="02"
+          caption="打招呼的机器人"
+          author="wildchief"
+          source="https://openclipart.org/detail/327479/orange-cartoon-robot"
+        />
       </section>
     </div>
   )

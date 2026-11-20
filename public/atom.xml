@@ -2,7 +2,7 @@
 <?xml-stylesheet type="text/xsl" href="https://LuVisage.github.io/blog/rss.xsl"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>LuVisage</title>
-  <subtitle>AI 算法与工程实践笔记。关注 CV、NLP、大模型应用与 Agent 架构，从算法到工程，记录跑通与验收的过程。</subtitle>
+  <subtitle>记录AI领域的探索与工程实践，涵盖CV、NLP、大模型、智能体等方向。从需求拆解、方案选型，到代码实现、测试验收，完整留存实践中的思考与经验。</subtitle>
   <link href="https://LuVisage.github.io/blog/" rel="alternate"/>
   <link href="https://LuVisage.github.io/blog/atom.xml" rel="self"/>
   <id>https://LuVisage.github.io/blog/</id>

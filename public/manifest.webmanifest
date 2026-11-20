@@ -1,7 +1,7 @@
 {
   "name": "LuVisage — AI 算法 · 大模型 · Agent",
   "short_name": "LuVisage",
-  "description": "AI 算法、CV、NLP、大模型应用与 Agent 架构的技术写作与课程体系。",
+  "description": "记录AI领域的探索与工程实践，涵盖CV、NLP、大模型、智能体等方向。从需求拆解、方案选型，到代码实现、测试验收，完整留存实践中的思考与经验。",
   "lang": "zh-CN",
   "start_url": "./",
   "scope": "./",

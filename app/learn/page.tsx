@@ -5,6 +5,7 @@ import { siteUrl } from '@/lib/constants'
 import { COURSES, getCurriculumStats, getReferencePages, getWeeks, lessonHref, type CourseId } from '@/lib/curriculum'
 import { simLessonCount } from '@/lib/sim/registry'
 import { PageMasthead } from '@/components/page-masthead'
+import { FigurePlate } from '@/components/figure-plate'
 import { Ledger, LedgerRow } from '@/components/ledger-row'
 import { CourseProgress } from '@/components/learn/course-progress'
 
@@ -170,6 +171,18 @@ export default function LearnPage() {
               </ul>
             </div>
           </section>
+
+          <FigurePlate
+            className="mt-12 max-w-[560px]"
+            src="/fig/city-day.webp"
+            alt="扁平卡通风格的白日城市：粉彩楼群、黄色高塔与一朵云"
+            width={1280}
+            height={720}
+            fig="03"
+            caption="白日城市"
+            author="GDJ"
+            source="https://openclipart.org/detail/253159/colorful-city-landscape"
+          />
         </div>
 
         {/* 这一页按周排开有 239 行，光靠滚没有方向感；给一条课程跳转栏。

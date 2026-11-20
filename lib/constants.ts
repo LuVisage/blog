@@ -45,7 +45,7 @@ export const THEME_COLORS = {
 
 export const SITE = {
   title: 'LuVisage',
-  description: 'AI 算法与工程实践笔记。关注 CV、NLP、大模型应用与 Agent 架构，从算法到工程，记录跑通与验收的过程。',
+  description: '记录AI领域的探索与工程实践，涵盖CV、NLP、大模型、智能体等方向。从需求拆解、方案选型，到代码实现、测试验收，完整留存实践中的思考与经验。',
   url: `${SITE_ORIGIN}${DEPLOY_BASE_PATH}`,
   repo: 'https://github.com/LuVisage/blog',
   author: {
@@ -207,13 +207,8 @@ export const USES = {
 export const ABOUT = {
   greeting: '你好，我是 LuVisage',
   title: 'AI 算法 · 大模型 · Agent',
-  shortBio: '关注 AI 算法、CV、NLP、大模型应用与 Agent 架构。',
-  bio: `
-我关注 AI 算法与工程实践：计算机视觉、自然语言处理、大模型应用与 Agent 架构。在这个博客里，我分享从算法到工程的实战经验与技术思考，记录把东西跑通、把工程验收的过程。
-
-我相信 **算法要跑通，工程要验收**。跑通是底线，验收是标准；写作是为了把这两件事讲清楚，也希望能帮助到同样在这条路上探索的朋友。
-
-目前主要关注的方向：`,
+  shortBio: '记录AI领域的探索与工程实践，涵盖CV、NLP、大模型、智能体等方向。',
+  bio: '记录AI领域的探索与工程实践，涵盖CV、NLP、大模型、智能体等方向。从需求拆解、方案选型，到代码实现、测试验收，完整留存实践中的思考与经验。',
   focusAreas: [
     { icon: 'brain', title: 'AI 算法', desc: '计算机视觉、自然语言处理与深度学习实践' },
     { icon: 'brain', title: '大模型应用', desc: 'Prompt Engineering、RAG、Fine-tuning' },

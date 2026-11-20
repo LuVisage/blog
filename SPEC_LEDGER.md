@@ -2748,3 +2748,19 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 目检八张（shots-fig/）：404 明暗、about 明暗、search 明暗（初态未变）、bookmarks 明暗（EmptyState 图版）。404 走 /blog/404.html 直求：本地 serve-out.mjs 对未知路径回裸 h1（serve-out.mjs:53-54），量具局限非站点缺陷；生产 GH Pages 未知路径走 404.html。
 - 量具教训两条：① shot.mjs --eval 的包装是 return (expr)，expr 必须自调用（传函数体则返回函数对象、序列化 undefined）；② EmptyState 真实使用面六处（bookmarks / categories / archive / series / post-list / tag-index），search 空房是独立 markup 不走该组件——纠正旧摘要误记，search 无结果房保持原设计不动。
 - CRLF 归一：components/figure-plate.tsx、app/globals.css、app/not-found.tsx、app/about/page.tsx、components/ui/empty-state.tsx、SPEC_LEDGER.md。
+
+## 11.56 简介换作者原话 + 首页首屏图版（批次 70/71）
+
+- 作者原话（唯一真源 lib/constants.ts）：「记录AI领域的探索与工程实践，涵盖CV、NLP、大模型、智能体等方向。从需求拆解、方案选型，到代码实现、测试验收，完整留存实践中的思考与经验。」SITE.description 与 ABOUT.bio 同串；ABOUT.shortBio 取第一句。视图同步：首页 hero-bio 改渲染 {ABOUT.bio}（去掉旧硬编码尾句）、about 自述 P1 改渲染 {ABOUT.bio}（P2 信条段保留原嗓）、README 首段、public/manifest.webmanifest description、verify/og-card.mjs desc 并重生成 public/og-default.png；三个 feed 由 prebuild 重写（rss.xml / atom.xml / feed.json 已带新串）。巨字信条标题（hero h1 / about ptitle）不动。
+- 作者诉求「配图太少了，首页都看不到」→ 新增三块图版，首页首屏可见其一：FIG.01 像素夜城横 banner 落 hero-side 末（首屏右栏）、FIG.02 打招呼的机器人落 04 黑带 dark-grid 之下居中（.band-plate max-width 240 / margin 64 auto 0，版权页插签母题）、FIG.03 白日城市落 /learn 主栏末（粘性跳转栏受 §11.12 行程约束，不碰）。
+- 寻源与许可自核（WebFetch 亲读 schema.org）：310447 pixel city (animated) 3 · Lazur · CC0（remix 链含 j4p4n 310197 等，均站内 CC0）；327479 Orange Cartoon Robot · wildchief · CC0；253159 Colorful City Landscape · GDJ · CC0（页注 from Pixabay，同 c8 记源链）。出处：
+  https://openclipart.org/detail/310447/pixel-city-animated-3
+  https://openclipart.org/detail/327479/orange-cartoon-robot
+  https://openclipart.org/detail/253159/colorful-city-landscape
+- 横 banner 工艺：310447 是 SMIL 动画 SVG，先剥 8 个 animate 标签再栅格化（避免截到动画中间帧）；viewBox 裁为 "0 100 272 104.615"（2.6:1 天际线横带，屋顶轮廓与窗灯完整，裁切预览目检过）。成品：city-band.webp 1084×416 · 14,856B；robot-wave.webp 480×621 · 18,962B；city-day.webp 1280×720 · 15,264B。
+- 首屏几何实测与收紧（ZM D4 契约不放宽）：改前 hero-main 463 / hero-side 372（余高 91），.arow tops 727/860/991 → 第二行 top<900 只容 hero 总增高 <40px。为此三处收紧：side-note 收一行「每步附验收命令 · 共 239 课次。」（信息不丢：验收命令与课次都在，「跟一个 DAY」入口本就在 side-more）、删 side-rule 元素与其两条 CSS（含 1100 断点隐藏规则）、hero padding-bottom 24→16。改后 ZM 实测首索引行 top=760、900px 首屏完整 1 行 / 起 2 行，契约保住。1100 断点 hero-side 转横排 flex 且原选择器只认 div → 补 .hero-side > .plate { flex: 1 1 100%; } 让图版整行落位。
+- 证据：npm run check rc=0；build rc=0 · 审计 741 个文本产物 0 命中（build-biofig.log）。六闸 rc=0 · 整组 0 FAIL（gate-*-biofig.log）：contrast 压图片 0；ZM 密度如上。vitals 独跑 VITALS_ONLY='/,/learn/,/about/'（MSYS_NO_PATHCONV=1）：6 视图 CLS 0.0000 · 最慢交互 24ms（闸 200ms）· PASS（vitals-biofig.log）。
+- 目检七张（shots-fig/）：home-bio-light / home-bio-dark（首屏右栏 FIG.01 可见、新简介两行、01 区块与首行未被挤出）、band-bio-light / band-bio-dark（黑带机器人插签，暗色保持 mounted-print）、learn-plate-bio（FIG.03 主栏末）、home-bio-390（窄屏简介四行与样张卡正常）、about-bio-light（drop cap 落「记」字、P2 信条段保留）。
+- 量具教训：shot.mjs --selector 语义是 waitForSelector 而非裁剪——首版黑带截图与首屏整图字节数完全相同暴露此事；改 --eval 自调用表达式 scrollIntoView({block:'center'}) + 内等 900ms（lazy 图解码）再截。--eval 自调用规则同 §11.55。
+- 遗留未动：public/og-default.svg 仍是旧暗渐变视觉（lesson OG 经 lib/lesson-page.ts:41 在用），换视觉需另批批准。
+- CRLF 归一：lib/constants.ts、app/page.tsx、app/about/page.tsx、app/learn/page.tsx、app/globals.css、README.md、public/manifest.webmanifest、SPEC_LEDGER.md。

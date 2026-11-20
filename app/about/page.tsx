@@ -70,9 +70,7 @@ export default function AboutPage() {
                 算法要跑通<br />工程要验收<span style={{ color: 'var(--accent-text)' }}>。</span>
               </p>
               <div className="prose" style={{ marginTop: 'var(--space-24)' }}>
-                <p>
-                  我关注 AI 算法与工程实践：计算机视觉、自然语言处理、大模型应用与 Agent 架构。在这个博客里，我分享从算法到工程的实战经验与技术思考，记录把东西跑通、把工程验收的过程。
-                </p>
+                <p>{ABOUT.bio}</p>
                 <p>
                   我相信<strong>算法要跑通，工程要验收</strong>。跑通是底线，验收是标准；写作是为了把这两件事讲清楚，也希望能帮助到同样在这条路上探索的朋友。
                 </p>

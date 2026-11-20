@@ -1746,7 +1746,7 @@ figure[data-rehype-pretty-code-figure]:hover {
 }
 
 /* 巨字 hero：作者原话逐行升起 + 右栏对位。 */
-.hero { padding: var(--space-16) 0 var(--space-24); }
+.hero { padding: var(--space-16) 0 var(--space-16); }
 .hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
@@ -1843,7 +1843,6 @@ figure[data-rehype-pretty-code-figure]:hover {
   transition: color var(--duration-fast) var(--ease);
 }
 .side-more:hover { color: var(--color-primary-hover); }
-.side-rule { height: 1px; background: var(--line); }
 
 /* 样张卡：hero 右栏的最新一文做成一块暖纸样张——红顶规 + 暖面 + 落款印章，
    给整页一个视线锚点（参照 leerob 首页右侧的整块视觉锚）。 */
@@ -2372,7 +2371,7 @@ figure[data-rehype-pretty-code-figure]:hover {
   .hero-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-40); }
   .hero-side { border-left: 0; border-top: 2px solid var(--rule); padding-left: 0; padding-top: var(--space-24); flex-direction: row; flex-wrap: wrap; gap: var(--space-32); }
   .hero-side > div { flex: 1 1 260px; }
-  .side-rule { display: none; }
+  .hero-side > .plate { flex: 1 1 100%; }
   .arow { grid-template-columns: 56px 110px minmax(0, 1fr); }
   .a-tax { grid-column: 3; flex-direction: row; flex-wrap: wrap; gap: 6px 16px; padding-top: var(--space-8); }
   .learn-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-40); }
@@ -2466,3 +2465,5 @@ figure[data-rehype-pretty-code-figure]:hover {
 .plate-cap { border-top: 1px solid var(--line); padding: 7px 10px; text-align: left; }
 .plate-cap a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .plate-cap a:hover { color: var(--accent-text); }
+/* 黑带里的落款图版：居中窄幅，像版权页旁的吉祥物插签。 */
+.band-plate { max-width: 240px; margin: var(--space-64) auto 0; }
