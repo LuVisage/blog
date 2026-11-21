@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { preload } from 'react-dom'
 import { format, parseISO } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { getAllPosts, getAllSeries, getPostsBySeries } from '@/lib/posts'
@@ -35,6 +36,11 @@ const COURSE_KIND: Record<CourseId, string> = {
 }
 const SIDE_COURSES: CourseId[] = ['agent', 'ml', 'devtool', 'csp']
 
+//  creed 背景图是首页 LCP 元素：head 预加载 + 两档 srcset 让弱网只取所需档；202B base64 占位先铺同色 wash，图到前不留空白纸。
+const HERO_PHOTO_SIZES = '(max-width: 1023px) calc(100vw - 32px), (max-width: 1339px) calc(100vw - 410px), 930px'
+const HERO_PHOTO_SRCSET = `${basePathUrl('/fig/shi-yuqi-800.webp')} 800w, ${basePathUrl('/fig/shi-yuqi.webp')} 1200w`
+const HERO_PHOTO_LQIP = 'data:image/webp;base64,UklGRsIAAABXRUJQVlA4ILYAAADwBACdASoYABAAPu1iqU2ppaOiMAgBMB2JbAC1CBFJZi2Nm+2w1RX7pt/FdsEbbgAA/vQiWPIEhCknls754oGAKhLkRL1x1uBJSI/tkUgZkx8PFtq9WI68+P1wr28D9QKnX65TP2kKhlno8Ru4N+agews/BJF6M5LoZc3/whI25h1v5QQqkW3c2gvmtiiE1u0QtI3dazm7t4DQ7oUWOVWza59z+EQ1o8/nl0p4+p4DEiM6YAAAAA=='
+
 const pad = (n: number) => String(n).padStart(2, '0')
 const fmtDate = (d: string) => format(parseISO(d), 'yyyy.MM.dd', { locale: zhCN })
 
@@ -47,6 +53,13 @@ export default function HomePage() {
   const backendWeeks = getWeeks('backend')
   const backendStats = getCurriculumStats('backend')
 
+  preload(basePathUrl('/fig/shi-yuqi.webp'), {
+    as: 'image',
+    imageSrcSet: HERO_PHOTO_SRCSET,
+    imageSizes: HERO_PHOTO_SIZES,
+    fetchPriority: 'high',
+  })
+
   return (
     <div>
       {/* hero：全幅巨字（作者原话）+ 右栏对位（最新 / 去哪） */}
@@ -58,11 +71,15 @@ export default function HomePage() {
               <img
                 className="hero-photo"
                 src={basePathUrl('/fig/shi-yuqi.webp')}
+                srcSet={HERO_PHOTO_SRCSET}
+                sizes={HERO_PHOTO_SIZES}
                 alt=""
                 aria-hidden="true"
-                width={2000}
-                height={1331}
+                width={1200}
+                height={798}
                 decoding="async"
+                fetchPriority="high"
+                style={{ backgroundImage: `url(${HERO_PHOTO_LQIP})`, backgroundSize: 'cover', backgroundPosition: '50% 30%' }}
               />
               <h1 className="hero-h1">
                 <span className="ln"><span>问题不大，</span></span>

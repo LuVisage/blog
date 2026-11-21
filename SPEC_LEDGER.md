@@ -2832,3 +2832,19 @@ aria 与键盘/焦点闭环、storage key 与值形状、时序档位）。
 - 量具修（闸判定标准不动）：strict 脚本 curl -o /dev/null 在 MSYS_NO_PATHCONV 下把字面路径交给原生 curl 写盘失败，活检查误报死（服务实测 HTTP 200）；改 -o NUL（Windows 原生设备，两种转换模式下都不变）。另记：首次 strict 尝试脚本未跑却误 cp 旧 vitals-z.log（30 站）为 vitals-token3.log；后台链跑完后已用新 2 站 PASS 日志覆盖，尺寸与 mtime 核对（2332B、22:20:41/42），旧副本不作本轮证据。
 - 收口证据：npm run check rc=0（check-token.log），ui-discipline 违规 0 处 0 类；仅存量 eslint warning（app/archive/page.tsx:55 yearIdx，warning 级非失败）。
 - CRLF 归一（本轮）：app/globals.css、app/page.tsx、SPEC_LEDGER.md。
+
+## 11.63 hero 照片加载提速（分档 srcset + head preload + 202B 占位）（批次 78）
+
+- 作者原话：「这个图片加载的好慢啊，有没有什么方法让他加载的快一点」。对象＝首页 creed 背景石宇奇照片。
+- 基线先量（新探针 verify/img-load.mjs：CDP 弱网 1.6Mbps 下行 + 150ms 延迟，1440@1 与 390@2 两视图）：该图是首页 LCP 元素（IMG.hero-photo）；两视图都整份下载 2000w 单文件 203,992B、耗时 2964/2949ms，LCP 3176/3156ms（imgload-before.log）。慢因＝单文件过大 + 无分档 + 无预加载，手机陪桌面下载全尺寸。
+- 修法（零新依赖；sharp 既有依赖，从源图 shi-a.jpg 5400×3593 重编码而非 webp 转 webp）：
+  - 分档：public/fig/shi-yuqi.webp 改 1200×798 q60 = 39,596B；新增 shi-yuqi-800.webp 800×532 q60 = 23,046B。blur(2px) + 45%/22% 透明度下 q60 压缩痕不可见（目检证）。
+  - img 加 srcSet 800w/1200w + sizes 三段（<1024 / <1340 / ≥1340）+ fetchPriority high；width/height 改 1200/798 与新 intrinsic 一致。
+  - react-dom preload（as image，带 imageSrcSet/imageSizes/fetchPriority high）SSR 提升进 head（out/index.html grep 证），弱网在 HTML 解析到 img 之前就取正确档。
+  - 占位：24×16 q40 webp = 202B，base64 内联 img style backgroundImage（cover、50% 30%），与元素自身 blur/opacity/blend 同路 → 图到前先铺同色系朦胧 wash，不露空白纸；无 JS 无状态。
+- 复测对比（imgload-after.log，同弱网相位）：桌面 transfer 39,896B（-80.4%）、下载 842ms、responseEnd 1015ms、LCP 1664ms（-47.6%）；手机自动选 800 档 23,346B（-88.6%）、下载 608ms、LCP 1564ms（-50.4%）。每视图只取一次（preload 与 img 的 srcset/sizes 一致，无重复下载）；naturalWidth=930 是 1200 档在 sizes 930px 下的密度校正值，佐证选档逻辑。
+- LCP 剩余地板不在网络侧（如实记）：1.6Mbps 下 preload 先于 HTML 解析到 img 完成（waitForFunction 抓 !complete 窗口超时抓不到），残差来自注水主线程与入场动画；本轮不追，留作后续方向。
+- 占位确定性验证：abort 图片请求单独截 home-img-lqip.png ＝ 同色系朦胧 wash、巨字与自述清晰；早期帧探针在 1.6Mbps 抓不到占位窗口因 preload 太快（是优点不是缺陷，如实记）。
+- 验证：build rc=0（build-img.log）；六闸 rc=0（gate-*-img.log）；npm run check rc=0 违规 0（check-img.log）；目检四张 home-img-light / dark / 390 / lqip 与批 77 观感一致。
+- vitals（VITALS_ONLY='/' 独跑）：首跑严静窗（quiet-vitals-strict.sh，load≤4 连 6 样、150 样约 8min）未命中——当时机器 load=10、ms-playwright chrome=0（无孤儿），vitals 未发车（strict-img.log，如实记）；改跑既定轻静窗（quiet-vitals.sh，load≤8 连 3 样）命中发车：PASS 2 站，最差 CLS 0.0000（闸 0.1）、最慢交互 16ms（闸 200ms；主题切换 pointerdown = 延迟 2 + 处理 1 + 呈现 14），交互腿 1 次非空腿（vitals-img.log / quiet-img.log）。vitals-z.log 仅在 grep QUIET WINDOW 命中后复制为 vitals-img.log（防陈旧证据）。
+- CRLF 归一：app/page.tsx、SPEC_LEDGER.md。
