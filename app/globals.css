@@ -80,10 +80,15 @@
   /* 反转深面上红方块的悬停 wash（亮暗同值）。 */
   --feed-hover-bg: rgba(255, 107, 94, 0.1);
 
-  /* 层级由线与留白表达：无投影、无玻璃。 */
-  --shadow-card: none;
-  --shadow-card-hover: none;
-  --shadow-pop: none;
+  /* 阴影替边框：亮色用同色 1px inset 投影承接原来的发丝线，视觉零位移；
+     暗色块把这个令牌换成柔光投影，再叠一条淡发丝线（见 .dark 区块）。 */
+  --shadow-hairline: inset 0 0 0 1px var(--line);
+  --shadow-hairline-strong: inset 0 0 0 1px var(--line-strong);
+  --shadow-rule: inset 0 0 0 1px var(--rule);
+  --shadow-accent: inset 0 0 0 1px var(--color-primary);
+  --shadow-card: var(--shadow-hairline);
+  --shadow-card-hover: var(--shadow-hairline-strong);
+  --shadow-pop: var(--shadow-hairline-strong);
   --glass-blur: none;
   --glass-line: var(--line);
   --skeleton-sweep: linear-gradient(90deg, transparent, #e6e2d8, transparent);
@@ -142,14 +147,16 @@
   --space-128: 128px;
   --space-160: 160px;
 
-  /* 方角工程出版：控件与面层一律直角，圆只留给头像。 */
-  --radius-xs: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
+  /* 同心圆角：外框 12 → 内块 8 → 控件 4 → 微件 2，每层差值正好等于常见内边距，
+     嵌套时内圈圆心与外圈同心、间距目视一致；圆与药丸保持原语义。 */
+  --radius-2xs: 2px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
   --radius-pill: 9999px;
   --radius-full: 50%;
 
@@ -158,6 +165,8 @@
   --duration-fast: 200ms;
   --duration-base: 300ms;
   --duration-slow: 400ms;
+  /* 错开入场：步进取 --duration-fast 的 1/5（40ms），整窗仍落在 400ms 档内。 */
+  --stagger-step: calc(var(--duration-fast) / 5);
 
   --container-max: 1400px;
   --measure: 42em;
@@ -185,7 +194,7 @@
   --pagefind-ui-background: var(--surface);
   --pagefind-ui-border: var(--line);
   --pagefind-ui-border-width: 1px;
-  --pagefind-ui-border-radius: 0px;
+  --pagefind-ui-border-radius: var(--radius-sm);
   --pagefind-ui-font: inherit;
 
   /* 阅读进度：A 是实心信号红，不渐变。 */
@@ -215,56 +224,87 @@
   --hero-creed-scrim-narrow: linear-gradient(180deg, color-mix(in srgb, var(--canvas) 42%, transparent) 0%, color-mix(in srgb, var(--canvas) 42%, transparent) 40%, color-mix(in srgb, var(--canvas) 88%, transparent) 46%, color-mix(in srgb, var(--canvas) 93%, transparent) 100%);
 }
 
-/* ── 暗色 ───────────────────────────────────────────────────────────────── */
+/* ── 暗色：独立设计，不是浅色反相 ───────────────────────────────────────
+   冷灰近黑画布 #121418 → 面 #1B1E24 → 抬升面 #252931，靠明度而非纯黑分层；
+   文字柔化为灰白 #E6E8EC（画布上 15.0:1），次要文字 8–10:1，全部高于 AA；
+   信号红换成低饱和的浅珊瑚 #F0A095（三层面上 7.1–8.9:1），语义色同理降饱和。
+   所有暗色只在本块定义；:root 的亮色值一字未动。 */
 .dark {
   color-scheme: dark;
 
-  --color-canvas: #121212;
-  --color-surface: #1a1a19;
-  --color-surface-raised: #242220;
-  --color-surface-2: #242220;
-  --color-surface-3: #2c2a27;
-  --color-text-primary: #f4f3ef;
-  --color-text-prose: #e8e7e2;
-  --color-text-secondary: #a3a39f;
-  --color-text-muted: #8f8f8b;
-  --color-text-faint: #8f8f8b;
-  --color-text-inverse: #121212;
-  --color-border-subtle: #3a3a38;
-  --color-border-default: #6e6e6a;
-  --color-border-strong: #f4f3ef;
-  --color-primary: #ff6b5e;
-  --color-primary-hover: #ff8a7e;
-  --color-primary-subtle: rgba(255, 107, 94, 0.12);
-  --color-focus-ring: rgba(255, 107, 94, 0.55);
-  --color-overlay: #1a1a19;
-  --color-scrim: rgba(0, 0, 0, 0.6);
-  --line-faint: rgba(244, 243, 239, 0.08);
-  --rule: #f4f3ef;
-  /* 暗色强调抬到浅信号红：#ff6b5e 压 #121212 约 5.9:1，够 AA。 */
+  --color-canvas: #121418;
+  --color-surface: #1B1E24;
+  --color-surface-raised: #252931;
+  --color-surface-2: #252931;
+  --color-surface-3: #2F343E;
+  --color-text-primary: #E6E8EC;
+  --color-text-prose: #DADEE5;
+  --color-text-secondary: #B7BDC8;
+  --color-text-muted: #A8AEB9;
+  --color-text-faint: #9BA2AE;
+  --color-text-inverse: #121418;
+  --color-border-subtle: #2E333D;
+  --color-border-default: #454C59;
+  --color-border-strong: #DADEE5;
+  --color-primary: #F0A095;
+  --color-primary-hover: #F5B3AA;
+  --color-primary-subtle: rgba(240, 160, 149, 0.12);
+  --color-success: #86D9A8;
+  --color-warning: #E8C07A;
+  --color-danger: #F2A1A1;
+  --color-focus-ring: rgba(240, 160, 149, 0.55);
+  --color-overlay: #1B1E24;
+  --color-scrim: rgba(7, 9, 14, 0.62);
+  --line-faint: rgba(230, 232, 236, 0.08);
+  --rule: #DADEE5;
   --accent-text: var(--color-primary);
-  --accent-line: rgba(255, 107, 94, 0.4);
-  --heat-0: rgba(255, 107, 94, 0.12);
-  --heat-1: rgba(255, 107, 94, 0.38);
-  --heat-2: rgba(255, 107, 94, 0.72);
-  --glass-line: #3a3a38;
-  --skeleton-sweep: linear-gradient(90deg, transparent, #2c2a27, transparent);
-  --footer-bg: #0c0c0c;
-  --footer-ink: #f4f3ef;
-  --footer-muted: #a3a39f;
-  --footer-line: #3a3a38;
-  --footer-chip-line: #3a3a38;
-  --footer-chip-hover: rgba(255, 255, 255, 0.06);
-  --demo-bg: #0c0c0c;
-  --demo-ink: #f4f3ef;
-  --demo-muted: #a3a39f;
-  --demo-line: #3a3a38;
-  --demo-chip: rgba(255, 255, 255, 0.06);
-  --demo-chip-hover: rgba(255, 255, 255, 0.1);
+  --accent-line: rgba(240, 160, 149, 0.4);
+  --heat-0: rgba(240, 160, 149, 0.12);
+  --heat-1: rgba(240, 160, 149, 0.38);
+  --heat-2: rgba(240, 160, 149, 0.72);
+  --glass-line: #2E333D;
+  --skeleton-sweep: linear-gradient(90deg, transparent, #2F343E, transparent);
+  --footer-bg: #1B1E24;
+  --footer-ink: #E6E8EC;
+  --footer-muted: #B7BDC8;
+  --footer-line: #343A45;
+  --footer-chip-line: #454C59;
+  --footer-chip-hover: rgba(230, 232, 236, 0.06);
+  --demo-bg: #1B1E24;
+  --demo-ink: #E6E8EC;
+  --demo-muted: #A8AEB9;
+  --demo-line: #363C47;
+  --demo-chip: rgba(230, 232, 236, 0.06);
+  --demo-chip-hover: rgba(230, 232, 236, 0.1);
+  --red-lt: #F0A095;
+  --feed-hover-bg: rgba(240, 160, 149, 0.1);
+  --chart-yellow: #E3C46B;
+  --chart-teal: #6FD1C4;
+  --chart-orange: #EFA779;
+  --chart-blue: #8AB4F8;
+
+  /* 投影取代重边框：细线只作定位，深度交给两层柔光。 */
+  --shadow-hairline: inset 0 0 0 1px var(--line-faint);
+  --shadow-hairline-strong: inset 0 0 0 1px var(--line);
+  --shadow-rule: inset 0 0 0 1px var(--line);
+  --shadow-card: 0 2px 8px rgba(6, 8, 13, 0.42), 0 16px 40px rgba(6, 8, 13, 0.28);
+  --shadow-card-hover: 0 4px 12px rgba(6, 8, 13, 0.5), 0 20px 48px rgba(6, 8, 13, 0.32);
+  --shadow-pop: 0 8px 24px rgba(6, 8, 13, 0.55), 0 24px 64px rgba(6, 8, 13, 0.38);
 
   --hero-creed-scrim: linear-gradient(180deg, color-mix(in srgb, var(--canvas) 45%, transparent) 0%, color-mix(in srgb, var(--canvas) 45%, transparent) 70%, color-mix(in srgb, var(--canvas) 86%, transparent) 78%, color-mix(in srgb, var(--canvas) 92%, transparent) 100%);
   --hero-creed-scrim-narrow: linear-gradient(180deg, color-mix(in srgb, var(--canvas) 45%, transparent) 0%, color-mix(in srgb, var(--canvas) 45%, transparent) 40%, color-mix(in srgb, var(--canvas) 86%, transparent) 46%, color-mix(in srgb, var(--canvas) 92%, transparent) 100%);
 }
+
+/* 暗色面层：淡发丝线给轮廓，柔光给层级；两者不互相替代。 */
+.dark :is(.surface, .overlay, .plate, .prose table,
+          .prose img, figure[data-rehype-pretty-code-figure]) {
+  border: 1px solid var(--line-faint);
+}
+.dark .side-card {
+  border: 1px solid var(--line-faint);
+  border-top: 3px solid var(--color-primary);
+}
+.dark .seriesnav { border: 1px solid var(--line-faint); }
 
 /* ── 2. Base ────────────────────────────────────────────────────────────── */
 @layer base {
@@ -430,20 +470,21 @@ html, body { overflow-x: clip; }
 /* ── 4. Materials · 方角发丝线 ──────────────────────────────────────────── */
 .surface {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-lg);
 }
 .surface-hover {
-  transition: border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease);
+  transition: background-color var(--duration-fast) var(--ease);
 }
 .surface-hover:hover {
   background: var(--surface-2);
-  border-color: var(--line-strong);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .overlay {
   background: var(--overlay);
-  border: 1px solid var(--line);
+  box-shadow: var(--shadow-pop);
+  border-radius: var(--radius-lg);
 }
 
 .chip {
@@ -691,6 +732,23 @@ html, body { overflow-x: clip; }
 .prose h2,
 .prose h3 { text-wrap: balance; }
 
+/* 等宽数字：凡会成列出现的日期、编号、计数、课时、统计，一律锁 tabular，
+   翻页或计数更新时数字不左右蹿；标题族仍保留 lining-nums（见 §21）。 */
+:is(.daynum, .snum, .smeta, .course-scale, .week-h, .accept-note,
+    .learn-static, .a-cat, .a-ser, .a-tags, .side-k, .side-meta,
+    .pmeta-row, .post-nav__date, .toc-note, .ser-list .mono,
+    .dark-note, .psub-note, .hintline, .feed small, .ser-count small,
+    .idx a i, .wm-sub, .mast-search kbd, .apple-pagination__ellipsis) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 平衡标题换行：只落在没有可见外框的标题上，避免末行孤字与右端参差。 */
+:is(.heading-2, .heading-3, .section-title, .shead h2, .side-title,
+    .course-name, .ser-name, .dark-h, .bookmarks-row__title,
+    .slash-page h2, .prose h4, .psub-h, .sn-t, .focus b) {
+  text-wrap: balance;
+}
+
 .prose small { font-size: var(--text-sm); line-height: var(--leading-body); color: var(--muted); }
 
 :is(.prose, .lead-md) a {
@@ -747,9 +805,9 @@ html, body { overflow-x: clip; }
 .prose ol > li::marker { color: var(--accent-text); }
 
 .prose img {
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-lg);
   margin: var(--space-32) 0;
-  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
 }
 
 .prose hr {
@@ -774,7 +832,7 @@ html, body { overflow-x: clip; }
   @apply relative overflow-hidden;
   margin: var(--space-24) 0;
   border: 1px solid var(--demo-line);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-lg);
   background: var(--demo-bg);
 }
 
@@ -846,8 +904,8 @@ html, body { overflow-x: clip; }
   border-collapse: collapse;
   font-size: var(--text-sm);
   margin: var(--space-32) 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   display: block;
   overflow-x: auto;
@@ -956,6 +1014,27 @@ img[data-zoomable].is-zoomable:focus-visible {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* 错开入场：CSS-only，条目按 40ms 步进依次升起，整窗 200ms 延迟 + 400ms 动画。
+   backwards 只锁起始态，动画结束后不占用 transform，行悬停位移照常生效。 */
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+:is(ol > .arow, .week ul > .day, .ser-list > li, .focus > li,
+    .feeds > .feed, .ptags > *, .psub-feeds > *) {
+  animation: staggerIn var(--duration-slow) var(--ease-out) backwards;
+}
+:is(ol > .arow, .week ul > .day, .ser-list > li, .focus > li,
+    .feeds > .feed, .ptags > *, .psub-feeds > *):nth-child(2) { animation-delay: var(--stagger-step); }
+:is(ol > .arow, .week ul > .day, .ser-list > li, .focus > li,
+    .feeds > .feed, .ptags > *, .psub-feeds > *):nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+:is(ol > .arow, .week ul > .day, .ser-list > li, .focus > li,
+    .feeds > .feed, .ptags > *, .psub-feeds > *):nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+:is(ol > .arow, .week ul > .day, .ser-list > li, .focus > li,
+    .feeds > .feed, .ptags > *, .psub-feeds > *):nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+:is(ol > .arow, .week ul > .day, .ser-list > li, .focus > li,
+    .feeds > .feed, .ptags > *, .psub-feeds > *):nth-child(n+6) { animation-delay: calc(var(--stagger-step) * 5); }
+
 /* ── 9. Utilities ───────────────────────────────────────────────────────── */
 /* 站名旁的红方印（A 母题：方勾的实心块）。 */
 .accent-dot {
@@ -970,7 +1049,7 @@ img[data-zoomable].is-zoomable:focus-visible {
   position: relative;
   overflow: hidden;
   display: block;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
 .skeleton-line::after {
@@ -1887,8 +1966,9 @@ figure[data-rehype-pretty-code-figure]:hover {
 .side-card {
   position: relative;
   background: var(--surface-2);
-  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
   border-top: 3px solid var(--color-primary);
+  border-radius: var(--radius-lg);
   padding: var(--space-20);
 }
 /* 印章：母题「跑通」的落款章。竖排两字、微旋 -3deg 像手盖；
@@ -1902,6 +1982,7 @@ figure[data-rehype-pretty-code-figure]:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: var(--radius-md);
   background: var(--color-primary);
   color: var(--on-accent);
   font-family: var(--font-serif);
@@ -1978,13 +2059,15 @@ figure[data-rehype-pretty-code-figure]:hover {
 }
 .arow:last-child { border-bottom: 1px solid var(--line); }
 .arow:hover { background: var(--surface-2); }
+/* 四栏共用同一顶基线：去掉各栏 3/4px 的手调差，标题、日期、编号、分类一起起头。 */
+.arow > * { padding-top: var(--space-4); }
 .a-idx {
   font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 700;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
-  padding-top: 3px;
+  padding-top: var(--space-4);
   transition: color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
 }
 .arow:hover .a-idx { color: var(--accent-text); transform: translateX(4px); }
@@ -1993,7 +2076,7 @@ figure[data-rehype-pretty-code-figure]:hover {
   font-size: 13px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  padding-top: 4px;
+  padding-top: var(--space-4);
 }
 .a-date b { font-weight: 700; color: var(--ink); }
 .a-main { min-width: 0; }
@@ -2035,7 +2118,7 @@ figure[data-rehype-pretty-code-figure]:hover {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.a-tax { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; min-width: 0; }
+.a-tax { display: flex; flex-direction: column; gap: 6px; padding-top: var(--space-4); min-width: 0; }
 .a-cat {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -2237,6 +2320,7 @@ figure[data-rehype-pretty-code-figure]:hover {
   align-items: center;
   gap: var(--space-8);
   border: 1px solid var(--footer-line);
+  border-radius: var(--radius-sm);
   padding: 10px 14px;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -2333,6 +2417,7 @@ figure[data-rehype-pretty-code-figure]:hover {
 .ptags span,
 .ptags a {
   border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -2376,7 +2461,9 @@ figure[data-rehype-pretty-code-figure]:hover {
 .seriesnav {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border: 1px solid var(--rule);
+  box-shadow: var(--shadow-rule);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 .sn-cell { padding: var(--space-20) var(--space-24); min-width: 0; }
 .sn-cell + .sn-cell { border-left: 1px solid var(--line); }
@@ -2392,6 +2479,7 @@ figure[data-rehype-pretty-code-figure]:hover {
 .psub-feeds span,
 .psub-feeds a {
   border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
   padding: 8px 14px;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -2426,6 +2514,11 @@ figure[data-rehype-pretty-code-figure]:hover {
   color: var(--muted);
 }
 .hintline b { color: var(--ink); letter-spacing: 0.06em; }
+
+/* 宽屏侧栏对齐：样张卡向外吃掉自身内边距，卡内文字回到其他入口的文字轴上。 */
+@media (min-width: 1101px) {
+  .side-card { margin-inline: calc(-1 * var(--space-20)); }
+}
 
 /* A 断点：1100 收右栏，860 单栏，560 紧凑。 */
 @media (max-width: 1100px) {
@@ -2483,7 +2576,9 @@ figure[data-rehype-pretty-code-figure]:hover {
   .chapter-panel,
   .tick-pop,
   .tick-note,
-  .hero-h1 .ln > span {
+  .hero-h1 .ln > span,
+  ol > .arow, .week ul > .day, .ser-list > li, .focus > li,
+  .feeds > .feed, .ptags > *, .psub-feeds > * {
     animation: none !important;
   }
   html { scroll-behavior: auto; }
@@ -2513,6 +2608,8 @@ figure[data-rehype-pretty-code-figure]:hover {
   .toc, .index-rail, .back-to-top, .btn-primary, .btn-secondary, .btn-ghost,
   .apple-filters, .apple-pagination, .reading-progress, .heading-anchor,
   .darkband, .hero-side, .plate, .hero-photo, .hero-creed::after, [data-js-only] { display: none !important; }
+  ol > .arow, .week ul > .day, .ser-list > li, .focus > li,
+  .feeds > .feed, .ptags > *, .psub-feeds > * { animation: none !important; }
   #main-content { max-width: none !important; padding: 0 !important; }
   .pwrap { display: block !important; }
   .slash-page, .prose { max-width: none; }
@@ -2520,5 +2617,10 @@ figure[data-rehype-pretty-code-figure]:hover {
 }
 
 /* ── 25. Figure plates：装饰插画按印刷图版落位 ─────────────────────────── */
-.plate { border: 1px solid var(--line-strong); background: var(--surface); }
+.plate {
+  box-shadow: var(--shadow-card-hover);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
 .plate-img { display: block; width: 100%; height: auto; }

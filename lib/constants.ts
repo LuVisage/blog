@@ -40,7 +40,7 @@ const EMAIL = atob(EMAIL_B64)
  *  取值跟第 7 轮编辑层的画布走（globals.css 后置 :root / .dark 的 --color-canvas）。 */
 export const THEME_COLORS = {
   light: '#ffffff',
-  dark: '#141311',
+  dark: '#121418',
 } as const
 
 export const SITE = {
